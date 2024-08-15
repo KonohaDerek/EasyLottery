@@ -18,10 +18,10 @@ namespace EasyLotteryDomainTests.Services
                 .AddInMemoryCollection(myConfiguration!)
                 .Build();
       
-            // var svc = new YouTubeServiceHelper(configuration,"YoutubeDemo", "./Cred");
-            // var members = await svc.ListChannelMembersAsync();
+            var svc = new YouTubeServiceHelper(configuration,"YoutubeDemo", "./Cred");
+            var members = await svc.ListChannelMembersAsync();
 
-            // Assert.IsNotNull(members);
+            Assert.IsNotNull(members);
         }
     }
 }
