@@ -119,7 +119,6 @@
     {
       try
         {
-
              var initializer = new GoogleAuthorizationCodeFlow.Initializer
             {
                 ClientSecrets = new ClientSecrets
@@ -130,13 +129,14 @@
             };
 
             var flow = new GoogleAuthorizationCodeFlow(initializer);
-
-            var youtubeService = new YouTubeService(new BaseClientService.Initializer
-            {
-                HttpClientInitializer = new UserCredential(flow, 
+            var userCredential = new UserCredential(flow, 
                     "user", 
                     new TokenResponse { AccessToken = accessToken, RefreshToken = refreshToken }
-                ),
+                );
+        
+            var youtubeService = new YouTubeService(new BaseClientService.Initializer
+            {
+                HttpClientInitializer = userCredential,
                 ApplicationName = "YourAppName"
             });
 
@@ -144,6 +144,8 @@
 
             var response = await request.ExecuteAsync();
             members = response.Items.ToList();   
+            accessToken = userCredential.Token.AccessToken;
+            refreshToken = userCredential.Token.RefreshToken;
         }
         catch (Exception ex)
         {
