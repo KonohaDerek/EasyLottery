@@ -10,8 +10,17 @@
 @inject NavigationManager NavigationManager
 @inject IConfiguration Configuration
 
-<PageTitle>Home</PageTitle>
-<button @onclick="Authorize">授權</button>
+<PageTitle>抽獎</PageTitle>
+<table>
+     <thead>
+        <tr>
+            @if(clientId!="") {
+                 <th><button @onclick="Authorize">YT授權</button></th>
+            }
+            <th><button @onclick="LoadDrawPrize">匯入YT會員名單</button></th>
+        </tr>
+    </thead>
+</table>
 
 @if (!string.IsNullOrEmpty(accessToken))
 {
@@ -52,6 +61,72 @@
         </ul>
     }
 }
+
+<div>
+    <label>獎項名稱</label> 
+    <input type="text" @bind="Prize" />
+    <button @onclick="AddPrize">新增獎項</button>
+</div>
+<div>
+    
+    @if (Participants.Any())
+    {
+        <div>
+            <label>設定倍率</label>
+            @foreach (var entry in levelRate)
+            {
+                <div>
+                    <input type="text" value="@entry.Key" disabled />
+                    <input type="number" @bind="levelRate[entry.Key]" min="1" />
+                </div>
+            }
+            <button @onclick="LoadDrawPrize">確認</button>
+        </div>
+    }
+</div>
+
+<button @onclick="OnDrawPrize">抽獎</button>
+<table> 
+    <thead>
+        <tr>
+            <th>獎項</th>
+            <th>參加者</th>
+            <th>得獎名單</th>
+        </tr>
+    </thead>
+    <tbody>
+            <tr>
+                <td>
+                    <ul>
+                        @foreach (var prize in Prizes)
+                        {
+                            <li>@prize</li>
+                        }
+                    </ul>
+                </td>
+                <td>
+                    
+                    <ul>
+                        @foreach (var participant in Participants)
+                        {
+                            <li style="@(Winners.Any(x=>x.Member.Name == participant.Name) ? "color: gray;" : "color: black;")">(@participant.Level)@participant.Name</li>
+                        }
+                    </ul>
+                </td>
+                <td>
+                    @if (Winners.Any())
+                    {
+                        <ul>
+                            @foreach (var winner in Winners)
+                            {
+                                <li>恭喜(@winner.Member.Level)@winner.Member.Name 獲得了 @winner.Prize </li>
+                            }
+                        </ul>
+                    }
+                </td>
+            </tr>
+    </tbody>
+</table>
 
 @code {
 
@@ -242,5 +317,95 @@
         {
             Console.WriteLine("Error retrieving channel info: " + ex.Message);
         }
+    }
+
+    public record YoutubeMemberInfo
+    {
+        public string Name { get; init; }
+        public string Level { get; init; }
+    }
+
+    public record Participant
+    {
+        public string Name { get; init; }
+
+          public string Level { get; init; }
+
+        public bool IsWinner { get; set; }
+    }
+
+    public record Winner
+    {
+        public Participant Member { get; init; }  
+
+        public string Prize { get; init; }
+
+    }
+
+    private string Prize { get; set; }
+    // 獎項
+    private List<string> Prizes {get;set;} = new();
+    
+    // 參加者
+    private List<Participant> Participants {get;set;} = new();
+    
+    // 得獎名單
+    private List<Winner> Winners {get;set;} = new();
+
+    // 會員等級對應倍率
+    private Dictionary<string, int> levelRate = new Dictionary<string, int>(); 
+
+    private void LoadDrawPrize()
+    {
+         // 載入會員資料
+        // 會員名稱 | 會員等級 
+        var tempMembers = new List<YoutubeMemberInfo>
+        {
+            new YoutubeMemberInfo { Name = "John", Level = "初階" },
+            new YoutubeMemberInfo { Name = "Mary", Level = "中階" },
+            new YoutubeMemberInfo { Name = "Tom", Level = "高階" },
+            new YoutubeMemberInfo { Name = "Jerry", Level = "尊爵" },
+        };
+        // 處理會員等級對應
+        // 會員等級 ｜ 倍率
+        foreach (var level in tempMembers.Select(x => x.Level).Distinct())
+        {
+            if (!levelRate.ContainsKey(level))
+            {
+                levelRate.Add(level, 1);
+            }
+        }
+
+        // 載入參加者
+        // Participants 資料為各會員資料＊會員等級的倍率 ＝ 總參加者
+        // 使用Linq
+        Participants = tempMembers.SelectMany(x => Enumerable.Repeat(new Participant { Name = x.Name, Level= x.Level, IsWinner = false }, (int)levelRate[x.Level])).ToList();
+    }
+
+    private void OnDrawPrize()
+    {
+        if (Prizes.Any() && Participants.Any())
+        {
+           
+            // 打亂順序並取得第一個
+            var winner = Participants.Where(o=>o.IsWinner == false).OrderBy(o => Guid.NewGuid()).FirstOrDefault();
+            if (winner == null)
+            {
+                // 跳出訊息表示已經抽完
+                return;
+            }
+            winner.IsWinner = true;
+            // 將獲勝者添加到得獎名單
+            Winners.Add(new Winner { Member = winner, Prize = $"{Prizes.First().ToString()}"});
+            // 移除已經抽過的獎項
+            Prizes.RemoveAt(0);
+        }
+
+
+    }
+
+    private void AddPrize()
+    {
+        Prizes.Add(Prize);
     }
 }
