@@ -7,17 +7,31 @@
 @using Google.Apis.Util.Store
 @using Google.Apis.YouTube.v3
 @using System.Web
+@using MiniExcelLibs
+@using MiniExcelLibs.Attributes
+
 @inject NavigationManager NavigationManager
-@inject IConfiguration Configuration
+@* @inject IConfiguration Configuration *@
 
 <PageTitle>抽獎</PageTitle>
 <table>
      <thead>
         <tr>
             @if(clientId!="") {
-                 <th><button @onclick="Authorize">YT授權</button></th>
+                 <th>
+                     <Button Color="Color.Primary" @onclick="Authorize">YT授權</Button></th>
             }
-            <th><button @onclick="LoadDrawPrize">匯入YT會員名單</button></th>
+            @* <th> <Button Color="Color.Primary" @onclick="LoadDrawPrize">匯入YT會員名單</Button></th> *@
+            <th>
+                 <Field Horizontal>
+                <FieldLabel ColumnSize="ColumnSize.Is6">
+                    匯入YT會員名單
+                </FieldLabel>
+                <FieldBody ColumnSize="ColumnSize.Is8">
+                    <FileEdit  Changed="@OnChanged" AutoReset="false" Filter=".csv" />
+                </FieldBody>
+                </Field>
+            </th>
         </tr>
     </thead>
 </table>
@@ -62,49 +76,77 @@
     }
 }
 
-<div>
-    <label>獎項名稱</label> 
-    <input type="text" @bind="Prize" />
-    <button @onclick="AddPrize">新增獎項</button>
-</div>
-<div>
-    
-    @if (Participants.Any())
-    {
-        <div>
-            <label>設定倍率</label>
-            @foreach (var entry in levelRate)
-            {
-                <div>
-                    <input type="text" value="@entry.Key" disabled />
-                    <input type="number" @bind="levelRate[entry.Key]" min="1" />
-                </div>
-            }
-            <button @onclick="LoadDrawPrize">確認</button>
-        </div>
-    }
-</div>
 
-<button @onclick="OnDrawPrize">抽獎</button>
-<table> 
-    <thead>
-        <tr>
-            <th>獎項</th>
-            <th>參加者</th>
-            <th>得獎名單</th>
-        </tr>
-    </thead>
-    <tbody>
-            <tr>
-                <td>
+<Divider />
+
+<Card>
+    <CardBody>
+        <CardText>
+            <Field Horizontal>
+                <FieldLabel ColumnSize="ColumnSize.Is2">
+                    獎項名稱
+                </FieldLabel>
+                <FieldBody ColumnSize="ColumnSize.Is2">
+                    <TextEdit @bind-Text="@Prize" Placeholder="請輸入獎項名稱" ></TextEdit>
+                </FieldBody>
+                 <FieldBody ColumnSize="ColumnSize.Is2">
+                     <Button Color="Color.Primary" @onclick="AddPrize">新增獎項</Button>
+                </FieldBody>
+            </Field>
+        </CardText>
+    </CardBody>
+</Card>
+
+
+<Divider />
+
+@if (Participants.Any())
+{
+    <Card>
+        <CardBody>
+            <CardTitle>
+                <h2>設定中獎倍率</h2>
+            </CardTitle>
+            <CardText>
+                    <div>
+                        @foreach (var entry in levelRate)
+                        {
+                            <div>
+                                <input type="text" value="@entry.Key" disabled />
+                                <input type="number" @bind="levelRate[entry.Key]" min="1" />
+                            </div>
+                        }
+                    </div>
+            </CardText>
+        </CardBody>
+        <CardFooter>
+            <Button Color="Color.Primary" @onclick="LoadDrawPrize">確認設定倍率</Button>
+        </CardFooter>
+    </Card>
+
+    <Divider />
+ }  
+
+<Button Size="Size.Small" Color="Color.Primary" Clicked="@OnDrawPrize">抽獎</Button>
+<Table FullWidth Striped Hoverable Bordered Responsive>
+    <TableHeader>
+        <TableRow>
+            <TableHeaderCell>獎項</TableHeaderCell>
+            <TableHeaderCell>參加者</TableHeaderCell>
+            <TableHeaderCell>得獎名單</TableHeaderCell>
+        </TableRow>
+    </TableHeader>
+    <TableBody>
+        <TableRow>
+                <TableRowCell>
                     <ul>
                         @foreach (var prize in Prizes)
                         {
                             <li>@prize</li>
                         }
                     </ul>
-                </td>
-                <td>
+                </TableRowCell>
+                <TableRowCell>
                     
                     <ul>
                         @foreach (var participant in Participants)
@@ -112,21 +154,21 @@
                             <li style="@(Winners.Any(x=>x.Member.Name == participant.Name) ? "color: gray;" : "color: black;")">(@participant.Level)@participant.Name</li>
                         }
                     </ul>
-                </td>
-                <td>
+                </TableRowCell>
+                <TableRowCell>
                     @if (Winners.Any())
                     {
                         <ul>
                             @foreach (var winner in Winners)
                             {
-                                <li>恭喜(@winner.Member.Level)@winner.Member.Name 獲得了 @winner.Prize </li>
+                                <li>恭喜 <span style="color:red;">(@winner.Member.Level)@winner.Member.Name</span> 獲得了 <span style="color:red;">@winner.Prize </span> </li>
                             }
                         </ul>
                     }
-                </td>
-            </tr>
-    </tbody>
-</table>
+                </TableRowCell>
+            </TableRow>
+    </TableBody>
+</Table>
 
 @code {
 
@@ -152,9 +194,9 @@
     protected override async Task OnInitializedAsync()
     {
         // init value
-        clientId = Configuration.GetSection("YouTubeApi:ClientId").Value!;
+        @* clientId = Configuration.GetSection("YouTubeApi:ClientId").Value!;
         clientSecret = Configuration.GetSection("YouTubeApi:ClientSecret").Value!;
-        redirectUri = Configuration.GetSection("YouTubeApi:RedirectUri").Value!;
+        redirectUri = Configuration.GetSection("YouTubeApi:RedirectUri").Value!; *@
 
         var uri = NavigationManager.ToAbsoluteUri(NavigationManager.Uri);
         var queryParams = HttpUtility.ParseQueryString(uri.Query);
@@ -321,7 +363,13 @@
 
     public record YoutubeMemberInfo
     {
+         [ExcelColumnName("會員")]
         public string Name { get; init; }
+
+         [ExcelColumnName("連結到個人資料")]
+        public string Link { get; init; }
+
+         [ExcelColumnName("目前級別")]
         public string Level { get; init; }
     }
 
@@ -355,20 +403,15 @@
     // 會員等級對應倍率
     private Dictionary<string, int> levelRate = new Dictionary<string, int>(); 
 
+
+    private List<YoutubeMemberInfo> YTMembers = new();
+
     private void LoadDrawPrize()
     {
-         // 載入會員資料
-        // 會員名稱 | 會員等級 
-        var tempMembers = new List<YoutubeMemberInfo>
-        {
-            new YoutubeMemberInfo { Name = "John", Level = "初階" },
-            new YoutubeMemberInfo { Name = "Mary", Level = "中階" },
-            new YoutubeMemberInfo { Name = "Tom", Level = "高階" },
-            new YoutubeMemberInfo { Name = "Jerry", Level = "尊爵" },
-        };
+       
         // 處理會員等級對應
         // 會員等級 ｜ 倍率
-        foreach (var level in tempMembers.Select(x => x.Level).Distinct())
+        foreach (var level in YTMembers.Select(x => x.Level).Distinct())
         {
             if (!levelRate.ContainsKey(level))
             {
@@ -379,7 +422,7 @@
         // 載入參加者
         // Participants 資料為各會員資料＊會員等級的倍率 ＝ 總參加者
         // 使用Linq
-        Participants = tempMembers.SelectMany(x => Enumerable.Repeat(new Participant { Name = x.Name, Level= x.Level, IsWinner = false }, (int)levelRate[x.Level])).ToList();
+        Participants = YTMembers.SelectMany(x => Enumerable.Repeat(new Participant { Name = x.Name, Level= x.Level, IsWinner = false }, (int)levelRate[x.Level])).ToList();
     }
 
     private void OnDrawPrize()
@@ -406,6 +449,47 @@
 
     private void AddPrize()
     {
+        if (string.IsNullOrEmpty(Prize.Trim()))
+        {
+            return;
+        }
+
         Prizes.Add(Prize);
+    }
+
+    async Task OnChanged( FileChangedEventArgs e )
+    {
+        try
+        {
+            Console.WriteLine( "OnChanged" );
+            Console.WriteLine( $"{e.Files.Count()}" );
+           foreach ( var file in e.Files )
+            {
+                // A stream is going to be the destination stream we're writing to.
+                using ( var stream = new MemoryStream() )
+                {
+                    // Here we're telling the FileEdit where to write the upload result
+                    await file.WriteToStreamAsync( stream );
+
+                    // Once we reach this line it means the file is fully uploaded.
+                    // In this case we're going to offset to the beginning of file
+                    // so we can read it.
+                    stream.Seek( 0, SeekOrigin.Begin );
+
+                    var rows = stream.Query<YoutubeMemberInfo>(excelType:ExcelType.CSV).ToList();
+
+                    YTMembers = rows.Select(x => new YoutubeMemberInfo { Name = x.Name, Level = x.Level }).ToList();
+                    LoadDrawPrize();
+                }
+            }
+        }
+        catch ( Exception exc )
+        {
+            Console.WriteLine( exc.Message );
+        }
+        finally
+        {
+            this.StateHasChanged();
+        }
     }
 }
