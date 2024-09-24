@@ -6,6 +6,10 @@ namespace EasyLotteryDomainTests.Services
     [TestClass]
     public class YouTubeServiceHelperTest
     {
+
+        private string apiKey = "AIzaSyBvbITtuVbllyGzGATRLpw7XMdGnA7zOrI";
+
+
         [TestMethod]
         public async Task TestListChannelMembersAsync()
         {
@@ -22,6 +26,42 @@ namespace EasyLotteryDomainTests.Services
             var members = await svc.ListChannelMembersAsync();
 
             Assert.IsNotNull(members);
+        }
+
+        [TestMethod]
+        public void TestGetVideoIdAsync()
+        {
+            var url = "https://www.youtube.com/watch?v=-L9cBf3oAO0";
+
+            var actual = YouTubeServiceHelper.GetYouTubeLiveID(url);
+
+            Assert.AreEqual("-L9cBf3oAO0", actual);
+        }
+
+        [TestMethod]
+        public async Task TestGetYoutubeLiveInfoAsync()
+        {
+            var liveID = "-L9cBf3oAO0";
+            var svc = new YouTubeServiceHelper(new ConfigurationBuilder().Build(), apiKey);
+            var actual = await svc.GetYoutubeLiveInfoAsync(liveID);
+
+            Assert.IsNotNull(actual);
+            Assert.AreEqual("Cg0KCy1MOWNCZjNvQU8wKicKGFVDa0VMTU1CZHk0Z1BqNm9vUXdZSi15ZxILLUw5Y0JmM29BTzA", actual.ActiveLiveChatId);
+
+        }
+
+        [TestMethod]
+        public async Task TestListLiveChatMessageAsync()
+        {
+            var chatID = "Cg0KCy1MOWNCZjNvQU8wKicKGFVDa0VMTU1CZHk0Z1BqNm9vUXdZSi15ZxILLUw5Y0JmM29BTzA";
+
+            var svc = new YouTubeServiceHelper(new ConfigurationBuilder().Build(), apiKey);
+            var actual = await svc.ListLiveChatMessageAsync(chatID);
+
+            Assert.IsNotNull(actual);
+            Assert.IsTrue(actual.Any());
+            
+
         }
     }
 }

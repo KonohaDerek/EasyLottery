@@ -10,8 +10,14 @@
 @using MiniExcelLibs
 @using MiniExcelLibs.Attributes
 @using Serilog
+@using System.Timers
+@using Microsoft.Extensions.Configuration
+
+
 @inject NavigationManager NavigationManager
-@* @inject IConfiguration Configuration *@
+@inject Microsoft.Extensions.Configuration.IConfiguration Configuration
+@inject IMessageService MessageService
+
 
 <PageTitle>抽獎</PageTitle>
 <table>
@@ -76,6 +82,27 @@
         </ul>
     }
 }
+
+<Divider />
+
+<Card>
+    <CardBody>
+        <CardText>
+            <Field Horizontal>
+                <FieldLabel ColumnSize="ColumnSize.Is2">
+                    通關密語
+                </FieldLabel>
+                <FieldBody ColumnSize="ColumnSize.Is2">
+                    <TextEdit @bind-Text="@url" Placeholder="請輸入直播網址" ></TextEdit>
+                    <TextEdit @bind-Text="@keyWorld" Placeholder="請輸入通關密語" ></TextEdit>
+                </FieldBody>
+                 <FieldBody ColumnSize="ColumnSize.Is2">
+                     <Switch TValue="bool" Checked="@catchChat" CheckedChanged="@OnCatchChatChanged">停止擷取</Switch>
+                </FieldBody>
+            </Field>
+        </CardText>
+    </CardBody>
+</Card>
 
 
 <Divider />
@@ -171,6 +198,15 @@
     </TableBody>
 </Table>
 
+<Toaster>
+    <Toast @bind-Visible="@toastVisible">
+        
+        <ToastBody>
+           @toastMessage
+        </ToastBody>
+    </Toast>
+</Toaster>
+
 @code {
 
     private List<Google.Apis.YouTube.v3.Data.Member> members;
@@ -190,21 +226,33 @@
 
     private string refreshToken= "";
 
+    private string url = "";
+
+    private string keyWorld = "";
+    private bool catchChat = false;
+
+    private string toastMessage = "";
+
+    private bool toastVisible = false;
     private YoutubeInfo youtubeInfo = new YoutubeInfo();
+
+    private YouTubeServiceHelper youTubeServiceHelper = null;
 
     protected override async Task OnInitializedAsync()
     {
-        // init value
-        @* clientId = Configuration.GetSection("YouTubeApi:ClientId").Value!;
-        clientSecret = Configuration.GetSection("YouTubeApi:ClientSecret").Value!;
-        redirectUri = Configuration.GetSection("YouTubeApi:RedirectUri").Value!; *@
-
         var uri = NavigationManager.ToAbsoluteUri(NavigationManager.Uri);
         var queryParams = HttpUtility.ParseQueryString(uri.Query);
 
         if (queryParams["code"] != null)
         {
             await ExchangeCodeForTokensAsync(queryParams["code"]!);
+        }
+
+        if(youTubeServiceHelper == null)
+        {
+            var apiKey =  Configuration.GetValue<string>("YouTubeApi:ApiKey");
+            Console.WriteLine("apiKey:" + apiKey);
+            youTubeServiceHelper = new YouTubeServiceHelper(Configuration);
         }
     }
 
@@ -329,7 +377,8 @@
         }
     }
 
-    private async Task GetChannelInfoAsync() {
+    private async Task GetChannelInfoAsync() 
+    {
         try
         {
             // 创建 HttpClient 实例
@@ -374,6 +423,7 @@
         public string Level { get; init; }
     }
 
+    // 得獎人
     public record Participant
     {
         public string Name { get; init; }
@@ -383,6 +433,7 @@
         public bool IsWinner { get; set; }
     }
 
+    // 得獎者
     public record Winner
     {
         public Participant Member { get; init; }  
@@ -391,6 +442,8 @@
 
     }
 
+
+    // 獎項
     private string Prize { get; set; }
     // 獎項
     private List<string> Prizes {get;set;} = new();
@@ -407,6 +460,7 @@
 
     private List<YoutubeMemberInfo> YTMembers = new();
 
+    // 載入抽獎
     private void LoadDrawPrize()
     {
        
@@ -426,6 +480,7 @@
         Participants = YTMembers.SelectMany(x => Enumerable.Repeat(new Participant { Name = x.Name, Level= x.Level, IsWinner = false }, (int)levelRate[x.Level])).ToList();
     }
 
+    // 抽獎
     private void OnDrawPrize()
     {
         if (Prizes.Any() && Participants.Any())
@@ -448,6 +503,7 @@
 
     }
 
+    // 新增獎項
     private void AddPrize()
     {
         if (string.IsNullOrEmpty(Prize.Trim()))
@@ -479,25 +535,6 @@
                 YTMembers = rows.Select(x => new YoutubeMemberInfo { Name = x.Name, Level = x.Level }).ToList();
                 LoadDrawPrize();
             }
-           // foreach ( var file in e.Files )
-           //  {
-           //      // A stream is going to be the destination stream we're writing to.
-           //      using ( var stream = new MemoryStream() )
-           //      {
-           //          // Here we're telling the FileEdit where to write the upload result
-           //          await file.WriteToStreamAsync( stream );
-
-           //          // Once we reach this line it means the file is fully uploaded.
-           //          // In this case we're going to offset to the beginning of file
-           //          // so we can read it.
-           //          stream.Seek( 0, SeekOrigin.Begin );
-
-           //          var rows = stream.Query<YoutubeMemberInfo>(excelType:ExcelType.CSV).ToList();
-
-           //          YTMembers = rows.Select(x => new YoutubeMemberInfo { Name = x.Name, Level = x.Level }).ToList();
-           //          LoadDrawPrize();
-           //      }
-           //  }
         }
         catch ( Exception exc )
         {
@@ -509,4 +546,85 @@
             this.StateHasChanged();
         }
     }
+
+    // 擷取聊天室
+    async Task OnCatchChatChanged( bool value )
+    {
+        catchChat = value;
+        Console.WriteLine( $"OnCatchChatChanged: {value}" );
+        if (catchChat)
+        {
+          await  StartCatchChat();
+        }
+        else
+        {
+            StopCatchChat();
+        }
+    }
+
+    private Timer timer;
+
+    private DateTimeOffset lastMessageTime = DateTime.Now;
+
+    private string chatID = "";
+    // 開始每 3 秒顯示一次訊息
+    private async Task  StartCatchChat()
+    {
+        Console.WriteLine("StartMessage");
+        // 取得直播聊天室 ID
+        chatID = await  youTubeServiceHelper.GetLiveChatIDFromLiveUrlAsync(url) ?? "" ;
+        if(string.IsNullOrEmpty(chatID))
+        {
+            toastMessage = "無法取得聊天室資訊";
+            toastVisible = true;
+            StateHasChanged();
+            return;
+        }
+
+        // 重設最後訊息時間
+        lastMessageTime = DateTime.Now;
+        timer = new Timer(5000); // 設置每 5 秒觸發一次
+        timer.Elapsed += OnTimerTick;
+        timer.Start();
+    }
+
+    // 停止訊息顯示
+    private void StopCatchChat()
+    {
+        Console.WriteLine("StopMessage");
+        if (timer != null)
+        {
+            timer.Stop();
+            timer.Dispose();
+        }
+    }
+
+    // 每次 Timer 觸發時顯示訊息
+    private void OnTimerTick(object? source, ElapsedEventArgs e)
+    {
+        InvokeAsync(async() =>
+        {
+            Console.WriteLine("DisplayMessage");
+
+         
+
+            var chatMessages = await youTubeServiceHelper.ListLiveChatMessageAsync(chatID);
+            var message = chatMessages.OrderByDescending(x => x.Snippet.PublishedAtDateTimeOffset).FirstOrDefault();
+            if (message != null)
+            {
+                Console.WriteLine($"PublishedAtDateTimeOffset: { message.Snippet.PublishedAtDateTimeOffset}");
+                 Console.WriteLine($"lastMessageTime: { lastMessageTime}");
+
+                toastMessage = $"{message.AuthorDetails.DisplayName}:{ message.Snippet.DisplayMessage}";
+                lastMessageTime = message.Snippet.PublishedAtDateTimeOffset ?? lastMessageTime;
+            }
+            else
+            {
+                toastMessage = "無訊息";
+            }
+            toastVisible = true; 
+            StateHasChanged(); // 更新 UI
+        });
+    }
+
 }
