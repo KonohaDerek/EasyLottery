@@ -1,5 +1,6 @@
 ﻿@page "/"
 @using EasyLotteryDomain.Models.Youtube
+@using EasyLotteryWasm.Models
 @using Google.Apis.Auth.OAuth2
 @using Google.Apis.Auth.OAuth2.Flows
 @using Google.Apis.Auth.OAuth2.Responses
@@ -12,6 +13,7 @@
 @using Serilog
 @using System.Timers
 @using Microsoft.Extensions.Configuration
+@using EasyLotteryDomain.Models.Pages
 
 
 @inject NavigationManager NavigationManager
@@ -88,18 +90,39 @@
 <Card>
     <CardBody>
         <CardText>
-            <Field Horizontal>
-                <FieldLabel ColumnSize="ColumnSize.Is2">
-                    通關密語
-                </FieldLabel>
-                <FieldBody ColumnSize="ColumnSize.Is2">
-                    <TextEdit @bind-Text="@url" Placeholder="請輸入直播網址" ></TextEdit>
-                    <TextEdit @bind-Text="@keyWorld" Placeholder="請輸入通關密語" ></TextEdit>
-                </FieldBody>
-                 <FieldBody ColumnSize="ColumnSize.Is2">
-                     <Switch TValue="bool" Checked="@catchChat" CheckedChanged="@OnCatchChatChanged">停止擷取</Switch>
-                </FieldBody>
-            </Field>
+            <Validations @ref="@validations" Mode="ValidationMode.Auto" Model="@chatRoomCatch">
+                <Field Horizontal>
+                    <FieldBody ColumnSize="ColumnSize.Is4">
+                         <Validation>
+                            <TextEdit @bind-Text="@chatRoomCatch.YoutubeUrl" Placeholder="請輸入直播網址" >
+                                <Feedback>
+                                    <ValidationError />
+                                </Feedback>
+                            </TextEdit>
+                        </Validation>
+                        <Validation>
+                            <TextEdit @bind-Text="@chatRoomCatch.KeyWord" Placeholder="請輸入通關密語" >
+                                <Feedback>
+                                    <ValidationError />
+                                </Feedback>
+                            </TextEdit>
+                        </Validation>
+                    </FieldBody>
+                    <FieldBody ColumnSize="ColumnSize.Is2">
+                        <Switch TValue="bool" Checked="@catchChat" CheckedChanged="@OnCatchChatChanged">
+                            @if (catchChat)
+                            {
+                                <span>擷取中</span>
+                            }
+                            else
+                            {
+                                <span>已停止</span>
+                            }
+                        </Switch>
+                    </FieldBody>
+                </Field>
+               
+            </Validations>
         </CardText>
     </CardBody>
 </Card>
@@ -128,7 +151,7 @@
 
 <Divider />
 
-@if (Participants.Any())
+@if (Participants.Where(o=> !string.IsNullOrWhiteSpace(o.Level)).Any())
 {
     <Card>
         <CardBody>
@@ -179,7 +202,16 @@
                     <ul>
                         @foreach (var participant in Participants)
                         {
-                            <li style="@(Winners.Any(x=>x.Member.Name == participant.Name) ? "color: gray;" : "color: black;")">(@participant.Level)@participant.Name</li>
+                            <li style="@(Winners.Any(x=>x.Member.Name == participant.Name) ? "color: gray;" : "color: black;")">
+                                @if(string.IsNullOrWhiteSpace(participant.Level))
+                                {
+                                    <span> @participant.Name </span>
+                                }
+                                else
+                                {
+                                   <span>(@participant.Level)@participant.Name </span>  
+                                }
+                            </li>
                         }
                     </ul>
                 </TableRowCell>
@@ -189,7 +221,19 @@
                         <ul>
                             @foreach (var winner in Winners)
                             {
-                                <li>恭喜 <span style="color:red;">(@winner.Member.Level)@winner.Member.Name</span> 獲得了 <span style="color:red;">@winner.Prize </span> </li>
+                                <li>恭喜 
+                                    <span style="color:red;">
+                                        @if(string.IsNullOrWhiteSpace(winner.Member.Level))
+                                        {
+                                            @winner.Member.Name
+                                        }
+                                        else
+                                        {
+                                            <span>(@winner.Member.Level)@winner.Member.Name</span>
+                                        }
+                                    </span> 獲得了 
+                                    <span style="color:red;">@winner.Prize </span> 
+                                </li>
                             }
                         </ul>
                     }
@@ -226,9 +270,7 @@
 
     private string refreshToken= "";
 
-    private string url = "";
-
-    private string keyWorld = "";
+   private ChatRoomCatch chatRoomCatch = new ChatRoomCatch();
     private bool catchChat = false;
 
     private string toastMessage = "";
@@ -237,6 +279,8 @@
     private YoutubeInfo youtubeInfo = new YoutubeInfo();
 
     private YouTubeServiceHelper youTubeServiceHelper = null;
+
+    private Validations validations;
 
     protected override async Task OnInitializedAsync()
     {
@@ -251,7 +295,7 @@
         if(youTubeServiceHelper == null)
         {
             var apiKey =  Configuration.GetValue<string>("YouTubeApi:ApiKey");
-            Console.WriteLine("apiKey:" + apiKey);
+            Log.Information("apiKey:" + apiKey);
             youTubeServiceHelper = new YouTubeServiceHelper(Configuration);
         }
     }
@@ -411,24 +455,12 @@
         }
     }
 
-    public record YoutubeMemberInfo
-    {
-         [ExcelColumnName("會員")]
-        public string Name { get; init; }
-
-         [ExcelColumnName("連結到個人資料")]
-        public string Link { get; init; }
-
-         [ExcelColumnName("目前級別")]
-        public string Level { get; init; }
-    }
-
     // 得獎人
     public record Participant
     {
         public string Name { get; init; }
 
-          public string Level { get; init; }
+        public string Level { get; init; }
 
         public bool IsWinner { get; set; }
     }
@@ -441,7 +473,6 @@
         public string Prize { get; init; }
 
     }
-
 
     // 獎項
     private string Prize { get; set; }
@@ -499,8 +530,6 @@
             // 移除已經抽過的獎項
             Prizes.RemoveAt(0);
         }
-
-
     }
 
     // 新增獎項
@@ -550,30 +579,32 @@
     // 擷取聊天室
     async Task OnCatchChatChanged( bool value )
     {
-        catchChat = value;
-        Console.WriteLine( $"OnCatchChatChanged: {value}" );
-        if (catchChat)
+        if ( await validations.ValidateAll() )
         {
-          await  StartCatchChat();
-        }
-        else
-        {
-            StopCatchChat();
+            catchChat = value;
+            Log.Information( $"OnCatchChatChanged: {value}" );
+            if (catchChat)
+            {
+            await  StartCatchChat();
+            }
+            else
+            {
+                StopCatchChat();
+            }
+        } else {
+            catchChat = false;
         }
     }
 
     private Timer timer;
 
-    private DateTimeOffset lastMessageTime = DateTime.Now;
-
-    private string chatID = "";
     // 開始每 3 秒顯示一次訊息
     private async Task  StartCatchChat()
     {
-        Console.WriteLine("StartMessage");
+        Log.Information("StartMessage");
         // 取得直播聊天室 ID
-        chatID = await  youTubeServiceHelper.GetLiveChatIDFromLiveUrlAsync(url) ?? "" ;
-        if(string.IsNullOrEmpty(chatID))
+        chatRoomCatch.ID = await  youTubeServiceHelper.GetLiveChatIDFromLiveUrlAsync(chatRoomCatch.YoutubeUrl) ?? "" ;
+        if(string.IsNullOrEmpty( chatRoomCatch.ID))
         {
             toastMessage = "無法取得聊天室資訊";
             toastVisible = true;
@@ -582,7 +613,7 @@
         }
 
         // 重設最後訊息時間
-        lastMessageTime = DateTime.Now;
+        chatRoomCatch.LastMessageTime = DateTime.Now;
         timer = new Timer(5000); // 設置每 5 秒觸發一次
         timer.Elapsed += OnTimerTick;
         timer.Start();
@@ -591,7 +622,7 @@
     // 停止訊息顯示
     private void StopCatchChat()
     {
-        Console.WriteLine("StopMessage");
+        Log.Information("StopMessage");
         if (timer != null)
         {
             timer.Stop();
@@ -604,19 +635,21 @@
     {
         InvokeAsync(async() =>
         {
-            Console.WriteLine("DisplayMessage");
-
-         
-
-            var chatMessages = await youTubeServiceHelper.ListLiveChatMessageAsync(chatID);
-            var message = chatMessages.OrderByDescending(x => x.Snippet.PublishedAtDateTimeOffset).FirstOrDefault();
+            Log.Information("DisplayMessage");
+            var chatMessages = await youTubeServiceHelper.ListLiveChatMessageAsync(chatRoomCatch.ID);
+            var message = chatMessages.Where(x => x.Snippet.PublishedAtDateTimeOffset > chatRoomCatch.LastMessageTime)
+                                        .Where(x => x.Snippet.DisplayMessage.Contains(chatRoomCatch.KeyWord))
+                                        .OrderByDescending(x => x.Snippet.PublishedAtDateTimeOffset)
+                                        .FirstOrDefault();
             if (message != null)
             {
-                Console.WriteLine($"PublishedAtDateTimeOffset: { message.Snippet.PublishedAtDateTimeOffset}");
-                 Console.WriteLine($"lastMessageTime: { lastMessageTime}");
-
+                Log.Information($"PublishedAtDateTimeOffset: { message.Snippet.PublishedAtDateTimeOffset}");
+                Log.Information($"lastMessageTime: { chatRoomCatch.LastMessageTime}");
                 toastMessage = $"{message.AuthorDetails.DisplayName}:{ message.Snippet.DisplayMessage}";
-                lastMessageTime = message.Snippet.PublishedAtDateTimeOffset ?? lastMessageTime;
+                chatRoomCatch.LastMessageTime = message.Snippet.PublishedAtDateTimeOffset ?? chatRoomCatch.LastMessageTime;
+                if (!Participants.Any(x => x.Name == message.AuthorDetails.DisplayName)){
+                    Participants.Add(new Participant { Name = message.AuthorDetails.DisplayName, Level = "", IsWinner = false });
+                }
             }
             else
             {
