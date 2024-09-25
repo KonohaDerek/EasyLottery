@@ -15,10 +15,14 @@ main {
 .top-row {
     border-bottom: 1px solid #d6d5d5;
     justify-content: flex-end;
-    height: 3.5rem;
+    height: 4rem;
     display: flex;
     align-items: center;
-    background-image: url('asserts/images/channels4_banner.jpg');
+   
+}
+
+.top-row.background {
+    background-image: url('asserts/images/channels4_banner.svg');
     background-position: center;
     background-size: cover;
 }
