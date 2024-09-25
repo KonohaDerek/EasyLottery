@@ -29,7 +29,6 @@
                  <th>
                      <Button Color="Color.Primary" @onclick="Authorize">YT授權</Button></th>
             }
-            @* <th> <Button Color="Color.Primary" @onclick="LoadDrawPrize">匯入YT會員名單</Button></th> *@
             <th>
                  <Field Horizontal>
                 <FieldLabel ColumnSize="ColumnSize.Is6">
@@ -37,7 +36,6 @@
                 </FieldLabel>
                 <FieldBody ColumnSize="ColumnSize.Is8">
                     <InputFile OnChange="OnChanged"  />
-                    @* <FileEdit  Changed="@OnChanged" Filter=".csv" /> *@
                 </FieldBody>
                 </Field>
             </th>
@@ -61,7 +59,7 @@
     <h2>YouTube Members</h2>
 
     <button @onclick="GetYouTubeMembersAsync">Get YouTube Members</button>
-<button @onclick="GetYouTubeMembersAsync2">Get YouTube Members2</button>
+    <button @onclick="GetYouTubeMembersAsync2">Get YouTube Members2</button>
     @if (members != null)
     {
         <ul>
@@ -94,14 +92,14 @@
                 <Field Horizontal>
                     <FieldBody ColumnSize="ColumnSize.Is4">
                          <Validation>
-                            <TextEdit @bind-Text="@chatRoomCatch.YoutubeUrl" Placeholder="請輸入直播網址" >
+                            <TextEdit @bind-Text="@chatRoomCatch.YoutubeUrl" Placeholder="請輸入直播網址" Disabled="@catchChat" >
                                 <Feedback>
                                     <ValidationError />
                                 </Feedback>
                             </TextEdit>
                         </Validation>
                         <Validation>
-                            <TextEdit @bind-Text="@chatRoomCatch.KeyWord" Placeholder="請輸入通關密語" >
+                            <TextEdit @bind-Text="@chatRoomCatch.KeyWord" Placeholder="請輸入通關密語" Disabled="@catchChat" >
                                 <Feedback>
                                     <ValidationError />
                                 </Feedback>
@@ -142,6 +140,17 @@
                 </FieldBody>
                  <FieldBody ColumnSize="ColumnSize.Is2">
                      <Button Color="Color.Primary" @onclick="AddPrize">新增獎項</Button>
+                </FieldBody>
+            </Field>
+            <Field Horizontal>
+                <FieldLabel ColumnSize="ColumnSize.Is2">
+                    參加者名稱
+                </FieldLabel>
+                <FieldBody ColumnSize="ColumnSize.Is2">
+                    <TextEdit @bind-Text="@CustomParticipantName" Placeholder="請輸入參加者名稱" ></TextEdit>
+                </FieldBody>
+                 <FieldBody ColumnSize="ColumnSize.Is2">
+                    <Button Color="Color.Primary" @onclick="AddParticipant">新增參加者</Button>
                 </FieldBody>
             </Field>
         </CardText>
@@ -193,12 +202,11 @@
                     <ul>
                         @foreach (var prize in Prizes)
                         {
-                            <li>@prize</li>
+                            <li>@prize  <Button Size="Size.Small" @onclick="() => RemovePrize(prize)"><Icon Name="IconName.Delete" /></Button> </li>
                         }
                     </ul>
                 </TableRowCell>
                 <TableRowCell>
-                    
                     <ul>
                         @foreach (var participant in Participants)
                         {
@@ -209,7 +217,10 @@
                                 }
                                 else
                                 {
-                                   <span>(@participant.Level)@participant.Name </span>  
+                                   <span> (@participant.Level)@participant.Name </span>  
+                                }
+                                @if(!Winners.Any(x=>x.Member.Name == participant.Name)){
+                                  <Button Size="Size.Small" @onclick="() => RemoveParticipant(participant.Name)"><Icon Name="IconName.Delete" /></Button>
                                 }
                             </li>
                         }
@@ -475,10 +486,14 @@
     }
 
     // 獎項
-    private string Prize { get; set; }
+    private string Prize { get; set; } = "";
     // 獎項
     private List<string> Prizes {get;set;} = new();
     
+
+    // 自訂參加者名稱
+    private string CustomParticipantName { get; set; } = "";
+
     // 參加者
     private List<Participant> Participants {get;set;} = new();
     
@@ -541,6 +556,34 @@
         }
 
         Prizes.Add(Prize);
+    }
+
+    // 移除獎項
+    private void RemovePrize(string prize)
+    {
+        if (Prizes.Any(x => x == prize))
+        {
+            Prizes.Remove(prize);
+        }
+    }
+    // 新增參加者
+    private void AddParticipant()
+    {
+        if (string.IsNullOrEmpty(CustomParticipantName.Trim()))
+        {
+            return;
+        }
+
+        Participants.Add(new Participant { Name =  CustomParticipantName });
+    }
+
+    // 移除參加者
+    private void RemoveParticipant(string name)
+    {
+       if (Participants.Any(x => x.Name == name))
+        {
+            Participants.RemoveAll(x => x.Name == name);
+        }
     }
 
     async Task OnChanged(InputFileChangeEventArgs e)
@@ -637,11 +680,16 @@
         {
             Log.Information("DisplayMessage");
             var chatMessages = await youTubeServiceHelper.ListLiveChatMessageAsync(chatRoomCatch.ID);
-            var message = chatMessages.Where(x => x.Snippet.PublishedAtDateTimeOffset > chatRoomCatch.LastMessageTime)
+            var messages = chatMessages.Where(x => x.Snippet.PublishedAtDateTimeOffset > chatRoomCatch.LastMessageTime)
                                         .Where(x => x.Snippet.DisplayMessage.Contains(chatRoomCatch.KeyWord))
-                                        .OrderByDescending(x => x.Snippet.PublishedAtDateTimeOffset)
-                                        .FirstOrDefault();
-            if (message != null)
+                                        .OrderByDescending(x => x.Snippet.PublishedAtDateTimeOffset).ToList();
+
+            if(!messages.Any())
+            {
+                toastMessage = "無訊息";
+            }
+            
+            foreach (var message in messages)
             {
                 Log.Information($"PublishedAtDateTimeOffset: { message.Snippet.PublishedAtDateTimeOffset}");
                 Log.Information($"lastMessageTime: { chatRoomCatch.LastMessageTime}");
@@ -651,10 +699,7 @@
                     Participants.Add(new Participant { Name = message.AuthorDetails.DisplayName, Level = "", IsWinner = false });
                 }
             }
-            else
-            {
-                toastMessage = "無訊息";
-            }
+           
             toastVisible = true; 
             StateHasChanged(); // 更新 UI
         });
