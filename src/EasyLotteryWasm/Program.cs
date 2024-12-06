@@ -1,11 +1,14 @@
 using Blazorise;
 using Blazorise.Bootstrap5;
 using Blazorise.Icons.FontAwesome;
+using EasyLotteryDomain.Database;
 using EasyLotteryDomain.Services;
 using EasyLotteryWasm;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
+using Microsoft.EntityFrameworkCore;
 using Serilog;
+
 using IConfiguration = Microsoft.Extensions.Configuration.IConfiguration;
 
 var EnvironmentName = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
@@ -31,6 +34,13 @@ builder.RootComponents.Add<HeadOutlet>("head::after");
 
 builder.Configuration.AddConfiguration(configuration);
 
+    
+builder.Services.AddDbContextFactory<EasyLotteryContext>(opt =>
+    opt.UseSqlite($"Data Source= easylottery.sqlite"));
+
+
+builder.Services.AddDistributedMemoryCache();
+
 builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) });
   // 注入 YouTubeServiceHelper 服務
 builder.Services.AddSingleton(sp => new YouTubeServiceHelper(sp.GetRequiredService<IConfiguration>(),"YoutubeDemo", "YouTube.Auth.Store"));
@@ -39,9 +49,11 @@ builder.Services
     .AddBlazorise( options =>
     {
         options.Immediate = true;
-    } )
+    })
     .AddBootstrap5Providers()
     .AddFontAwesomeIcons();
+
+
 
 builder.Logging.AddSerilog(Log.Logger);
 

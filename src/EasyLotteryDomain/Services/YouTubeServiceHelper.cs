@@ -1,23 +1,34 @@
 using System.Net.Http.Json;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using EasyLotteryDomain.Models.Youtube;
 using Google.Apis.Auth.OAuth2;
+using Google.Apis.Auth.OAuth2.Flows;
 using Google.Apis.Services;
 using Google.Apis.Util.Store;
 using Google.Apis.YouTube.v3;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 
 namespace EasyLotteryDomain.Services
 {
     public class YouTubeServiceHelper
     {
-        private readonly IConfiguration _configuration;
+        private readonly IConfiguration configuration;
 
         private static readonly string[] Scopes = { YouTubeService.Scope.YoutubeReadonly, "https://www.googleapis.com/auth/youtube.channel-memberships.creator" };
+
+        private const string authorizationEndpoint = "https://accounts.google.com/o/oauth2/v2/auth";
+
         private readonly string applicationName;
         private readonly string credentialPath;
 
         private readonly string apiKey;
+
+        internal record YoutubeCredentials(string client_id, string client_secret, string RedirectUri);
+
+       private YoutubeCredentials credentials;
+       
 
         public YouTubeServiceHelper()
         {
@@ -25,20 +36,71 @@ namespace EasyLotteryDomain.Services
         }
         public YouTubeServiceHelper(IConfiguration configuration, string applicationName, string credentialPath)
         {
-            this._configuration = configuration;
+            this.configuration = configuration;
             this.applicationName = applicationName;
             this.credentialPath = credentialPath;
+            LoadCredentials();
         }
 
         public YouTubeServiceHelper(IConfiguration configuration)
         {
-            this._configuration = configuration;
+            this.configuration = configuration;
             this.apiKey =  configuration["YouTubeApi:ApiKey"]!;
+            LoadCredentials();
+        }
+
+        private void LoadCredentials()
+        {
+            var base64Credential = configuration["YouTubeApi:CredentialsBase64"];
+            if (base64Credential == null)
+            {
+                throw new Exception("YouTube API credentials not found.");
+            }
+
+            var jsonBytes = Convert.FromBase64String(base64Credential!);
+            if (jsonBytes == null)
+            {
+                throw new Exception("Invalid YouTube API credentials.");
+            }
+
+            using var stream = new MemoryStream(jsonBytes);
+            var data = GoogleClientSecrets.FromStream(stream).Secrets;
+
+            credentials = new YoutubeCredentials(data!.ClientId, data!.ClientSecret, configuration["YouTubeApi:RedirectUri"]!);
+            Console.WriteLine("LoadCredentials");
+            Console.WriteLine($"base64Credential:{base64Credential}");
+            Console.WriteLine($"ClientID:{credentials.client_id}");
+            Console.WriteLine($"RedirectUri:{credentials.RedirectUri}");
+            Console.WriteLine($"GetAuthorizeUrl:{GetAuthorizeUrl()}");
+        }
+
+        public  string GetAuthorizeUrl()
+        {
+            var authorizationUrl = $"{authorizationEndpoint}?response_type=code&client_id={credentials.client_id}&redirect_uri={credentials.RedirectUri}&scope={string.Join(" ",Scopes)}&access_type=offline&include_granted_scopes=true&prompt=consent";
+           return authorizationUrl;
+        }
+
+        public async Task<Google.Apis.Auth.OAuth2.Responses.TokenResponse> ExchangeCodeAsync(string code)
+        {
+            var initializer = new GoogleAuthorizationCodeFlow.Initializer
+            {
+                ClientSecrets = new ClientSecrets
+                {
+                    ClientId = credentials.client_id,
+                    ClientSecret = credentials.client_secret
+                },
+            };
+
+            var flow = new GoogleAuthorizationCodeFlow(initializer);
+
+            var token = await flow.ExchangeCodeForTokenAsync("user", code, credentials.RedirectUri, CancellationToken.None);
+
+            return token;
         }
 
         private async Task<UserCredential> GetUserCredentialAsync()
         {
-            var base64Credential = _configuration["YouTubeApi:CredentialsBase64"];
+            var base64Credential = configuration["YouTubeApi:CredentialsBase64"];
             var jsonBytes = Convert.FromBase64String(base64Credential!);
             using var stream = new MemoryStream(jsonBytes);
             return await GoogleWebAuthorizationBroker.AuthorizeAsync(
@@ -56,10 +118,9 @@ namespace EasyLotteryDomain.Services
             return new YouTubeService(new BaseClientService.Initializer()
             {
                 HttpClientInitializer = credential,
-                ApplicationName = this.applicationName,
+                ApplicationName = applicationName,
             });
         }
-
 
 
         public async Task<IList<Google.Apis.YouTube.v3.Data.Member>> ListChannelMembersAsync()
@@ -117,7 +178,7 @@ namespace EasyLotteryDomain.Services
         {
             string liveID = GetYouTubeLiveID(youtubeUrl);
             
-            if (liveID == null)
+            if (string.IsNullOrWhiteSpace(liveID))
             {
                 Console.WriteLine("無法解析 YouTube URL。");
                 throw new Exception("直播地址尚未開始直播或已結束");
@@ -187,7 +248,7 @@ namespace EasyLotteryDomain.Services
                 return match.Groups[1].Value;  // 取得 Video ID
             }
 
-            return null;  // 若無法匹配則返回 null
+            return "";  // 若無法匹配則返回 null
         }
     }
 }

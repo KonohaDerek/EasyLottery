@@ -25,9 +25,9 @@
 <table>
      <thead>
         <tr>
-            @if(clientId!="") {
-                 <th>
-                     <Button Color="Color.Primary" @onclick="Authorize">YT授權</Button></th>
+            @if(showYoutube) {
+                 <th><Button Color="Color.Primary" @onclick="Authorize">YT授權</Button></th>
+                <th><Button Color="Color.Primary" @onclick="ClearAuthorize">清除YT授權</Button></th>
             }
             <th>
                  <Field Horizontal>
@@ -227,16 +227,7 @@
     private List<Google.Apis.YouTube.v3.Data.Member> members;
 
     private List<Google.Apis.YouTube.v3.Data.MembershipsLevel> membershipsLevels;
-    private static readonly string[] Scopes = { YouTubeService.Scope.YoutubeReadonly, "https://www.googleapis.com/auth/youtube.channel-memberships.creator"};
-    
-    private string clientId = "";
-    private string clientSecret= "" ;
-    private string redirectUri= "";
-    private string authorizationEndpoint = "https://accounts.google.com/o/oauth2/v2/auth";
-    private string tokenEndpoint = "https://oauth2.googleapis.com/token";
 
-    // Mupltiple scopes can be added
-    private string scope = "https://www.googleapis.com/auth/youtube.readonly https://www.googleapis.com/auth/youtube.channel-memberships.creator";
     private string accessToken= "";
 
     private string refreshToken= "";
@@ -253,45 +244,44 @@
 
     private Validations validations;
 
+    private bool showYoutube = false;
+
     protected override async Task OnInitializedAsync()
     {
-        var uri = NavigationManager.ToAbsoluteUri(NavigationManager.Uri);
-        var queryParams = HttpUtility.ParseQueryString(uri.Query);
-
-        if (queryParams["code"] != null)
-        {
-            await ExchangeCodeForTokensAsync(queryParams["code"]!);
-        }
-
-        if(youTubeServiceHelper == null)
+         if(youTubeServiceHelper == null)
         {
             var apiKey =  Configuration.GetValue<string>("YouTubeApi:ApiKey");
             Log.Information("apiKey:" + apiKey);
             youTubeServiceHelper = new YouTubeServiceHelper(Configuration);
+
+            if(!string.IsNullOrWhiteSpace(Configuration.GetValue<string>("YouTubeApi:CredentialsBase64"))){
+                showYoutube = true;
+            }
+        }
+
+        var uri = NavigationManager.ToAbsoluteUri(NavigationManager.Uri);
+        var queryParams = HttpUtility.ParseQueryString(uri.Query);
+        if (queryParams["code"] != null)
+        {
+            await ExchangeCodeForTokensAsync(queryParams["code"]!);
         }
     }
 
     private void Authorize()
     {
-        var authorizationUrl = $"{authorizationEndpoint}?response_type=code&client_id={clientId}&redirect_uri={redirectUri}&scope={scope}&access_type=offline&include_granted_scopes=true&prompt=consent";
+        var authorizationUrl =  youTubeServiceHelper.GetAuthorizeUrl();
         NavigationManager.NavigateTo(authorizationUrl, forceLoad: true);
+    }
+
+    private void ClearAuthorize()
+    {
+        accessToken = "";
+        refreshToken = "";
     }
 
     private async Task ExchangeCodeForTokensAsync(string code)
     {
-        var initializer = new GoogleAuthorizationCodeFlow.Initializer
-        {
-            ClientSecrets = new ClientSecrets
-            {
-                ClientId = clientId,
-                ClientSecret = clientSecret
-            },
-        };
-
-        var flow = new GoogleAuthorizationCodeFlow(initializer);
-
-        var token = await flow.ExchangeCodeForTokenAsync("user", code, redirectUri, CancellationToken.None);
-
+       var token = await youTubeServiceHelper.ExchangeCodeAsync(code);
         accessToken = token.AccessToken;
         refreshToken = token.RefreshToken;
     }
