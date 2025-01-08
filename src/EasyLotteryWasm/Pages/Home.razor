@@ -19,6 +19,8 @@
 @inject NavigationManager NavigationManager
 @inject Microsoft.Extensions.Configuration.IConfiguration Configuration
 @inject IMessageService MessageService
+@inject YouTubeServiceHelper youTubeServiceHelper;
+@inject ILogger<YouTubeServiceHelper> Logger
 
 
 <PageTitle>抽獎</PageTitle>
@@ -27,7 +29,6 @@
         <tr>
             @if(showYoutube) {
                  <th><Button Color="Color.Primary" @onclick="Authorize">YT授權</Button></th>
-                <th><Button Color="Color.Primary" @onclick="ClearAuthorize">清除YT授權</Button></th>
             }
             <th>
                  <Field Horizontal>
@@ -224,14 +225,6 @@
 
 @code {
 
-    private List<Google.Apis.YouTube.v3.Data.Member> members;
-
-    private List<Google.Apis.YouTube.v3.Data.MembershipsLevel> membershipsLevels;
-
-    private string accessToken= "";
-
-    private string refreshToken= "";
-
    private ChatRoomCatch chatRoomCatch = new ChatRoomCatch();
     private bool catchChat = false;
 
@@ -240,9 +233,7 @@
     private bool toastVisible = false;
     private YoutubeInfo youtubeInfo = new YoutubeInfo();
 
-    private YouTubeServiceHelper youTubeServiceHelper = null;
-
-    private Validations validations;
+    private Validations validations = new Validations();
 
     private bool showYoutube = false;
 
@@ -252,11 +243,15 @@
         {
             var apiKey =  Configuration.GetValue<string>("YouTubeApi:ApiKey");
             Log.Information("apiKey:" + apiKey);
-            youTubeServiceHelper = new YouTubeServiceHelper(Configuration);
+            youTubeServiceHelper = new YouTubeServiceHelper(Configuration, Logger);
+        }
 
-            if(!string.IsNullOrWhiteSpace(Configuration.GetValue<string>("YouTubeApi:CredentialsBase64"))){
-                showYoutube = true;
-            }
+        if(!string.IsNullOrWhiteSpace(Configuration.GetValue<string>("YouTubeApi:CredentialsBase64"))){
+            showYoutube = true;
+        }
+
+        if (!string.IsNullOrWhiteSpace(Configuration.GetValue<string>("YouTubeApi:RefreshToken"))) {
+           await youTubeServiceHelper.RefreshTokenAsync();
         }
 
         var uri = NavigationManager.ToAbsoluteUri(NavigationManager.Uri);
@@ -273,59 +268,23 @@
         NavigationManager.NavigateTo(authorizationUrl, forceLoad: true);
     }
 
-    private void ClearAuthorize()
-    {
-        accessToken = "";
-        refreshToken = "";
-    }
-
     private async Task ExchangeCodeForTokensAsync(string code)
     {
        var token = await youTubeServiceHelper.ExchangeCodeAsync(code);
-        accessToken = token.AccessToken;
-        refreshToken = token.RefreshToken;
-    }
-
-    private async Task GetChannelInfoAsync() 
-    {
-        try
-        {
-            // 创建 HttpClient 实例
-            using (var httpClient = new HttpClient())
-            {
-                httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
-
-                // 请求 YouTube 数据
-                var response = await httpClient.GetAsync("https://www.googleapis.com/youtube/v3/channels?part=snippet&mine=true");
-
-                if (response.IsSuccessStatusCode)
-                {
-                    var chs = await response.Content.ReadFromJsonAsync<Google.Apis.YouTube.v3.Data.ChannelListResponse>();
-                    youtubeInfo = new YoutubeInfo
-                    {
-                        ChannelTitle = chs.Items[0].Snippet.Title,
-                        ChannelDescription = chs.Items[0].Snippet.Description
-                    };
-                    
-                }
-                else
-                {
-                    Log.Information($"Error: {response.StatusCode}");
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            Log.Information("Error retrieving channel info: " + ex.Message);
-        }
+         if (token != null)
+         {
+              toastMessage = "授權成功";
+              toastVisible = true;
+              StateHasChanged();
+         }
     }
 
     // 得獎人
     public record Participant
     {
-        public string Name { get; init; }
+        public string Name { get; init; } = "";
 
-        public string Level { get; init; }
+        public string Level { get; init; } = "";
 
         public bool IsWinner { get; set; }
     }
@@ -333,9 +292,9 @@
     // 得獎者
     public record Winner
     {
-        public Participant Member { get; init; }  
+        public Participant Member { get; init; }  = new();
 
-        public string Prize { get; init; }
+        public string Prize { get; init; } = "";
 
     }
 
@@ -493,7 +452,7 @@
         }
     }
 
-    private Timer timer;
+    private Timer timer= new Timer();
 
     // 開始每 3 秒顯示一次訊息
     private async Task  StartCatchChat()

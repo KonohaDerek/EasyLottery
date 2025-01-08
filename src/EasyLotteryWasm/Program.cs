@@ -43,7 +43,10 @@ builder.Services.AddDistributedMemoryCache();
 
 builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) });
   // 注入 YouTubeServiceHelper 服務
-builder.Services.AddSingleton(sp => new YouTubeServiceHelper(sp.GetRequiredService<IConfiguration>(),"YoutubeDemo", "YouTube.Auth.Store"));
+
+// 添加服務
+builder.Services.AddSingleton<YouTubeServiceHelper>();
+// builder.Services.AddSingleton(sp => new YouTubeServiceHelper(sp.GetRequiredService<IConfiguration>(), sp.GetRequiredService<ILogger<YouTubeServiceHelper>>()));
 
 builder.Services
     .AddBlazorise( options =>

@@ -20,32 +20,25 @@ namespace EasyLotteryDomain.Services
 
         private const string authorizationEndpoint = "https://accounts.google.com/o/oauth2/v2/auth";
 
-        private readonly string applicationName;
-        private readonly string credentialPath;
 
         private readonly string apiKey;
 
+        private string accessToken="";
+
+        private readonly string refreshToken;
+
         internal record YoutubeCredentials(string client_id, string client_secret, string RedirectUri);
 
-       private YoutubeCredentials credentials;
-       
+        private YoutubeCredentials credentials;
 
-        public YouTubeServiceHelper()
-        {
-          
-        }
-        public YouTubeServiceHelper(IConfiguration configuration, string applicationName, string credentialPath)
-        {
-            this.configuration = configuration;
-            this.applicationName = applicationName;
-            this.credentialPath = credentialPath;
-            LoadCredentials();
-        }
+        private readonly ILogger<YouTubeServiceHelper> logger;
 
-        public YouTubeServiceHelper(IConfiguration configuration)
+        public YouTubeServiceHelper(IConfiguration configuration, ILogger<YouTubeServiceHelper> logger)
         {
+            this.logger = logger;
             this.configuration = configuration;
-            this.apiKey =  configuration["YouTubeApi:ApiKey"]!;
+            apiKey =  configuration["YouTubeApi:ApiKey"]!;
+            refreshToken = configuration["YouTubeApi:RefreshToken"]!;
             LoadCredentials();
         }
 
@@ -67,11 +60,33 @@ namespace EasyLotteryDomain.Services
             var data = GoogleClientSecrets.FromStream(stream).Secrets;
 
             credentials = new YoutubeCredentials(data!.ClientId, data!.ClientSecret, configuration["YouTubeApi:RedirectUri"]!);
-            Console.WriteLine("LoadCredentials");
-            Console.WriteLine($"base64Credential:{base64Credential}");
-            Console.WriteLine($"ClientID:{credentials.client_id}");
-            Console.WriteLine($"RedirectUri:{credentials.RedirectUri}");
-            Console.WriteLine($"GetAuthorizeUrl:{GetAuthorizeUrl()}");
+        }
+
+        public async Task RefreshTokenAsync()
+        {
+            if (string.IsNullOrWhiteSpace(refreshToken))
+            {
+                throw new Exception("Refresh token not found.");
+            }
+
+            if (credentials == null)
+            {
+                throw new Exception("Credentials not found.");
+            }
+
+               var initializer = new GoogleAuthorizationCodeFlow.Initializer
+            {
+                ClientSecrets = new ClientSecrets
+                {
+                    ClientId = credentials.client_id,
+                    ClientSecret = credentials.client_secret
+                },
+            };
+
+            var flow = new GoogleAuthorizationCodeFlow(initializer);
+            var token = await flow.RefreshTokenAsync("user", refreshToken, CancellationToken.None);
+            logger.LogInformation("New Token: {0}", JsonSerializer.Serialize(token));
+            accessToken = token.AccessToken;
         }
 
         public  string GetAuthorizeUrl()
@@ -94,52 +109,12 @@ namespace EasyLotteryDomain.Services
             var flow = new GoogleAuthorizationCodeFlow(initializer);
 
             var token = await flow.ExchangeCodeForTokenAsync("user", code, credentials.RedirectUri, CancellationToken.None);
-
+            logger.LogInformation("Token: {0}", JsonSerializer.Serialize(token));
             return token;
         }
 
-        private async Task<UserCredential> GetUserCredentialAsync()
-        {
-            var base64Credential = configuration["YouTubeApi:CredentialsBase64"];
-            var jsonBytes = Convert.FromBase64String(base64Credential!);
-            using var stream = new MemoryStream(jsonBytes);
-            return await GoogleWebAuthorizationBroker.AuthorizeAsync(
-                GoogleClientSecrets.FromStream(stream).Secrets,
-                Scopes,
-                "user",
-                CancellationToken.None,
-                new FileDataStore(credentialPath, true));
-        }
 
-        public async Task<YouTubeService> GetYouTubeServiceAsync()
-        {
-            var credential = await GetUserCredentialAsync();
-
-            return new YouTubeService(new BaseClientService.Initializer()
-            {
-                HttpClientInitializer = credential,
-                ApplicationName = applicationName,
-            });
-        }
-
-
-        public async Task<IList<Google.Apis.YouTube.v3.Data.Member>> ListChannelMembersAsync()
-        {
-            var youtubeService = await GetYouTubeServiceAsync();
-
-            var request = youtubeService.Members.List("snippet");
-
-            var response = await request.ExecuteAsync();
-
-            foreach (var member in response.Items)
-            {
-                Console.WriteLine($"Member: {member.Snippet.MemberDetails.DisplayName}");
-            }
-
-            return response.Items;
-        }
-
-        public async Task<YoutubeInfo> GetChannelInfoAsync(string accessToken)
+        public async Task<YoutubeInfo> GetChannelInfoAsync()
         {
             try
             {
@@ -162,13 +137,13 @@ namespace EasyLotteryDomain.Services
                 }
                 else
                 {
-                    Console.WriteLine($"Error: {response.StatusCode}");
+                    logger.LogInformation($"Error: {response.StatusCode}");
                     return new YoutubeInfo();
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine("Error retrieving channel info: " + ex.Message);
+                logger.LogInformation("Error retrieving channel info: " + ex.Message);
                 return new YoutubeInfo();
             }
         }
@@ -180,14 +155,14 @@ namespace EasyLotteryDomain.Services
             
             if (string.IsNullOrWhiteSpace(liveID))
             {
-                Console.WriteLine("無法解析 YouTube URL。");
+                logger.LogInformation("無法解析 YouTube URL。");
                 throw new Exception("直播地址尚未開始直播或已結束");
             }
 
             var liveInfo =await GetYoutubeLiveInfoAsync(liveID);
             if (liveInfo == null)
             {
-                Console.WriteLine("直播地址尚未開始直播或已結束");
+                logger.LogInformation("直播地址尚未開始直播或已結束");
                 throw new Exception("直播地址尚未開始直播或已結束");
             }
 
@@ -198,7 +173,11 @@ namespace EasyLotteryDomain.Services
         public async Task<IEnumerable<Google.Apis.YouTube.v3.Data.LiveChatMessage>> ListLiveChatMessageAsync(string chatID)
         {
               using var httpClient = new HttpClient();
-                // 请求 YouTube 数据
+                if (!string.IsNullOrWhiteSpace(accessToken))
+                {
+                    httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
+                }
+               
                 var response = await httpClient.GetAsync($"https://www.googleapis.com/youtube/v3/liveChat/messages?liveChatId={chatID}&part=snippet,authorDetails&key={apiKey}");
 
                 if (response.IsSuccessStatusCode)
@@ -212,7 +191,7 @@ namespace EasyLotteryDomain.Services
                 }
                 else
                 {
-                    Console.WriteLine($"Error: {response.StatusCode}");
+                    logger.LogInformation($"Error: {response.StatusCode}");
                     return [];
                 }
         }
@@ -221,7 +200,10 @@ namespace EasyLotteryDomain.Services
         public async Task<Google.Apis.YouTube.v3.Data.VideoLiveStreamingDetails?> GetYoutubeLiveInfoAsync(string liveID)
         {
                 using var httpClient = new HttpClient();
-                // 请求 YouTube 数据
+                if (!string.IsNullOrWhiteSpace(accessToken))
+                {
+                    httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
+                }
                 var response = await httpClient.GetAsync($"https://www.googleapis.com/youtube/v3/videos?part=liveStreamingDetails&id={liveID}&key={apiKey}");
 
                 if (response.IsSuccessStatusCode)
@@ -232,7 +214,7 @@ namespace EasyLotteryDomain.Services
                 }
                 else
                 {
-                    Console.WriteLine($"Error: {response.StatusCode}");
+                    logger.LogInformation($"Error: {response.StatusCode}");
                     return null;
                 }
         }
