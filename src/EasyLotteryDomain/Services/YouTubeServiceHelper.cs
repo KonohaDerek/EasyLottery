@@ -155,7 +155,7 @@ namespace EasyLotteryDomain.Services
             
             if (string.IsNullOrWhiteSpace(liveID))
             {
-                logger.LogInformation("無法解析 YouTube URL。");
+                logger.LogInformation("無法解析 YouTube URL。直播地址尚未開始直播或已結束。");
                 throw new Exception("直播地址尚未開始直播或已結束");
             }
 
@@ -222,7 +222,7 @@ namespace EasyLotteryDomain.Services
         public static string GetYouTubeLiveID(string url)
         {
             // 正則表達式來匹配 YouTube Video ID
-            var regex = new Regex(@"(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:watch\?v=|embed\/|v\/|.+\?v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})");
+           var regex = new Regex(@"(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:watch\?v=|live\/|embed\/|v\/|.+\?v=)|youtu\.be\/)([a-zA-Z0-9]{11})");
             var match = regex.Match(url);
 
             if (match.Success)
