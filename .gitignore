@@ -3,3 +3,7 @@ bin/
 obj/
 TestResults/
 .vscode
+.vs
+src/EasyLottery/.pnpm-store
+src/EasyLottery/dist
+src/EasyLottery/node_modules
