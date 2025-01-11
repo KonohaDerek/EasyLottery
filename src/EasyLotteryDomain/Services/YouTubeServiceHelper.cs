@@ -222,7 +222,7 @@ namespace EasyLotteryDomain.Services
         public static string GetYouTubeLiveID(string url)
         {
             // 正則表達式來匹配 YouTube Video ID
-           var regex = new Regex(@"(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:watch\?v=|live\/|embed\/|v\/|.+\?v=)|youtu\.be\/)([a-zA-Z0-9]{11})");
+            var regex = new Regex(@"(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:watch\?v=|live\/|embed\/|v\/|.+\?v=)|youtu\.be\/)([\w_-]+)");
             var match = regex.Match(url);
 
             if (match.Success)
