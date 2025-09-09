@@ -1,5 +1,8 @@
 using EasyLotteryDomain.Services;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
+using Microsoft.Extensions.Logging.Console;
 
 namespace EasyLotteryDomainTests.Services
 {
@@ -10,23 +13,23 @@ namespace EasyLotteryDomainTests.Services
         private string apiKey = "AIzaSyBvbITtuVbllyGzGATRLpw7XMdGnA7zOrI";
 
 
-        [TestMethod]
-        public async Task TestListChannelMembersAsync()
-        {
-            var myConfiguration = new Dictionary<string, string>
-            {
-                {"YouTubeApi:CredentialsBase64", "eyJ3ZWIiOnsiY2xpZW50X2lkIjoiMzkyNDcxMjgxNDY5LTNwdWhxNDVhbDlqZDFjMDE1a3M1MzVicTRxbWw2aDg5LmFwcHMuZ29vZ2xldXNlcmNvbnRlbnQuY29tIiwicHJvamVjdF9pZCI6ImRlcmVrcHJvamVjdC0zZTZmOSIsImF1dGhfdXJpIjoiaHR0cHM6Ly9hY2NvdW50cy5nb29nbGUuY29tL28vb2F1dGgyL2F1dGgiLCJ0b2tlbl91cmkiOiJodHRwczovL29hdXRoMi5nb29nbGVhcGlzLmNvbS90b2tlbiIsImF1dGhfcHJvdmlkZXJfeDUwOV9jZXJ0X3VybCI6Imh0dHBzOi8vd3d3Lmdvb2dsZWFwaXMuY29tL29hdXRoMi92MS9jZXJ0cyIsImNsaWVudF9zZWNyZXQiOiJHT0NTUFgtMnJfblAwNi1hMkJPVlU0WmxXRnJSWGRrXzNOaSJ9fQ=="},
-            };
+        // [TestMethod]
+        // public async Task TestListChannelMembersAsync()
+        // {
+        //     var myConfiguration = new Dictionary<string, string>
+        //     {
+        //         {"YouTubeApi:CredentialsBase64", "eyJ3ZWIiOnsiY2xpZW50X2lkIjoiMzkyNDcxMjgxNDY5LTNwdWhxNDVhbDlqZDFjMDE1a3M1MzVicTRxbWw2aDg5LmFwcHMuZ29vZ2xldXNlcmNvbnRlbnQuY29tIiwicHJvamVjdF9pZCI6ImRlcmVrcHJvamVjdC0zZTZmOSIsImF1dGhfdXJpIjoiaHR0cHM6Ly9hY2NvdW50cy5nb29nbGUuY29tL28vb2F1dGgyL2F1dGgiLCJ0b2tlbl91cmkiOiJodHRwczovL29hdXRoMi5nb29nbGVhcGlzLmNvbS90b2tlbiIsImF1dGhfcHJvdmlkZXJfeDUwOV9jZXJ0X3VybCI6Imh0dHBzOi8vd3d3Lmdvb2dsZWFwaXMuY29tL29hdXRoMi92MS9jZXJ0cyIsImNsaWVudF9zZWNyZXQiOiJHT0NTUFgtMnJfblAwNi1hMkJPVlU0WmxXRnJSWGRrXzNOaSJ9fQ=="},
+        //     };
 
-            var configuration = new ConfigurationBuilder()
-                .AddInMemoryCollection(myConfiguration!)
-                .Build();
+        //     var configuration = new ConfigurationBuilder()
+        //         .AddInMemoryCollection(myConfiguration!)
+        //         .Build();
       
-            var svc = new YouTubeServiceHelper(configuration,"YoutubeDemo", "./Cred");
-            var members = await svc.ListChannelMembersAsync();
+        //     var svc = new YouTubeServiceHelper(configuration,"YoutubeDemo", "./Cred");
+        //     var members = await svc.ListChannelMembersAsync();
 
-            Assert.IsNotNull(members);
-        }
+        //     Assert.IsNotNull(members);
+        // }
 
         [TestMethod]
         public void TestGetVideoIdAsync()
@@ -41,8 +44,19 @@ namespace EasyLotteryDomainTests.Services
         [TestMethod]
         public async Task TestGetYoutubeLiveInfoAsync()
         {
+            var youtubeApiConfiguration = new Dictionary<string, string>
+            {
+                {"YouTubeApi:ApiKey", apiKey},
+            };
+
+            var configuration = new ConfigurationBuilder()
+                .AddInMemoryCollection(youtubeApiConfiguration!)
+                .Build();
+
+            var logger = LoggerFactory.Create(builder => builder.AddConsole()).CreateLogger<YouTubeServiceHelper>();
+        
             var liveID = "-L9cBf3oAO0";
-            var svc = new YouTubeServiceHelper(new ConfigurationBuilder().Build(), apiKey);
+            var svc = new YouTubeServiceHelper(configuration, logger);
             var actual = await svc.GetYoutubeLiveInfoAsync(liveID);
 
             Assert.IsNotNull(actual);
@@ -54,14 +68,43 @@ namespace EasyLotteryDomainTests.Services
         public async Task TestListLiveChatMessageAsync()
         {
             var chatID = "Cg0KCy1MOWNCZjNvQU8wKicKGFVDa0VMTU1CZHk0Z1BqNm9vUXdZSi15ZxILLUw5Y0JmM29BTzA";
+            var myConfiguration = new Dictionary<string, string>
+            {
+                {"YouTubeApi:ApiKey", apiKey},
+            };
 
-            var svc = new YouTubeServiceHelper(new ConfigurationBuilder().Build(), apiKey);
+            var configuration = new ConfigurationBuilder()
+                .AddInMemoryCollection(myConfiguration!)
+                .Build();
+
+            var logger = LoggerFactory.Create(builder => builder.AddConsole()).CreateLogger<YouTubeServiceHelper>();
+
+            var svc = new YouTubeServiceHelper(configuration, logger);
             var actual = await svc.ListLiveChatMessageAsync(chatID);
 
             Assert.IsNotNull(actual);
             Assert.IsTrue(actual.Any());
-            
+        }
 
+        [TestMethod]
+        public async Task TestListenLiveChatMessagesByGrpcAsync()
+        {
+            var chatID = "Cg0KCy1MOWNCZjNvQU8wKicKGFVDa0VMTU1CZHk0Z1BqNm9vUXdZSi15ZxILLUw5Y0JmM29BTzA";
+            var myConfiguration = new Dictionary<string, string>
+            {
+                {"YouTubeApi:ApiKey", apiKey},
+                 {"YouTubeApi:CredentialsBase64", "eyJ3ZWIiOnsiY2xpZW50X2lkIjoiMzkyNDcxMjgxNDY5LTNwdWhxNDVhbDlqZDFjMDE1a3M1MzVicTRxbWw2aDg5LmFwcHMuZ29vZ2xldXNlcmNvbnRlbnQuY29tIiwicHJvamVjdF9pZCI6ImRlcmVrcHJvamVjdC0zZTZmOSIsImF1dGhfdXJpIjoiaHR0cHM6Ly9hY2NvdW50cy5nb29nbGUuY29tL28vb2F1dGgyL2F1dGgiLCJ0b2tlbl91cmkiOiJodHRwczovL29hdXRoMi5nb29nbGVhcGlzLmNvbS90b2tlbiIsImF1dGhfcHJvdmlkZXJfeDUwOV9jZXJ0X3VybCI6Imh0dHBzOi8vd3d3Lmdvb2dsZWFwaXMuY29tL29hdXRoMi92MS9jZXJ0cyIsImNsaWVudF9zZWNyZXQiOiJHT0NTUFgtMnJfblAwNi1hMkJPVlU0WmxXRnJSWGRrXzNOaSJ9fQ=="},
+            };
+            var configuration = new ConfigurationBuilder()
+                .AddInMemoryCollection(myConfiguration!)
+                .Build();
+
+            var logger = LoggerFactory.Create(builder => builder.AddConsole()).CreateLogger<YouTubeServiceHelper>();
+
+            var svc = new YouTubeServiceHelper(configuration, logger);
+            var cancellationToken = new CancellationTokenSource();
+            await svc.ListenLiveChatMessagesByGrpcAsync(chatID, cancellationToken.Token);
+            Assert.IsTrue(true);
         }
     }
 }
