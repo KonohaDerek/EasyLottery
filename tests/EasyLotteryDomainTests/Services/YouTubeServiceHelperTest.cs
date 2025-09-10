@@ -114,7 +114,15 @@ namespace EasyLotteryDomainTests.Services
             var logger = new Logger<YouTubeServiceHelper>(fac);
             var svc = new YouTubeServiceHelper(configuration, logger);
             var cancellationToken = new CancellationTokenSource();
-            await svc.ListenLiveChatMessagesByGrpcAsync(chatID, cancellationToken.Token);
+            var reader = svc.ListenLiveChatMessagesByGrpcAsync(chatID, cancellationToken.Token);
+            await foreach (var msg in reader.ReadAllAsync(cancellationToken.Token))
+            {
+                Console.WriteLine($"{msg.UserName}:{msg.MessageText}");
+                if (msg.MessageText.Contains("exit"))
+                {
+                    cancellationToken.Cancel();
+                }
+            }
             Assert.IsTrue(true);
         }
         
