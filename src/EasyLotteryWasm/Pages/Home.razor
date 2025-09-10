@@ -247,7 +247,7 @@
         }
 
         if(!string.IsNullOrWhiteSpace(Configuration.GetValue<string>("YouTubeApi:CredentialsBase64"))){
-            showYoutube = true;
+            showYoutube = false;
         }
 
         if (!string.IsNullOrWhiteSpace(Configuration.GetValue<string>("YouTubeApi:RefreshToken"))) {
