@@ -9,6 +9,9 @@ using Google.Apis.Util.Store;
 using Google.Apis.YouTube.v3;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Youtube.Api.V3;
+using Grpc.Core;
+using Grpc.Net.Client;
 
 namespace EasyLotteryDomain.Services
 {
@@ -231,6 +234,75 @@ namespace EasyLotteryDomain.Services
             }
 
             return "";  // 若無法匹配則返回 null
+        }
+
+        public async Task ListenLiveChatMessagesByGrpcAsync(string liveChatId, CancellationToken cancellationToken)
+        {
+            var grpcUrl = configuration["Grpc:LiveChatServiceUrl"] ?? "https://youtube.googleapis.com";
+            var apiKey = configuration["YouTubeApi:ApiKey"];
+            var accessToken = this.accessToken;
+
+            using var channel = GrpcChannel.ForAddress(grpcUrl);
+
+            var client = new V3DataLiveChatMessageService.V3DataLiveChatMessageServiceClient(channel);
+
+            string? nextPageToken = null;
+
+            var metadata = new Metadata();
+            if (!string.IsNullOrWhiteSpace(accessToken))
+            {
+                metadata.Add("authorization", $"Bearer {accessToken}");
+            }
+            else if (!string.IsNullOrWhiteSpace(apiKey))
+            {
+                metadata.Add("x-goog-api-key", apiKey);
+            }
+
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                var request = new LiveChatMessageListRequest
+                {
+                    LiveChatId = liveChatId,
+                    MaxResults = 20,
+                };
+                if (!string.IsNullOrEmpty(nextPageToken))
+                {
+                    request.PageToken = nextPageToken;
+                }
+                request.Part.Add("snippet");
+                request.Part.Add("authorDetails");
+
+                using var call = client.StreamList(request, metadata, cancellationToken: cancellationToken);
+
+                try
+                {
+                    await foreach (var response in call.ResponseStream.ReadAllAsync(cancellationToken))
+                    {
+                        foreach (var msg in response.Items)
+                        {
+                            var author = msg.AuthorDetails?.DisplayName ?? "(unknown)";
+                            var text = msg.Snippet?.DisplayMessage ?? "";
+                            logger.LogInformation("聊天室訊息: {User} - {Text}", author, text);
+                        }
+                        nextPageToken = response.NextPageToken;
+                    }
+                }
+                catch (RpcException ex) when (ex.StatusCode == StatusCode.Cancelled)
+                {
+                    logger.LogInformation("gRPC 監聽已取消");
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "gRPC 監聽發生錯誤");
+                    await Task.Delay(2000, cancellationToken);
+                }
+
+                if (string.IsNullOrEmpty(nextPageToken))
+                {
+                    break;
+                }
+            }
         }
     }
 }
