@@ -152,9 +152,24 @@
 <Table FullWidth Striped Hoverable Bordered Responsive>
     <TableHeader>
         <TableRow>
-            <TableHeaderCell>獎項</TableHeaderCell>
-            <TableHeaderCell>參加者</TableHeaderCell>
-            <TableHeaderCell>得獎名單</TableHeaderCell>
+            <TableHeaderCell>
+                <span>獎項</span>
+                <Button Size="Size.Small" @onclick="() => ClearPrize()">
+                    <Icon Name="IconName.Clear" />
+                </Button>
+            </TableHeaderCell>
+            <TableHeaderCell>
+                <span>參加者</span>
+                <Button Size="Size.Small" @onclick="() => ClearParticipant()">
+                <Icon Name="IconName.Clear" />
+                </Button>
+             </TableHeaderCell>
+            <TableHeaderCell>
+                <span>得獎名單</span>
+                <Button Size="Size.Small" @onclick="() => ClearWinners()">
+                    <Icon Name="IconName.Clear" />
+                </Button>
+            </TableHeaderCell>
         </TableRow>
     </TableHeader>
     <TableBody>
@@ -225,7 +240,7 @@
 
 @code {
 
-   private ChatRoomCatch chatRoomCatch = new ChatRoomCatch();
+    private ChatRoomCatch chatRoomCatch = new ChatRoomCatch();
     private bool catchChat = false;
 
     private string toastMessage = "";
@@ -239,7 +254,7 @@
 
     protected override async Task OnInitializedAsync()
     {
-         if(youTubeServiceHelper == null)
+        if(youTubeServiceHelper == null)
         {
             var apiKey =  Configuration.GetValue<string>("YouTubeApi:ApiKey");
             Log.Information("apiKey:" + apiKey);
@@ -251,7 +266,7 @@
         }
 
         if (!string.IsNullOrWhiteSpace(Configuration.GetValue<string>("YouTubeApi:RefreshToken"))) {
-           await youTubeServiceHelper.RefreshTokenAsync();
+            await youTubeServiceHelper.RefreshTokenAsync();
         }
 
         var uri = NavigationManager.ToAbsoluteUri(NavigationManager.Uri);
@@ -270,13 +285,13 @@
 
     private async Task ExchangeCodeForTokensAsync(string code)
     {
-       var token = await youTubeServiceHelper.ExchangeCodeAsync(code);
-         if (token != null)
-         {
-              toastMessage = "授權成功";
-              toastVisible = true;
-              StateHasChanged();
-         }
+        var token = await youTubeServiceHelper.ExchangeCodeAsync(code);
+        if (token != null)
+        {
+            toastMessage = "授權成功";
+            toastVisible = true;
+            StateHasChanged();
+        }
     }
 
     // 得獎人
@@ -302,14 +317,14 @@
     private string Prize { get; set; } = "";
     // 獎項
     private List<string> Prizes {get;set;} = new();
-    
+
 
     // 自訂參加者名稱
     private string CustomParticipantName { get; set; } = "";
 
     // 參加者
     private List<Participant> Participants {get;set;} = new();
-    
+
     // 得獎名單
     private List<Winner> Winners {get;set;} = new();
 
@@ -322,7 +337,7 @@
     // 載入抽獎
     private void LoadDrawPrize()
     {
-       
+
         // 處理會員等級對應
         // 會員等級 ｜ 倍率
         foreach (var level in YTMembers.Select(x => x.Level).Distinct())
@@ -344,7 +359,7 @@
     {
         if (Prizes.Any() && Participants.Any())
         {
-           
+
             // 打亂順序並取得第一個
             var winner = Participants.Where(o=>o.IsWinner == false).OrderBy(o => Guid.NewGuid()).FirstOrDefault();
             if (winner == null)
@@ -379,6 +394,16 @@
             Prizes.Remove(prize);
         }
     }
+
+    // 清除獎項
+    private void ClearPrize()
+    {
+        if (Prizes.Any())
+        {
+            Prizes.Clear();
+        }
+    }
+
     // 新增參加者
     private void AddParticipant()
     {
@@ -393,9 +418,27 @@
     // 移除參加者
     private void RemoveParticipant(string name)
     {
-       if (Participants.Any(x => x.Name == name))
+        if (Participants.Any(x => x.Name == name))
         {
             Participants.RemoveAll(x => x.Name == name);
+        }
+    }
+
+    // 清除參加者
+    private void ClearParticipant()
+    {
+        if (Participants.Any())
+        {
+            Participants.Clear();
+        }
+    }
+
+    // 清除得獎名單
+    private void ClearWinners()
+    {
+        if (Winners.Any())
+        {
+            Winners.Clear();
         }
     }
 

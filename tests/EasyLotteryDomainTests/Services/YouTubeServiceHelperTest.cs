@@ -2,6 +2,7 @@ using EasyLotteryDomain.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using System;
 
 namespace EasyLotteryDomainTests.Services
 {
@@ -56,12 +57,14 @@ namespace EasyLotteryDomainTests.Services
             var myConfiguration = new Dictionary<string, string>
             {
                 {"YouTubeApi:ApiKey",apiKey},
+             {"YouTubeApi:CredentialsBase64", "eyJ3ZWIiOnsiY2xpZW50X2lkIjoiMzkyNDcxMjgxNDY5LTNwdWhxNDVhbDlqZDFjMDE1a3M1MzVicTRxbWw2aDg5LmFwcHMuZ29vZ2xldXNlcmNvbnRlbnQuY29tIiwicHJvamVjdF9pZCI6ImRlcmVrcHJvamVjdC0zZTZmOSIsImF1dGhfdXJpIjoiaHR0cHM6Ly9hY2NvdW50cy5nb29nbGUuY29tL28vb2F1dGgyL2F1dGgiLCJ0b2tlbl91cmkiOiJodHRwczovL29hdXRoMi5nb29nbGVhcGlzLmNvbS90b2tlbiIsImF1dGhfcHJvdmlkZXJfeDUwOV9jZXJ0X3VybCI6Imh0dHBzOi8vd3d3Lmdvb2dsZWFwaXMuY29tL29hdXRoMi92MS9jZXJ0cyIsImNsaWVudF9zZWNyZXQiOiJHT0NTUFgtMnJfblAwNi1hMkJPVlU0WmxXRnJSWGRrXzNOaSJ9fQ=="},
             };
             var configuration = new ConfigurationBuilder()
                .AddInMemoryCollection(myConfiguration!)
                .Build();
             var logger = new Logger<YouTubeServiceHelper>(new NullLoggerFactory());
-            var liveID = "-L9cBf3oAO0";
+            //var liveID = "PytNXM6-Q4g";
+            var liveID = "zrSJ7p5m0Bk";
             var svc = new YouTubeServiceHelper(configuration, logger);
             var actual = await svc.GetYoutubeLiveInfoAsync(liveID);
 
@@ -75,17 +78,14 @@ namespace EasyLotteryDomainTests.Services
         {
             var myConfiguration = new Dictionary<string, string>
             {
-                {"YouTubeApi:ApiKey",apiKey},
+                {"YouTubeApi:ApiKey", apiKey},
+                 {"YouTubeApi:CredentialsBase64", "eyJ3ZWIiOnsiY2xpZW50X2lkIjoiMzkyNDcxMjgxNDY5LTNwdWhxNDVhbDlqZDFjMDE1a3M1MzVicTRxbWw2aDg5LmFwcHMuZ29vZ2xldXNlcmNvbnRlbnQuY29tIiwicHJvamVjdF9pZCI6ImRlcmVrcHJvamVjdC0zZTZmOSIsImF1dGhfdXJpIjoiaHR0cHM6Ly9hY2NvdW50cy5nb29nbGUuY29tL28vb2F1dGgyL2F1dGgiLCJ0b2tlbl91cmkiOiJodHRwczovL29hdXRoMi5nb29nbGVhcGlzLmNvbS90b2tlbiIsImF1dGhfcHJvdmlkZXJfeDUwOV9jZXJ0X3VybCI6Imh0dHBzOi8vd3d3Lmdvb2dsZWFwaXMuY29tL29hdXRoMi92MS9jZXJ0cyIsImNsaWVudF9zZWNyZXQiOiJHT0NTUFgtMnJfblAwNi1hMkJPVlU0WmxXRnJSWGRrXzNOaSJ9fQ=="},
             };
             var configuration = new ConfigurationBuilder()
              .AddInMemoryCollection(myConfiguration!)
              .Build();
             var logger = new Logger<YouTubeServiceHelper>(new NullLoggerFactory());
             var chatID = "Cg0KCy1MOWNCZjNvQU8wKicKGFVDa0VMTU1CZHk0Z1BqNm9vUXdZSi15ZxILLUw5Y0JmM29BTzA";
-            var myConfiguration = new Dictionary<string, string>
-            {
-                {"YouTubeApi:ApiKey", apiKey},
-            };
 
             var svc = new YouTubeServiceHelper(configuration, logger);
             var actual = await svc.ListLiveChatMessageAsync(chatID);
@@ -97,7 +97,7 @@ namespace EasyLotteryDomainTests.Services
         [TestMethod]
         public async Task TestListenLiveChatMessagesByGrpcAsync()
         {
-            var chatID = "Cg0KCy1MOWNCZjNvQU8wKicKGFVDa0VMTU1CZHk0Z1BqNm9vUXdZSi15ZxILLUw5Y0JmM29BTzA";
+            var chatID = "Cg0KC3pyU0o3cDVtMEJrKicKGFVDMk02MVlLNG50dDlpSy0yM1hoRHdjdxILenJTSjdwNW0wQms";
             var myConfiguration = new Dictionary<string, string>
             {
                 {"YouTubeApi:ApiKey", apiKey},
@@ -106,9 +106,12 @@ namespace EasyLotteryDomainTests.Services
             var configuration = new ConfigurationBuilder()
                 .AddInMemoryCollection(myConfiguration!)
                 .Build();
-
-            var logger = LoggerFactory.Create(builder => builder.AddConsole()).CreateLogger<YouTubeServiceHelper>();
-
+            var fac = LoggerFactory.Create((builder) =>
+            {
+                builder.SetMinimumLevel(LogLevel.Debug);
+                    builder.AddConsole();
+            });
+            var logger = new Logger<YouTubeServiceHelper>(fac);
             var svc = new YouTubeServiceHelper(configuration, logger);
             var cancellationToken = new CancellationTokenSource();
             await svc.ListenLiveChatMessagesByGrpcAsync(chatID, cancellationToken.Token);
