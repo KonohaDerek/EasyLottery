@@ -10,8 +10,6 @@ namespace EasyLotteryDomainTests.Services
     public class YouTubeServiceHelperTest
     {
 
-        private string apiKey = "AIzaSyBvbITtuVbllyGzGATRLpw7XMdGnA7zOrI";
-
 
         //[TestMethod]
         //public async Task TestListChannelMembersAsync()
@@ -56,7 +54,6 @@ namespace EasyLotteryDomainTests.Services
         {
             var myConfiguration = new Dictionary<string, string>
             {
-                {"YouTubeApi:ApiKey",apiKey},
              {"YouTubeApi:CredentialsBase64", "eyJ3ZWIiOnsiY2xpZW50X2lkIjoiMzkyNDcxMjgxNDY5LTNwdWhxNDVhbDlqZDFjMDE1a3M1MzVicTRxbWw2aDg5LmFwcHMuZ29vZ2xldXNlcmNvbnRlbnQuY29tIiwicHJvamVjdF9pZCI6ImRlcmVrcHJvamVjdC0zZTZmOSIsImF1dGhfdXJpIjoiaHR0cHM6Ly9hY2NvdW50cy5nb29nbGUuY29tL28vb2F1dGgyL2F1dGgiLCJ0b2tlbl91cmkiOiJodHRwczovL29hdXRoMi5nb29nbGVhcGlzLmNvbS90b2tlbiIsImF1dGhfcHJvdmlkZXJfeDUwOV9jZXJ0X3VybCI6Imh0dHBzOi8vd3d3Lmdvb2dsZWFwaXMuY29tL29hdXRoMi92MS9jZXJ0cyIsImNsaWVudF9zZWNyZXQiOiJHT0NTUFgtMnJfblAwNi1hMkJPVlU0WmxXRnJSWGRrXzNOaSJ9fQ=="},
             };
             var configuration = new ConfigurationBuilder()
@@ -78,7 +75,6 @@ namespace EasyLotteryDomainTests.Services
         {
             var myConfiguration = new Dictionary<string, string>
             {
-                {"YouTubeApi:ApiKey", apiKey},
                  {"YouTubeApi:CredentialsBase64", "eyJ3ZWIiOnsiY2xpZW50X2lkIjoiMzkyNDcxMjgxNDY5LTNwdWhxNDVhbDlqZDFjMDE1a3M1MzVicTRxbWw2aDg5LmFwcHMuZ29vZ2xldXNlcmNvbnRlbnQuY29tIiwicHJvamVjdF9pZCI6ImRlcmVrcHJvamVjdC0zZTZmOSIsImF1dGhfdXJpIjoiaHR0cHM6Ly9hY2NvdW50cy5nb29nbGUuY29tL28vb2F1dGgyL2F1dGgiLCJ0b2tlbl91cmkiOiJodHRwczovL29hdXRoMi5nb29nbGVhcGlzLmNvbS90b2tlbiIsImF1dGhfcHJvdmlkZXJfeDUwOV9jZXJ0X3VybCI6Imh0dHBzOi8vd3d3Lmdvb2dsZWFwaXMuY29tL29hdXRoMi92MS9jZXJ0cyIsImNsaWVudF9zZWNyZXQiOiJHT0NTUFgtMnJfblAwNi1hMkJPVlU0WmxXRnJSWGRrXzNOaSJ9fQ=="},
             };
             var configuration = new ConfigurationBuilder()
@@ -100,7 +96,6 @@ namespace EasyLotteryDomainTests.Services
             var chatID = "Cg0KC3pyU0o3cDVtMEJrKicKGFVDMk02MVlLNG50dDlpSy0yM1hoRHdjdxILenJTSjdwNW0wQms";
             var myConfiguration = new Dictionary<string, string>
             {
-                {"YouTubeApi:ApiKey", apiKey},
                  {"YouTubeApi:CredentialsBase64", "eyJ3ZWIiOnsiY2xpZW50X2lkIjoiMzkyNDcxMjgxNDY5LTNwdWhxNDVhbDlqZDFjMDE1a3M1MzVicTRxbWw2aDg5LmFwcHMuZ29vZ2xldXNlcmNvbnRlbnQuY29tIiwicHJvamVjdF9pZCI6ImRlcmVrcHJvamVjdC0zZTZmOSIsImF1dGhfdXJpIjoiaHR0cHM6Ly9hY2NvdW50cy5nb29nbGUuY29tL28vb2F1dGgyL2F1dGgiLCJ0b2tlbl91cmkiOiJodHRwczovL29hdXRoMi5nb29nbGVhcGlzLmNvbS90b2tlbiIsImF1dGhfcHJvdmlkZXJfeDUwOV9jZXJ0X3VybCI6Imh0dHBzOi8vd3d3Lmdvb2dsZWFwaXMuY29tL29hdXRoMi92MS9jZXJ0cyIsImNsaWVudF9zZWNyZXQiOiJHT0NTUFgtMnJfblAwNi1hMkJPVlU0WmxXRnJSWGRrXzNOaSJ9fQ=="},
             };
             var configuration = new ConfigurationBuilder()
@@ -126,23 +121,5 @@ namespace EasyLotteryDomainTests.Services
             Assert.IsTrue(true);
         }
         
-        [TestMethod]
-        public async Task TestListLiveChatMessageWithAccessTokenAsync()
-        {
-            var myConfiguration = new Dictionary<string, string>
-            {
-                {"YouTubeApi:ApiKey",apiKey},
-            };
-            var configuration = new ConfigurationBuilder()
-             .AddInMemoryCollection(myConfiguration!)
-             .Build();
-            var logger = new Logger<YouTubeServiceHelper>(new NullLoggerFactory());
-            var chatID = "Cg0KC0hMWUVqcHBnMEZvKicKGFVDVzE3ZFBpNFpvVVZmR1N0MnlrNkR2dxILSExZRWpwcGcwRm8";
-
-            var svc = new YouTubeServiceHelper(configuration, logger);
-            var actual = await svc.ListLiveChatMessageAsync(chatID);
-            Assert.IsNotNull(actual);
-            Assert.IsTrue(actual.Any());
-        }
     }
 }
