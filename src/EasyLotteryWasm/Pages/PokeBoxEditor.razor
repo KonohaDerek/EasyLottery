@@ -1,0 +1,214 @@
+@page "/pokebox/editor/{Id:int}"
+@using EasyLotteryDomain.Models.Entities
+@using EasyLotteryDomain.Services
+
+@inject PokeService PokeService
+@inject NavigationManager NavigationManager
+@inject IMessageService MessageService
+
+<PageTitle>戳戳樂 - 編輯器</PageTitle>
+
+<h3>@(Id == 0 ? "新增模板" : "編輯模板")</h3>
+
+@if (template == null)
+{
+    <p>載入中…</p>
+}
+else
+{
+    <div class="row">
+        <!-- Global Settings Panel -->
+        <div class="col-md-4">
+            <Card>
+                <CardHeader><CardTitle>全域設定</CardTitle></CardHeader>
+                <CardBody>
+                    <Field>
+                        <FieldLabel>模板名稱</FieldLabel>
+                        <TextEdit @bind-Text="@template.Name" Placeholder="模板名稱" />
+                    </Field>
+                    <Field>
+                        <FieldLabel>說明</FieldLabel>
+                        <TextEdit @bind-Text="@template.Description" Placeholder="說明" />
+                    </Field>
+                    <Field>
+                        <FieldLabel>行數</FieldLabel>
+                        <NumericEdit TValue="int" @bind-Value="@template.GridRows" Min="1" Max="10" />
+                    </Field>
+                    <Field>
+                        <FieldLabel>欄數</FieldLabel>
+                        <NumericEdit TValue="int" @bind-Value="@template.GridColumns" Min="1" Max="10" />
+                    </Field>
+                    <Field>
+                        <FieldLabel>戳擊模式</FieldLabel>
+                        <Select TValue="PokeMode" @bind-SelectedValue="@template.Mode">
+                            <SelectItem Value="PokeMode.Random">隨機</SelectItem>
+                            <SelectItem Value="PokeMode.Manual">手動</SelectItem>
+                        </Select>
+                    </Field>
+                    <Field>
+                        <FieldLabel>允許重複戳</FieldLabel>
+                        <Switch TValue="bool" @bind-Checked="@template.AllowRePoking" />
+                    </Field>
+                    <Field>
+                        <FieldLabel>次數限制（0=無限）</FieldLabel>
+                        <NumericEdit TValue="int" @bind-Value="@template.MaxPokeCount" Min="0" />
+                    </Field>
+                    <Field>
+                        <FieldLabel>動畫效果</FieldLabel>
+                        <Select TValue="PokeAnimation" @bind-SelectedValue="@template.Animation">
+                            <SelectItem Value="PokeAnimation.Burst">爆破</SelectItem>
+                            <SelectItem Value="PokeAnimation.Smoke">煙霧</SelectItem>
+                            <SelectItem Value="PokeAnimation.Flash">光芒</SelectItem>
+                            <SelectItem Value="PokeAnimation.Bounce">彈跳</SelectItem>
+                            <SelectItem Value="PokeAnimation.Flip">翻轉</SelectItem>
+                        </Select>
+                    </Field>
+                    <Field>
+                        <FieldLabel>字體</FieldLabel>
+                        <TextEdit @bind-Text="@template.FontFamily" Placeholder="例如：Arial" />
+                    </Field>
+                    <Field>
+                        <FieldLabel>背景圖片 URL</FieldLabel>
+                        <TextEdit @bind-Text="@template.BackgroundImageUrl" Placeholder="https://…" />
+                    </Field>
+                    <Field>
+                        <FieldLabel>Overlay 寬度</FieldLabel>
+                        <NumericEdit TValue="int" @bind-Value="@template.OverlayWidth" Min="320" Max="3840" />
+                    </Field>
+                    <Field>
+                        <FieldLabel>Overlay 高度</FieldLabel>
+                        <NumericEdit TValue="int" @bind-Value="@template.OverlayHeight" Min="240" Max="2160" />
+                    </Field>
+                </CardBody>
+            </Card>
+
+            <div class="mt-3 d-flex gap-2">
+                <Button Color="Color.Primary" Clicked="@Save">儲存</Button>
+                <Button Color="Color.Secondary" Clicked="@ApplyGrid">套用格數（重設格子）</Button>
+                <Button Color="Color.Light" Clicked="@GoBack">返回</Button>
+            </div>
+        </div>
+
+        <!-- Cell Settings Panel -->
+        <div class="col-md-8">
+            <Card>
+                <CardHeader><CardTitle>格子設定（共 @template.Cells.Count 格）</CardTitle></CardHeader>
+                <CardBody>
+                    <div class="poke-grid" style="display:grid;grid-template-columns:repeat(@template.GridColumns,1fr);gap:8px;">
+                        @foreach (var cell in template.Cells.OrderBy(c => c.Index))
+                        {
+                            <div class="poke-cell-editor border rounded p-2" style="background:@(string.IsNullOrEmpty(cell.RevealedColor)?"#f0f0f0":cell.RevealedColor);">
+                                <small><strong>格 @(cell.Index + 1)</strong></small>
+                                <Field>
+                                    <TextEdit @bind-Text="@cell.Title" Placeholder="標題" Size="Size.Small" />
+                                </Field>
+                                <Field>
+                                    <TextEdit @bind-Text="@cell.SubTitle" Placeholder="副標" Size="Size.Small" />
+                                </Field>
+                                <Field>
+                                    <TextEdit @bind-Text="@cell.ImageUrl" Placeholder="圖片URL" Size="Size.Small" />
+                                </Field>
+                                <Field>
+                                    <TextEdit @bind-Text="@cell.RevealedImageUrl" Placeholder="開啟後圖片URL" Size="Size.Small" />
+                                </Field>
+                                <Field>
+                                    <FieldLabel>開啟後顏色</FieldLabel>
+                                    <ColorEdit @bind-Color="@cell.RevealedColor" />
+                                </Field>
+                            </div>
+                        }
+                    </div>
+                </CardBody>
+            </Card>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private PokeTemplate? template;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Id == 0)
+        {
+            template = new PokeTemplate();
+            ApplyGridToTemplate();
+        }
+        else
+        {
+            template = await PokeService.LoadTemplateAsync(Id);
+            if (template == null)
+            {
+                await MessageService.Error("找不到模板。");
+                NavigationManager.NavigateTo("/pokebox");
+            }
+        }
+    }
+
+    private void ApplyGrid()
+    {
+        if (template == null) return;
+        ApplyGridToTemplate();
+    }
+
+    private void ApplyGridToTemplate()
+    {
+        if (template == null) return;
+        var total = template.GridRows * template.GridColumns;
+        var current = template.Cells.Count;
+
+        if (current < total)
+        {
+            for (int i = current; i < total; i++)
+            {
+                template.Cells.Add(new PokeCell
+                {
+                    Index = i,
+                    Title = $"格子 {i + 1}",
+                    RevealedColor = "#cccccc"
+                });
+            }
+        }
+        else if (current > total)
+        {
+            template.Cells = template.Cells
+                .OrderBy(c => c.Index)
+                .Take(total)
+                .ToList();
+        }
+    }
+
+    private async Task Save()
+    {
+        if (template == null) return;
+        if (string.IsNullOrWhiteSpace(template.Name))
+        {
+            await MessageService.Warning("請輸入模板名稱。");
+            return;
+        }
+
+        // Ensure cell indices are sequential
+        var sorted = template.Cells.OrderBy(c => c.Index).ToList();
+        for (int i = 0; i < sorted.Count; i++) sorted[i].Index = i;
+        template.Cells = sorted;
+
+        if (template.Id == 0)
+        {
+            await PokeService.CreateTemplateAsync(template);
+        }
+        else
+        {
+            await PokeService.UpdateTemplateAsync(template);
+        }
+
+        await MessageService.Success("儲存成功！");
+        NavigationManager.NavigateTo("/pokebox");
+    }
+
+    private void GoBack()
+    {
+        NavigationManager.NavigateTo("/pokebox");
+    }
+}

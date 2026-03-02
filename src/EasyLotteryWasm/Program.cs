@@ -44,6 +44,7 @@ builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(builder.
 
 // 添加服務
 builder.Services.AddSingleton<YouTubeServiceHelper>();
+builder.Services.AddScoped<PokeService>();
 // builder.Services.AddSingleton(sp => new YouTubeServiceHelper(sp.GetRequiredService<IConfiguration>(), sp.GetRequiredService<ILogger<YouTubeServiceHelper>>()));
 
 builder.Services

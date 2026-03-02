@@ -20,7 +20,14 @@
             </NavLink>
         </div>
 
-        @* === 2. 畫面設置 === *@
+        @* === 2. 戳戳樂 === *@
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="pokebox">
+                <span class="bi bi-grid-3x3-gap-fill" aria-hidden="true"></span> 戳戳樂
+            </NavLink>
+        </div>
+
+        @* === 3. 畫面設置 === *@
         <div class="nav-group-header px-3" @onclick="ToggleDisplayGroup">
             <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span>
             <span class="nav-group-title">畫面設置</span>
@@ -40,7 +47,7 @@
             </div>
         }
 
-        @* === 3. 系統配置 === *@
+        @* === 4. 系統配置 === *@
         <div class="nav-group-header px-3" @onclick="ToggleSystemGroup">
             <span class="bi bi-gear-nav-menu" aria-hidden="true"></span>
             <span class="nav-group-title">系統配置</span>
