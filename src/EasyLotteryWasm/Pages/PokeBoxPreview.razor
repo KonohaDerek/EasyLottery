@@ -1,0 +1,287 @@
+@page "/pokebox/preview/{Id:int}"
+@using EasyLotteryDomain.Models.Entities
+@using EasyLotteryDomain.Services
+
+@inject PokeService PokeService
+@inject NavigationManager NavigationManager
+@inject IMessageService MessageService
+
+<PageTitle>戳戳樂 - 預覽</PageTitle>
+
+@if (template == null)
+{
+    <p>載入中…</p>
+}
+else
+{
+    <div class="poke-preview-wrapper" style="@PreviewWrapperStyle">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <h4 class="mb-0" style="color:white;">@template.Name</h4>
+            <div class="d-flex gap-2">
+                @if (template.Mode == PokeMode.Random)
+                {
+                    <Button Color="Color.Warning" Clicked="@PokeRandom">隨機戳一格</Button>
+                }
+                <Button Color="Color.Danger" Clicked="@ResetTemplate">重設</Button>
+                <Button Color="Color.Light" Clicked="@GoBack">返回</Button>
+            </div>
+        </div>
+
+        <div class="poke-grid" style="@GridStyle">
+            @foreach (var cell in template.Cells.OrderBy(c => c.Index))
+            {
+                <div class="poke-cell @(cell.IsRevealed ? "revealed " + AnimationClass : "") @(lastPokedIndex == cell.Index ? "just-poked" : "")"
+                     style="@CellStyle(cell)"
+                     @onclick="@(() => OnCellClick(cell))">
+                    @if (cell.IsRevealed)
+                    {
+                        @if (!string.IsNullOrEmpty(cell.RevealedImageUrl))
+                        {
+                            <img src="@cell.RevealedImageUrl" alt="@cell.Title" style="max-width:100%;max-height:80%;" />
+                        }
+                        <div class="cell-title">@cell.Title</div>
+                        @if (!string.IsNullOrEmpty(cell.SubTitle))
+                        {
+                            <div class="cell-subtitle">@cell.SubTitle</div>
+                        }
+                    }
+                    else
+                    {
+                        @if (!string.IsNullOrEmpty(cell.ImageUrl))
+                        {
+                            <img src="@cell.ImageUrl" alt="@cell.Title" style="max-width:100%;max-height:80%;" />
+                        }
+                        else
+                        {
+                            <span class="poke-icon">👆</span>
+                        }
+                    }
+                </div>
+            }
+        </div>
+
+        <div class="mt-2" style="color:white;">
+            已戳：@RevealedCount / @template.Cells.Count
+            @if (template.MaxPokeCount > 0)
+            {
+                <span>（上限：@template.MaxPokeCount）</span>
+            }
+        </div>
+    </div>
+}
+
+<style>
+    .poke-preview-wrapper {
+        padding: 16px;
+        border-radius: 8px;
+        min-height: 400px;
+    }
+
+    .poke-grid {
+        gap: 8px;
+    }
+
+    .poke-cell {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        border-radius: 8px;
+        cursor: pointer;
+        min-height: 80px;
+        font-size: 0.85rem;
+        text-align: center;
+        padding: 4px;
+        transition: transform 0.2s, box-shadow 0.2s;
+        background: #4a4a6a;
+        color: white;
+        border: 2px solid #6a6a8a;
+        user-select: none;
+    }
+
+    .poke-cell:hover:not(.revealed) {
+        transform: scale(1.05);
+        box-shadow: 0 0 12px rgba(255,255,100,0.6);
+    }
+
+    .poke-cell.revealed {
+        cursor: default;
+    }
+
+    .poke-cell .poke-icon {
+        font-size: 1.8rem;
+    }
+
+    .poke-cell .cell-title {
+        font-weight: bold;
+        margin-top: 4px;
+    }
+
+    .poke-cell .cell-subtitle {
+        font-size: 0.75rem;
+        opacity: 0.8;
+    }
+
+    /* Animation classes */
+    .poke-cell.just-poked.anim-burst {
+        animation: burst 0.5s ease-out;
+    }
+
+    .poke-cell.just-poked.anim-bounce {
+        animation: bounce 0.5s ease-out;
+    }
+
+    .poke-cell.just-poked.anim-flash {
+        animation: flash 0.5s ease-out;
+    }
+
+    .poke-cell.just-poked.anim-smoke {
+        animation: smoke 0.6s ease-out;
+    }
+
+    .poke-cell.just-poked.anim-flip {
+        animation: flip 0.5s ease-out;
+    }
+
+    @@keyframes burst {
+        0% { transform: scale(1); }
+        30% { transform: scale(1.4); }
+        60% { transform: scale(0.9); }
+        100% { transform: scale(1); }
+    }
+
+    @@keyframes bounce {
+        0%, 100% { transform: translateY(0); }
+        30% { transform: translateY(-16px); }
+        60% { transform: translateY(-8px); }
+    }
+
+    @@keyframes flash {
+        0%, 100% { opacity: 1; box-shadow: none; }
+        50% { opacity: 0.5; box-shadow: 0 0 24px 8px gold; }
+    }
+
+    @@keyframes smoke {
+        0% { opacity: 1; filter: blur(0); }
+        50% { opacity: 0.4; filter: blur(4px); }
+        100% { opacity: 1; filter: blur(0); }
+    }
+
+    @@keyframes flip {
+        0% { transform: rotateY(0); }
+        50% { transform: rotateY(90deg); }
+        100% { transform: rotateY(0); }
+    }
+</style>
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private PokeTemplate? template;
+    private int? lastPokedIndex;
+
+    // Longest CSS animation is 600ms (smoke); wait slightly longer before clearing the class
+    private const int AnimationDurationMs = 650;
+
+    private int RevealedCount => template?.Cells.Count(c => c.IsRevealed) ?? 0;
+
+    private string PreviewWrapperStyle =>
+        string.IsNullOrEmpty(template?.BackgroundImageUrl)
+            ? "background:#2a2a4a;"
+            : $"background:url('{template.BackgroundImageUrl}') center/cover;";
+
+    private string GridStyle =>
+        $"display:grid;grid-template-columns:repeat({template?.GridColumns ?? 3},1fr);gap:8px;";
+
+    private string AnimationClass => template?.Animation switch
+    {
+        PokeAnimation.Burst => "anim-burst",
+        PokeAnimation.Bounce => "anim-bounce",
+        PokeAnimation.Flash => "anim-flash",
+        PokeAnimation.Smoke => "anim-smoke",
+        PokeAnimation.Flip => "anim-flip",
+        _ => "anim-burst"
+    };
+
+    private string CellStyle(PokeCell cell)
+    {
+        if (cell.IsRevealed)
+        {
+            var bg = string.IsNullOrEmpty(cell.RevealedColor) ? "#cccccc" : cell.RevealedColor;
+            return $"background:{bg};color:#333;border-color:{bg};";
+        }
+        return "";
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadTemplate();
+    }
+
+    private async Task LoadTemplate()
+    {
+        template = await PokeService.LoadTemplateAsync(Id);
+        if (template == null)
+        {
+            await MessageService.Error("找不到模板。");
+            NavigationManager.NavigateTo("/pokebox");
+        }
+    }
+
+    private async Task OnCellClick(PokeCell cell)
+    {
+        if (template == null) return;
+        if (template.Mode != PokeMode.Manual) return;
+        if (cell.IsRevealed && !template.AllowRePoking) return;
+
+        var poked = await PokeService.PokeCellByIndexAsync(template.Id, cell.Index);
+        if (poked != null)
+        {
+            cell.IsRevealed = true;
+            cell.RevealedAt = poked.RevealedAt;
+            lastPokedIndex = cell.Index;
+            StateHasChanged();
+            await ClearAnimationAfterDelay();
+        }
+    }
+
+    private async Task PokeRandom()
+    {
+        if (template == null) return;
+        var poked = await PokeService.PokeRandomCellAsync(template.Id);
+        if (poked == null)
+        {
+            await MessageService.Info("所有格子已全部開啟！");
+            return;
+        }
+        var cell = template.Cells.FirstOrDefault(c => c.Index == poked.Index);
+        if (cell != null)
+        {
+            cell.IsRevealed = true;
+            cell.RevealedAt = poked.RevealedAt;
+            lastPokedIndex = cell.Index;
+            StateHasChanged();
+            await ClearAnimationAfterDelay();
+        }
+    }
+
+    private async Task ResetTemplate()
+    {
+        if (template == null) return;
+        await PokeService.ResetTemplateAsync(template.Id);
+        lastPokedIndex = null;
+        await LoadTemplate();
+    }
+
+    private async Task ClearAnimationAfterDelay()
+    {
+        await Task.Delay(AnimationDurationMs);
+        lastPokedIndex = null;
+        StateHasChanged();
+    }
+
+    private void GoBack()
+    {
+        NavigationManager.NavigateTo("/pokebox");
+    }
+}

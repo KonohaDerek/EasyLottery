@@ -33,6 +33,12 @@ namespace EasyLotteryDomain.Database
             }
         }
 
+        protected EasyLotteryContext(DbContextOptions<EasyLotteryContext> options, bool skipMigration)
+          : base(options)
+        {
+            this.Database.EnsureCreated();
+        }
+
         protected override void OnConfiguring(
            DbContextOptionsBuilder optionsBuilder)
         {
@@ -42,6 +48,9 @@ namespace EasyLotteryDomain.Database
 
         public DbSet<SystemSetting> SystemSettings { get; set; }
 
+        public DbSet<PokeTemplate> PokeTemplates { get; set; }
+
+        public DbSet<PokeCell> PokeCells { get; set; }
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -49,6 +58,8 @@ namespace EasyLotteryDomain.Database
 
             base.OnModelCreating(modelBuilder);
             new SystemSettingEntityTypeConfiguration().Configure(modelBuilder.Entity<SystemSetting>());
+            new PokeTemplateEntityTypeConfiguration().Configure(modelBuilder.Entity<PokeTemplate>());
+            new PokeCellEntityTypeConfiguration().Configure(modelBuilder.Entity<PokeCell>());
         }
     }
 }
