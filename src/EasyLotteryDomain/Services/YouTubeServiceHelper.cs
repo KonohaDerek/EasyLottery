@@ -25,8 +25,6 @@ namespace EasyLotteryDomain.Services
         private const string authorizationEndpoint = "https://accounts.google.com/o/oauth2/v2/auth";
 
 
-        private readonly string apiKey;
-
         private string accessToken="";
 
         private readonly string refreshToken;
@@ -41,7 +39,6 @@ namespace EasyLotteryDomain.Services
         {
             this.logger = logger;
             this.configuration = configuration;
-            apiKey =  configuration["YouTubeApi:ApiKey"]!;
             refreshToken = configuration["YouTubeApi:RefreshToken"]!;
             LoadCredentials();
         }
@@ -176,13 +173,14 @@ namespace EasyLotteryDomain.Services
 
         public async Task<IEnumerable<Google.Apis.YouTube.v3.Data.LiveChatMessage>> ListLiveChatMessageAsync(string chatID)
         {
-              using var httpClient = new HttpClient();
-                if (!string.IsNullOrWhiteSpace(accessToken))
+              if (string.IsNullOrWhiteSpace(accessToken))
                 {
-                    httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
+                    throw new InvalidOperationException("OAuth access token is required. Please authorize via YouTube OAuth first.");
                 }
+              using var httpClient = new HttpClient();
+                httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
                
-                var response = await httpClient.GetAsync($"https://www.googleapis.com/youtube/v3/liveChat/messages?liveChatId={chatID}&part=snippet,authorDetails&key={apiKey}");
+                var response = await httpClient.GetAsync($"https://www.googleapis.com/youtube/v3/liveChat/messages?liveChatId={chatID}&part=snippet,authorDetails");
 
                 if (response.IsSuccessStatusCode)
                 {
@@ -203,12 +201,13 @@ namespace EasyLotteryDomain.Services
 
         public async Task<Google.Apis.YouTube.v3.Data.VideoLiveStreamingDetails?> GetYoutubeLiveInfoAsync(string liveID)
         {
-                using var httpClient = new HttpClient();
-                if (!string.IsNullOrWhiteSpace(accessToken))
+                if (string.IsNullOrWhiteSpace(accessToken))
                 {
-                    httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
+                    throw new InvalidOperationException("OAuth access token is required. Please authorize via YouTube OAuth first.");
                 }
-                var response = await httpClient.GetAsync($"https://www.googleapis.com/youtube/v3/videos?part=liveStreamingDetails&id={liveID}&key={apiKey}");
+                using var httpClient = new HttpClient();
+                httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
+                var response = await httpClient.GetAsync($"https://www.googleapis.com/youtube/v3/videos?part=liveStreamingDetails&id={liveID}");
 
                 if (response.IsSuccessStatusCode)
                 {
@@ -244,7 +243,6 @@ namespace EasyLotteryDomain.Services
             _ = Task.Run(async () =>
             {
                 var grpcUrl = configuration["Grpc:LiveChatServiceUrl"] ?? "https://youtube.googleapis.com";
-                var apiKey = configuration["YouTubeApi:ApiKey"];
                 var accessToken = this.accessToken;
 
                 using var grpcChannel = GrpcChannel.ForAddress(grpcUrl);
@@ -254,8 +252,6 @@ namespace EasyLotteryDomain.Services
                 var metadata = new Metadata();
                 if (!string.IsNullOrWhiteSpace(accessToken))
                     metadata.Add("authorization", $"Bearer {accessToken}");
-                else if (!string.IsNullOrWhiteSpace(apiKey))
-                    metadata.Add("x-goog-api-key", apiKey);
 
                 try
                 {

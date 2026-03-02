@@ -256,13 +256,13 @@
     {
         if(youTubeServiceHelper == null)
         {
-            var apiKey =  Configuration.GetValue<string>("YouTubeApi:ApiKey");
-            Log.Information("apiKey:" + apiKey);
             youTubeServiceHelper = new YouTubeServiceHelper(Configuration, Logger);
         }
 
-        if(!string.IsNullOrWhiteSpace(Configuration.GetValue<string>("YouTubeApi:CredentialsBase64"))){
-            showYoutube = false;
+        if (!string.IsNullOrWhiteSpace(Configuration.GetValue<string>("YouTubeApi:CredentialsBase64"))
+            && string.IsNullOrWhiteSpace(Configuration.GetValue<string>("YouTubeApi:RefreshToken")))
+        {
+            showYoutube = true;
         }
 
         if (!string.IsNullOrWhiteSpace(Configuration.GetValue<string>("YouTubeApi:RefreshToken"))) {
