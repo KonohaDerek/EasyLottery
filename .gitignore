@@ -1,4 +1,3 @@
-*.json
 bin/
 obj/
 TestResults/
@@ -7,3 +6,8 @@ TestResults/
 src/EasyLottery/.pnpm-store
 src/EasyLottery/node_modules
 src/EasyLottery/dist
+
+# Sensitive settings
+appsettings.Development.json
+appsettings.*.json
+!appsettings.json

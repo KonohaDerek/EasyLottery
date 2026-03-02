@@ -1,4 +1,7 @@
-﻿<div class="top-row ps-3 navbar navbar-dark">
+﻿@implements IDisposable
+@inject YouTubeServiceHelper youTubeServiceHelper
+
+<div class="top-row ps-3 navbar navbar-dark">
     <div class="container-fluid">
         <a class="navbar-brand" href="">抽獎系統</a>
         <button title="Navigation menu" class="navbar-toggler" @onclick="ToggleNavMenu">
@@ -7,28 +10,115 @@
     </div>
 </div>
 
-<div class="@NavMenuCssClass nav-scrollable" @onclick="ToggleNavMenu">
+<div class="@NavMenuCssClass nav-scrollable">
+
     <nav class="flex-column">
+        @* === 1. 抽獎 === *@
         <div class="nav-item px-3">
             <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
                 <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> 抽獎
             </NavLink>
         </div>
+
+        @* === 2. 戳戳樂 === *@
         <div class="nav-item px-3">
             <NavLink class="nav-link" href="pokebox">
                 <span class="bi bi-grid-3x3-gap-fill" aria-hidden="true"></span> 戳戳樂
             </NavLink>
         </div>
+
+        @* === 3. 畫面設置 === *@
+        <div class="nav-group-header px-3" @onclick="ToggleDisplayGroup">
+            <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span>
+            <span class="nav-group-title">畫面設置</span>
+            <span class="nav-group-chevron @(displayGroupExpanded ? "expanded" : "")">&#9656;</span>
+        </div>
+        @if(displayGroupExpanded)
+        {
+            <div class="nav-item px-3 nav-sub-item">
+                <NavLink class="nav-link" href="display/lottery-result">
+                    抽獎結果畫面設置
+                </NavLink>
+            </div>
+            <div class="nav-item px-3 nav-sub-item">
+                <NavLink class="nav-link" href="display/obs-capture">
+                    OBS 截取畫面設置
+                </NavLink>
+            </div>
+        }
+
+        @* === 4. 系統配置 === *@
+        <div class="nav-group-header px-3" @onclick="ToggleSystemGroup">
+            <span class="bi bi-gear-nav-menu" aria-hidden="true"></span>
+            <span class="nav-group-title">系統配置</span>
+            <span class="nav-group-chevron @(systemGroupExpanded ? "expanded" : "")">&#9656;</span>
+        </div>
+        @if(systemGroupExpanded)
+        {
+            <div class="nav-item px-3 nav-sub-item">
+                <NavLink class="nav-link" href="system/payment">
+                    支付配置
+                </NavLink>
+            </div>
+            <div class="nav-item px-3 nav-sub-item">
+                <NavLink class="nav-link" href="system/youtube-login">
+                    YouTube 登入
+                </NavLink>
+            </div>
+        }
+
     </nav>
 </div>
 
+<div class="nav-login-status px-3">
+    <div class="status-indicator">
+        @if(youTubeServiceHelper.IsAuthorized)
+        {
+            <span class="status-dot status-online"></span>
+            <span class="status-text">YT 已登入</span>
+        }
+        else
+        {
+            <span class="status-dot status-offline"></span>
+            <span class="status-text">YT 未登入</span>
+        }
+    </div>
+</div>
+
 @code {
-    private bool collapseNavMenu = true;
+    private bool collapseNavMenu = false;
+    private bool displayGroupExpanded = false;
+    private bool systemGroupExpanded = false;
 
     private string? NavMenuCssClass => collapseNavMenu ? "collapse" : null;
+
+    protected override void OnInitialized()
+    {
+        youTubeServiceHelper.AuthStateChanged += OnAuthStateChanged;
+    }
+
+    private void OnAuthStateChanged()
+    {
+        InvokeAsync(StateHasChanged);
+    }
 
     private void ToggleNavMenu()
     {
         collapseNavMenu = !collapseNavMenu;
+    }
+
+    private void ToggleDisplayGroup()
+    {
+        displayGroupExpanded = !displayGroupExpanded;
+    }
+
+    private void ToggleSystemGroup()
+    {
+        systemGroupExpanded = !systemGroupExpanded;
+    }
+
+    public void Dispose()
+    {
+        youTubeServiceHelper.AuthStateChanged -= OnAuthStateChanged;
     }
 }
