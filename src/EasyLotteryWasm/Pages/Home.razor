@@ -260,8 +260,6 @@
 
         if(youTubeServiceHelper == null)
         {
-            var apiKey =  Configuration.GetValue<string>("YouTubeApi:ApiKey");
-            Log.Information("apiKey:" + apiKey);
             youTubeServiceHelper = new YouTubeServiceHelper(Configuration, Logger);
         }
 
