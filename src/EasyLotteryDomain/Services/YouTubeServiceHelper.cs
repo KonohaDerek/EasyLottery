@@ -31,6 +31,16 @@ namespace EasyLotteryDomain.Services
 
         private readonly string refreshToken;
 
+        /// <summary>
+        /// 是否已完成 OAuth 授權
+        /// </summary>
+        public bool IsAuthorized => !string.IsNullOrWhiteSpace(accessToken);
+
+        /// <summary>
+        /// 授權狀態變更事件
+        /// </summary>
+        public event Action? AuthStateChanged;
+
         internal record YoutubeCredentials(string client_id, string client_secret, string RedirectUri);
 
         private YoutubeCredentials credentials;
@@ -91,16 +101,19 @@ namespace EasyLotteryDomain.Services
             var token = await flow.RefreshTokenAsync("user", refreshToken, CancellationToken.None);
             logger.LogInformation("New Token: {0}", JsonSerializer.Serialize(token));
             accessToken = token.AccessToken;
+            AuthStateChanged?.Invoke();
         }
 
-        public  string GetAuthorizeUrl()
+        public  string GetAuthorizeUrl(string? redirectUri = null)
         {
-            var authorizationUrl = $"{authorizationEndpoint}?response_type=code&client_id={credentials.client_id}&redirect_uri={credentials.RedirectUri}&scope={string.Join(" ",Scopes)}&access_type=offline&include_granted_scopes=true&prompt=consent";
+            var effectiveRedirectUri = !string.IsNullOrWhiteSpace(redirectUri) ? redirectUri : credentials.RedirectUri;
+            var authorizationUrl = $"{authorizationEndpoint}?response_type=code&client_id={credentials.client_id}&redirect_uri={Uri.EscapeDataString(effectiveRedirectUri)}&scope={Uri.EscapeDataString(string.Join(" ",Scopes))}&access_type=offline&include_granted_scopes=true&prompt=consent";
            return authorizationUrl;
         }
 
-        public async Task<Google.Apis.Auth.OAuth2.Responses.TokenResponse> ExchangeCodeAsync(string code)
+        public async Task<Google.Apis.Auth.OAuth2.Responses.TokenResponse> ExchangeCodeAsync(string code, string? redirectUri = null)
         {
+            var effectiveRedirectUri = !string.IsNullOrWhiteSpace(redirectUri) ? redirectUri : credentials.RedirectUri;
             var initializer = new GoogleAuthorizationCodeFlow.Initializer
             {
                 ClientSecrets = new ClientSecrets
@@ -112,9 +125,21 @@ namespace EasyLotteryDomain.Services
 
             var flow = new GoogleAuthorizationCodeFlow(initializer);
 
-            var token = await flow.ExchangeCodeForTokenAsync("user", code, credentials.RedirectUri, CancellationToken.None);
+            var token = await flow.ExchangeCodeForTokenAsync("user", code, effectiveRedirectUri, CancellationToken.None);
             logger.LogInformation("Token: {0}", JsonSerializer.Serialize(token));
+            accessToken = token.AccessToken;
+            AuthStateChanged?.Invoke();
             return token;
+        }
+
+        /// <summary>
+        /// 登出：清除 access token
+        /// </summary>
+        public void Logout()
+        {
+            accessToken = "";
+            logger.LogInformation("YouTube OAuth logged out.");
+            AuthStateChanged?.Invoke();
         }
 
 

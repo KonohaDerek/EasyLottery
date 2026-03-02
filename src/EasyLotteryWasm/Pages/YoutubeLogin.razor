@@ -1,0 +1,173 @@
+@page "/system/youtube-login"
+@using EasyLotteryDomain.Models.Youtube
+@using Google.Apis.Auth.OAuth2
+@using Google.Apis.Auth.OAuth2.Flows
+@using Google.Apis.Auth.OAuth2.Responses
+@using Google.Apis.YouTube.v3
+@using System.Web
+@using Serilog
+@using Microsoft.Extensions.Configuration
+
+@inject NavigationManager NavigationManager
+@inject Microsoft.Extensions.Configuration.IConfiguration Configuration
+@implements IDisposable
+@inject YouTubeServiceHelper youTubeServiceHelper
+@inject ILogger<YouTubeServiceHelper> Logger
+
+<PageTitle>YouTube 登入</PageTitle>
+
+<Card>
+    <CardHeader>
+        <CardTitle>YouTube OAuth 授權</CardTitle>
+    </CardHeader>
+    <CardBody>
+        <CardText>
+            @if(!showYoutube)
+            {
+                <Alert Color="Color.Warning" Visible>
+                    <AlertMessage>尚未設定 YouTube API 憑證</AlertMessage>
+                    <AlertDescription>請先在 appsettings.json 中設定 <code>YouTubeApi:CredentialsBase64</code>。</AlertDescription>
+                </Alert>
+            }
+            else
+            {
+                <Row>
+                    <Column ColumnSize="ColumnSize.Is12">
+                        <Field>
+                            <FieldLabel>授權狀態</FieldLabel>
+                            <FieldBody>
+                                @if(isAuthorized)
+                                {
+                                    <Alert Color="Color.Success" Visible>
+                                        <AlertMessage>已授權</AlertMessage>
+                                        <AlertDescription>YouTube OAuth 授權成功，可以使用 YouTube 相關功能。</AlertDescription>
+                                    </Alert>
+                                }
+                                else
+                                {
+                                    <Alert Color="Color.Info" Visible>
+                                        <AlertMessage>未授權</AlertMessage>
+                                        <AlertDescription>請點擊下方按鈕進行 YouTube OAuth 授權登入。</AlertDescription>
+                                    </Alert>
+                                }
+                            </FieldBody>
+                        </Field>
+                    </Column>
+                </Row>
+
+                <Divider />
+
+                <Row>
+                    <Column ColumnSize="ColumnSize.IsAuto">
+                        @if(isAuthorized)
+                        {
+                            <Button Color="Color.Danger" @onclick="Logout" Size="Size.Large">
+                                <Icon Name="IconName.TimesCircle" /> 登出 YouTube 授權
+                            </Button>
+                        }
+                        else
+                        {
+                            <Button Color="Color.Primary" @onclick="Authorize" Size="Size.Large">
+                                <Icon Name="IconName.Link" /> YouTube OAuth 授權登入
+                            </Button>
+                        }
+                    </Column>
+                </Row>
+            }
+        </CardText>
+    </CardBody>
+</Card>
+
+<Toaster>
+    <Toast @bind-Visible="@toastVisible">
+        <ToastBody>
+           @toastMessage
+        </ToastBody>
+    </Toast>
+</Toaster>
+
+@code {
+    private bool showYoutube = false;
+    private bool isAuthorized = false;
+    private string toastMessage = "";
+    private bool toastVisible = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        youTubeServiceHelper.AuthStateChanged += OnAuthStateChanged;
+
+        if (youTubeServiceHelper == null)
+        {
+            youTubeServiceHelper = new YouTubeServiceHelper(Configuration, Logger);
+        }
+
+        if (!string.IsNullOrWhiteSpace(Configuration.GetValue<string>("YouTubeApi:CredentialsBase64")))
+        {
+            showYoutube = true;
+        }
+
+        if (!string.IsNullOrWhiteSpace(Configuration.GetValue<string>("YouTubeApi:RefreshToken")))
+        {
+            await youTubeServiceHelper.RefreshTokenAsync();
+            isAuthorized = youTubeServiceHelper.IsAuthorized;
+        }
+
+        var uri = NavigationManager.ToAbsoluteUri(NavigationManager.Uri);
+        var queryParams = HttpUtility.ParseQueryString(uri.Query);
+        if (queryParams["code"] != null)
+        {
+            // await ExchangeCodeForTokensAsync(queryParams["code"]!, GetRedirectUri());
+            await ExchangeCodeForTokensAsync(queryParams["code"]!);
+        }
+
+        // 也同步一下現有的授權狀態
+        isAuthorized = youTubeServiceHelper.IsAuthorized;
+    }
+
+    // 動態取得 redirect URI（目前改用 config 中的 RedirectUri）
+    // private string GetRedirectUri()
+    // {
+    //     var baseUri = NavigationManager.BaseUri.TrimEnd('/');
+    //     return baseUri + "/system/youtube-login";
+    // }
+
+    private void Authorize()
+    {
+        // var authorizationUrl = youTubeServiceHelper.GetAuthorizeUrl(GetRedirectUri());
+        var authorizationUrl = youTubeServiceHelper.GetAuthorizeUrl();
+        NavigationManager.NavigateTo(authorizationUrl, forceLoad: true);
+    }
+
+    private async Task ExchangeCodeForTokensAsync(string code)
+    {
+        var token = await youTubeServiceHelper.ExchangeCodeAsync(code);
+        if (token != null)
+        {
+            isAuthorized = true;
+            toastMessage = "授權成功";
+            toastVisible = true;
+            NavigationManager.NavigateTo("/system/youtube-login", forceLoad: false);
+            StateHasChanged();
+        }
+    }
+
+    private void Logout()
+    {
+        youTubeServiceHelper.Logout();
+        isAuthorized = false;
+        toastMessage = "已登出 YouTube 授權";
+        toastVisible = true;
+        StateHasChanged();
+    }
+
+    private async void OnAuthStateChanged()
+    {
+        isAuthorized = youTubeServiceHelper.IsAuthorized;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        youTubeServiceHelper.AuthStateChanged -= OnAuthStateChanged;
+    }
+}

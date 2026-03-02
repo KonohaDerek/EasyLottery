@@ -1,11 +1,6 @@
 ﻿@page "/"
 @using EasyLotteryDomain.Models.Youtube
 @using EasyLotteryWasm.Models
-@using Google.Apis.Auth.OAuth2
-@using Google.Apis.Auth.OAuth2.Flows
-@using Google.Apis.Auth.OAuth2.Responses
-@using Google.Apis.Services
-@using Google.Apis.Util.Store
 @using Google.Apis.YouTube.v3
 @using System.Web
 @using MiniExcelLibs
@@ -19,30 +14,39 @@
 @inject NavigationManager NavigationManager
 @inject Microsoft.Extensions.Configuration.IConfiguration Configuration
 @inject IMessageService MessageService
+@implements IDisposable
 @inject YouTubeServiceHelper youTubeServiceHelper;
 @inject ILogger<YouTubeServiceHelper> Logger
 
 
 <PageTitle>抽獎</PageTitle>
-<table>
-     <thead>
-        <tr>
-            @if(showYoutube) {
-                 <th><Button Color="Color.Primary" @onclick="Authorize">YT授權</Button></th>
-            }
-            <th>
-                 <Field Horizontal>
-                <FieldLabel ColumnSize="ColumnSize.Is6">
-                    匯入YT會員名單
-                </FieldLabel>
-                <FieldBody ColumnSize="ColumnSize.Is8">
-                    <InputFile OnChange="OnChanged"  />
-                </FieldBody>
+
+<Card Margin="Margin.Is3.FromBottom">
+    <CardBody>
+        <Row>
+            <Column ColumnSize="ColumnSize.Is6">
+                <Field Horizontal>
+                    <FieldLabel ColumnSize="ColumnSize.Is4">
+                        匯入YT會員名單
+                    </FieldLabel>
+                    <FieldBody ColumnSize="ColumnSize.Is8">
+                        <InputFile OnChange="OnChanged" />
+                    </FieldBody>
                 </Field>
-            </th>
-        </tr>
-    </thead>
-</table>
+            </Column>
+            <Column ColumnSize="ColumnSize.IsAuto">
+                @if(youTubeServiceHelper.IsAuthorized)
+                {
+                    <Badge Color="Color.Success"><Icon Name="IconName.CheckCircle" /> YT 已授權</Badge>
+                }
+                else
+                {
+                    <Badge Color="Color.Secondary">YT 未授權</Badge>
+                }
+            </Column>
+        </Row>
+    </CardBody>
+</Card>
 
 <Divider />
 
@@ -250,10 +254,10 @@
 
     private Validations validations = new Validations();
 
-    private bool showYoutube = false;
-
     protected override async Task OnInitializedAsync()
     {
+        youTubeServiceHelper.AuthStateChanged += OnAuthStateChanged;
+
         if(youTubeServiceHelper == null)
         {
             var apiKey =  Configuration.GetValue<string>("YouTubeApi:ApiKey");
@@ -261,37 +265,19 @@
             youTubeServiceHelper = new YouTubeServiceHelper(Configuration, Logger);
         }
 
-        if(!string.IsNullOrWhiteSpace(Configuration.GetValue<string>("YouTubeApi:CredentialsBase64"))){
-            showYoutube = false;
-        }
-
         if (!string.IsNullOrWhiteSpace(Configuration.GetValue<string>("YouTubeApi:RefreshToken"))) {
             await youTubeServiceHelper.RefreshTokenAsync();
         }
-
-        var uri = NavigationManager.ToAbsoluteUri(NavigationManager.Uri);
-        var queryParams = HttpUtility.ParseQueryString(uri.Query);
-        if (queryParams["code"] != null)
-        {
-            await ExchangeCodeForTokensAsync(queryParams["code"]!);
-        }
     }
 
-    private void Authorize()
+    private async void OnAuthStateChanged()
     {
-        var authorizationUrl =  youTubeServiceHelper.GetAuthorizeUrl();
-        NavigationManager.NavigateTo(authorizationUrl, forceLoad: true);
+        await InvokeAsync(StateHasChanged);
     }
 
-    private async Task ExchangeCodeForTokensAsync(string code)
+    public void Dispose()
     {
-        var token = await youTubeServiceHelper.ExchangeCodeAsync(code);
-        if (token != null)
-        {
-            toastMessage = "授權成功";
-            toastVisible = true;
-            StateHasChanged();
-        }
+        youTubeServiceHelper.AuthStateChanged -= OnAuthStateChanged;
     }
 
     // 得獎人
