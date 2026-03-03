@@ -33,8 +33,22 @@ builder.RootComponents.Add<HeadOutlet>("head::after");
 builder.Configuration.AddConfiguration(configuration);
 
     
+// 根據 appsettings 設定選擇資料庫提供者
+// Web 環境使用 InMemory（WASM 無法載入原生 SQLite）
+// Tauri 環境使用 Sqlite
+var dbProvider = configuration["Database:Provider"] ?? "InMemory";
 builder.Services.AddDbContextFactory<EasyLotteryContext>(opt =>
-    opt.UseSqlite($"Data Source= easylottery.sqlite"));
+{
+    if (dbProvider.Equals("Sqlite", StringComparison.OrdinalIgnoreCase))
+    {
+        var connectionString = configuration["Database:SqliteConnectionString"] ?? "Data Source=easylottery.sqlite";
+        opt.UseSqlite(connectionString);
+    }
+    else
+    {
+        opt.UseInMemoryDatabase("EasyLottery");
+    }
+});
 
 
 builder.Services.AddDistributedMemoryCache();

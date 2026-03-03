@@ -19,13 +19,17 @@ namespace EasyLotteryDomain.Database
           : base(options)
         {
             this.Database.EnsureCreated();
-            if (!s_migrated[0])
+            // InMemory provider 不支援 Migrate()，僅在關聯式資料庫時執行
+            var isInMemoryProvider = string.Equals(
+                this.Database.ProviderName,
+                "Microsoft.EntityFrameworkCore.InMemory",
+                StringComparison.Ordinal);
+            if (!s_migrated[0] && !isInMemoryProvider)
             {
                 lock (s_migrated)
                 {
                     if (!s_migrated[0])
                     {
-
                         this.Database.Migrate();
                         s_migrated[0] = true;
                     }
