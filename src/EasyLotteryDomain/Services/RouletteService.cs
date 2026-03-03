@@ -99,18 +99,19 @@ namespace EasyLotteryDomain.Services
         /// Performs a weighted random spin and returns the winning segment index
         /// plus the total rotation in degrees for the animation.
         /// </summary>
-        public async Task<SpinResult> SpinAsync(int templateId, int? forceIndex = null)
+        public async Task<SpinResult> SpinAsync(int templateId, int? forceIndex = null, double currentRotation = 0)
         {
             var template = await LoadTemplateAsync(templateId)
                 ?? throw new InvalidOperationException($"Template {templateId} not found.");
 
-            return Spin(template, forceIndex);
+            return Spin(template, forceIndex, currentRotation);
         }
 
         /// <summary>
         /// Pure (non-async) spin calculation for easy unit testing.
+        /// <param name="currentRotation">The wheel's current cumulative rotation in degrees (used to compute the correct delta).</param>
         /// </summary>
-        public static SpinResult Spin(RouletteTemplate template, int? forceIndex = null)
+        public static SpinResult Spin(RouletteTemplate template, int? forceIndex = null, double currentRotation = 0)
         {
             var segments = template.Segments.OrderBy(s => s.Index).ToList();
             int count = segments.Count;
@@ -129,13 +130,22 @@ namespace EasyLotteryDomain.Services
 
             double segmentAngle = 360.0 / count;
 
-            // Angle of the winning segment's center (segments start at top / 0°)
+            // Angle of the winning segment's center measured clockwise from top
             double winnerCenterAngle = winnerIndex * segmentAngle + segmentAngle / 2.0;
 
-            // We want the pointer (at top) to land on the winner.
-            // Add at least 5 full revolutions plus a small random offset within the segment.
+            // Target absolute angle (mod 360) so the pointer lands on the winner
             double offsetWithinSegment = (_random.NextDouble() - 0.5) * segmentAngle * SegmentOffsetFactor;
-            double totalRotation = 360.0 * MinRevolutions + (360.0 - winnerCenterAngle) + offsetWithinSegment;
+            double targetMod = ((360.0 - winnerCenterAngle) + offsetWithinSegment) % 360.0;
+            if (targetMod < 0) targetMod += 360.0;
+
+            // Account for the wheel's current rotation to compute the correct delta
+            double currentMod = currentRotation % 360.0;
+            if (currentMod < 0) currentMod += 360.0;
+
+            double delta = (targetMod - currentMod + 360.0) % 360.0;
+
+            // Add full revolutions so the spin always does at least MinRevolutions turns
+            double totalRotation = 360.0 * MinRevolutions + delta;
 
             return new SpinResult
             {

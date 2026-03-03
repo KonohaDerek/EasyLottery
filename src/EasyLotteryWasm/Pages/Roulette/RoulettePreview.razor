@@ -221,7 +221,7 @@ else
         if (template == null || isSpinning) return;
 
         lastResult = null;
-        var result = RouletteService.Spin(template, forced);
+        var result = RouletteService.Spin(template, forced, currentRotation);
 
         isSpinning = true;
         currentRotation += result.TotalRotationDeg;

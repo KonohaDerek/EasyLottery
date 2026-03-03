@@ -198,6 +198,65 @@ namespace EasyLotteryDomainTests.Services
             Assert.ThrowsException<InvalidOperationException>(() => RouletteService.Spin(template));
         }
 
+        [TestMethod]
+        public void Spin_ConsecutiveSpins_PointerAlwaysMatchesWinner()
+        {
+            // Simulates multiple consecutive spins, verifying the pointer
+            // always lands within the winning segment's angular range.
+            var template = new RouletteTemplate { Name = "ConsecutiveTest", SegmentCount = 8 };
+            template.Segments = Enumerable.Range(0, 8)
+                .Select(i => new RouletteSegment { Index = i, Title = $"Seg {i}", Probability = 0 })
+                .ToList();
+
+            double currentRotation = 0;
+            for (int spin = 0; spin < 50; spin++)
+            {
+                var result = RouletteService.Spin(template, currentRotation: currentRotation);
+                currentRotation += result.TotalRotationDeg;
+
+                // After rotation, the pointer (at top) points at angle (360 - currentRotation % 360) % 360
+                double pointerAngle = (360.0 - currentRotation % 360.0) % 360.0;
+                if (pointerAngle < 0) pointerAngle += 360.0;
+
+                int expectedCount = template.Segments.Count;
+                double segAngle = 360.0 / expectedCount;
+
+                // Determine which segment the pointer actually lands on
+                int actualIndex = (int)(pointerAngle / segAngle);
+                if (actualIndex >= expectedCount) actualIndex = expectedCount - 1;
+
+                Assert.AreEqual(result.SegmentIndex, actualIndex,
+                    $"Spin #{spin + 1}: pointer at {pointerAngle:F2}° should be segment {result.SegmentIndex} but got {actualIndex}. " +
+                    $"currentRotation={currentRotation:F2}, totalRotationDeg={result.TotalRotationDeg:F2}");
+            }
+        }
+
+        [TestMethod]
+        public void Spin_ForceIndex_WithCurrentRotation_LandsCorrectly()
+        {
+            var template = new RouletteTemplate { Name = "ForceWithRot", SegmentCount = 6 };
+            template.Segments = Enumerable.Range(0, 6)
+                .Select(i => new RouletteSegment { Index = i, Title = $"Seg {i}" })
+                .ToList();
+
+            double currentRotation = 0;
+            for (int targetIdx = 0; targetIdx < 6; targetIdx++)
+            {
+                var result = RouletteService.Spin(template, forceIndex: targetIdx, currentRotation: currentRotation);
+                currentRotation += result.TotalRotationDeg;
+
+                double pointerAngle = (360.0 - currentRotation % 360.0) % 360.0;
+                if (pointerAngle < 0) pointerAngle += 360.0;
+
+                double segAngle = 360.0 / 6;
+                int actualIndex = (int)(pointerAngle / segAngle);
+                if (actualIndex >= 6) actualIndex = 5;
+
+                Assert.AreEqual(targetIdx, actualIndex,
+                    $"Force index {targetIdx}: pointer at {pointerAngle:F2}° landed on segment {actualIndex}");
+            }
+        }
+
         // ── Export / Import ───────────────────────────────────────────────────
 
         [TestMethod]
