@@ -1,0 +1,224 @@
+@page "/roulette/editor/{Id:int}"
+@using EasyLotteryDomain.Models.Entities
+@using EasyLotteryDomain.Services
+
+@inject RouletteService RouletteService
+@inject NavigationManager NavigationManager
+@inject IMessageService MessageService
+
+<PageTitle>轉盤 - 編輯器</PageTitle>
+
+<h3>@(Id == 0 ? "新增轉盤模板" : "編輯轉盤模板")</h3>
+
+@if (template == null)
+{
+    <p>載入中…</p>
+}
+else
+{
+    <div class="row">
+        <!-- Global Settings Panel -->
+        <div class="col-md-4">
+            <Card>
+                <CardHeader><CardTitle>全域設定</CardTitle></CardHeader>
+                <CardBody>
+                    <Field>
+                        <FieldLabel>模板名稱</FieldLabel>
+                        <TextEdit @bind-Text="@template.Name" Placeholder="模板名稱" />
+                    </Field>
+                    <Field>
+                        <FieldLabel>說明</FieldLabel>
+                        <TextEdit @bind-Text="@template.Description" Placeholder="說明" />
+                    </Field>
+                    <Field>
+                        <FieldLabel>格數</FieldLabel>
+                        <Select TValue="int" @bind-SelectedValue="@template.SegmentCount">
+                            <SelectItem Value="6">6</SelectItem>
+                            <SelectItem Value="8">8</SelectItem>
+                            <SelectItem Value="12">12</SelectItem>
+                            <SelectItem Value="24">24</SelectItem>
+                        </Select>
+                    </Field>
+                    <Field>
+                        <FieldLabel>旋轉時間（秒）</FieldLabel>
+                        <NumericEdit TValue="double" @bind-Value="@template.SpinDurationSec" Min="1.0" Max="30.0" />
+                    </Field>
+                    <Field>
+                        <FieldLabel>Easing 曲線</FieldLabel>
+                        <Select TValue="string" @bind-SelectedValue="@template.EasingFunction">
+                            <SelectItem Value="@("ease-out-cubic")">ease-out-cubic（推薦）</SelectItem>
+                            <SelectItem Value="@("ease-out-quad")">ease-out-quad</SelectItem>
+                            <SelectItem Value="@("ease-out-quart")">ease-out-quart</SelectItem>
+                            <SelectItem Value="@("ease-out-expo")">ease-out-expo</SelectItem>
+                            <SelectItem Value="@("linear")">linear</SelectItem>
+                        </Select>
+                    </Field>
+                    <Field>
+                        <FieldLabel>初始角度（度）</FieldLabel>
+                        <NumericEdit TValue="double" @bind-Value="@template.InitialAngleDeg" Min="0" Max="359" />
+                    </Field>
+                    <Field>
+                        <FieldLabel>中心圖片 URL</FieldLabel>
+                        <TextEdit @bind-Text="@template.CenterImageUrl" Placeholder="https://…" />
+                    </Field>
+                    <Field>
+                        <FieldLabel>背景圖片 URL</FieldLabel>
+                        <TextEdit @bind-Text="@template.BackgroundImageUrl" Placeholder="https://…" />
+                    </Field>
+                    <Field>
+                        <FieldLabel>指針圖片 URL</FieldLabel>
+                        <TextEdit @bind-Text="@template.PointerImageUrl" Placeholder="https://…" />
+                    </Field>
+                    <Field>
+                        <FieldLabel>轉動音效 URL</FieldLabel>
+                        <TextEdit @bind-Text="@template.SpinSoundUrl" Placeholder="https://…" />
+                    </Field>
+                    <Field>
+                        <FieldLabel>中獎音效 URL</FieldLabel>
+                        <TextEdit @bind-Text="@template.WinSoundUrl" Placeholder="https://…" />
+                    </Field>
+                </CardBody>
+            </Card>
+
+            <div class="mt-3 d-flex gap-2">
+                <Button Color="Color.Primary" Clicked="@Save">儲存</Button>
+                <Button Color="Color.Secondary" Clicked="@ApplySegmentCount">套用格數（重設格子）</Button>
+                <Button Color="Color.Light" Clicked="@GoBack">返回</Button>
+            </div>
+        </div>
+
+        <!-- Segment Settings Panel -->
+        <div class="col-md-8">
+            <Card>
+                <CardHeader><CardTitle>格子設定（共 @template.Segments.Count 格）</CardTitle></CardHeader>
+                <CardBody>
+                    <div class="roulette-segments-editor">
+                        @foreach (var seg in template.Segments.OrderBy(s => s.Index))
+                        {
+                            <div class="segment-editor-row border rounded p-2 mb-2" style="border-left: 6px solid @seg.Color !important;">
+                                <div class="d-flex align-items-center gap-2 mb-1">
+                                    <strong style="min-width:40px;">格 @(seg.Index + 1)</strong>
+                                    <ColorEdit @bind-Color="@seg.Color" />
+                                </div>
+                                <div class="row g-1">
+                                    <div class="col-md-4">
+                                        <TextEdit @bind-Text="@seg.Title" Placeholder="標題" Size="Size.Small" />
+                                    </div>
+                                    <div class="col-md-5">
+                                        <TextEdit @bind-Text="@seg.ImageUrl" Placeholder="圖片 URL" Size="Size.Small" />
+                                    </div>
+                                    <div class="col-md-3">
+                                        <NumericEdit TValue="double" @bind-Value="@seg.Probability"
+                                                     Min="0" Max="100" Placeholder="機率%" Size="Size.Small" />
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                    @{
+                        var totalProb = template.Segments.Sum(s => s.Probability);
+                    }
+                    @if (totalProb > 0)
+                    {
+                        <small class="text-muted">機率總和：@totalProb.ToString("F1")%（0 表示等比分配）</small>
+                    }
+                    else
+                    {
+                        <small class="text-muted">機率均設為 0，將使用等比分配。</small>
+                    }
+                </CardBody>
+            </Card>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private RouletteTemplate? template;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Id == 0)
+        {
+            template = new RouletteTemplate();
+            ApplySegmentsToTemplate();
+        }
+        else
+        {
+            template = await RouletteService.LoadTemplateAsync(Id);
+            if (template == null)
+            {
+                await MessageService.Error("找不到模板。");
+                NavigationManager.NavigateTo("/roulette");
+            }
+        }
+    }
+
+    private void ApplySegmentCount()
+    {
+        if (template == null) return;
+        ApplySegmentsToTemplate();
+    }
+
+    private void ApplySegmentsToTemplate()
+    {
+        if (template == null) return;
+        int count = template.SegmentCount;
+        int current = template.Segments.Count;
+
+        if (current < count)
+        {
+            var defaultColors = new[] { "#e74c3c", "#e67e22", "#f1c40f", "#2ecc71", "#1abc9c", "#3498db", "#9b59b6", "#e91e63" };
+            for (int i = current; i < count; i++)
+            {
+                template.Segments.Add(new RouletteSegment
+                {
+                    Index = i,
+                    Title = $"選項 {i + 1}",
+                    Color = defaultColors[i % defaultColors.Length],
+                    Probability = 0
+                });
+            }
+        }
+        else if (current > count)
+        {
+            template.Segments = template.Segments
+                .OrderBy(s => s.Index)
+                .Take(count)
+                .ToList();
+        }
+    }
+
+    private async Task Save()
+    {
+        if (template == null) return;
+        if (string.IsNullOrWhiteSpace(template.Name))
+        {
+            await MessageService.Warning("請輸入模板名稱。");
+            return;
+        }
+
+        // Ensure segment indices are sequential
+        var sorted = template.Segments.OrderBy(s => s.Index).ToList();
+        for (int i = 0; i < sorted.Count; i++) sorted[i].Index = i;
+        template.Segments = sorted;
+
+        if (template.Id == 0)
+        {
+            await RouletteService.CreateTemplateAsync(template);
+        }
+        else
+        {
+            await RouletteService.UpdateTemplateAsync(template);
+        }
+
+        await MessageService.Success("儲存成功！");
+        NavigationManager.NavigateTo("/roulette");
+    }
+
+    private void GoBack()
+    {
+        NavigationManager.NavigateTo("/roulette");
+    }
+}

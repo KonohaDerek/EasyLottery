@@ -56,6 +56,10 @@ namespace EasyLotteryDomain.Database
 
         public DbSet<PokeCell> PokeCells { get; set; }
 
+        public DbSet<RouletteTemplate> RouletteTemplates { get; set; }
+
+        public DbSet<RouletteSegment> RouletteSegments { get; set; }
+
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -64,6 +68,8 @@ namespace EasyLotteryDomain.Database
             new SystemSettingEntityTypeConfiguration().Configure(modelBuilder.Entity<SystemSetting>());
             new PokeTemplateEntityTypeConfiguration().Configure(modelBuilder.Entity<PokeTemplate>());
             new PokeCellEntityTypeConfiguration().Configure(modelBuilder.Entity<PokeCell>());
+            new RouletteTemplateEntityTypeConfiguration().Configure(modelBuilder.Entity<RouletteTemplate>());
+            new RouletteSegmentEntityTypeConfiguration().Configure(modelBuilder.Entity<RouletteSegment>());
         }
     }
 }
