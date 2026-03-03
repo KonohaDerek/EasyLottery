@@ -5,6 +5,7 @@
 @inject PokeService PokeService
 @inject NavigationManager NavigationManager
 @inject IMessageService MessageService
+@inject IJSRuntime JS
 
 <PageTitle>戳戳樂 - 預覽</PageTitle>
 
@@ -78,7 +79,7 @@ else
     }
 
     .poke-grid {
-        gap: 8px;
+        gap: 0.5px;
     }
 
     .poke-cell {
@@ -106,6 +107,14 @@ else
 
     .poke-cell.revealed {
         cursor: default;
+        border: none !important;
+        clip-path: polygon(
+            15% 2%, 28% 0%, 40% 4%, 54% 1%, 67% 4%, 80% 0%, 90% 7%,
+            98% 17%, 100% 30%, 96% 44%, 100% 57%, 97% 70%, 100% 82%,
+            93% 93%, 82% 100%, 68% 97%, 55% 100%, 42% 97%, 29% 100%,
+            17% 95%, 6% 88%, 0% 75%, 3% 62%, 0% 49%, 4% 35%, 0% 21%, 7% 9%
+        );
+        box-shadow: inset 0 0 22px 10px rgba(0,0,0,0.75), inset 0 0 6px 2px rgba(60,30,10,0.4);
     }
 
     .poke-cell .poke-icon {
@@ -191,7 +200,7 @@ else
             : $"background:url('{template.BackgroundImageUrl}') center/cover;";
 
     private string GridStyle =>
-        $"display:grid;grid-template-columns:repeat({template?.GridColumns ?? 3},1fr);gap:8px;";
+        $"display:grid;grid-template-columns:repeat({template?.GridColumns ?? 3},1fr);gap:0.5px;";
 
     private string AnimationClass => template?.Animation switch
     {
@@ -228,6 +237,12 @@ else
         }
     }
 
+    private string FormatPrizeMessage(PokeCell cell)
+    {
+        var prize = string.IsNullOrEmpty(cell.SubTitle) ? cell.Title : $"{cell.Title}\n{cell.SubTitle}";
+        return $"🎉 得獎商品：{prize}";
+    }
+
     private async Task OnCellClick(PokeCell cell)
     {
         if (template == null) return;
@@ -241,6 +256,7 @@ else
             cell.RevealedAt = poked.RevealedAt;
             lastPokedIndex = cell.Index;
             StateHasChanged();
+            await JS.InvokeVoidAsync("alert", FormatPrizeMessage(cell));
             await ClearAnimationAfterDelay();
         }
     }
@@ -261,6 +277,7 @@ else
             cell.RevealedAt = poked.RevealedAt;
             lastPokedIndex = cell.Index;
             StateHasChanged();
+            await JS.InvokeVoidAsync("alert", FormatPrizeMessage(cell));
             await ClearAnimationAfterDelay();
         }
     }
