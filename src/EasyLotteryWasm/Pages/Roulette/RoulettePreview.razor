@@ -1,0 +1,255 @@
+@page "/roulette/preview/{Id:int}"
+@using EasyLotteryDomain.Models.Entities
+@using EasyLotteryDomain.Services
+
+@inject RouletteService RouletteService
+@inject NavigationManager NavigationManager
+@inject IMessageService MessageService
+
+<PageTitle>轉盤 - 預覽</PageTitle>
+
+@if (template == null)
+{
+    <p>載入中…</p>
+}
+else
+{
+    <div class="roulette-preview-wrapper" style="@PreviewWrapperStyle">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h4 class="mb-0" style="color:white;">@template.Name</h4>
+            <div class="d-flex gap-2">
+                <Button Color="Color.Light" Clicked="@GoBack">返回</Button>
+            </div>
+        </div>
+
+        <div class="roulette-container">
+            <!-- Pointer -->
+            <div class="roulette-pointer">
+                @if (!string.IsNullOrEmpty(template.PointerImageUrl))
+                {
+                    <img src="@template.PointerImageUrl" alt="指針" style="width:40px;" />
+                }
+                else
+                {
+                    <div class="default-pointer">▼</div>
+                }
+            </div>
+
+            <!-- Wheel -->
+            <div class="roulette-wheel-wrapper">
+                <svg class="roulette-wheel @(isSpinning ? "spinning" : "")"
+                     viewBox="0 0 400 400"
+                     style="@WheelStyle">
+                    @{
+                        var segments = template.Segments.OrderBy(s => s.Index).ToList();
+                        int count = segments.Count;
+                        double segAngle = 360.0 / count;
+                    }
+                    @for (int i = 0; i < count; i++)
+                    {
+                        var seg = segments[i];
+                        var startAngle = i * segAngle - 90;
+                        var endAngle = startAngle + segAngle;
+                        var midAngle = startAngle + segAngle / 2.0;
+                        var path = DescribeSector(200, 200, 180, startAngle, endAngle);
+                        var textX = 200 + 120 * Math.Cos(midAngle * Math.PI / 180);
+                        var textY = 200 + 120 * Math.Sin(midAngle * Math.PI / 180);
+                        var isWinner = lastResult != null && lastResult.SegmentIndex == i && !isSpinning;
+
+                        <g>
+                            <path d="@path" fill="@seg.Color"
+                                  stroke="white" stroke-width="2"
+                                  class="@(isWinner ? "winner-segment" : "")" />
+                            <text x="@textX.ToString("F1")" y="@textY.ToString("F1")"
+                                  text-anchor="middle" dominant-baseline="middle"
+                                  font-size="14" fill="white" font-weight="bold"
+                                  transform="rotate(@midAngle.ToString("F1"), @textX.ToString("F1"), @textY.ToString("F1"))">
+                                @seg.Title
+                            </text>
+                        </g>
+                    }
+                    <!-- Center image or circle -->
+                    @if (!string.IsNullOrEmpty(template.CenterImageUrl))
+                    {
+                        <image href="@template.CenterImageUrl" x="160" y="160" width="80" height="80" />
+                    }
+                    else
+                    {
+                        <circle cx="200" cy="200" r="30" fill="#333" />
+                    }
+                </svg>
+            </div>
+        </div>
+
+        <div class="mt-3 text-center">
+            <Button Color="Color.Warning" Size="Size.Large" Clicked="@SpinWheel" Disabled="@isSpinning">
+                @(isSpinning ? "轉動中…" : "🎰 開始轉動")
+            </Button>
+            @if (lastResult != null && !isSpinning)
+            {
+                <div class="win-result mt-3">
+                    <span class="win-label">🎉 中獎：</span>
+                    <span class="win-title">@lastResult.SegmentTitle</span>
+                </div>
+            }
+        </div>
+
+        <!-- Debug: force segment -->
+        <div class="mt-3">
+            <details>
+                <summary style="color:#aaa;cursor:pointer;">除錯：強制指定格子</summary>
+                <div class="d-flex gap-2 align-items-center mt-2">
+                    <NumericEdit TValue="int" @bind-Value="@forceIndex" Min="0"
+                                 Max="@(template.Segments.Count - 1)" style="width:80px;" />
+                    <Button Color="Color.Secondary" Size="Size.Small" Clicked="@SpinForce" Disabled="@isSpinning">
+                        強制轉到格 @(forceIndex + 1)
+                    </Button>
+                </div>
+            </details>
+        </div>
+    </div>
+}
+
+<style>
+    .roulette-preview-wrapper {
+        padding: 24px;
+        border-radius: 8px;
+        min-height: 500px;
+    }
+
+    .roulette-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        position: relative;
+    }
+
+    .roulette-pointer {
+        font-size: 2rem;
+        color: white;
+        text-align: center;
+        z-index: 10;
+        margin-bottom: -10px;
+    }
+
+    .default-pointer {
+        font-size: 2.5rem;
+        color: #ffd700;
+        text-shadow: 0 0 8px rgba(255,215,0,0.8);
+    }
+
+    .roulette-wheel-wrapper {
+        width: 400px;
+        height: 400px;
+        border-radius: 50%;
+        box-shadow: 0 0 30px rgba(0,0,0,0.5);
+        overflow: hidden;
+    }
+
+    .roulette-wheel {
+        width: 400px;
+        height: 400px;
+        transition-property: transform;
+        transition-timing-function: cubic-bezier(0.17, 0.67, 0.12, 0.99);
+    }
+
+    .winner-segment {
+        filter: brightness(1.4);
+        stroke: gold !important;
+        stroke-width: 4 !important;
+    }
+
+    .win-result {
+        font-size: 1.4rem;
+        color: white;
+    }
+
+    .win-label {
+        opacity: 0.8;
+    }
+
+    .win-title {
+        font-weight: bold;
+        color: #ffd700;
+        font-size: 1.6rem;
+        text-shadow: 0 0 12px rgba(255,215,0,0.8);
+    }
+</style>
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private RouletteTemplate? template;
+    private SpinResult? lastResult;
+    private bool isSpinning = false;
+    private double currentRotation = 0;
+    private int forceIndex = 0;
+
+    private const int PostSpinDelayMs = 300;
+
+    private string PreviewWrapperStyle =>
+        string.IsNullOrEmpty(template?.BackgroundImageUrl)
+            ? "background:#1a1a2e;"
+            : $"background:url('{template.BackgroundImageUrl}') center/cover;";
+
+    private string WheelStyle =>
+        $"transform: rotate({currentRotation}deg); " +
+        $"transition-duration: {(isSpinning ? template?.SpinDurationSec ?? 5.0 : 0)}s;";
+
+    protected override async Task OnInitializedAsync()
+    {
+        template = await RouletteService.LoadTemplateAsync(Id);
+        if (template == null)
+        {
+            await MessageService.Error("找不到模板。");
+            NavigationManager.NavigateTo("/roulette");
+        }
+    }
+
+    private async Task SpinWheel()
+    {
+        await DoSpin(null);
+    }
+
+    private async Task SpinForce()
+    {
+        await DoSpin(forceIndex);
+    }
+
+    private async Task DoSpin(int? forced)
+    {
+        if (template == null || isSpinning) return;
+
+        lastResult = null;
+        var result = RouletteService.Spin(template, forced);
+
+        isSpinning = true;
+        currentRotation += result.TotalRotationDeg;
+        StateHasChanged();
+
+        // Wait for spin animation to complete
+        int durationMs = (int)(template.SpinDurationSec * 1000) + PostSpinDelayMs;
+        await Task.Delay(durationMs);
+
+        isSpinning = false;
+        lastResult = result;
+        StateHasChanged();
+    }
+
+    private static string DescribeSector(double cx, double cy, double r, double startAngle, double endAngle)
+    {
+        var startRad = startAngle * Math.PI / 180;
+        var endRad = endAngle * Math.PI / 180;
+        var x1 = cx + r * Math.Cos(startRad);
+        var y1 = cy + r * Math.Sin(startRad);
+        var x2 = cx + r * Math.Cos(endRad);
+        var y2 = cy + r * Math.Sin(endRad);
+        var largeArc = (endAngle - startAngle) > 180 ? 1 : 0;
+        return $"M {cx.ToString("F2")} {cy.ToString("F2")} L {x1:F2} {y1:F2} A {r:F2} {r:F2} 0 {largeArc} 1 {x2:F2} {y2:F2} Z";
+    }
+
+    private void GoBack()
+    {
+        NavigationManager.NavigateTo("/roulette");
+    }
+}

@@ -1,0 +1,147 @@
+@page "/roulette"
+@using EasyLotteryDomain.Models.Entities
+@using EasyLotteryDomain.Services
+
+@inject RouletteService RouletteService
+@inject NavigationManager NavigationManager
+@inject IMessageService MessageService
+
+<PageTitle>轉盤 - 模板列表</PageTitle>
+
+<h3>轉盤（Roulette）</h3>
+
+<div class="mb-3 d-flex gap-2">
+    <Button Color="Color.Primary" Clicked="@NavigateToCreate">新增模板</Button>
+    <Button Color="Color.Secondary" Clicked="@SeedDefaults">載入預設模板</Button>
+</div>
+
+@if (templates == null)
+{
+    <p>載入中…</p>
+}
+else if (!templates.Any())
+{
+    <p>尚無模板，請新增或載入預設模板。</p>
+}
+else
+{
+    <Table FullWidth Striped Hoverable Bordered Responsive>
+        <TableHeader>
+            <TableRow>
+                <TableHeaderCell>名稱</TableHeaderCell>
+                <TableHeaderCell>說明</TableHeaderCell>
+                <TableHeaderCell>格數</TableHeaderCell>
+                <TableHeaderCell>旋轉時間</TableHeaderCell>
+                <TableHeaderCell>Easing</TableHeaderCell>
+                <TableHeaderCell>操作</TableHeaderCell>
+            </TableRow>
+        </TableHeader>
+        <TableBody>
+            @foreach (var t in templates)
+            {
+                <TableRow>
+                    <TableRowCell>@t.Name @(t.IsBuiltIn ? "🔒" : "")</TableRowCell>
+                    <TableRowCell>@t.Description</TableRowCell>
+                    <TableRowCell>@t.SegmentCount</TableRowCell>
+                    <TableRowCell>@t.SpinDurationSec 秒</TableRowCell>
+                    <TableRowCell>@t.EasingFunction</TableRowCell>
+                    <TableRowCell>
+                        <div class="d-flex gap-1">
+                            <Button Size="Size.Small" Color="Color.Success" Clicked="@(() => NavigateToPreview(t.Id))">預覽</Button>
+                            <Button Size="Size.Small" Color="Color.Warning" Clicked="@(() => NavigateToEditor(t.Id))">編輯</Button>
+                            <Button Size="Size.Small" Color="Color.Info" Clicked="@(() => ExportTemplate(t.Id))">匯出</Button>
+                            @if (!t.IsBuiltIn)
+                            {
+                                <Button Size="Size.Small" Color="Color.Danger" Clicked="@(() => DeleteTemplate(t.Id))">刪除</Button>
+                            }
+                        </div>
+                    </TableRowCell>
+                </TableRow>
+            }
+        </TableBody>
+    </Table>
+}
+
+<Divider />
+
+<h5>匯入模板（JSON）</h5>
+<div class="mb-3">
+    <MemoEdit @bind-Text="@importJson" Rows="6" Placeholder="貼上 JSON 模板內容…" />
+    <Button Color="Color.Primary" Clicked="@ImportTemplate" class="mt-2">匯入</Button>
+</div>
+
+@if (!string.IsNullOrEmpty(exportJson))
+{
+    <Divider />
+    <h5>匯出結果</h5>
+    <MemoEdit @bind-Text="@exportJson" Rows="10" ReadOnly />
+}
+
+@code {
+    private List<RouletteTemplate>? templates;
+    private string importJson = "";
+    private string exportJson = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadTemplates();
+    }
+
+    private async Task LoadTemplates()
+    {
+        templates = await RouletteService.ListTemplatesAsync();
+    }
+
+    private void NavigateToCreate()
+    {
+        NavigationManager.NavigateTo("/roulette/editor/0");
+    }
+
+    private void NavigateToEditor(int id)
+    {
+        NavigationManager.NavigateTo($"/roulette/editor/{id}");
+    }
+
+    private void NavigateToPreview(int id)
+    {
+        NavigationManager.NavigateTo($"/roulette/preview/{id}");
+    }
+
+    private async Task SeedDefaults()
+    {
+        await RouletteService.SeedDefaultTemplatesAsync();
+        await LoadTemplates();
+        await MessageService.Info("已載入 3 組預設模板。");
+    }
+
+    private async Task DeleteTemplate(int id)
+    {
+        await RouletteService.DeleteTemplateAsync(id);
+        await LoadTemplates();
+    }
+
+    private async Task ExportTemplate(int id)
+    {
+        exportJson = await RouletteService.ExportTemplateAsync(id);
+    }
+
+    private async Task ImportTemplate()
+    {
+        if (string.IsNullOrWhiteSpace(importJson))
+        {
+            await MessageService.Warning("請貼上 JSON 內容。");
+            return;
+        }
+        try
+        {
+            await RouletteService.ImportTemplateAsync(importJson);
+            importJson = "";
+            await LoadTemplates();
+            await MessageService.Success("匯入成功！");
+        }
+        catch (Exception ex)
+        {
+            await MessageService.Error($"匯入失敗：{ex.Message}");
+        }
+    }
+}
