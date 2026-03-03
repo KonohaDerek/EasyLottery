@@ -20,12 +20,20 @@
             </NavLink>
         </div>
 
-        @* === 2. 戳戳樂 === *@
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="pokebox">
-                <span class="bi bi-grid-3x3-gap-fill" aria-hidden="true"></span> 戳戳樂
-            </NavLink>
+        @* === 2. 活動配置 === *@
+        <div class="nav-group-header px-3" @onclick="ToggleActivityGroup">
+            <span class="bi bi-grid-3x3-gap-fill" aria-hidden="true"></span>
+            <span class="nav-group-title">活動配置</span>
+            <span class="nav-group-chevron @(activityGroupExpanded ? "expanded" : "")">&#9656;</span>
         </div>
+        @if(activityGroupExpanded)
+        {
+            <div class="nav-item px-3 nav-sub-item">
+                <NavLink class="nav-link" href="pokebox">
+                    戳戳樂
+                </NavLink>
+            </div>
+        }
 
         @* === 3. 畫面設置 === *@
         <div class="nav-group-header px-3" @onclick="ToggleDisplayGroup">
@@ -87,6 +95,7 @@
 
 @code {
     private bool collapseNavMenu = false;
+    private bool activityGroupExpanded = false;
     private bool displayGroupExpanded = false;
     private bool systemGroupExpanded = false;
 
@@ -105,6 +114,11 @@
     private void ToggleNavMenu()
     {
         collapseNavMenu = !collapseNavMenu;
+    }
+
+    private void ToggleActivityGroup()
+    {
+        activityGroupExpanded = !activityGroupExpanded;
     }
 
     private void ToggleDisplayGroup()
