@@ -1,27 +1,17 @@
-@page "/roulette/preview/{Id:int}"
+@page "/obs/roulette/{Id:int}"
+@layout ObsLayout
 @using EasyLotteryDomain.Models.Entities
 @using EasyLotteryDomain.Services
+@using EasyLotteryWasm.Layout
 
 @inject RouletteService RouletteService
 @inject NavigationManager NavigationManager
-@inject IMessageService MessageService
 
-<PageTitle>轉盤 - 預覽</PageTitle>
+<PageTitle>轉盤 - OBS</PageTitle>
 
-@if (template == null)
+@if (template != null)
 {
-    <p>載入中…</p>
-}
-else
-{
-    <div class="roulette-preview-wrapper" style="@PreviewWrapperStyle">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <h4 class="mb-0" style="color:white;">@template.Name</h4>
-            <div class="d-flex gap-2">
-                <Button Color="Color.Light" Clicked="@GoBack">返回</Button>
-            </div>
-        </div>
-
+    <div class="obs-roulette-wrapper" style="@WrapperStyle">
         <div class="roulette-container">
             <!-- Pointer -->
             <div class="roulette-pointer">
@@ -81,54 +71,36 @@ else
             </div>
         </div>
 
-        <div class="mt-3 text-center">
-            <Button Color="Color.Warning" Size="Size.Large" Clicked="@SpinWheel" Disabled="@isSpinning">
+        <div class="obs-controls">
+            <button class="obs-spin-btn" @onclick="@SpinWheel" disabled="@isSpinning">
                 @(isSpinning ? "轉動中…" : "🎰 開始轉動")
-            </Button>
-            @if (lastResult != null && !isSpinning)
-            {
-                <div class="win-result mt-3">
-                    <span class="win-label">🎉 中獎：</span>
-                    <span class="win-title">@lastResult.SegmentTitle</span>
-                </div>
-            }
+            </button>
         </div>
 
-        <!-- OBS Browser Source -->
-        <div class="mt-3">
-            <details>
-                <summary style="color:#aaa;cursor:pointer;">📺 OBS 瀏覽器來源</summary>
-                <div class="mt-2 p-2" style="background:rgba(255,255,255,0.1);border-radius:6px;">
-                    <p style="color:#ccc;font-size:0.85rem;margin-bottom:4px;">在 OBS 加入「瀏覽器」來源，將以下網址貼入：</p>
-                    <code style="color:#ffd700;word-break:break-all;">@ObsUrl</code>
-                    <p style="color:#aaa;font-size:0.75rem;margin-top:8px;margin-bottom:0;">
-                        💡 建議寬高設為 480 × 600，勾選「關閉時使場景不活躍」。背景會自動透明。
-                    </p>
-                </div>
-            </details>
-        </div>
-
-        <!-- Debug: force segment -->
-        <div class="mt-3">
-            <details>
-                <summary style="color:#aaa;cursor:pointer;">除錯：強制指定格子</summary>
-                <div class="d-flex gap-2 align-items-center mt-2">
-                    <NumericEdit TValue="int" @bind-Value="@forceIndex" Min="0"
-                                 Max="@(template.Segments.Count - 1)" style="width:80px;" />
-                    <Button Color="Color.Secondary" Size="Size.Small" Clicked="@SpinForce" Disabled="@isSpinning">
-                        強制轉到格 @(forceIndex + 1)
-                    </Button>
-                </div>
-            </details>
-        </div>
+        @if (lastResult != null && !isSpinning)
+        {
+            <div class="obs-win-result">
+                <span class="win-label">🎉 中獎：</span>
+                <span class="win-title">@lastResult.SegmentTitle</span>
+            </div>
+        }
     </div>
 }
 
 <style>
-    .roulette-preview-wrapper {
-        padding: 24px;
-        border-radius: 8px;
-        min-height: 500px;
+    /* OBS 透明背景 */
+    html, body, #app, .obs-layout {
+        background: transparent !important;
+        margin: 0;
+        padding: 0;
+    }
+
+    .obs-roulette-wrapper {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
     }
 
     .roulette-container {
@@ -173,16 +145,45 @@ else
         stroke-width: 4 !important;
     }
 
-    .win-result {
-        font-size: 1.4rem;
-        color: white;
+    .obs-controls {
+        margin-top: 16px;
+        text-align: center;
     }
 
-    .win-label {
+    .obs-spin-btn {
+        background: #f0c040;
+        color: #333;
+        border: none;
+        border-radius: 8px;
+        padding: 12px 32px;
+        font-size: 1.2rem;
+        font-weight: bold;
+        cursor: pointer;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        transition: background 0.2s;
+    }
+
+    .obs-spin-btn:hover:not(:disabled) {
+        background: #e0b030;
+    }
+
+    .obs-spin-btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
+    .obs-win-result {
+        margin-top: 12px;
+        font-size: 1.4rem;
+        color: white;
+        text-align: center;
+    }
+
+    .obs-win-result .win-label {
         opacity: 0.8;
     }
 
-    .win-title {
+    .obs-win-result .win-title {
         font-weight: bold;
         color: #ffd700;
         font-size: 1.6rem;
@@ -197,13 +198,12 @@ else
     private SpinResult? lastResult;
     private bool isSpinning = false;
     private double currentRotation = 0;
-    private int forceIndex = 0;
 
     private const int PostSpinDelayMs = 300;
 
-    private string PreviewWrapperStyle =>
+    private string WrapperStyle =>
         string.IsNullOrEmpty(template?.BackgroundImageUrl)
-            ? "background:#1a1a2e;"
+            ? ""
             : $"background:url('{template.BackgroundImageUrl}') center/cover;";
 
     private string WheelStyle =>
@@ -213,35 +213,19 @@ else
     protected override async Task OnInitializedAsync()
     {
         template = await RouletteService.LoadTemplateAsync(Id);
-        if (template == null)
-        {
-            await MessageService.Error("找不到模板。");
-            NavigationManager.NavigateTo("/roulette");
-        }
     }
 
     private async Task SpinWheel()
     {
-        await DoSpin(null);
-    }
-
-    private async Task SpinForce()
-    {
-        await DoSpin(forceIndex);
-    }
-
-    private async Task DoSpin(int? forced)
-    {
         if (template == null || isSpinning) return;
 
         lastResult = null;
-        var result = RouletteService.Spin(template, forced, currentRotation);
+        var result = RouletteService.Spin(template, null, currentRotation);
 
         isSpinning = true;
         currentRotation += result.TotalRotationDeg;
         StateHasChanged();
 
-        // Wait for spin animation to complete
         int durationMs = (int)(template.SpinDurationSec * 1000) + PostSpinDelayMs;
         await Task.Delay(durationMs);
 
@@ -260,12 +244,5 @@ else
         var y2 = cy + r * Math.Sin(endRad);
         var largeArc = (endAngle - startAngle) > 180 ? 1 : 0;
         return $"M {cx.ToString("F2")} {cy.ToString("F2")} L {x1:F2} {y1:F2} A {r:F2} {r:F2} 0 {largeArc} 1 {x2:F2} {y2:F2} Z";
-    }
-
-    private string ObsUrl => NavigationManager.BaseUri.TrimEnd('/') + $"/obs/roulette/{Id}";
-
-    private void GoBack()
-    {
-        NavigationManager.NavigateTo("/roulette");
     }
 }
