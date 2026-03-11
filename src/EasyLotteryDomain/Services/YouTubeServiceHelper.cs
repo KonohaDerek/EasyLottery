@@ -1,6 +1,7 @@
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using EasyLotteryDomain.Models.Config;
 using EasyLotteryDomain.Models.Youtube;
 using Google.Apis.Auth.OAuth2;
 using Google.Apis.Auth.OAuth2.Flows;
@@ -19,6 +20,7 @@ namespace EasyLotteryDomain.Services
     public class YouTubeServiceHelper
     {
         private readonly IConfiguration configuration;
+        private readonly SystemSettingsService? systemSettingsService;
 
         private static readonly string[] Scopes = { YouTubeService.Scope.YoutubeReadonly, "https://www.googleapis.com/auth/youtube.channel-memberships.creator" };
 
@@ -26,8 +28,6 @@ namespace EasyLotteryDomain.Services
 
 
         private string accessToken="";
-
-        private readonly string refreshToken;
 
         /// <summary>
         /// 是否已完成 OAuth 授權
@@ -41,56 +41,59 @@ namespace EasyLotteryDomain.Services
 
         internal record YoutubeCredentials(string client_id, string client_secret, string RedirectUri);
 
-        private YoutubeCredentials credentials;
-
         private readonly ILogger<YouTubeServiceHelper> logger;
+
+        public YouTubeServiceHelper(SystemSettingsService systemSettingsService, IConfiguration configuration, ILogger<YouTubeServiceHelper> logger)
+        {
+            this.logger = logger;
+            this.systemSettingsService = systemSettingsService;
+            this.configuration = configuration;
+        }
 
         public YouTubeServiceHelper(IConfiguration configuration, ILogger<YouTubeServiceHelper> logger)
         {
             this.logger = logger;
             this.configuration = configuration;
-            refreshToken = configuration["YouTubeApi:RefreshToken"]!;
-            LoadCredentials();
+            _ = GetLegacyAuthConfiguration();
         }
 
-        private void LoadCredentials()
+        public async Task<bool> HasConfiguredCredentialsAsync()
         {
-            var base64Credential = configuration["YouTubeApi:CredentialsBase64"];
-            if (base64Credential == null)
+            if (systemSettingsService == null)
             {
-                throw new Exception("YouTube API credentials not found.");
+                return !string.IsNullOrWhiteSpace(configuration["YouTubeApi:CredentialsBase64"]);
             }
 
-            var jsonBytes = Convert.FromBase64String(base64Credential!);
-            if (jsonBytes == null)
+            var settings = await systemSettingsService.GetYouTubeSettingsAsync();
+            return !string.IsNullOrWhiteSpace(settings.CredentialsBase64);
+        }
+
+        public async Task<bool> HasRefreshTokenAsync()
+        {
+            if (systemSettingsService == null)
             {
-                throw new Exception("Invalid YouTube API credentials.");
+                return !string.IsNullOrWhiteSpace(configuration["YouTubeApi:RefreshToken"]);
             }
 
-            using var stream = new MemoryStream(jsonBytes);
-            var data = GoogleClientSecrets.FromStream(stream).Secrets;
-
-            credentials = new YoutubeCredentials(data!.ClientId, data!.ClientSecret, configuration["YouTubeApi:RedirectUri"]!);
+            var settings = await systemSettingsService.GetYouTubeSettingsAsync();
+            return !string.IsNullOrWhiteSpace(settings.RefreshToken);
         }
 
         public async Task RefreshTokenAsync()
         {
+            var authConfiguration = await GetAuthConfigurationAsync();
+            var refreshToken = authConfiguration.RefreshToken;
             if (string.IsNullOrWhiteSpace(refreshToken))
             {
                 throw new Exception("Refresh token not found.");
-            }
-
-            if (credentials == null)
-            {
-                throw new Exception("Credentials not found.");
             }
 
                var initializer = new GoogleAuthorizationCodeFlow.Initializer
             {
                 ClientSecrets = new ClientSecrets
                 {
-                    ClientId = credentials.client_id,
-                    ClientSecret = credentials.client_secret
+                    ClientId = authConfiguration.Credentials.client_id,
+                    ClientSecret = authConfiguration.Credentials.client_secret
                 },
             };
 
@@ -101,22 +104,28 @@ namespace EasyLotteryDomain.Services
             AuthStateChanged?.Invoke();
         }
 
-        public  string GetAuthorizeUrl(string? redirectUri = null)
+        public string GetAuthorizeUrl(string? redirectUri = null)
         {
-            var effectiveRedirectUri = !string.IsNullOrWhiteSpace(redirectUri) ? redirectUri : credentials.RedirectUri;
-            var authorizationUrl = $"{authorizationEndpoint}?response_type=code&client_id={credentials.client_id}&redirect_uri={Uri.EscapeDataString(effectiveRedirectUri)}&scope={Uri.EscapeDataString(string.Join(" ",Scopes))}&access_type=offline&include_granted_scopes=true&prompt=consent";
-           return authorizationUrl;
+            var authConfiguration = GetLegacyAuthConfiguration();
+            return BuildAuthorizeUrl(authConfiguration.Credentials, redirectUri);
+        }
+
+        public async Task<string> GetAuthorizeUrlAsync(string? redirectUri = null)
+        {
+            var authConfiguration = await GetAuthConfigurationAsync();
+            return BuildAuthorizeUrl(authConfiguration.Credentials, redirectUri);
         }
 
         public async Task<Google.Apis.Auth.OAuth2.Responses.TokenResponse> ExchangeCodeAsync(string code, string? redirectUri = null)
         {
-            var effectiveRedirectUri = !string.IsNullOrWhiteSpace(redirectUri) ? redirectUri : credentials.RedirectUri;
+            var authConfiguration = await GetAuthConfigurationAsync();
+            var effectiveRedirectUri = !string.IsNullOrWhiteSpace(redirectUri) ? redirectUri : authConfiguration.Credentials.RedirectUri;
             var initializer = new GoogleAuthorizationCodeFlow.Initializer
             {
                 ClientSecrets = new ClientSecrets
                 {
-                    ClientId = credentials.client_id,
-                    ClientSecret = credentials.client_secret
+                    ClientId = authConfiguration.Credentials.client_id,
+                    ClientSecret = authConfiguration.Credentials.client_secret
                 },
             };
 
@@ -125,6 +134,15 @@ namespace EasyLotteryDomain.Services
             var token = await flow.ExchangeCodeForTokenAsync("user", code, effectiveRedirectUri, CancellationToken.None);
             logger.LogInformation("Token: {0}", JsonSerializer.Serialize(token));
             accessToken = token.AccessToken;
+
+            if (systemSettingsService != null && !string.IsNullOrWhiteSpace(token.RefreshToken))
+            {
+                await systemSettingsService.UpdateYouTubeSettingsAsync(settings =>
+                {
+                    settings.RefreshToken = token.RefreshToken;
+                });
+            }
+
             AuthStateChanged?.Invoke();
             return token;
         }
@@ -137,6 +155,50 @@ namespace EasyLotteryDomain.Services
             accessToken = "";
             logger.LogInformation("YouTube OAuth logged out.");
             AuthStateChanged?.Invoke();
+        }
+
+        private (YoutubeCredentials Credentials, string RefreshToken) GetLegacyAuthConfiguration()
+        {
+            return CreateAuthConfiguration(new YouTubeApiSettings
+            {
+                ApiKey = configuration["YouTubeApi:ApiKey"] ?? "",
+                CredentialsBase64 = configuration["YouTubeApi:CredentialsBase64"] ?? "",
+                RedirectUri = configuration["YouTubeApi:RedirectUri"] ?? "",
+                RefreshToken = configuration["YouTubeApi:RefreshToken"] ?? ""
+            });
+        }
+
+        private async Task<(YoutubeCredentials Credentials, string RefreshToken)> GetAuthConfigurationAsync()
+        {
+            if (systemSettingsService == null)
+            {
+                return GetLegacyAuthConfiguration();
+            }
+
+            var settings = await systemSettingsService.GetYouTubeSettingsAsync();
+            return CreateAuthConfiguration(settings);
+        }
+
+        private static (YoutubeCredentials Credentials, string RefreshToken) CreateAuthConfiguration(YouTubeApiSettings settings)
+        {
+            if (string.IsNullOrWhiteSpace(settings.CredentialsBase64))
+            {
+                throw new Exception("YouTube API credentials not found.");
+            }
+
+            var jsonBytes = Convert.FromBase64String(settings.CredentialsBase64);
+            using var stream = new MemoryStream(jsonBytes);
+            var data = GoogleClientSecrets.FromStream(stream).Secrets;
+
+            return (
+                new YoutubeCredentials(data!.ClientId, data!.ClientSecret, settings.RedirectUri ?? ""),
+                settings.RefreshToken ?? "");
+        }
+
+        private static string BuildAuthorizeUrl(YoutubeCredentials credentials, string? redirectUri = null)
+        {
+            var effectiveRedirectUri = !string.IsNullOrWhiteSpace(redirectUri) ? redirectUri : credentials.RedirectUri;
+            return $"{authorizationEndpoint}?response_type=code&client_id={credentials.client_id}&redirect_uri={Uri.EscapeDataString(effectiveRedirectUri)}&scope={Uri.EscapeDataString(string.Join(" ", Scopes))}&access_type=offline&include_granted_scopes=true&prompt=consent";
         }
 
 

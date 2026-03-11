@@ -2,8 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace EasyLotteryDomain.Models.Entities
 {
@@ -81,26 +79,5 @@ namespace EasyLotteryDomain.Models.Entities
 
         /// <summary>Title of the winning segment</summary>
         public string SegmentTitle { get; set; } = "";
-    }
-
-    public class RouletteTemplateEntityTypeConfiguration : IEntityTypeConfiguration<RouletteTemplate>
-    {
-        public void Configure(EntityTypeBuilder<RouletteTemplate> builder)
-        {
-            builder.HasKey(e => e.Id);
-            builder.HasMany(e => e.Segments)
-                   .WithOne(s => s.Template)
-                   .HasForeignKey(s => s.TemplateId)
-                   .OnDelete(DeleteBehavior.Cascade);
-        }
-    }
-
-    public class RouletteSegmentEntityTypeConfiguration : IEntityTypeConfiguration<RouletteSegment>
-    {
-        public void Configure(EntityTypeBuilder<RouletteSegment> builder)
-        {
-            builder.HasKey(e => e.Id);
-            builder.HasIndex(e => new { e.TemplateId, e.Index });
-        }
     }
 }

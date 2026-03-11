@@ -7,12 +7,10 @@
 @using MiniExcelLibs.Attributes
 @using Serilog
 @using System.Timers
-@using Microsoft.Extensions.Configuration
 @using EasyLotteryDomain.Models.Pages
 
 
 @inject NavigationManager NavigationManager
-@inject Microsoft.Extensions.Configuration.IConfiguration Configuration
 @inject IMessageService MessageService
 @implements IDisposable
 @inject YouTubeServiceHelper youTubeServiceHelper;
@@ -258,12 +256,7 @@
     {
         youTubeServiceHelper.AuthStateChanged += OnAuthStateChanged;
 
-        if(youTubeServiceHelper == null)
-        {
-            youTubeServiceHelper = new YouTubeServiceHelper(Configuration, Logger);
-        }
-
-        if (!string.IsNullOrWhiteSpace(Configuration.GetValue<string>("YouTubeApi:RefreshToken"))) {
+        if (await youTubeServiceHelper.HasRefreshTokenAsync()) {
             await youTubeServiceHelper.RefreshTokenAsync();
         }
     }

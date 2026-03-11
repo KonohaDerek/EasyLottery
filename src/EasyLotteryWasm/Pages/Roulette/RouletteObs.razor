@@ -9,7 +9,20 @@
 
 <PageTitle>轉盤 - OBS</PageTitle>
 
-@if (template != null)
+@if (isLoading)
+{
+    <div class="obs-state">
+        <div class="obs-state-title">載入中…</div>
+    </div>
+}
+else if (template == null)
+{
+    <div class="obs-state obs-state-error">
+        <div class="obs-state-title">找不到轉盤模板</div>
+        <div class="obs-state-hint">這個 OBS 連結對應的模板不存在，或頁面重新載入後只保留預設模板。</div>
+    </div>
+}
+else
 {
     <div class="obs-roulette-wrapper" style="@WrapperStyle">
         <div class="roulette-container">
@@ -101,6 +114,34 @@
         align-items: center;
         justify-content: center;
         padding: 16px;
+    }
+
+    .obs-state {
+        min-width: 320px;
+        max-width: 520px;
+        margin: 24px;
+        padding: 20px 24px;
+        border-radius: 14px;
+        background: rgba(15, 23, 42, 0.88);
+        color: white;
+        text-align: center;
+        box-shadow: 0 18px 48px rgba(0, 0, 0, 0.28);
+    }
+
+    .obs-state-error {
+        border: 1px solid rgba(248, 113, 113, 0.4);
+    }
+
+    .obs-state-title {
+        font-size: 1.2rem;
+        font-weight: 700;
+    }
+
+    .obs-state-hint {
+        margin-top: 8px;
+        font-size: 0.92rem;
+        line-height: 1.5;
+        opacity: 0.82;
     }
 
     .roulette-container {
@@ -197,6 +238,7 @@
     private RouletteTemplate? template;
     private SpinResult? lastResult;
     private bool isSpinning = false;
+    private bool isLoading = true;
     private double currentRotation = 0;
 
     private const int PostSpinDelayMs = 300;
@@ -213,6 +255,13 @@
     protected override async Task OnInitializedAsync()
     {
         template = await RouletteService.LoadTemplateAsync(Id);
+        if (template == null)
+        {
+            await RouletteService.SeedDefaultTemplatesAsync();
+            template = await RouletteService.LoadTemplateAsync(Id);
+        }
+
+        isLoading = false;
     }
 
     private async Task SpinWheel()

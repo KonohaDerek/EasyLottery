@@ -1,10 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace EasyLotteryDomain.Models.Entities
 {
@@ -92,26 +89,5 @@ namespace EasyLotteryDomain.Models.Entities
 
         [JsonIgnore]
         public PokeTemplate Template { get; set; } = null!;
-    }
-
-    public class PokeTemplateEntityTypeConfiguration : IEntityTypeConfiguration<PokeTemplate>
-    {
-        public void Configure(EntityTypeBuilder<PokeTemplate> builder)
-        {
-            builder.HasKey(e => e.Id);
-            builder.HasMany(e => e.Cells)
-                   .WithOne(c => c.Template)
-                   .HasForeignKey(c => c.TemplateId)
-                   .OnDelete(DeleteBehavior.Cascade);
-        }
-    }
-
-    public class PokeCellEntityTypeConfiguration : IEntityTypeConfiguration<PokeCell>
-    {
-        public void Configure(EntityTypeBuilder<PokeCell> builder)
-        {
-            builder.HasKey(e => e.Id);
-            builder.HasIndex(e => new { e.TemplateId, e.Index });
-        }
     }
 }

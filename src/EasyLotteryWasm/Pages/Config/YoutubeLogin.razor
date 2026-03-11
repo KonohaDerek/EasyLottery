@@ -6,10 +6,8 @@
 @using Google.Apis.YouTube.v3
 @using System.Web
 @using Serilog
-@using Microsoft.Extensions.Configuration
 
 @inject NavigationManager NavigationManager
-@inject Microsoft.Extensions.Configuration.IConfiguration Configuration
 @implements IDisposable
 @inject YouTubeServiceHelper youTubeServiceHelper
 @inject ILogger<YouTubeServiceHelper> Logger
@@ -26,7 +24,7 @@
             {
                 <Alert Color="Color.Warning" Visible>
                     <AlertMessage>尚未設定 YouTube API 憑證</AlertMessage>
-                    <AlertDescription>請先在 appsettings.json 中設定 <code>YouTubeApi:CredentialsBase64</code>。</AlertDescription>
+                    <AlertDescription>請先在 YAML 系統設定中提供 <code>youTube.credentialsBase64</code>。首次啟動時會自 appsettings 匯入既有值。</AlertDescription>
                 </Alert>
             }
             else
@@ -96,17 +94,12 @@
     {
         youTubeServiceHelper.AuthStateChanged += OnAuthStateChanged;
 
-        if (youTubeServiceHelper == null)
-        {
-            youTubeServiceHelper = new YouTubeServiceHelper(Configuration, Logger);
-        }
-
-        if (!string.IsNullOrWhiteSpace(Configuration.GetValue<string>("YouTubeApi:CredentialsBase64")))
+        if (await youTubeServiceHelper.HasConfiguredCredentialsAsync())
         {
             showYoutube = true;
         }
 
-        if (!string.IsNullOrWhiteSpace(Configuration.GetValue<string>("YouTubeApi:RefreshToken")))
+        if (await youTubeServiceHelper.HasRefreshTokenAsync())
         {
             await youTubeServiceHelper.RefreshTokenAsync();
             isAuthorized = youTubeServiceHelper.IsAuthorized;
@@ -131,10 +124,9 @@
     //     return baseUri + "/system/youtube-login";
     // }
 
-    private void Authorize()
+    private async Task Authorize()
     {
-        // var authorizationUrl = youTubeServiceHelper.GetAuthorizeUrl(GetRedirectUri());
-        var authorizationUrl = youTubeServiceHelper.GetAuthorizeUrl();
+        var authorizationUrl = await youTubeServiceHelper.GetAuthorizeUrlAsync();
         NavigationManager.NavigateTo(authorizationUrl, forceLoad: true);
     }
 

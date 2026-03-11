@@ -3,92 +3,76 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
-using EasyLotteryDomain.Database;
 using EasyLotteryDomain.Models.Entities;
-using Microsoft.EntityFrameworkCore;
 
 namespace EasyLotteryDomain.Services
 {
     public class PokeService
     {
-        private readonly IDbContextFactory<EasyLotteryContext> _contextFactory;
+        private readonly IEasyLotteryConfigStore _configStore;
 
         private static readonly Random _random = Random.Shared;
 
-        public PokeService(IDbContextFactory<EasyLotteryContext> contextFactory)
+        public PokeService(IEasyLotteryConfigStore configStore)
         {
-            _contextFactory = contextFactory;
+            _configStore = configStore;
         }
 
         // ── CRUD ──────────────────────────────────────────────────────────────
 
         public async Task<PokeTemplate> CreateTemplateAsync(PokeTemplate template)
         {
-            using var ctx = await _contextFactory.CreateDbContextAsync();
+            var document = await _configStore.LoadAsync();
             template.CreatedAt = DateTime.UtcNow;
             template.UpdatedAt = DateTime.UtcNow;
-            ctx.PokeTemplates.Add(template);
-            await ctx.SaveChangesAsync();
+            template.Id = document.IdSequence.NextPokeTemplateId++;
+            PrepareTemplateForSave(template, document.IdSequence.NextPokeCellId);
+            document.IdSequence.NextPokeCellId = Math.Max(document.IdSequence.NextPokeCellId, template.Cells.Select(c => c.Id).DefaultIfEmpty(document.IdSequence.NextPokeCellId - 1).Max() + 1);
+            document.PokeTemplates.Add(template);
+            await _configStore.SaveAsync(document);
             return template;
         }
 
         public async Task UpdateTemplateAsync(PokeTemplate template)
         {
-            using var ctx = await _contextFactory.CreateDbContextAsync();
+            var document = await _configStore.LoadAsync();
             template.UpdatedAt = DateTime.UtcNow;
 
-            var existing = await ctx.PokeTemplates
-                .Include(t => t.Cells)
-                .FirstOrDefaultAsync(t => t.Id == template.Id)
+            var existing = document.PokeTemplates
+                .FirstOrDefault(t => t.Id == template.Id)
                 ?? throw new InvalidOperationException($"Template {template.Id} not found.");
 
-            ctx.Entry(existing).CurrentValues.SetValues(template);
+            template.CreatedAt = existing.CreatedAt;
+            PrepareTemplateForSave(template, document.IdSequence.NextPokeCellId);
+            document.IdSequence.NextPokeCellId = Math.Max(document.IdSequence.NextPokeCellId, template.Cells.Select(c => c.Id).DefaultIfEmpty(document.IdSequence.NextPokeCellId - 1).Max() + 1);
 
-            // Sync cells: remove deleted, update existing, add new
-            var incomingIds = template.Cells.Where(c => c.Id != 0).Select(c => c.Id).ToHashSet();
-            var toRemove = existing.Cells.Where(c => !incomingIds.Contains(c.Id)).ToList();
-            ctx.PokeCells.RemoveRange(toRemove);
-
-            foreach (var incomingCell in template.Cells)
-            {
-                var existingCell = existing.Cells.FirstOrDefault(c => c.Id == incomingCell.Id);
-                if (existingCell != null)
-                {
-                    ctx.Entry(existingCell).CurrentValues.SetValues(incomingCell);
-                }
-                else
-                {
-                    incomingCell.TemplateId = template.Id;
-                    ctx.PokeCells.Add(incomingCell);
-                }
-            }
-
-            await ctx.SaveChangesAsync();
+            var existingIndex = document.PokeTemplates.FindIndex(t => t.Id == template.Id);
+            document.PokeTemplates[existingIndex] = template;
+            await _configStore.SaveAsync(document);
         }
 
         public async Task DeleteTemplateAsync(int id)
         {
-            using var ctx = await _contextFactory.CreateDbContextAsync();
-            var template = await ctx.PokeTemplates.FindAsync(id)
+            var document = await _configStore.LoadAsync();
+            var template = document.PokeTemplates.FirstOrDefault(t => t.Id == id)
                 ?? throw new InvalidOperationException($"Template {id} not found.");
-            ctx.PokeTemplates.Remove(template);
-            await ctx.SaveChangesAsync();
+            document.PokeTemplates.Remove(template);
+            await _configStore.SaveAsync(document);
         }
 
         public async Task<List<PokeTemplate>> ListTemplatesAsync()
         {
-            using var ctx = await _contextFactory.CreateDbContextAsync();
-            return await ctx.PokeTemplates
+            var document = await LoadDocumentAsync(ensureBuiltIns: true);
+            return document.PokeTemplates
                 .OrderByDescending(t => t.UpdatedAt)
-                .ToListAsync();
+                .ToList();
         }
 
         public async Task<PokeTemplate?> LoadTemplateAsync(int id)
         {
-            using var ctx = await _contextFactory.CreateDbContextAsync();
-            return await ctx.PokeTemplates
-                .Include(t => t.Cells.OrderBy(c => c.Index))
-                .FirstOrDefaultAsync(t => t.Id == id);
+            var document = await LoadDocumentAsync(ensureBuiltIns: true);
+            return document.PokeTemplates
+                .FirstOrDefault(t => t.Id == id);
         }
 
         // ── Poke Logic ────────────────────────────────────────────────────────
@@ -96,10 +80,9 @@ namespace EasyLotteryDomain.Services
         /// <summary>Randomly poke one unrevealed cell. Returns null if all cells are already revealed.</summary>
         public async Task<PokeCell?> PokeRandomCellAsync(int templateId)
         {
-            using var ctx = await _contextFactory.CreateDbContextAsync();
-            var template = await ctx.PokeTemplates
-                .Include(t => t.Cells)
-                .FirstOrDefaultAsync(t => t.Id == templateId)
+            var document = await _configStore.LoadAsync();
+            var template = document.PokeTemplates
+                .FirstOrDefault(t => t.Id == templateId)
                 ?? throw new InvalidOperationException($"Template {templateId} not found.");
 
             if (!CanPoke(template)) return null;
@@ -110,17 +93,16 @@ namespace EasyLotteryDomain.Services
             var cell = unrevealed[_random.Next(unrevealed.Count)];
             cell.IsRevealed = true;
             cell.RevealedAt = DateTime.UtcNow;
-            await ctx.SaveChangesAsync();
+            await _configStore.SaveAsync(document);
             return cell;
         }
 
         /// <summary>Manually poke a specific cell by its index.</summary>
         public async Task<PokeCell?> PokeCellByIndexAsync(int templateId, int index)
         {
-            using var ctx = await _contextFactory.CreateDbContextAsync();
-            var template = await ctx.PokeTemplates
-                .Include(t => t.Cells)
-                .FirstOrDefaultAsync(t => t.Id == templateId)
+            var document = await _configStore.LoadAsync();
+            var template = document.PokeTemplates
+                .FirstOrDefault(t => t.Id == templateId)
                 ?? throw new InvalidOperationException($"Template {templateId} not found.");
 
             var cell = template.Cells.FirstOrDefault(c => c.Index == index)
@@ -131,34 +113,35 @@ namespace EasyLotteryDomain.Services
 
             cell.IsRevealed = true;
             cell.RevealedAt = DateTime.UtcNow;
-            await ctx.SaveChangesAsync();
+            await _configStore.SaveAsync(document);
             return cell;
         }
 
         /// <summary>Returns the current reveal state for all cells in the template.</summary>
         public async Task<List<PokeCell>> GetRevealStateAsync(int templateId)
         {
-            using var ctx = await _contextFactory.CreateDbContextAsync();
-            return await ctx.PokeCells
-                .Where(c => c.TemplateId == templateId)
+            var document = await _configStore.LoadAsync();
+            return document.PokeTemplates
+                .FirstOrDefault(t => t.Id == templateId)?
+                .Cells
                 .OrderBy(c => c.Index)
-                .ToListAsync();
+                .ToList() ?? new List<PokeCell>();
         }
 
         // ── Reset ─────────────────────────────────────────────────────────────
 
         public async Task ResetTemplateAsync(int templateId)
         {
-            using var ctx = await _contextFactory.CreateDbContextAsync();
-            var cells = await ctx.PokeCells
-                .Where(c => c.TemplateId == templateId)
-                .ToListAsync();
-            foreach (var cell in cells)
+            var document = await _configStore.LoadAsync();
+            var template = document.PokeTemplates.FirstOrDefault(t => t.Id == templateId)
+                ?? throw new InvalidOperationException($"Template {templateId} not found.");
+
+            foreach (var cell in template.Cells)
             {
                 cell.IsRevealed = false;
                 cell.RevealedAt = null;
             }
-            await ctx.SaveChangesAsync();
+            await _configStore.SaveAsync(document);
         }
 
         // ── Export / Import ───────────────────────────────────────────────────
@@ -199,12 +182,13 @@ namespace EasyLotteryDomain.Services
         /// <summary>Seeds 3 built-in default templates if they do not yet exist.</summary>
         public async Task SeedDefaultTemplatesAsync()
         {
-            using var ctx = await _contextFactory.CreateDbContextAsync();
-            if (await ctx.PokeTemplates.AnyAsync(t => t.IsBuiltIn)) return;
+            var document = await _configStore.LoadAsync();
+            if (!EnsureBuiltInTemplates(document))
+            {
+                return;
+            }
 
-            var defaults = BuildDefaultTemplates();
-            ctx.PokeTemplates.AddRange(defaults);
-            await ctx.SaveChangesAsync();
+            await _configStore.SaveAsync(document);
         }
 
         // ── Helpers ───────────────────────────────────────────────────────────
@@ -214,6 +198,54 @@ namespace EasyLotteryDomain.Services
             if (template.MaxPokeCount <= 0) return true;
             var revealed = template.Cells.Count(c => c.IsRevealed);
             return revealed < template.MaxPokeCount;
+        }
+
+        private async Task<EasyLotteryDomain.Models.Config.EasyLotteryConfigDocument> LoadDocumentAsync(bool ensureBuiltIns)
+        {
+            var document = await _configStore.LoadAsync();
+            if (ensureBuiltIns && EnsureBuiltInTemplates(document))
+            {
+                await _configStore.SaveAsync(document);
+            }
+
+            return document;
+        }
+
+        private static bool EnsureBuiltInTemplates(EasyLotteryDomain.Models.Config.EasyLotteryConfigDocument document)
+        {
+            if (document.PokeTemplates.Any(t => t.IsBuiltIn))
+            {
+                return false;
+            }
+
+            foreach (var template in BuildDefaultTemplates())
+            {
+                template.Id = document.IdSequence.NextPokeTemplateId++;
+                PrepareTemplateForSave(template, document.IdSequence.NextPokeCellId);
+                document.IdSequence.NextPokeCellId = Math.Max(document.IdSequence.NextPokeCellId, template.Cells.Select(c => c.Id).DefaultIfEmpty(document.IdSequence.NextPokeCellId - 1).Max() + 1);
+                document.PokeTemplates.Add(template);
+            }
+
+            return true;
+        }
+
+        private static void PrepareTemplateForSave(PokeTemplate template, int nextCellId)
+        {
+            var orderedCells = template.Cells.OrderBy(c => c.Index).ToList();
+            for (var index = 0; index < orderedCells.Count; index++)
+            {
+                var cell = orderedCells[index];
+                cell.Index = index;
+                if (cell.Id <= 0)
+                {
+                    cell.Id = nextCellId++;
+                }
+
+                cell.TemplateId = template.Id;
+                cell.Template = null!;
+            }
+
+            template.Cells = orderedCells;
         }
 
         public static List<PokeTemplate> BuildDefaultTemplates()

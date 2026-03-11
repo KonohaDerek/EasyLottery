@@ -3,94 +3,78 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
-using EasyLotteryDomain.Database;
 using EasyLotteryDomain.Models.Entities;
-using Microsoft.EntityFrameworkCore;
 
 namespace EasyLotteryDomain.Services
 {
     public class RouletteService
     {
-        private readonly IDbContextFactory<EasyLotteryContext> _contextFactory;
+        private readonly IEasyLotteryConfigStore _configStore;
         private static readonly Random _random = Random.Shared;
 
         private const double MinRevolutions = 5;
         private const double SegmentOffsetFactor = 0.6;
 
-        public RouletteService(IDbContextFactory<EasyLotteryContext> contextFactory)
+        public RouletteService(IEasyLotteryConfigStore configStore)
         {
-            _contextFactory = contextFactory;
+            _configStore = configStore;
         }
 
         // ── CRUD ──────────────────────────────────────────────────────────────
 
         public async Task<RouletteTemplate> CreateTemplateAsync(RouletteTemplate template)
         {
-            using var ctx = await _contextFactory.CreateDbContextAsync();
+            var document = await _configStore.LoadAsync();
             template.CreatedAt = DateTime.UtcNow;
             template.UpdatedAt = DateTime.UtcNow;
-            ctx.RouletteTemplates.Add(template);
-            await ctx.SaveChangesAsync();
+            template.Id = document.IdSequence.NextRouletteTemplateId++;
+            PrepareTemplateForSave(template, document.IdSequence.NextRouletteSegmentId);
+            document.IdSequence.NextRouletteSegmentId = Math.Max(document.IdSequence.NextRouletteSegmentId, template.Segments.Select(s => s.Id).DefaultIfEmpty(document.IdSequence.NextRouletteSegmentId - 1).Max() + 1);
+            document.RouletteTemplates.Add(template);
+            await _configStore.SaveAsync(document);
             return template;
         }
 
         public async Task UpdateTemplateAsync(RouletteTemplate template)
         {
-            using var ctx = await _contextFactory.CreateDbContextAsync();
+            var document = await _configStore.LoadAsync();
             template.UpdatedAt = DateTime.UtcNow;
 
-            var existing = await ctx.RouletteTemplates
-                .Include(t => t.Segments)
-                .FirstOrDefaultAsync(t => t.Id == template.Id)
+            var existing = document.RouletteTemplates
+                .FirstOrDefault(t => t.Id == template.Id)
                 ?? throw new InvalidOperationException($"Template {template.Id} not found.");
 
-            ctx.Entry(existing).CurrentValues.SetValues(template);
+            template.CreatedAt = existing.CreatedAt;
+            PrepareTemplateForSave(template, document.IdSequence.NextRouletteSegmentId);
+            document.IdSequence.NextRouletteSegmentId = Math.Max(document.IdSequence.NextRouletteSegmentId, template.Segments.Select(s => s.Id).DefaultIfEmpty(document.IdSequence.NextRouletteSegmentId - 1).Max() + 1);
 
-            // Sync segments: remove deleted, update existing, add new
-            var incomingIds = template.Segments.Where(s => s.Id != 0).Select(s => s.Id).ToHashSet();
-            var toRemove = existing.Segments.Where(s => !incomingIds.Contains(s.Id)).ToList();
-            ctx.RouletteSegments.RemoveRange(toRemove);
-
-            foreach (var incoming in template.Segments)
-            {
-                var existingSegment = existing.Segments.FirstOrDefault(s => s.Id == incoming.Id);
-                if (existingSegment != null)
-                {
-                    ctx.Entry(existingSegment).CurrentValues.SetValues(incoming);
-                }
-                else
-                {
-                    incoming.TemplateId = template.Id;
-                    ctx.RouletteSegments.Add(incoming);
-                }
-            }
-
-            await ctx.SaveChangesAsync();
+            var existingIndex = document.RouletteTemplates.FindIndex(t => t.Id == template.Id);
+            document.RouletteTemplates[existingIndex] = template;
+            await _configStore.SaveAsync(document);
         }
 
         public async Task DeleteTemplateAsync(int id)
         {
-            using var ctx = await _contextFactory.CreateDbContextAsync();
-            var template = await ctx.RouletteTemplates.FindAsync(id)
+            var document = await _configStore.LoadAsync();
+            var template = document.RouletteTemplates.FirstOrDefault(t => t.Id == id)
                 ?? throw new InvalidOperationException($"Template {id} not found.");
-            ctx.RouletteTemplates.Remove(template);
-            await ctx.SaveChangesAsync();
+            document.RouletteTemplates.Remove(template);
+            await _configStore.SaveAsync(document);
         }
 
         public async Task<List<RouletteTemplate>> ListTemplatesAsync()
         {
-            using var ctx = await _contextFactory.CreateDbContextAsync();
-            return await ctx.RouletteTemplates
+            var document = await LoadDocumentAsync(ensureBuiltIns: true);
+            return document.RouletteTemplates
                 .OrderByDescending(t => t.UpdatedAt)
-                .ToListAsync();
+                .ToList();
         }
 
         public async Task<RouletteTemplate?> LoadTemplateAsync(int id)
         {
-            using var ctx = await _contextFactory.CreateDbContextAsync();
-            return await ctx.RouletteTemplates
-                .Include(t => t.Segments.OrderBy(s => s.Index))
-                .FirstOrDefaultAsync(t => t.Id == id);
+            var document = await LoadDocumentAsync(ensureBuiltIns: true);
+            return document.RouletteTemplates
+                .FirstOrDefault(t => t.Id == id);
         }
 
         // ── Spin Algorithm ────────────────────────────────────────────────────
@@ -208,12 +192,61 @@ namespace EasyLotteryDomain.Services
         /// <summary>Seeds 3 built-in default templates if they do not yet exist.</summary>
         public async Task SeedDefaultTemplatesAsync()
         {
-            using var ctx = await _contextFactory.CreateDbContextAsync();
-            if (await ctx.RouletteTemplates.AnyAsync(t => t.IsBuiltIn)) return;
+            var document = await _configStore.LoadAsync();
+            if (!EnsureBuiltInTemplates(document))
+            {
+                return;
+            }
 
-            var defaults = BuildDefaultTemplates();
-            ctx.RouletteTemplates.AddRange(defaults);
-            await ctx.SaveChangesAsync();
+            await _configStore.SaveAsync(document);
+        }
+
+        private async Task<EasyLotteryDomain.Models.Config.EasyLotteryConfigDocument> LoadDocumentAsync(bool ensureBuiltIns)
+        {
+            var document = await _configStore.LoadAsync();
+            if (ensureBuiltIns && EnsureBuiltInTemplates(document))
+            {
+                await _configStore.SaveAsync(document);
+            }
+
+            return document;
+        }
+
+        private static bool EnsureBuiltInTemplates(EasyLotteryDomain.Models.Config.EasyLotteryConfigDocument document)
+        {
+            if (document.RouletteTemplates.Any(t => t.IsBuiltIn))
+            {
+                return false;
+            }
+
+            foreach (var template in BuildDefaultTemplates())
+            {
+                template.Id = document.IdSequence.NextRouletteTemplateId++;
+                PrepareTemplateForSave(template, document.IdSequence.NextRouletteSegmentId);
+                document.IdSequence.NextRouletteSegmentId = Math.Max(document.IdSequence.NextRouletteSegmentId, template.Segments.Select(s => s.Id).DefaultIfEmpty(document.IdSequence.NextRouletteSegmentId - 1).Max() + 1);
+                document.RouletteTemplates.Add(template);
+            }
+
+            return true;
+        }
+
+        private static void PrepareTemplateForSave(RouletteTemplate template, int nextSegmentId)
+        {
+            var orderedSegments = template.Segments.OrderBy(s => s.Index).ToList();
+            for (var index = 0; index < orderedSegments.Count; index++)
+            {
+                var segment = orderedSegments[index];
+                segment.Index = index;
+                if (segment.Id <= 0)
+                {
+                    segment.Id = nextSegmentId++;
+                }
+
+                segment.TemplateId = template.Id;
+                segment.Template = null!;
+            }
+
+            template.Segments = orderedSegments;
         }
 
         public static List<RouletteTemplate> BuildDefaultTemplates()
