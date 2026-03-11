@@ -1,3 +1,4 @@
+using System.Text.Json;
 using EasyLotteryDomain.Models.Config;
 using EasyLotteryDomain.Models.Entities;
 using EasyLotteryDomain.Services;
@@ -9,11 +10,16 @@ namespace EasyLotteryWasm.Services
 {
     public sealed class YamlEasyLotteryConfigStore : IEasyLotteryConfigStore
     {
+        private static readonly JsonSerializerOptions CloneSerializerOptions = new(JsonSerializerDefaults.Web);
+
         private readonly IConfiguration _configuration;
         private readonly IJSRuntime _jsRuntime;
         private readonly ILogger<YamlEasyLotteryConfigStore> _logger;
         private readonly IDeserializer _deserializer;
         private readonly ISerializer _serializer;
+        private readonly SemaphoreSlim _gate = new(1, 1);
+
+        private EasyLotteryConfigDocument? _cachedDocument;
 
         public YamlEasyLotteryConfigStore(
             IConfiguration configuration,
@@ -35,29 +41,70 @@ namespace EasyLotteryWasm.Services
 
         public async Task<EasyLotteryConfigDocument> LoadAsync(CancellationToken cancellationToken = default)
         {
-            var yaml = await _jsRuntime.InvokeAsync<string>("easyLotteryConfig.read", cancellationToken);
-            if (string.IsNullOrWhiteSpace(yaml))
-            {
-                return CreateDefaultDocument();
-            }
-
+            await _gate.WaitAsync(cancellationToken);
             try
             {
-                var document = _deserializer.Deserialize<EasyLotteryConfigDocument>(yaml) ?? new EasyLotteryConfigDocument();
-                return Normalize(document);
+                if (_cachedDocument != null)
+                {
+                    return CloneDocument(_cachedDocument);
+                }
+
+                _cachedDocument = await LoadFromJsAsync(cancellationToken);
+                return CloneDocument(_cachedDocument);
             }
-            catch (Exception ex)
+            finally
             {
-                _logger.LogError(ex, "Failed to deserialize YAML configuration. Falling back to defaults.");
-                return CreateDefaultDocument();
+                _gate.Release();
             }
         }
 
         public async Task SaveAsync(EasyLotteryConfigDocument document, CancellationToken cancellationToken = default)
         {
-            var normalized = Normalize(document);
-            var yaml = _serializer.Serialize(normalized);
-            await _jsRuntime.InvokeVoidAsync("easyLotteryConfig.write", cancellationToken, yaml);
+            var normalized = Normalize(CloneDocument(document));
+
+            await _gate.WaitAsync(cancellationToken);
+            try
+            {
+                _cachedDocument = CloneDocument(normalized);
+                var yaml = _serializer.Serialize(normalized);
+                await _jsRuntime.InvokeVoidAsync("easyLotteryConfig.write", cancellationToken, yaml);
+            }
+            catch (JSException ex)
+            {
+                _logger.LogWarning(ex, "Failed to write YAML configuration to the browser bridge. Using in-memory cache only.");
+            }
+            finally
+            {
+                _gate.Release();
+            }
+        }
+
+        private async Task<EasyLotteryConfigDocument> LoadFromJsAsync(CancellationToken cancellationToken)
+        {
+            try
+            {
+                var yaml = await _jsRuntime.InvokeAsync<string>("easyLotteryConfig.read", cancellationToken);
+                if (string.IsNullOrWhiteSpace(yaml))
+                {
+                    return CreateDefaultDocument();
+                }
+
+                try
+                {
+                    var document = _deserializer.Deserialize<EasyLotteryConfigDocument>(yaml) ?? new EasyLotteryConfigDocument();
+                    return Normalize(document);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to deserialize YAML configuration. Falling back to defaults.");
+                    return CreateDefaultDocument();
+                }
+            }
+            catch (JSException ex)
+            {
+                _logger.LogWarning(ex, "Failed to read YAML configuration from the browser bridge. Falling back to defaults.");
+                return CreateDefaultDocument();
+            }
         }
 
         private EasyLotteryConfigDocument CreateDefaultDocument()
@@ -105,6 +152,15 @@ namespace EasyLotteryWasm.Services
             document.IdSequence.NextRouletteSegmentId = Math.Max(document.IdSequence.NextRouletteSegmentId, document.RouletteTemplates.SelectMany(t => t.Segments).Select(s => s.Id).DefaultIfEmpty(0).Max() + 1);
 
             return document;
+        }
+
+        private static EasyLotteryConfigDocument CloneDocument(EasyLotteryConfigDocument document)
+        {
+            var json = JsonSerializer.Serialize(document, CloneSerializerOptions);
+            var clone = JsonSerializer.Deserialize<EasyLotteryConfigDocument>(json, CloneSerializerOptions)
+                ?? new EasyLotteryConfigDocument();
+
+            return Normalize(clone);
         }
 
         private static void NormalizePokeTemplate(PokeTemplate template)
