@@ -31,6 +31,34 @@
         <a href="" class="reload">Reload</a>
         <a class="dismiss">🗙</a>
     </div>
+    <script>
+        (() => {
+            if (window.easyLotteryConfig) {
+                return;
+            }
+
+            const storageKey = "easy-lottery.config.yaml";
+
+            window.easyLotteryConfig = {
+                read: async () => {
+                    if (window.__TAURI__?.invoke) {
+                        const content = await window.__TAURI__.invoke("read_config_yaml");
+                        return content ?? "";
+                    }
+
+                    return window.localStorage.getItem(storageKey) ?? "";
+                },
+                write: async (content) => {
+                    if (window.__TAURI__?.invoke) {
+                        await window.__TAURI__.invoke("write_config_yaml", { content: content ?? "" });
+                        return;
+                    }
+
+                    window.localStorage.setItem(storageKey, content ?? "");
+                }
+            };
+        })();
+    </script>
     <script src="js/configStorage.js"></script>
     <script src="_framework/blazor.webassembly.js"></script>
 </body>
