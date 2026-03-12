@@ -262,7 +262,7 @@ else
         return $"M {cx.ToString("F2")} {cy.ToString("F2")} L {x1:F2} {y1:F2} A {r:F2} {r:F2} 0 {largeArc} 1 {x2:F2} {y2:F2} Z";
     }
 
-    private string ObsUrl => NavigationManager.BaseUri.TrimEnd('/') + $"/obs/roulette/{Id}";
+    private string ObsUrl => $"http://localhost:18930/obs/roulette/{Id}";
 
     private void GoBack()
     {
