@@ -1,4 +1,7 @@
-﻿<Router AppAssembly="@typeof(App).Assembly">
+﻿@using System.Web
+@inject NavigationManager NavigationManager
+
+<Router AppAssembly="@typeof(App).Assembly">
     <Found Context="routeData">
         <RouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)" />
         <FocusOnNavigate RouteData="@routeData" Selector="h1" />
@@ -10,3 +13,33 @@
         </LayoutView>
     </NotFound>
 </Router>
+
+@code {
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (!firstRender)
+        {
+            return;
+        }
+
+        TryForwardYoutubeOAuthCallback();
+    }
+
+    private void TryForwardYoutubeOAuthCallback()
+    {
+        var currentUri = NavigationManager.ToAbsoluteUri(NavigationManager.Uri);
+        var queryParams = HttpUtility.ParseQueryString(currentUri.Query);
+        if (string.IsNullOrWhiteSpace(queryParams["code"]) && string.IsNullOrWhiteSpace(queryParams["error"]))
+        {
+            return;
+        }
+
+        var currentPath = currentUri.AbsolutePath.TrimEnd('/');
+        if (string.Equals(currentPath, "/system/youtube-login", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        NavigationManager.NavigateTo($"/system/youtube-login{currentUri.Query}", replace: true);
+    }
+}

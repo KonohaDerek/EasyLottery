@@ -107,22 +107,22 @@
 
         var uri = NavigationManager.ToAbsoluteUri(NavigationManager.Uri);
         var queryParams = HttpUtility.ParseQueryString(uri.Query);
+        if (!string.IsNullOrWhiteSpace(queryParams["error"]))
+        {
+            toastMessage = $"授權失敗：{queryParams["error"]}";
+            toastVisible = true;
+            NavigationManager.NavigateTo("/system/youtube-login", replace: true);
+            return;
+        }
+
         if (queryParams["code"] != null)
         {
-            // await ExchangeCodeForTokensAsync(queryParams["code"]!, GetRedirectUri());
             await ExchangeCodeForTokensAsync(queryParams["code"]!);
         }
 
         // 也同步一下現有的授權狀態
         isAuthorized = youTubeServiceHelper.IsAuthorized;
     }
-
-    // 動態取得 redirect URI（目前改用 config 中的 RedirectUri）
-    // private string GetRedirectUri()
-    // {
-    //     var baseUri = NavigationManager.BaseUri.TrimEnd('/');
-    //     return baseUri + "/system/youtube-login";
-    // }
 
     private async Task Authorize()
     {
