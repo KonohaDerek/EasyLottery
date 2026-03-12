@@ -115,9 +115,6 @@ namespace EasyLotteryWasm.Services
                 {
                     YouTube = new YouTubeApiSettings
                     {
-                        ApiKey = _configuration["YouTubeApi:ApiKey"] ?? "",
-                        CredentialsBase64 = _configuration["YouTubeApi:CredentialsBase64"] ?? "",
-                        RedirectUri = _configuration["YouTubeApi:RedirectUri"] ?? "",
                         RefreshToken = _configuration["YouTubeApi:RefreshToken"] ?? ""
                     },
                     OpenAIKey = _configuration["OpenAI:ApiKey"] ?? _configuration["OpenAIKey"] ?? ""

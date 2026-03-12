@@ -24,7 +24,7 @@
             {
                 <Alert Color="Color.Warning" Visible>
                     <AlertMessage>尚未設定 YouTube API 憑證</AlertMessage>
-                    <AlertDescription>請先在 YAML 系統設定中提供 <code>youTube.credentialsBase64</code>。首次啟動時會自 appsettings 匯入既有值。</AlertDescription>
+                    <AlertDescription>目前未載入應用程式內建的 YouTube OAuth 設定。這組 client 憑證不應由使用者在 YAML 中手動填寫，請檢查 appsettings 的 <code>YouTubeApi:CredentialsBase64</code> 與 <code>YouTubeApi:RedirectUri</code> 是否已隨應用程式發布。</AlertDescription>
                 </Alert>
             }
             else

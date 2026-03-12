@@ -1,4 +1,6 @@
+using EasyLotteryDomain.Models.Config;
 using EasyLotteryDomain.Services;
+using EasyLotteryDomainTests.Helpers;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -33,6 +35,40 @@ namespace EasyLotteryDomainTests.Services
 
             var logger = new Logger<YouTubeServiceHelper>(new NullLoggerFactory());
             return new YouTubeServiceHelper(configuration, logger);
+        }
+
+        private YouTubeServiceHelper CreateServiceWithSettingsStore(
+            Dictionary<string, string>? extraConfig = null,
+            Action<EasyLotteryConfigDocument>? configureDocument = null)
+        {
+            var config = new Dictionary<string, string>
+            {
+                { "YouTubeApi:ApiKey", "test-api-key" },
+                { "YouTubeApi:CredentialsBase64", TestCredentialsBase64 },
+                { "YouTubeApi:RedirectUri", "https://localhost/callback" },
+                { "YouTubeApi:RefreshToken", "" },
+            };
+
+            if (extraConfig != null)
+            {
+                foreach (var kv in extraConfig)
+                {
+                    config[kv.Key] = kv.Value;
+                }
+            }
+
+            var configuration = new ConfigurationBuilder()
+                .AddInMemoryCollection(config!)
+                .Build();
+
+            var store = new InMemoryEasyLotteryConfigStore();
+            var document = store.LoadAsync().GetAwaiter().GetResult();
+            configureDocument?.Invoke(document);
+            store.SaveAsync(document).GetAwaiter().GetResult();
+
+            var logger = new Logger<YouTubeServiceHelper>(new NullLoggerFactory());
+            var settingsService = new SystemSettingsService(store);
+            return new YouTubeServiceHelper(settingsService, configuration, logger);
         }
 
         #region GetYouTubeLiveID Tests
@@ -216,6 +252,47 @@ namespace EasyLotteryDomainTests.Services
         {
             var svc = CreateService();
             await Assert.ThrowsExactlyAsync<Exception>(async () => await svc.RefreshTokenAsync());
+        }
+
+        [TestMethod]
+        public async Task HasConfiguredCredentialsAsync_WithBlankPersistedCredentials_UsesBundledAppSettings()
+        {
+            var svc = CreateServiceWithSettingsStore(configureDocument: document =>
+            {
+                document.SystemSettings.YouTube.CredentialsBase64 = "";
+                document.SystemSettings.YouTube.RedirectUri = "";
+            });
+
+            var configured = await svc.HasConfiguredCredentialsAsync();
+
+            Assert.IsTrue(configured);
+        }
+
+        [TestMethod]
+        public async Task GetAuthorizeUrlAsync_WithBlankPersistedCredentials_UsesBundledRedirectUri()
+        {
+            var svc = CreateServiceWithSettingsStore(configureDocument: document =>
+            {
+                document.SystemSettings.YouTube.CredentialsBase64 = "";
+                document.SystemSettings.YouTube.RedirectUri = "";
+            });
+
+            var url = await svc.GetAuthorizeUrlAsync();
+
+            Assert.IsTrue(url.Contains(Uri.EscapeDataString("https://localhost/callback")));
+        }
+
+        [TestMethod]
+        public async Task HasRefreshTokenAsync_WithPersistedRefreshToken_PrefersYamlToken()
+        {
+            var svc = CreateServiceWithSettingsStore(configureDocument: document =>
+            {
+                document.SystemSettings.YouTube.RefreshToken = "persisted-refresh-token";
+            });
+
+            var configured = await svc.HasRefreshTokenAsync();
+
+            Assert.IsTrue(configured);
         }
 
         #endregion

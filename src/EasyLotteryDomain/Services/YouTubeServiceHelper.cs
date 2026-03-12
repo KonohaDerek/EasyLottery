@@ -59,23 +59,13 @@ namespace EasyLotteryDomain.Services
 
         public async Task<bool> HasConfiguredCredentialsAsync()
         {
-            if (systemSettingsService == null)
-            {
-                return !string.IsNullOrWhiteSpace(configuration["YouTubeApi:CredentialsBase64"]);
-            }
-
-            var settings = await systemSettingsService.GetYouTubeSettingsAsync();
+            var settings = await GetEffectiveYouTubeSettingsAsync();
             return !string.IsNullOrWhiteSpace(settings.CredentialsBase64);
         }
 
         public async Task<bool> HasRefreshTokenAsync()
         {
-            if (systemSettingsService == null)
-            {
-                return !string.IsNullOrWhiteSpace(configuration["YouTubeApi:RefreshToken"]);
-            }
-
-            var settings = await systemSettingsService.GetYouTubeSettingsAsync();
+            var settings = await GetEffectiveYouTubeSettingsAsync();
             return !string.IsNullOrWhiteSpace(settings.RefreshToken);
         }
 
@@ -159,24 +149,57 @@ namespace EasyLotteryDomain.Services
 
         private (YoutubeCredentials Credentials, string RefreshToken) GetLegacyAuthConfiguration()
         {
-            return CreateAuthConfiguration(new YouTubeApiSettings
+            return CreateAuthConfiguration(GetBundledYouTubeSettings());
+        }
+
+        private async Task<(YoutubeCredentials Credentials, string RefreshToken)> GetAuthConfigurationAsync()
+        {
+            var settings = await GetEffectiveYouTubeSettingsAsync();
+            return CreateAuthConfiguration(settings);
+        }
+
+        private async Task<YouTubeApiSettings> GetEffectiveYouTubeSettingsAsync()
+        {
+            var bundledSettings = GetBundledYouTubeSettings();
+            if (systemSettingsService == null)
+            {
+                return bundledSettings;
+            }
+
+            var persistedSettings = await systemSettingsService.GetYouTubeSettingsAsync();
+            return MergeYouTubeSettings(bundledSettings, persistedSettings);
+        }
+
+        private YouTubeApiSettings GetBundledYouTubeSettings()
+        {
+            return new YouTubeApiSettings
             {
                 ApiKey = configuration["YouTubeApi:ApiKey"] ?? "",
                 CredentialsBase64 = configuration["YouTubeApi:CredentialsBase64"] ?? "",
                 RedirectUri = configuration["YouTubeApi:RedirectUri"] ?? "",
                 RefreshToken = configuration["YouTubeApi:RefreshToken"] ?? ""
-            });
+            };
         }
 
-        private async Task<(YoutubeCredentials Credentials, string RefreshToken)> GetAuthConfigurationAsync()
+        private static YouTubeApiSettings MergeYouTubeSettings(YouTubeApiSettings bundledSettings, YouTubeApiSettings? persistedSettings)
         {
-            if (systemSettingsService == null)
-            {
-                return GetLegacyAuthConfiguration();
-            }
+            persistedSettings ??= new YouTubeApiSettings();
 
-            var settings = await systemSettingsService.GetYouTubeSettingsAsync();
-            return CreateAuthConfiguration(settings);
+            return new YouTubeApiSettings
+            {
+                ApiKey = !string.IsNullOrWhiteSpace(bundledSettings.ApiKey)
+                    ? bundledSettings.ApiKey
+                    : persistedSettings.ApiKey ?? "",
+                CredentialsBase64 = !string.IsNullOrWhiteSpace(bundledSettings.CredentialsBase64)
+                    ? bundledSettings.CredentialsBase64
+                    : persistedSettings.CredentialsBase64 ?? "",
+                RedirectUri = !string.IsNullOrWhiteSpace(bundledSettings.RedirectUri)
+                    ? bundledSettings.RedirectUri
+                    : persistedSettings.RedirectUri ?? "",
+                RefreshToken = !string.IsNullOrWhiteSpace(persistedSettings.RefreshToken)
+                    ? persistedSettings.RefreshToken
+                    : bundledSettings.RefreshToken ?? ""
+            };
         }
 
         private static (YoutubeCredentials Credentials, string RefreshToken) CreateAuthConfiguration(YouTubeApiSettings settings)

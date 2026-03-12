@@ -8,16 +8,14 @@ using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using Serilog;
 
-var EnvironmentName = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
-var configuration = new ConfigurationBuilder()
-                 .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
-                 .AddJsonFile($"appsettings.{EnvironmentName}.json", optional: true, reloadOnChange: true)
-                 .Build();
-
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
 
+builder.Configuration
+    .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+    .AddJsonFile($"appsettings.{builder.HostEnvironment.Environment}.json", optional: true, reloadOnChange: true);
+
 Log.Logger = new LoggerConfiguration()
-                    //.ReadFrom.Configuration(configuration)
+                    //.ReadFrom.Configuration(builder.Configuration)
                     .Enrich.FromLogContext()
                     .Enrich.WithMachineName()
                     .Enrich.WithThreadName()
@@ -28,8 +26,6 @@ Log.Logger = new LoggerConfiguration()
 
 builder.RootComponents.Add<App>("#app");
 builder.RootComponents.Add<HeadOutlet>("head::after");
-
-builder.Configuration.AddConfiguration(configuration);
 
 builder.Services.AddDistributedMemoryCache();
 
