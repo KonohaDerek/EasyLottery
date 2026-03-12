@@ -2,6 +2,7 @@
 @using EasyLotteryDomain.Models.Entities
 @using EasyLotteryDomain.Services
 
+@inject ActivityResultService ActivityResultService
 @inject RouletteService RouletteService
 @inject NavigationManager NavigationManager
 @inject IMessageService MessageService
@@ -82,9 +83,14 @@ else
         </div>
 
         <div class="mt-3 text-center">
-            <Button Color="Color.Warning" Size="Size.Large" Clicked="@SpinWheel" Disabled="@isSpinning">
-                @(isSpinning ? "轉動中…" : "🎰 開始轉動")
-            </Button>
+            <div class="d-flex justify-content-center gap-2 flex-wrap">
+                <Button Color="Color.Warning" Size="Size.Large" Clicked="@SpinWheel" Disabled="@isSpinning">
+                    @(isSpinning ? "轉動中…" : "🎰 開始轉動")
+                </Button>
+                <Button Color="Color.Success" Size="Size.Large" Clicked="@EndActivityAndRecord" Disabled="@(!CanRecordCurrentActivity || isRecording)">
+                    @(isRecording ? "記錄中…" : "結束本次活動並記錄")
+                </Button>
+            </div>
             @if (lastResult != null && !isSpinning)
             {
                 <div class="win-result mt-3">
@@ -198,8 +204,11 @@ else
     private bool isSpinning = false;
     private double currentRotation = 0;
     private int forceIndex = 0;
+    private bool isRecording;
+    private string? lastRecordedSignature;
 
     private const int PostSpinDelayMs = 300;
+    private bool CanRecordCurrentActivity => template != null && lastResult != null && !isSpinning && BuildRecordSignature() != lastRecordedSignature;
 
     private string PreviewWrapperStyle =>
         string.IsNullOrEmpty(template?.BackgroundImageUrl)
@@ -250,6 +259,27 @@ else
         StateHasChanged();
     }
 
+    private async Task EndActivityAndRecord()
+    {
+        if (template == null || lastResult == null || !CanRecordCurrentActivity || isRecording) return;
+
+        isRecording = true;
+        try
+        {
+            var record = await ActivityResultService.RecordRouletteActivityAsync(template.Id, lastResult);
+            lastRecordedSignature = BuildRecordSignature();
+            await MessageService.Success($"已記錄活動「{record.ActivityName}」結果。");
+        }
+        catch (Exception ex)
+        {
+            await MessageService.Error(ex.Message);
+        }
+        finally
+        {
+            isRecording = false;
+        }
+    }
+
     private static string DescribeSector(double cx, double cy, double r, double startAngle, double endAngle)
     {
         var startRad = startAngle * Math.PI / 180;
@@ -263,6 +293,16 @@ else
     }
 
     private string ObsUrl => $"http://localhost:18930/obs/roulette/{Id}";
+
+    private string BuildRecordSignature()
+    {
+        if (template == null || lastResult == null)
+        {
+            return "";
+        }
+
+        return $"{template.Id}:{lastResult.SegmentIndex}:{lastResult.SegmentTitle}:{currentRotation:F4}";
+    }
 
     private void GoBack()
     {

@@ -4,6 +4,7 @@
 @using EasyLotteryDomain.Services
 @using EasyLotteryWasm.Layout
 
+@inject ActivityResultService ActivityResultService
 @inject PokeService PokeService
 
 <PageTitle>戳戳樂 - OBS</PageTitle>
@@ -62,6 +63,9 @@ else
             {
                 <button class="obs-poke-btn" @onclick="@PokeRandom">隨機戳一格</button>
             }
+            <button class="obs-record-btn" @onclick="@EndActivityAndRecord" disabled="@(!CanRecordCurrentActivity || isRecording)">
+                @(isRecording ? "記錄中…" : "結束本次活動並記錄")
+            </button>
             <button class="obs-reset-btn" @onclick="@ResetTemplate">重設</button>
         </div>
 
@@ -72,6 +76,11 @@ else
                 <span>（上限：@template.MaxPokeCount）</span>
             }
         </div>
+
+        @if (!string.IsNullOrWhiteSpace(statusMessage))
+        {
+            <div class="obs-feedback @(statusIsError ? "obs-feedback-error" : "obs-feedback-success")">@statusMessage</div>
+        }
     </div>
 }
 
@@ -255,11 +264,52 @@ else
         background: #c0392b;
     }
 
+    .obs-record-btn {
+        background: #27ae60;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        padding: 10px 24px;
+        font-size: 1rem;
+        font-weight: bold;
+        cursor: pointer;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+
+    .obs-record-btn:hover:not(:disabled) {
+        background: #1f8a4d;
+    }
+
+    .obs-poke-btn:disabled,
+    .obs-record-btn:disabled,
+    .obs-reset-btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
     .obs-status {
         margin-top: 8px;
         color: white;
         font-size: 0.9rem;
         opacity: 0.8;
+    }
+
+    .obs-feedback {
+        margin-top: 10px;
+        padding: 8px 12px;
+        border-radius: 8px;
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: white;
+        background: rgba(15, 23, 42, 0.72);
+    }
+
+    .obs-feedback-success {
+        border: 1px solid rgba(74, 222, 128, 0.5);
+    }
+
+    .obs-feedback-error {
+        border: 1px solid rgba(248, 113, 113, 0.5);
     }
 </style>
 
@@ -269,10 +319,15 @@ else
     private PokeTemplate? template;
     private int? lastPokedIndex;
     private bool isLoading = true;
+    private bool isRecording;
+    private string? lastRecordedSignature;
+    private string? statusMessage;
+    private bool statusIsError;
 
     private const int AnimationDurationMs = 650;
 
     private int RevealedCount => template?.Cells.Count(c => c.IsRevealed) ?? 0;
+    private bool CanRecordCurrentActivity => template != null && RevealedCount > 0 && BuildRecordSignature() != lastRecordedSignature;
 
     private string WrapperStyle =>
         string.IsNullOrEmpty(template?.BackgroundImageUrl)
@@ -358,7 +413,30 @@ else
         if (template == null) return;
         await PokeService.ResetTemplateAsync(template.Id);
         lastPokedIndex = null;
+        lastRecordedSignature = null;
+        ClearStatus();
         await LoadTemplate();
+    }
+
+    private async Task EndActivityAndRecord()
+    {
+        if (template == null || !CanRecordCurrentActivity || isRecording) return;
+
+        isRecording = true;
+        try
+        {
+            var record = await ActivityResultService.RecordPokeActivityAsync(template.Id);
+            lastRecordedSignature = BuildRecordSignature();
+            SetStatus($"已記錄活動「{record.ActivityName}」結果。", false);
+        }
+        catch (Exception ex)
+        {
+            SetStatus(ex.Message, true);
+        }
+        finally
+        {
+            isRecording = false;
+        }
     }
 
     private async Task ClearAnimationAfterDelay()
@@ -366,5 +444,32 @@ else
         await Task.Delay(AnimationDurationMs);
         lastPokedIndex = null;
         StateHasChanged();
+    }
+
+    private string BuildRecordSignature()
+    {
+        if (template == null)
+        {
+            return "";
+        }
+
+        return string.Join(
+            '|',
+            template.Cells
+                .Where(cell => cell.IsRevealed)
+                .OrderBy(cell => cell.Index)
+                .Select(cell => $"{cell.Id}:{cell.RevealedAt?.Ticks ?? 0}"));
+    }
+
+    private void SetStatus(string message, bool isError)
+    {
+        statusMessage = message;
+        statusIsError = isError;
+    }
+
+    private void ClearStatus()
+    {
+        statusMessage = null;
+        statusIsError = false;
     }
 }

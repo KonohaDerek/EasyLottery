@@ -13,6 +13,8 @@ namespace EasyLotteryDomain.Models.Config
         public List<PokeTemplate> PokeTemplates { get; set; } = new();
 
         public List<RouletteTemplate> RouletteTemplates { get; set; } = new();
+
+        public List<ActivityResultRecord> ActivityResults { get; set; } = new();
     }
 
     public sealed class LotterySystemSettings
@@ -42,5 +44,7 @@ namespace EasyLotteryDomain.Models.Config
         public int NextRouletteTemplateId { get; set; } = 1;
 
         public int NextRouletteSegmentId { get; set; } = 1;
+
+        public int NextActivityResultId { get; set; } = 1;
     }
 }

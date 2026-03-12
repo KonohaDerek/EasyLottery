@@ -4,6 +4,7 @@
 @using EasyLotteryDomain.Services
 @using EasyLotteryWasm.Layout
 
+@inject ActivityResultService ActivityResultService
 @inject RouletteService RouletteService
 @inject NavigationManager NavigationManager
 
@@ -88,6 +89,9 @@ else
             <button class="obs-spin-btn" @onclick="@SpinWheel" disabled="@isSpinning">
                 @(isSpinning ? "轉動中…" : "🎰 開始轉動")
             </button>
+            <button class="obs-record-btn" @onclick="@EndActivityAndRecord" disabled="@(!CanRecordCurrentActivity || isRecording)">
+                @(isRecording ? "記錄中…" : "結束本次活動並記錄")
+            </button>
         </div>
 
         @if (lastResult != null && !isSpinning)
@@ -96,6 +100,11 @@ else
                 <span class="win-label">🎉 中獎：</span>
                 <span class="win-title">@lastResult.SegmentTitle</span>
             </div>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(statusMessage))
+        {
+            <div class="obs-feedback @(statusIsError ? "obs-feedback-error" : "obs-feedback-success")">@statusMessage</div>
         }
     </div>
 }
@@ -213,6 +222,28 @@ else
         cursor: not-allowed;
     }
 
+    .obs-record-btn {
+        background: #27ae60;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        padding: 12px 32px;
+        font-size: 1.2rem;
+        font-weight: bold;
+        cursor: pointer;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        transition: background 0.2s;
+    }
+
+    .obs-record-btn:hover:not(:disabled) {
+        background: #1f8a4d;
+    }
+
+    .obs-record-btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
     .obs-win-result {
         margin-top: 12px;
         font-size: 1.4rem;
@@ -230,6 +261,24 @@ else
         font-size: 1.6rem;
         text-shadow: 0 0 12px rgba(255,215,0,0.8);
     }
+
+    .obs-feedback {
+        margin-top: 10px;
+        padding: 8px 12px;
+        border-radius: 8px;
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: white;
+        background: rgba(15, 23, 42, 0.72);
+    }
+
+    .obs-feedback-success {
+        border: 1px solid rgba(74, 222, 128, 0.5);
+    }
+
+    .obs-feedback-error {
+        border: 1px solid rgba(248, 113, 113, 0.5);
+    }
 </style>
 
 @code {
@@ -240,8 +289,13 @@ else
     private bool isSpinning = false;
     private bool isLoading = true;
     private double currentRotation = 0;
+    private bool isRecording;
+    private string? lastRecordedSignature;
+    private string? statusMessage;
+    private bool statusIsError;
 
     private const int PostSpinDelayMs = 300;
+    private bool CanRecordCurrentActivity => template != null && lastResult != null && !isSpinning && BuildRecordSignature() != lastRecordedSignature;
 
     private string WrapperStyle =>
         string.IsNullOrEmpty(template?.BackgroundImageUrl)
@@ -283,6 +337,27 @@ else
         StateHasChanged();
     }
 
+    private async Task EndActivityAndRecord()
+    {
+        if (template == null || lastResult == null || !CanRecordCurrentActivity || isRecording) return;
+
+        isRecording = true;
+        try
+        {
+            var record = await ActivityResultService.RecordRouletteActivityAsync(template.Id, lastResult);
+            lastRecordedSignature = BuildRecordSignature();
+            SetStatus($"已記錄活動「{record.ActivityName}」結果。", false);
+        }
+        catch (Exception ex)
+        {
+            SetStatus(ex.Message, true);
+        }
+        finally
+        {
+            isRecording = false;
+        }
+    }
+
     private static string DescribeSector(double cx, double cy, double r, double startAngle, double endAngle)
     {
         var startRad = startAngle * Math.PI / 180;
@@ -293,5 +368,21 @@ else
         var y2 = cy + r * Math.Sin(endRad);
         var largeArc = (endAngle - startAngle) > 180 ? 1 : 0;
         return $"M {cx.ToString("F2")} {cy.ToString("F2")} L {x1:F2} {y1:F2} A {r:F2} {r:F2} 0 {largeArc} 1 {x2:F2} {y2:F2} Z";
+    }
+
+    private string BuildRecordSignature()
+    {
+        if (template == null || lastResult == null)
+        {
+            return "";
+        }
+
+        return $"{template.Id}:{lastResult.SegmentIndex}:{lastResult.SegmentTitle}:{currentRotation:F4}";
+    }
+
+    private void SetStatus(string message, bool isError)
+    {
+        statusMessage = message;
+        statusIsError = isError;
     }
 }

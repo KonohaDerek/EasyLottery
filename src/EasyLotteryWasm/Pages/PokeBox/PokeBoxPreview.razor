@@ -2,6 +2,7 @@
 @using EasyLotteryDomain.Models.Entities
 @using EasyLotteryDomain.Services
 
+@inject ActivityResultService ActivityResultService
 @inject PokeService PokeService
 @inject NavigationManager NavigationManager
 @inject IMessageService MessageService
@@ -22,6 +23,9 @@ else
                 {
                     <Button Color="Color.Warning" Clicked="@PokeRandom">隨機戳一格</Button>
                 }
+                <Button Color="Color.Success" Clicked="@EndActivityAndRecord" Disabled="@(!CanRecordCurrentActivity || isRecording)">
+                    @(isRecording ? "記錄中…" : "結束本次活動並記錄")
+                </Button>
                 <Button Color="Color.Danger" Clicked="@ResetTemplate">重設</Button>
                 <Button Color="Color.Light" Clicked="@GoBack">返回</Button>
             </div>
@@ -193,11 +197,14 @@ else
 
     private PokeTemplate? template;
     private int? lastPokedIndex;
+    private bool isRecording;
+    private string? lastRecordedSignature;
 
     // Longest CSS animation is 600ms (smoke); wait slightly longer before clearing the class
     private const int AnimationDurationMs = 650;
 
     private int RevealedCount => template?.Cells.Count(c => c.IsRevealed) ?? 0;
+    private bool CanRecordCurrentActivity => template != null && RevealedCount > 0 && BuildRecordSignature() != lastRecordedSignature;
 
     private string PreviewWrapperStyle =>
         string.IsNullOrEmpty(template?.BackgroundImageUrl)
@@ -284,7 +291,29 @@ else
         if (template == null) return;
         await PokeService.ResetTemplateAsync(template.Id);
         lastPokedIndex = null;
+        lastRecordedSignature = null;
         await LoadTemplate();
+    }
+
+    private async Task EndActivityAndRecord()
+    {
+        if (template == null || !CanRecordCurrentActivity || isRecording) return;
+
+        isRecording = true;
+        try
+        {
+            var record = await ActivityResultService.RecordPokeActivityAsync(template.Id);
+            lastRecordedSignature = BuildRecordSignature();
+            await MessageService.Success($"已記錄活動「{record.ActivityName}」結果。");
+        }
+        catch (Exception ex)
+        {
+            await MessageService.Error(ex.Message);
+        }
+        finally
+        {
+            isRecording = false;
+        }
     }
 
     private async Task ClearAnimationAfterDelay()
@@ -295,6 +324,21 @@ else
     }
 
     private string ObsUrl => $"http://localhost:18930/obs/pokebox/{Id}";
+
+    private string BuildRecordSignature()
+    {
+        if (template == null)
+        {
+            return "";
+        }
+
+        return string.Join(
+            '|',
+            template.Cells
+                .Where(cell => cell.IsRevealed)
+                .OrderBy(cell => cell.Index)
+                .Select(cell => $"{cell.Id}:{cell.RevealedAt?.Ticks ?? 0}"));
+    }
 
     private void GoBack()
     {

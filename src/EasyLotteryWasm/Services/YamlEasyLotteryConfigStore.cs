@@ -132,6 +132,7 @@ namespace EasyLotteryWasm.Services
             document.IdSequence ??= new LotteryIdSequence();
             document.PokeTemplates ??= new List<PokeTemplate>();
             document.RouletteTemplates ??= new List<RouletteTemplate>();
+            document.ActivityResults ??= new List<ActivityResultRecord>();
 
             foreach (var template in document.PokeTemplates)
             {
@@ -143,10 +144,16 @@ namespace EasyLotteryWasm.Services
                 NormalizeRouletteTemplate(template);
             }
 
+            foreach (var activityResult in document.ActivityResults)
+            {
+                NormalizeActivityResult(activityResult);
+            }
+
             document.IdSequence.NextPokeTemplateId = Math.Max(document.IdSequence.NextPokeTemplateId, document.PokeTemplates.Select(t => t.Id).DefaultIfEmpty(0).Max() + 1);
             document.IdSequence.NextPokeCellId = Math.Max(document.IdSequence.NextPokeCellId, document.PokeTemplates.SelectMany(t => t.Cells).Select(c => c.Id).DefaultIfEmpty(0).Max() + 1);
             document.IdSequence.NextRouletteTemplateId = Math.Max(document.IdSequence.NextRouletteTemplateId, document.RouletteTemplates.Select(t => t.Id).DefaultIfEmpty(0).Max() + 1);
             document.IdSequence.NextRouletteSegmentId = Math.Max(document.IdSequence.NextRouletteSegmentId, document.RouletteTemplates.SelectMany(t => t.Segments).Select(s => s.Id).DefaultIfEmpty(0).Max() + 1);
+            document.IdSequence.NextActivityResultId = Math.Max(document.IdSequence.NextActivityResultId, document.ActivityResults.Select(result => result.Id).DefaultIfEmpty(0).Max() + 1);
 
             return document;
         }
@@ -212,6 +219,26 @@ namespace EasyLotteryWasm.Services
             }
 
             template.Segments = orderedSegments;
+        }
+
+        private static void NormalizeActivityResult(ActivityResultRecord activityResult)
+        {
+            activityResult.ActivityName ??= "";
+            activityResult.Summary ??= "";
+            activityResult.Items ??= new List<ActivityResultItem>();
+
+            var orderedItems = activityResult.Items.OrderBy(item => item.Order).ToList();
+            for (var index = 0; index < orderedItems.Count; index++)
+            {
+                var item = orderedItems[index];
+                item.Order = index + 1;
+                item.Name ??= "";
+                item.Description ??= "";
+                item.ImageUrl ??= "";
+                item.Color ??= "";
+            }
+
+            activityResult.Items = orderedItems;
         }
     }
 }

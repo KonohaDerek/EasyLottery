@@ -1,0 +1,269 @@
+@page "/activity-results"
+@using EasyLotteryDomain.Models.Config
+@using EasyLotteryDomain.Services
+
+@inject ActivityResultService ActivityResultService
+
+<PageTitle>活動結果</PageTitle>
+
+<div class="activity-results-page">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+        <div>
+            <h3 class="mb-1">活動結果</h3>
+            <div class="text-muted">查看已結束活動的抽獎結果、活動名稱與活動日期。</div>
+        </div>
+        <div class="result-total-chip">@records.Count 筆紀錄</div>
+    </div>
+
+    @if (isLoading)
+    {
+        <p>載入中…</p>
+    }
+    else if (!records.Any())
+    {
+        <div class="result-empty-state">
+            尚無活動結果紀錄。完成一次戳戳樂或轉盤活動後，按下「結束本次活動並記錄」就會出現在這裡。
+        </div>
+    }
+    else
+    {
+        <div class="result-card-list">
+            @foreach (var record in records)
+            {
+                <article class="result-card">
+                    <div class="result-card-header">
+                        <div>
+                            <div class="result-type-chip @GetTypeCss(record.ActivityType)">@GetTypeLabel(record.ActivityType)</div>
+                            <h5 class="result-title">@record.ActivityName</h5>
+                            <div class="result-meta">活動日期：@FormatDate(record.ActivityDateUtc)</div>
+                        </div>
+                        <div class="result-count-chip">@record.Items.Count 筆結果</div>
+                    </div>
+
+                    <div class="result-summary">@record.Summary</div>
+
+                    <details class="result-details">
+                        <summary>查看結果</summary>
+                        <div class="result-item-list">
+                            @foreach (var item in record.Items.OrderBy(item => item.Order))
+                            {
+                                <div class="result-item-row">
+                                    <div class="result-item-order">@item.Order</div>
+                                    @if (!string.IsNullOrWhiteSpace(item.ImageUrl))
+                                    {
+                                        <img class="result-item-image" src="@item.ImageUrl" alt="@item.Name" />
+                                    }
+                                    else
+                                    {
+                                        <div class="result-item-color" style="@GetColorStyle(item.Color)"></div>
+                                    }
+                                    <div class="result-item-content">
+                                        <div class="result-item-name">@item.Name</div>
+                                        @if (!string.IsNullOrWhiteSpace(item.Description))
+                                        {
+                                            <div class="result-item-description">@item.Description</div>
+                                        }
+                                    </div>
+                                    <div class="result-item-time">
+                                        @(item.ResultedAtUtc.HasValue ? FormatDate(item.ResultedAtUtc.Value) : "-")
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </details>
+                </article>
+            }
+        </div>
+    }
+</div>
+
+<style>
+    .activity-results-page {
+        padding: 4px 4px 24px;
+    }
+
+    .result-total-chip,
+    .result-count-chip,
+    .result-type-chip {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 999px;
+        padding: 6px 12px;
+        font-size: 0.82rem;
+        font-weight: 700;
+    }
+
+    .result-total-chip,
+    .result-count-chip {
+        background: #eef2ff;
+        color: #3730a3;
+    }
+
+    .result-type-pokebox {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    .result-type-roulette {
+        background: #dcfce7;
+        color: #166534;
+    }
+
+    .result-empty-state {
+        padding: 20px 24px;
+        border-radius: 14px;
+        background: #f8fafc;
+        border: 1px dashed #cbd5e1;
+        color: #475569;
+    }
+
+    .result-card-list {
+        display: grid;
+        gap: 16px;
+    }
+
+    .result-card {
+        padding: 18px 20px;
+        border-radius: 16px;
+        border: 1px solid #e2e8f0;
+        background: white;
+        box-shadow: 0 14px 40px rgba(15, 23, 42, 0.06);
+    }
+
+    .result-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+
+    .result-title {
+        margin: 10px 0 6px;
+    }
+
+    .result-meta {
+        color: #64748b;
+        font-size: 0.92rem;
+    }
+
+    .result-summary {
+        margin-top: 14px;
+        color: #0f172a;
+        font-weight: 600;
+    }
+
+    .result-details {
+        margin-top: 14px;
+    }
+
+    .result-details summary {
+        cursor: pointer;
+        color: #1d4ed8;
+        font-weight: 600;
+    }
+
+    .result-item-list {
+        display: grid;
+        gap: 10px;
+        margin-top: 12px;
+    }
+
+    .result-item-row {
+        display: grid;
+        grid-template-columns: 36px 48px 1fr auto;
+        gap: 12px;
+        align-items: center;
+        padding: 10px 12px;
+        border-radius: 12px;
+        background: #f8fafc;
+    }
+
+    .result-item-order {
+        width: 36px;
+        height: 36px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        background: #dbeafe;
+        color: #1d4ed8;
+        font-weight: 700;
+    }
+
+    .result-item-image,
+    .result-item-color {
+        width: 48px;
+        height: 48px;
+        border-radius: 10px;
+        object-fit: cover;
+        border: 1px solid rgba(15, 23, 42, 0.08);
+        background: #e2e8f0;
+    }
+
+    .result-item-name {
+        font-weight: 700;
+        color: #0f172a;
+    }
+
+    .result-item-description {
+        color: #64748b;
+        font-size: 0.9rem;
+        margin-top: 2px;
+    }
+
+    .result-item-time {
+        color: #64748b;
+        font-size: 0.88rem;
+        text-align: right;
+        white-space: nowrap;
+    }
+
+    @@media (max-width: 768px) {
+        .result-item-row {
+            grid-template-columns: 36px 48px 1fr;
+        }
+
+        .result-item-time {
+            grid-column: 2 / span 2;
+            text-align: left;
+        }
+    }
+</style>
+
+@code {
+    private List<ActivityResultRecord> records = new();
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        records = await ActivityResultService.ListActivityResultsAsync();
+        isLoading = false;
+    }
+
+    private static string GetTypeLabel(ActivityResultType type) => type switch
+    {
+        ActivityResultType.PokeBox => "戳戳樂",
+        ActivityResultType.Roulette => "轉盤",
+        _ => "活動"
+    };
+
+    private static string GetTypeCss(ActivityResultType type) => type switch
+    {
+        ActivityResultType.PokeBox => "result-type-pokebox",
+        ActivityResultType.Roulette => "result-type-roulette",
+        _ => string.Empty
+    };
+
+    private static string FormatDate(DateTime dateTime)
+    {
+        var local = dateTime.Kind == DateTimeKind.Utc ? dateTime.ToLocalTime() : dateTime;
+        return local.ToString("yyyy/MM/dd HH:mm:ss");
+    }
+
+    private static string GetColorStyle(string color)
+    {
+        return string.IsNullOrWhiteSpace(color) ? string.Empty : $"background:{color};";
+    }
+}
