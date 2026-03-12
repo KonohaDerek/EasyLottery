@@ -7,22 +7,45 @@
 <PageTitle>活動結果</PageTitle>
 
 <div class="activity-results-page">
-    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
-        <div>
-            <h3 class="mb-1">活動結果</h3>
-            <div class="text-muted">查看已結束活動的抽獎結果、活動名稱與活動日期。</div>
+    <section class="results-hero">
+        <div class="results-hero-copy">
+            <div class="results-eyebrow">ACTIVITY ARCHIVE</div>
+            <h3 class="results-title">活動結果</h3>
+            <p class="results-subtitle">集中查看每次已結束的戳戳樂與轉盤活動，快速對照活動名稱、活動日期與抽獎明細。</p>
         </div>
-        <div class="result-total-chip">@records.Count 筆紀錄</div>
-    </div>
+        <div class="results-metric-grid">
+            <div class="results-metric-card">
+                <div class="results-metric-label">活動總數</div>
+                <div class="results-metric-value">@records.Count</div>
+            </div>
+            <div class="results-metric-card results-metric-card-poke">
+                <div class="results-metric-label">戳戳樂</div>
+                <div class="results-metric-value">@PokeRecordCount</div>
+            </div>
+            <div class="results-metric-card results-metric-card-roulette">
+                <div class="results-metric-label">轉盤</div>
+                <div class="results-metric-value">@RouletteRecordCount</div>
+            </div>
+            <div class="results-metric-card results-metric-card-latest">
+                <div class="results-metric-label">最近活動</div>
+                <div class="results-metric-date">@LatestActivityLabel</div>
+            </div>
+        </div>
+    </section>
 
     @if (isLoading)
     {
-        <p>載入中…</p>
+        <div class="results-loading-panel">
+            <div class="results-loading-shimmer"></div>
+            <div class="results-loading-shimmer results-loading-shimmer-short"></div>
+            <div class="results-loading-shimmer"></div>
+        </div>
     }
     else if (!records.Any())
     {
         <div class="result-empty-state">
-            尚無活動結果紀錄。完成一次戳戳樂或轉盤活動後，按下「結束本次活動並記錄」就會出現在這裡。
+            <div class="result-empty-title">尚無活動結果紀錄</div>
+            <div class="result-empty-description">完成一次戳戳樂或轉盤活動後，按下「結束本次活動並記錄」，結果就會自動出現在這裡。</div>
         </div>
     }
     else
@@ -30,42 +53,59 @@
         <div class="result-card-list">
             @foreach (var record in records)
             {
-                <article class="result-card">
+                <article class="result-card @GetCardCss(record.ActivityType)">
                     <div class="result-card-header">
-                        <div>
-                            <div class="result-type-chip @GetTypeCss(record.ActivityType)">@GetTypeLabel(record.ActivityType)</div>
+                        <div class="result-title-block">
+                            <div class="result-chip-row">
+                                <div class="result-type-chip @GetTypeCss(record.ActivityType)">@GetTypeLabel(record.ActivityType)</div>
+                                <div class="result-date-chip">@FormatDate(record.ActivityDateUtc)</div>
+                            </div>
                             <h5 class="result-title">@record.ActivityName</h5>
-                            <div class="result-meta">活動日期：@FormatDate(record.ActivityDateUtc)</div>
                         </div>
                         <div class="result-count-chip">@record.Items.Count 筆結果</div>
                     </div>
 
-                    <div class="result-summary">@record.Summary</div>
+                    <div class="result-summary-panel">
+                        <div class="result-summary-label">活動摘要</div>
+                        <div class="result-summary">@record.Summary</div>
+                    </div>
 
                     <details class="result-details">
-                        <summary>查看結果</summary>
+                        <summary>
+                            <span class="result-details-title">查看活動結果</span>
+                            <span class="result-details-hint">展開明細</span>
+                        </summary>
                         <div class="result-item-list">
                             @foreach (var item in record.Items.OrderBy(item => item.Order))
                             {
                                 <div class="result-item-row">
                                     <div class="result-item-order">@item.Order</div>
-                                    @if (!string.IsNullOrWhiteSpace(item.ImageUrl))
-                                    {
-                                        <img class="result-item-image" src="@item.ImageUrl" alt="@item.Name" />
-                                    }
-                                    else
-                                    {
-                                        <div class="result-item-color" style="@GetColorStyle(item.Color)"></div>
-                                    }
+                                    <div class="result-item-visual-shell">
+                                        @if (!string.IsNullOrWhiteSpace(item.ImageUrl))
+                                        {
+                                            <img class="result-item-image" src="@item.ImageUrl" alt="@item.Name" />
+                                        }
+                                        else
+                                        {
+                                            <div class="result-item-color" style="@GetColorStyle(item.Color)">
+                                                <span>NO IMAGE</span>
+                                            </div>
+                                        }
+                                    </div>
                                     <div class="result-item-content">
                                         <div class="result-item-name">@item.Name</div>
                                         @if (!string.IsNullOrWhiteSpace(item.Description))
                                         {
                                             <div class="result-item-description">@item.Description</div>
                                         }
+                                        else
+                                        {
+                                            <div class="result-item-description result-item-description-muted">無額外說明</div>
+                                        }
                                     </div>
                                     <div class="result-item-time">
-                                        @(item.ResultedAtUtc.HasValue ? FormatDate(item.ResultedAtUtc.Value) : "-")
+                                        <div class="result-item-time-label">記錄時間</div>
+                                        <div class="result-item-time-value">@(item.ResultedAtUtc.HasValue ? FormatDate(item.ResultedAtUtc.Value) : "-")</div>
                                     </div>
                                 </div>
                             }
@@ -79,56 +119,179 @@
 
 <style>
     .activity-results-page {
-        padding: 4px 4px 24px;
+        --results-ink: #10233f;
+        --results-muted: #607089;
+        --results-surface: #ffffff;
+        --results-panel: #f7f3ea;
+        --results-line: rgba(16, 35, 63, 0.08);
+        --results-shadow: 0 22px 50px rgba(15, 23, 42, 0.08);
+        padding: 8px 6px 32px;
     }
 
-    .result-total-chip,
-    .result-count-chip,
-    .result-type-chip {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 999px;
-        padding: 6px 12px;
-        font-size: 0.82rem;
+    .results-hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1.4fr) minmax(320px, 0.9fr);
+        gap: 18px;
+        margin-bottom: 22px;
+        padding: 26px;
+        border-radius: 28px;
+        background:
+            radial-gradient(circle at top left, rgba(217, 119, 6, 0.18), transparent 34%),
+            radial-gradient(circle at bottom right, rgba(37, 99, 235, 0.16), transparent 30%),
+            linear-gradient(135deg, #fffdf8 0%, #f6f7fb 100%);
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        box-shadow: var(--results-shadow);
+    }
+
+    .results-eyebrow {
+        font-size: 0.76rem;
+        font-weight: 700;
+        letter-spacing: 0.18em;
+        color: #9a3412;
+    }
+
+    .results-title {
+        margin: 10px 0 12px;
+        font-size: clamp(1.9rem, 4vw, 2.65rem);
+        line-height: 1.05;
+        color: var(--results-ink);
+    }
+
+    .results-subtitle {
+        max-width: 48rem;
+        margin: 0;
+        color: var(--results-muted);
+        font-size: 1rem;
+        line-height: 1.7;
+    }
+
+    .results-metric-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+        align-self: stretch;
+    }
+
+    .results-metric-card {
+        padding: 16px 18px;
+        border-radius: 20px;
+        background: rgba(255, 255, 255, 0.84);
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        box-shadow: 0 10px 28px rgba(15, 23, 42, 0.04);
+        min-height: 104px;
+    }
+
+    .results-metric-card-poke {
+        background: linear-gradient(180deg, rgba(255, 247, 237, 0.95), rgba(255, 255, 255, 0.92));
+    }
+
+    .results-metric-card-roulette {
+        background: linear-gradient(180deg, rgba(236, 253, 245, 0.95), rgba(255, 255, 255, 0.92));
+    }
+
+    .results-metric-card-latest {
+        background: linear-gradient(180deg, rgba(239, 246, 255, 0.95), rgba(255, 255, 255, 0.92));
+    }
+
+    .results-metric-label {
+        color: var(--results-muted);
+        font-size: 0.86rem;
+        font-weight: 600;
+    }
+
+    .results-metric-value {
+        margin-top: 10px;
+        font-size: 2rem;
+        line-height: 1;
+        color: var(--results-ink);
+        font-weight: 800;
+    }
+
+    .results-metric-date {
+        margin-top: 10px;
+        color: var(--results-ink);
+        font-size: 0.98rem;
+        line-height: 1.5;
         font-weight: 700;
     }
 
-    .result-total-chip,
-    .result-count-chip {
-        background: #eef2ff;
-        color: #3730a3;
+    .results-loading-panel {
+        padding: 22px 24px;
+        border-radius: 22px;
+        background: var(--results-surface);
+        border: 1px solid var(--results-line);
+        box-shadow: var(--results-shadow);
     }
 
-    .result-type-pokebox {
-        background: #fef3c7;
-        color: #92400e;
+    .results-loading-shimmer {
+        height: 16px;
+        border-radius: 999px;
+        margin-bottom: 14px;
+        background: linear-gradient(90deg, #e2e8f0 25%, #f8fafc 50%, #e2e8f0 75%);
+        background-size: 200% 100%;
+        animation: shimmer 1.4s linear infinite;
     }
 
-    .result-type-roulette {
-        background: #dcfce7;
-        color: #166534;
+    .results-loading-shimmer-short {
+        width: 62%;
+    }
+
+    @@keyframes shimmer {
+        from {
+            background-position: 200% 0;
+        }
+
+        to {
+            background-position: -200% 0;
+        }
     }
 
     .result-empty-state {
-        padding: 20px 24px;
-        border-radius: 14px;
-        background: #f8fafc;
-        border: 1px dashed #cbd5e1;
-        color: #475569;
+        padding: 28px 30px;
+        border-radius: 24px;
+        background: linear-gradient(135deg, #fffdf8 0%, #f8fafc 100%);
+        border: 1px dashed rgba(148, 163, 184, 0.45);
+        color: var(--results-muted);
+        box-shadow: var(--results-shadow);
+    }
+
+    .result-empty-title {
+        font-size: 1.16rem;
+        font-weight: 800;
+        color: var(--results-ink);
+    }
+
+    .result-empty-description {
+        margin-top: 8px;
+        line-height: 1.7;
     }
 
     .result-card-list {
         display: grid;
-        gap: 16px;
+        gap: 18px;
     }
 
     .result-card {
-        padding: 18px 20px;
-        border-radius: 16px;
-        border: 1px solid #e2e8f0;
-        background: white;
-        box-shadow: 0 14px 40px rgba(15, 23, 42, 0.06);
+        position: relative;
+        padding: 20px 22px 18px;
+        border-radius: 24px;
+        border: 1px solid var(--results-line);
+        background: var(--results-surface);
+        box-shadow: var(--results-shadow);
+        overflow: hidden;
+    }
+
+    .result-card::before {
+        content: "";
+        position: absolute;
+        inset: 0 auto 0 0;
+        width: 8px;
+        border-radius: 24px 0 0 24px;
+        background: linear-gradient(180deg, #f59e0b 0%, #d97706 100%);
+    }
+
+    .result-card-roulette::before {
+        background: linear-gradient(180deg, #10b981 0%, #047857 100%);
     }
 
     .result-card-header {
@@ -139,45 +302,116 @@
         flex-wrap: wrap;
     }
 
-    .result-title {
-        margin: 10px 0 6px;
+    .result-chip-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
     }
 
-    .result-meta {
-        color: #64748b;
-        font-size: 0.92rem;
+    .result-type-chip,
+    .result-date-chip,
+    .result-count-chip {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 999px;
+        padding: 6px 12px;
+        font-size: 0.8rem;
+        font-weight: 800;
+        letter-spacing: 0.01em;
+    }
+
+    .result-date-chip,
+    .result-count-chip {
+        background: #eff6ff;
+        color: #1d4ed8;
+    }
+
+    .result-type-pokebox {
+        background: #fff3d6;
+        color: #9a3412;
+    }
+
+    .result-type-roulette {
+        background: #ddfcec;
+        color: #166534;
+    }
+
+    .result-title {
+        margin: 12px 0 0;
+        font-size: 1.35rem;
+        color: var(--results-ink);
+    }
+
+    .result-summary-panel {
+        margin-top: 14px;
+        padding: 14px 16px;
+        border-radius: 18px;
+        background: var(--results-panel);
+        border: 1px solid rgba(217, 119, 6, 0.12);
+    }
+
+    .result-summary-label {
+        color: #9a3412;
+        font-size: 0.78rem;
+        font-weight: 800;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
     }
 
     .result-summary {
-        margin-top: 14px;
-        color: #0f172a;
+        margin-top: 8px;
+        color: var(--results-ink);
         font-weight: 600;
+        line-height: 1.65;
     }
 
     .result-details {
         margin-top: 14px;
+        border-top: 1px solid var(--results-line);
+        padding-top: 14px;
     }
 
     .result-details summary {
+        list-style: none;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
         cursor: pointer;
+        color: var(--results-ink);
+        font-weight: 700;
+    }
+
+    .result-details summary::-webkit-details-marker {
+        display: none;
+    }
+
+    .result-details-title {
+        font-size: 1rem;
+    }
+
+    .result-details-hint {
         color: #1d4ed8;
-        font-weight: 600;
+        font-size: 0.88rem;
+        font-weight: 700;
     }
 
     .result-item-list {
         display: grid;
-        gap: 10px;
-        margin-top: 12px;
+        gap: 12px;
+        margin-top: 14px;
     }
 
     .result-item-row {
         display: grid;
         grid-template-columns: 36px 48px 1fr auto;
-        gap: 12px;
+        gap: 14px;
         align-items: center;
-        padding: 10px 12px;
-        border-radius: 12px;
-        background: #f8fafc;
+        padding: 14px 16px;
+        border-radius: 18px;
+        background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+        border: 1px solid rgba(148, 163, 184, 0.14);
     }
 
     .result-item-order {
@@ -187,40 +421,85 @@
         align-items: center;
         justify-content: center;
         border-radius: 50%;
-        background: #dbeafe;
-        color: #1d4ed8;
+        background: linear-gradient(180deg, #dbeafe 0%, #bfdbfe 100%);
+        color: #1e40af;
         font-weight: 700;
+    }
+
+    .result-item-visual-shell {
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
 
     .result-item-image,
     .result-item-color {
         width: 48px;
         height: 48px;
-        border-radius: 10px;
+        border-radius: 14px;
         object-fit: cover;
         border: 1px solid rgba(15, 23, 42, 0.08);
         background: #e2e8f0;
     }
 
+    .result-item-color {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: rgba(15, 23, 42, 0.55);
+        font-size: 0.54rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+    }
+
     .result-item-name {
         font-weight: 700;
-        color: #0f172a;
+        color: var(--results-ink);
+        font-size: 1rem;
     }
 
     .result-item-description {
-        color: #64748b;
+        color: var(--results-muted);
         font-size: 0.9rem;
-        margin-top: 2px;
+        margin-top: 4px;
+        line-height: 1.45;
+    }
+
+    .result-item-description-muted {
+        opacity: 0.75;
     }
 
     .result-item-time {
-        color: #64748b;
-        font-size: 0.88rem;
+        color: var(--results-muted);
         text-align: right;
         white-space: nowrap;
     }
 
+    .result-item-time-label {
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: #94a3b8;
+    }
+
+    .result-item-time-value {
+        margin-top: 4px;
+        font-size: 0.9rem;
+        font-weight: 700;
+        color: var(--results-ink);
+    }
+
     @@media (max-width: 768px) {
+        .results-hero {
+            grid-template-columns: 1fr;
+            padding: 22px 18px;
+        }
+
+        .results-metric-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
         .result-item-row {
             grid-template-columns: 36px 48px 1fr;
         }
@@ -228,6 +507,36 @@
         .result-item-time {
             grid-column: 2 / span 2;
             text-align: left;
+            margin-top: -4px;
+        }
+    }
+
+    @@media (max-width: 520px) {
+        .results-metric-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .result-card {
+            padding: 18px 16px 16px;
+        }
+
+        .result-item-row {
+            grid-template-columns: 1fr;
+        }
+
+        .result-item-order {
+            width: 32px;
+            height: 32px;
+        }
+
+        .result-item-visual-shell,
+        .result-item-time {
+            justify-content: flex-start;
+            text-align: left;
+        }
+
+        .result-item-time {
+            grid-column: auto;
         }
     }
 </style>
@@ -235,6 +544,9 @@
 @code {
     private List<ActivityResultRecord> records = new();
     private bool isLoading = true;
+    private int PokeRecordCount => records.Count(record => record.ActivityType == ActivityResultType.PokeBox);
+    private int RouletteRecordCount => records.Count(record => record.ActivityType == ActivityResultType.Roulette);
+    private string LatestActivityLabel => records.Count == 0 ? "尚無紀錄" : FormatDate(records.Max(record => record.ActivityDateUtc));
 
     protected override async Task OnInitializedAsync()
     {
@@ -256,6 +568,13 @@
         _ => string.Empty
     };
 
+    private static string GetCardCss(ActivityResultType type) => type switch
+    {
+        ActivityResultType.PokeBox => "result-card-pokebox",
+        ActivityResultType.Roulette => "result-card-roulette",
+        _ => string.Empty
+    };
+
     private static string FormatDate(DateTime dateTime)
     {
         var local = dateTime.Kind == DateTimeKind.Utc ? dateTime.ToLocalTime() : dateTime;
@@ -264,6 +583,8 @@
 
     private static string GetColorStyle(string color)
     {
-        return string.IsNullOrWhiteSpace(color) ? string.Empty : $"background:{color};";
+        return string.IsNullOrWhiteSpace(color)
+            ? "background:linear-gradient(135deg, #dbeafe 0%, #e2e8f0 100%);"
+            : $"background:{color};";
     }
 }
