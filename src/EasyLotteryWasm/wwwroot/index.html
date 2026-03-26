@@ -107,6 +107,28 @@
             }
         };
     </script>
+    <script>
+        window.easyLotteryClipboard = {
+            copyText: async (text) => {
+                const safeText = text == null ? "" : String(text);
+
+                if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
+                    await navigator.clipboard.writeText(safeText);
+                    return;
+                }
+
+                const textarea = document.createElement("textarea");
+                textarea.value = safeText;
+                textarea.setAttribute("readonly", "true");
+                textarea.style.position = "fixed";
+                textarea.style.opacity = "0";
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand("copy");
+                textarea.remove();
+            }
+        };
+    </script>
     <script src="_framework/blazor.webassembly.js"></script>
 </body>
 

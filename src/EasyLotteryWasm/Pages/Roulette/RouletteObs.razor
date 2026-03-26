@@ -7,6 +7,7 @@
 @inject ActivityResultService ActivityResultService
 @inject RouletteService RouletteService
 @inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
 
 <PageTitle>轉盤 - OBS</PageTitle>
 
@@ -26,6 +27,29 @@ else if (template == null)
 else
 {
     <div class="obs-roulette-wrapper" style="@WrapperStyle">
+        <div class="obs-topbar">
+            <div class="obs-topbar-copy">
+                <div class="obs-topbar-eyebrow">OBS CONTROL</div>
+                <div class="obs-topbar-title">轉盤控制台</div>
+                <div class="obs-topbar-subtitle">@template.Name</div>
+            </div>
+            <div class="obs-topbar-actions">
+                <button class="obs-secondary-btn" @onclick="@CopyObsUrlAsync">複製來源網址</button>
+                <button class="obs-secondary-btn" @onclick="@ReloadTemplateAsync">重新載入模板</button>
+            </div>
+        </div>
+
+        <div class="obs-status-panel">
+            <div class="obs-status-pill">段數：@template.SegmentCount</div>
+            <div class="obs-status-pill">狀態：@(isSpinning ? "轉動中" : "待轉動")</div>
+            <div class="obs-status-pill">目前角度：@currentRotation.ToString("F1")°</div>
+            @if (lastResult != null)
+            {
+                <div class="obs-status-pill">最近結果：@lastResult.SegmentTitle</div>
+            }
+            <div class="obs-status-pill">來源：@ObsUrl</div>
+        </div>
+
         <div class="roulette-container">
             <!-- Pointer -->
             <div class="roulette-pointer">
@@ -123,6 +147,81 @@ else
         align-items: center;
         justify-content: center;
         padding: 16px;
+        gap: 12px;
+    }
+
+    .obs-topbar,
+    .obs-status-panel {
+        width: min(100%, 980px);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+        padding: 12px 16px;
+        border-radius: 16px;
+        background: rgba(15, 23, 42, 0.78);
+        color: white;
+        box-shadow: 0 18px 48px rgba(0, 0, 0, 0.22);
+    }
+
+    .obs-topbar-eyebrow {
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.18em;
+        opacity: 0.7;
+    }
+
+    .obs-topbar-title {
+        margin-top: 2px;
+        font-size: 1.08rem;
+        font-weight: 800;
+    }
+
+    .obs-topbar-subtitle {
+        margin-top: 2px;
+        font-size: 0.92rem;
+        opacity: 0.82;
+    }
+
+    .obs-topbar-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+    }
+
+    .obs-secondary-btn {
+        background: rgba(255, 255, 255, 0.12);
+        color: white;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        border-radius: 8px;
+        padding: 10px 16px;
+        font-size: 0.95rem;
+        font-weight: 700;
+        cursor: pointer;
+        transition: background 0.2s, transform 0.2s;
+    }
+
+    .obs-secondary-btn:hover {
+        background: rgba(255, 255, 255, 0.2);
+        transform: translateY(-1px);
+    }
+
+    .obs-status-panel {
+        justify-content: flex-start;
+    }
+
+    .obs-status-pill {
+        display: inline-flex;
+        align-items: center;
+        padding: 6px 12px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        font-size: 0.88rem;
+        font-weight: 700;
+        word-break: break-all;
     }
 
     .obs-state {
@@ -316,6 +415,29 @@ else
         }
 
         isLoading = false;
+    }
+
+    private string ObsUrl => NavigationManager.ToAbsoluteUri($"/obs/roulette/{Id}").ToString();
+
+    private async Task CopyObsUrlAsync()
+    {
+        await JSRuntime.InvokeVoidAsync("easyLotteryClipboard.copyText", ObsUrl);
+        SetStatus("已複製 OBS 來源網址。", false);
+    }
+
+    private async Task ReloadTemplateAsync()
+    {
+        if (template == null) return;
+
+        template = await RouletteService.LoadTemplateAsync(Id);
+        if (template == null)
+        {
+            await RouletteService.SeedDefaultTemplatesAsync();
+            template = await RouletteService.LoadTemplateAsync(Id);
+        }
+
+        SetStatus("已重新載入模板。", false);
+        StateHasChanged();
     }
 
     private async Task SpinWheel()
