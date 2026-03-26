@@ -88,6 +88,25 @@
         })();
     </script>
     <script src="js/configStorage.js"></script>
+    <script>
+        window.easyLotteryDownload = {
+            downloadText: (fileName, content, mimeType) => {
+                const safeFileName = fileName || "download.txt";
+                const safeContent = content == null ? "" : content;
+                const blob = new Blob([safeContent], { type: mimeType || "text/plain;charset=utf-8" });
+                const url = URL.createObjectURL(blob);
+
+                const anchor = document.createElement("a");
+                anchor.href = url;
+                anchor.download = safeFileName;
+                anchor.rel = "noopener";
+                document.body.appendChild(anchor);
+                anchor.click();
+                anchor.remove();
+                URL.revokeObjectURL(url);
+            }
+        };
+    </script>
     <script src="_framework/blazor.webassembly.js"></script>
 </body>
 
