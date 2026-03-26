@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using EasyLotteryDomain.Models.Config;
 using EasyLotteryDomain.Models.Pages;
 using EasyLotteryWasm.Models;
 using MiniExcelLibs;
@@ -27,6 +28,10 @@ public partial class Home
     private string participantDataText = "";
     private string prizeDataFormat = "json";
     private string prizeDataText = "";
+    private List<DrawingRulePreset> drawingRulePresets = new();
+    private string selectedRulePresetName = "";
+    private string rulePresetName = "";
+    private string rulePresetDescription = "";
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -44,6 +49,74 @@ public partial class Home
         {
             levelRate[level] = 1;
         }
+    }
+
+    private async Task LoadRulePresetsAsync()
+    {
+        var document = await ConfigStore.LoadAsync();
+        drawingRulePresets = document.DrawingRulePresets
+            .OrderBy(preset => preset.Name)
+            .ToList();
+
+        if (string.IsNullOrWhiteSpace(selectedRulePresetName) && drawingRulePresets.Any())
+        {
+            selectedRulePresetName = drawingRulePresets[0].Name;
+        }
+    }
+
+    private async Task SaveCurrentRulePresetAsync()
+    {
+        if (string.IsNullOrWhiteSpace(rulePresetName))
+        {
+            await MessageService.Warning("請輸入規則模板名稱。");
+            return;
+        }
+
+        var document = await ConfigStore.LoadAsync();
+        var preset = new DrawingRulePreset
+        {
+            Name = rulePresetName.Trim(),
+            Description = rulePresetDescription.Trim(),
+            LevelRates = new Dictionary<string, int>(levelRate, StringComparer.OrdinalIgnoreCase)
+        };
+
+        var existingIndex = document.DrawingRulePresets.FindIndex(item => string.Equals(item.Name, preset.Name, StringComparison.OrdinalIgnoreCase));
+        if (existingIndex >= 0)
+        {
+            document.DrawingRulePresets[existingIndex] = preset;
+        }
+        else
+        {
+            document.DrawingRulePresets.Add(preset);
+        }
+
+        await ConfigStore.SaveAsync(document);
+        await LoadRulePresetsAsync();
+        selectedRulePresetName = preset.Name;
+        await MessageService.Success($"已儲存規則模板「{preset.Name}」。");
+    }
+
+    private async Task ApplySelectedRulePresetAsync()
+    {
+        if (string.IsNullOrWhiteSpace(selectedRulePresetName))
+        {
+            await MessageService.Warning("請先選擇規則模板。");
+            return;
+        }
+
+        var document = await ConfigStore.LoadAsync();
+        var preset = document.DrawingRulePresets
+            .FirstOrDefault(item => string.Equals(item.Name, selectedRulePresetName, StringComparison.OrdinalIgnoreCase));
+
+        if (preset == null)
+        {
+            await MessageService.Warning("找不到指定的規則模板。");
+            return;
+        }
+
+        levelRate = new Dictionary<string, int>(preset.LevelRates, StringComparer.OrdinalIgnoreCase);
+        LoadDrawPrize();
+        await MessageService.Success($"已套用規則模板「{preset.Name}」。");
     }
 
     private async Task ExportParticipantsAsync()

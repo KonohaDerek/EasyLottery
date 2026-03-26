@@ -15,6 +15,8 @@ namespace EasyLotteryDomain.Models.Config
         public List<RouletteTemplate> RouletteTemplates { get; set; } = new();
 
         public List<ActivityResultRecord> ActivityResults { get; set; } = new();
+
+        public List<DrawingRulePreset> DrawingRulePresets { get; set; } = new();
     }
 
     public sealed class LotterySystemSettings
