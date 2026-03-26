@@ -24,17 +24,14 @@
 
 @code {
     private bool collapseNavMenu = true;
-    private bool isHovered = false;
 
     private void ExpandNavMenu()
     {
-        isHovered = true;
         if (collapseNavMenu) collapseNavMenu = false;
     }
 
     private void CollapseNavMenu()
     {
-        isHovered = false;
         if (!collapseNavMenu) collapseNavMenu = true;
     }
 }

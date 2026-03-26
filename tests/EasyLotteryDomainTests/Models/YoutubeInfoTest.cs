@@ -6,12 +6,12 @@ namespace EasyLotteryDomainTests.Models
     public class YoutubeInfoTest
     {
         [TestMethod]
-        public void DefaultValues_AreNull()
+        public void DefaultValues_AreEmptyStrings()
         {
             var info = new YoutubeInfo();
-            Assert.IsNull(info.ChannelId);
-            Assert.IsNull(info.ChannelTitle);
-            Assert.IsNull(info.ChannelDescription);
+            Assert.AreEqual(string.Empty, info.ChannelId);
+            Assert.AreEqual(string.Empty, info.ChannelTitle);
+            Assert.AreEqual(string.Empty, info.ChannelDescription);
         }
 
         [TestMethod]

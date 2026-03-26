@@ -9,12 +9,12 @@ namespace EasyLotteryWasm.Models
     public class YoutubeMemberInfo
     {
         [ExcelColumnName("會員")]
-        public string Name { get; init; }
+        public string Name { get; init; } = string.Empty;
 
          [ExcelColumnName("連結到個人資料")]
-        public string Link { get; init; }
+        public string Link { get; init; } = string.Empty;
 
          [ExcelColumnName("目前級別")]
-        public string Level { get; init; }
+        public string Level { get; init; } = string.Empty;
     }
 }
