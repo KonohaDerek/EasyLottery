@@ -98,7 +98,7 @@ else
                             <div class="segment-editor-row border rounded p-2 mb-2" style="border-left: 6px solid @seg.Color !important;">
                                 <div class="d-flex align-items-center gap-2 mb-1">
                                     <strong style="min-width:40px;">格 @(seg.Index + 1)</strong>
-                                    <ColorEdit @bind-Color="@seg.Color" />
+                                    <ColorInput @bind-Value="@seg.Color" />
                                 </div>
                                 <div class="row g-1">
                                     <div class="col-md-4">
