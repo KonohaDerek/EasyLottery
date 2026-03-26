@@ -11,8 +11,7 @@ namespace EasyLotteryAPI.Controllers
     [Route("api/[controller]")]
     public class MembersController : ControllerBase
     {
-        
-
+        [HttpGet]
         public async Task<List<Google.Apis.YouTube.v3.Data.Member>> GetAsync()
         {
             return await DemoService.GetChannelMembers();
