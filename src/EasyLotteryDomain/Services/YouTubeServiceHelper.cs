@@ -239,6 +239,12 @@ namespace EasyLotteryDomain.Services
                 if (response.IsSuccessStatusCode)
                 {
                     var chs = await response.Content.ReadFromJsonAsync<Google.Apis.YouTube.v3.Data.ChannelListResponse>();
+                    if (chs?.Items == null || chs.Items.Count == 0 || chs.Items[0].Snippet == null)
+                    {
+                        logger.LogInformation("YouTube channel info response was empty.");
+                        return new YoutubeInfo();
+                    }
+
                     return new YoutubeInfo
                     {
                         ChannelTitle = chs.Items[0].Snippet.Title,

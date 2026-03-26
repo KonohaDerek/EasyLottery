@@ -168,7 +168,7 @@ namespace EasyLotteryDomainTests.Services
         {
             var template = new RouletteTemplate { Name = "Empty", SegmentCount = 0 };
 
-            Assert.ThrowsException<InvalidOperationException>(() => RouletteService.Spin(template));
+            Assert.ThrowsExactly<InvalidOperationException>(() => RouletteService.Spin(template));
         }
 
         [TestMethod]

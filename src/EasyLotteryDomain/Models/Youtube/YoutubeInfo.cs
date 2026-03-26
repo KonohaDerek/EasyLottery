@@ -8,11 +8,11 @@ namespace EasyLotteryDomain.Models.Youtube
 {
     public class YoutubeInfo
     {
-        public string ChannelId { get; set; }
+        public string ChannelId { get; set; } = string.Empty;
 
-        public string ChannelTitle { get; set; }
+        public string ChannelTitle { get; set; } = string.Empty;
 
-        public string ChannelDescription { get; set; }
+        public string ChannelDescription { get; set; } = string.Empty;
     }
 
     public record LiveChatMessageInfo(
