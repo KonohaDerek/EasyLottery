@@ -119,6 +119,7 @@ namespace EasyLotteryDomainTests.Services
             Assert.AreNotEqual(created.Id, duplicate.Id);
             Assert.AreEqual("Original - 複製", duplicate.Name);
             Assert.IsFalse(duplicate.IsBuiltIn);
+            Assert.AreEqual(TemplatePublicationStatus.Draft, duplicate.PublicationStatus);
             Assert.AreEqual(template.Description, duplicate.Description);
             Assert.AreEqual(template.GridRows, duplicate.GridRows);
             Assert.AreEqual(template.GridColumns, duplicate.GridColumns);
@@ -137,6 +138,21 @@ namespace EasyLotteryDomainTests.Services
             Assert.IsTrue(duplicate.Cells.All(cell => cell.RevealedAt == null));
             Assert.AreEqual("A", duplicate.Cells[0].Title);
             Assert.AreEqual("B", duplicate.Cells[1].Title);
+        }
+
+        [TestMethod]
+        public async Task SetPublicationStatus_UpdatesTemplateStatus()
+        {
+            var svc = new PokeService(new InMemoryEasyLotteryConfigStore());
+
+            var created = await svc.CreateTemplateAsync(new PokeTemplate { Name = "Status" });
+
+            var updated = await svc.SetPublicationStatusAsync(created.Id, TemplatePublicationStatus.Draft);
+
+            Assert.AreEqual(TemplatePublicationStatus.Draft, updated.PublicationStatus);
+            var loaded = await svc.LoadTemplateAsync(created.Id);
+            Assert.IsNotNull(loaded);
+            Assert.AreEqual(TemplatePublicationStatus.Draft, loaded.PublicationStatus);
         }
 
         // ── Poke Logic ────────────────────────────────────────────────────────

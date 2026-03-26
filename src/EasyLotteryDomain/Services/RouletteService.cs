@@ -82,6 +82,7 @@ namespace EasyLotteryDomain.Services
                 SpinSoundUrl = source.SpinSoundUrl,
                 WinSoundUrl = source.WinSoundUrl,
                 IsBuiltIn = false,
+                PublicationStatus = TemplatePublicationStatus.Draft,
                 Segments = source.Segments
                     .OrderBy(segment => segment.Index)
                     .Select(segment => new RouletteSegment
@@ -102,7 +103,8 @@ namespace EasyLotteryDomain.Services
         {
             var document = await LoadDocumentAsync(ensureBuiltIns: true);
             return document.RouletteTemplates
-                .OrderByDescending(t => t.UpdatedAt)
+                .OrderBy(t => t.PublicationStatus)
+                .ThenByDescending(t => t.UpdatedAt)
                 .ToList();
         }
 
@@ -111,6 +113,18 @@ namespace EasyLotteryDomain.Services
             var document = await LoadDocumentAsync(ensureBuiltIns: true);
             return document.RouletteTemplates
                 .FirstOrDefault(t => t.Id == id);
+        }
+
+        public async Task<RouletteTemplate> SetPublicationStatusAsync(int id, TemplatePublicationStatus status)
+        {
+            var document = await _configStore.LoadAsync();
+            var template = document.RouletteTemplates.FirstOrDefault(t => t.Id == id)
+                ?? throw new InvalidOperationException($"Template {id} not found.");
+
+            template.PublicationStatus = status;
+            template.UpdatedAt = DateTime.UtcNow;
+            await _configStore.SaveAsync(document);
+            return template;
         }
 
         // ── Spin Algorithm ────────────────────────────────────────────────────
@@ -214,6 +228,7 @@ namespace EasyLotteryDomain.Services
 
             template.Id = 0;
             template.IsBuiltIn = false;
+            template.PublicationStatus = TemplatePublicationStatus.Draft;
             foreach (var seg in template.Segments)
             {
                 seg.Id = 0;
@@ -328,6 +343,7 @@ namespace EasyLotteryDomain.Services
                 SpinDurationSec = 5.0,
                 EasingFunction = "ease-out-cubic",
                 IsBuiltIn = true,
+                PublicationStatus = TemplatePublicationStatus.Published,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow,
             };
@@ -347,6 +363,7 @@ namespace EasyLotteryDomain.Services
                 SpinDurationSec = 4.0,
                 EasingFunction = "ease-out-cubic",
                 IsBuiltIn = true,
+                PublicationStatus = TemplatePublicationStatus.Published,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow,
             };
@@ -365,6 +382,7 @@ namespace EasyLotteryDomain.Services
                 SpinDurationSec = 6.0,
                 EasingFunction = "ease-out-cubic",
                 IsBuiltIn = true,
+                PublicationStatus = TemplatePublicationStatus.Published,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow,
             };
