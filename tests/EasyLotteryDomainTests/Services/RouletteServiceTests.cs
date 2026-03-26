@@ -100,6 +100,56 @@ namespace EasyLotteryDomainTests.Services
             Assert.IsNull(loaded);
         }
 
+        [TestMethod]
+        public async Task DuplicateTemplate_CreatesEditableCopy()
+        {
+            var svc = new RouletteService(new InMemoryEasyLotteryConfigStore());
+
+            var template = new RouletteTemplate
+            {
+                Name = "Original",
+                Description = "Base wheel",
+                SegmentCount = 4,
+                SpinDurationSec = 7.5,
+                EasingFunction = "ease-in-out",
+                InitialAngleDeg = 15,
+                CenterImageUrl = "/center.png",
+                BackgroundImageUrl = "/bg.png",
+                PointerImageUrl = "/pointer.png",
+                SpinSoundUrl = "/spin.mp3",
+                WinSoundUrl = "/win.mp3",
+                Segments = new List<RouletteSegment>
+                {
+                    new RouletteSegment { Index = 0, Title = "A", ImageUrl = "/a.png", Color = "#111111", Probability = 10 },
+                    new RouletteSegment { Index = 1, Title = "B", ImageUrl = "/b.png", Color = "#222222", Probability = 20 }
+                }
+            };
+            var created = await svc.CreateTemplateAsync(template);
+
+            var duplicate = await svc.DuplicateTemplateAsync(created.Id);
+            var loaded = await svc.LoadTemplateAsync(duplicate.Id);
+
+            Assert.IsNotNull(loaded);
+            Assert.AreNotEqual(created.Id, duplicate.Id);
+            Assert.AreEqual("Original - 複製", duplicate.Name);
+            Assert.IsFalse(duplicate.IsBuiltIn);
+            Assert.AreEqual(template.Description, duplicate.Description);
+            Assert.AreEqual(template.SegmentCount, duplicate.SegmentCount);
+            Assert.AreEqual(template.SpinDurationSec, duplicate.SpinDurationSec);
+            Assert.AreEqual(template.EasingFunction, duplicate.EasingFunction);
+            Assert.AreEqual(template.InitialAngleDeg, duplicate.InitialAngleDeg);
+            Assert.AreEqual(template.CenterImageUrl, duplicate.CenterImageUrl);
+            Assert.AreEqual(template.BackgroundImageUrl, duplicate.BackgroundImageUrl);
+            Assert.AreEqual(template.PointerImageUrl, duplicate.PointerImageUrl);
+            Assert.AreEqual(template.SpinSoundUrl, duplicate.SpinSoundUrl);
+            Assert.AreEqual(template.WinSoundUrl, duplicate.WinSoundUrl);
+            Assert.AreEqual(2, duplicate.Segments.Count);
+            Assert.AreEqual("A", duplicate.Segments[0].Title);
+            Assert.AreEqual("B", duplicate.Segments[1].Title);
+            Assert.AreEqual(10, duplicate.Segments[0].Probability);
+            Assert.AreEqual(20, duplicate.Segments[1].Probability);
+        }
+
         // ── Spin Algorithm ────────────────────────────────────────────────────
 
         [TestMethod]

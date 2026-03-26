@@ -60,6 +60,48 @@ namespace EasyLotteryDomain.Services
             await _configStore.SaveAsync(document);
         }
 
+        public async Task<PokeTemplate> DuplicateTemplateAsync(int id)
+        {
+            var document = await _configStore.LoadAsync();
+            var source = document.PokeTemplates.FirstOrDefault(t => t.Id == id)
+                ?? throw new InvalidOperationException($"Template {id} not found.");
+
+            var duplicate = new PokeTemplate
+            {
+                Name = BuildDuplicateName(source.Name, document.PokeTemplates.Select(t => t.Name)),
+                Description = source.Description,
+                GridRows = source.GridRows,
+                GridColumns = source.GridColumns,
+                Mode = source.Mode,
+                AllowRePoking = source.AllowRePoking,
+                MaxPokeCount = source.MaxPokeCount,
+                BackgroundImageUrl = source.BackgroundImageUrl,
+                FontFamily = source.FontFamily,
+                OverlayWidth = source.OverlayWidth,
+                OverlayHeight = source.OverlayHeight,
+                Animation = source.Animation,
+                PokeSoundUrl = source.PokeSoundUrl,
+                OpenSoundUrl = source.OpenSoundUrl,
+                IsBuiltIn = false,
+                Cells = source.Cells
+                    .OrderBy(cell => cell.Index)
+                    .Select(cell => new PokeCell
+                    {
+                        Index = cell.Index,
+                        Title = cell.Title,
+                        SubTitle = cell.SubTitle,
+                        ImageUrl = cell.ImageUrl,
+                        RevealedImageUrl = cell.RevealedImageUrl,
+                        RevealedColor = cell.RevealedColor,
+                        IsRevealed = false,
+                        RevealedAt = null
+                    })
+                    .ToList()
+            };
+
+            return await CreateTemplateAsync(duplicate);
+        }
+
         public async Task<List<PokeTemplate>> ListTemplatesAsync()
         {
             var document = await LoadDocumentAsync(ensureBuiltIns: true);
@@ -246,6 +288,28 @@ namespace EasyLotteryDomain.Services
             }
 
             template.Cells = orderedCells;
+        }
+
+        private static string BuildDuplicateName(string sourceName, IEnumerable<string> existingNames)
+        {
+            var baseName = string.IsNullOrWhiteSpace(sourceName)
+                ? "複製模板"
+                : $"{sourceName} - 複製";
+
+            if (!existingNames.Contains(baseName))
+            {
+                return baseName;
+            }
+
+            var suffix = 2;
+            var candidate = $"{baseName} {suffix}";
+            while (existingNames.Contains(candidate))
+            {
+                suffix++;
+                candidate = $"{baseName} {suffix}";
+            }
+
+            return candidate;
         }
 
         public static List<PokeTemplate> BuildDefaultTemplates()

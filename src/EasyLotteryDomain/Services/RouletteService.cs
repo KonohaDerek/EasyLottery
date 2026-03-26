@@ -62,6 +62,42 @@ namespace EasyLotteryDomain.Services
             await _configStore.SaveAsync(document);
         }
 
+        public async Task<RouletteTemplate> DuplicateTemplateAsync(int id)
+        {
+            var document = await _configStore.LoadAsync();
+            var source = document.RouletteTemplates.FirstOrDefault(t => t.Id == id)
+                ?? throw new InvalidOperationException($"Template {id} not found.");
+
+            var duplicate = new RouletteTemplate
+            {
+                Name = BuildDuplicateName(source.Name, document.RouletteTemplates.Select(t => t.Name)),
+                Description = source.Description,
+                SegmentCount = source.SegmentCount,
+                SpinDurationSec = source.SpinDurationSec,
+                EasingFunction = source.EasingFunction,
+                InitialAngleDeg = source.InitialAngleDeg,
+                CenterImageUrl = source.CenterImageUrl,
+                BackgroundImageUrl = source.BackgroundImageUrl,
+                PointerImageUrl = source.PointerImageUrl,
+                SpinSoundUrl = source.SpinSoundUrl,
+                WinSoundUrl = source.WinSoundUrl,
+                IsBuiltIn = false,
+                Segments = source.Segments
+                    .OrderBy(segment => segment.Index)
+                    .Select(segment => new RouletteSegment
+                    {
+                        Index = segment.Index,
+                        Title = segment.Title,
+                        ImageUrl = segment.ImageUrl,
+                        Color = segment.Color,
+                        Probability = segment.Probability
+                    })
+                    .ToList()
+            };
+
+            return await CreateTemplateAsync(duplicate);
+        }
+
         public async Task<List<RouletteTemplate>> ListTemplatesAsync()
         {
             var document = await LoadDocumentAsync(ensureBuiltIns: true);
@@ -247,6 +283,28 @@ namespace EasyLotteryDomain.Services
             }
 
             template.Segments = orderedSegments;
+        }
+
+        private static string BuildDuplicateName(string sourceName, IEnumerable<string> existingNames)
+        {
+            var baseName = string.IsNullOrWhiteSpace(sourceName)
+                ? "複製模板"
+                : $"{sourceName} - 複製";
+
+            if (!existingNames.Contains(baseName))
+            {
+                return baseName;
+            }
+
+            var suffix = 2;
+            var candidate = $"{baseName} {suffix}";
+            while (existingNames.Contains(candidate))
+            {
+                suffix++;
+                candidate = $"{baseName} {suffix}";
+            }
+
+            return candidate;
         }
 
         public static List<RouletteTemplate> BuildDefaultTemplates()
