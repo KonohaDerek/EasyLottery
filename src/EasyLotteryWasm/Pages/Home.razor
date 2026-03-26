@@ -54,23 +54,23 @@
             <Validations @ref="@validations" Mode="ValidationMode.Auto" Model="@chatRoomCatch">
                 <Field Horizontal>
                     <FieldBody ColumnSize="ColumnSize.Is4">
-                         <Validation>
-                            <TextEdit @bind-Text="@chatRoomCatch.YoutubeUrl" Placeholder="請輸入直播網址" Disabled="@catchChat" >
+                        <Validation>
+                            <TextInput @bind-Value="@chatRoomCatch.YoutubeUrl" Placeholder="請輸入直播網址" Disabled="@catchChat" >
                                 <Feedback>
                                     <ValidationError />
                                 </Feedback>
-                            </TextEdit>
+                            </TextInput>
                         </Validation>
                         <Validation>
-                            <TextEdit @bind-Text="@chatRoomCatch.KeyWord" Placeholder="請輸入通關密語" Disabled="@catchChat" >
+                            <TextInput @bind-Value="@chatRoomCatch.KeyWord" Placeholder="請輸入通關密語" Disabled="@catchChat" >
                                 <Feedback>
                                     <ValidationError />
                                 </Feedback>
-                            </TextEdit>
+                            </TextInput>
                         </Validation>
                     </FieldBody>
                     <FieldBody ColumnSize="ColumnSize.Is2">
-                        <Switch TValue="bool" Checked="@catchChat" CheckedChanged="@OnCatchChatChanged">
+                        <Switch TValue="bool" Value="@catchChat" ValueChanged="@OnCatchChatChanged">
                             @if (catchChat)
                             {
                                 <span>擷取中</span>
@@ -99,7 +99,7 @@
                     獎項名稱
                 </FieldLabel>
                 <FieldBody ColumnSize="ColumnSize.Is2">
-                    <TextEdit @bind-Text="@Prize" Placeholder="請輸入獎項名稱" ></TextEdit>
+                    <TextInput @bind-Value="@Prize" Placeholder="請輸入獎項名稱" />
                 </FieldBody>
                  <FieldBody ColumnSize="ColumnSize.Is2">
                      <Button Color="Color.Primary" @onclick="AddPrize">新增獎項</Button>
@@ -110,7 +110,7 @@
                     參加者名稱
                 </FieldLabel>
                 <FieldBody ColumnSize="ColumnSize.Is2">
-                    <TextEdit @bind-Text="@CustomParticipantName" Placeholder="請輸入參加者名稱" ></TextEdit>
+                    <TextInput @bind-Value="@CustomParticipantName" Placeholder="請輸入參加者名稱" />
                 </FieldBody>
                  <FieldBody ColumnSize="ColumnSize.Is2">
                     <Button Color="Color.Primary" @onclick="AddParticipant">新增參加者</Button>
