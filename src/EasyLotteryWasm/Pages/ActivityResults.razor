@@ -59,11 +59,11 @@
                 </div>
                 <div class="results-filter-field">
                     <label class="results-filter-label">開始日期</label>
-                    <input class="form-control" type="date" @bind="@startDateText" />
+                    <input class="form-control" type="date" value="@startDateText" @onchange="@OnStartDateChanged" />
                 </div>
                 <div class="results-filter-field">
                     <label class="results-filter-label">結束日期</label>
-                    <input class="form-control" type="date" @bind="@endDateText" />
+                    <input class="form-control" type="date" value="@endDateText" @onchange="@OnEndDateChanged" />
                 </div>
             </div>
 
@@ -718,6 +718,16 @@
         activityTypeFilter = "all";
         startDateText = "";
         endDateText = "";
+    }
+
+    private void OnStartDateChanged(ChangeEventArgs e)
+    {
+        startDateText = e.Value?.ToString() ?? string.Empty;
+    }
+
+    private void OnEndDateChanged(ChangeEventArgs e)
+    {
+        endDateText = e.Value?.ToString() ?? string.Empty;
     }
 
     private ActivityResultType? GetSelectedActivityType() => activityTypeFilter switch
