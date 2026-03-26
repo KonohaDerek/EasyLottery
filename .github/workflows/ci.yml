@@ -33,5 +33,8 @@ jobs:
       - name: Build
         run: dotnet build EasyLottery.generated.sln --configuration Release --no-restore
 
-      - name: Test
-        run: dotnet test EasyLottery.generated.sln --configuration Release --no-build --logger "trx;LogFileName=test-results.trx"
+      - name: Test Domain
+        run: dotnet test tests/EasyLotteryDomainTests/EasyLotteryDomainTests.csproj --configuration Release --no-build --logger "console;verbosity=normal" --logger "trx;LogFileName=domain-test-results.trx"
+
+      - name: Test API
+        run: dotnet test tests/EasyLotteryAPITests/EasyLotteryAPITests.csproj --configuration Release --no-build --logger "console;verbosity=normal" --logger "trx;LogFileName=api-test-results.trx"
