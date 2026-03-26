@@ -1,0 +1,167 @@
+@using EasyLotteryWasm.Models
+
+<div class="live-draw-flow-guide">
+    <div class="live-draw-flow-guide-header">
+        <div class="live-draw-flow-guide-eyebrow">LIVE DRAW FLOW</div>
+        <div class="live-draw-flow-guide-title">@Title</div>
+        @if (!string.IsNullOrWhiteSpace(Subtitle))
+        {
+            <div class="live-draw-flow-guide-subtitle">@Subtitle</div>
+        }
+    </div>
+
+    <div class="live-draw-flow-guide-steps">
+        @foreach (var step in steps)
+        {
+            <div class="live-draw-flow-guide-step @(step.IsActive ? "active" : "") @(step.IsCompleted ? "completed" : "")">
+                <span class="live-draw-flow-guide-step-index">@step.Index</span>
+                <span class="live-draw-flow-guide-step-label">@step.Label</span>
+            </div>
+        }
+    </div>
+
+    @if (CountdownRemaining.HasValue)
+    {
+        <div class="live-draw-flow-guide-countdown">
+            <div class="live-draw-flow-guide-countdown-label">倒數開始</div>
+            <div class="live-draw-flow-guide-countdown-value">@CountdownRemaining.Value</div>
+            <div class="live-draw-flow-guide-countdown-hint">請準備好畫面，倒數結束後會自動開始轉動。</div>
+        </div>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(DetailText))
+    {
+        <div class="live-draw-flow-guide-detail">@DetailText</div>
+    }
+</div>
+
+<style>
+    .live-draw-flow-guide {
+        width: min(100%, 980px);
+        padding: 14px 16px;
+        border-radius: 16px;
+        background: rgba(15, 23, 42, 0.78);
+        color: white;
+        box-shadow: 0 18px 48px rgba(0, 0, 0, 0.22);
+    }
+
+    .live-draw-flow-guide-header {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .live-draw-flow-guide-eyebrow {
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.18em;
+        opacity: 0.7;
+    }
+
+    .live-draw-flow-guide-title {
+        font-size: 1.08rem;
+        font-weight: 800;
+    }
+
+    .live-draw-flow-guide-subtitle,
+    .live-draw-flow-guide-detail {
+        font-size: 0.92rem;
+        line-height: 1.5;
+        opacity: 0.88;
+    }
+
+    .live-draw-flow-guide-steps {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-top: 12px;
+    }
+
+    .live-draw-flow-guide-step {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        font-size: 0.88rem;
+        font-weight: 700;
+        opacity: 0.74;
+    }
+
+    .live-draw-flow-guide-step.active {
+        opacity: 1;
+        background: rgba(255, 255, 255, 0.16);
+        border-color: rgba(255, 255, 255, 0.22);
+    }
+
+    .live-draw-flow-guide-step.completed {
+        opacity: 0.92;
+        background: rgba(74, 222, 128, 0.18);
+        border-color: rgba(74, 222, 128, 0.28);
+    }
+
+    .live-draw-flow-guide-step-index {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.14);
+        font-size: 0.78rem;
+    }
+
+    .live-draw-flow-guide-countdown {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 2px;
+        margin-top: 14px;
+        padding: 16px 12px;
+        border-radius: 14px;
+        background: linear-gradient(135deg, rgba(234, 179, 8, 0.22), rgba(59, 130, 246, 0.14));
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        text-align: center;
+    }
+
+    .live-draw-flow-guide-countdown-label {
+        font-size: 0.78rem;
+        font-weight: 800;
+        letter-spacing: 0.12em;
+        opacity: 0.8;
+    }
+
+    .live-draw-flow-guide-countdown-value {
+        font-size: 3rem;
+        font-weight: 900;
+        line-height: 1;
+        color: #ffd166;
+        text-shadow: 0 0 18px rgba(255, 209, 102, 0.45);
+    }
+
+    .live-draw-flow-guide-countdown-hint {
+        font-size: 0.88rem;
+        opacity: 0.86;
+    }
+</style>
+
+@code {
+    [Parameter] public string Title { get; set; } = "直播流程";
+    [Parameter] public string? Subtitle { get; set; }
+    [Parameter] public LiveDrawPhase Phase { get; set; } = LiveDrawPhase.Ready;
+    [Parameter] public int? CountdownRemaining { get; set; }
+    [Parameter] public string? DetailText { get; set; }
+
+    private FlowStep[] steps => new[]
+    {
+        new FlowStep(1, "確認模板", Phase == LiveDrawPhase.Ready, Phase > LiveDrawPhase.Ready),
+        new FlowStep(2, "倒數準備", Phase == LiveDrawPhase.CountingDown, Phase > LiveDrawPhase.CountingDown),
+        new FlowStep(3, "開始轉動", Phase == LiveDrawPhase.Spinning, Phase > LiveDrawPhase.Spinning),
+        new FlowStep(4, "顯示結果", Phase == LiveDrawPhase.ShowingResult, false),
+    };
+
+    private record FlowStep(int Index, string Label, bool IsActive, bool IsCompleted);
+}

@@ -50,6 +50,12 @@ else
             <div class="obs-status-pill">來源：@ObsUrl</div>
         </div>
 
+        <LiveDrawFlowGuide Title="OBS 直播流程"
+                           Subtitle="@template.Name"
+                           Phase="@flowPhase"
+                           CountdownRemaining="@countdownRemaining"
+                           DetailText="@FlowDetailText" />
+
         <div class="roulette-container">
             <!-- Pointer -->
             <div class="roulette-pointer">
@@ -110,15 +116,18 @@ else
         </div>
 
         <div class="obs-controls">
-            <button class="obs-spin-btn" @onclick="@SpinWheel" disabled="@isSpinning">
-                @(isSpinning ? "轉動中…" : "🎰 開始轉動")
+            <button class="obs-spin-btn" @onclick="@SpinWheelWithCountdown" disabled="@IsBusy">
+                @((IsBusy && flowPhase == LiveDrawPhase.CountingDown) ? $"倒數中… {countdownRemaining}" : "⏳ 倒數 3 秒後轉動")
+            </button>
+            <button class="obs-spin-btn" @onclick="@SpinWheel" disabled="@IsBusy">
+                @(IsBusy && flowPhase == LiveDrawPhase.Spinning ? "轉動中…" : "🎰 立即轉動")
             </button>
             <button class="obs-record-btn" @onclick="@EndActivityAndRecord" disabled="@(!CanRecordCurrentActivity || isRecording)">
                 @(isRecording ? "記錄中…" : "結束本次活動並記錄")
             </button>
         </div>
 
-        @if (lastResult != null && !isSpinning)
+        @if (lastResult != null && !IsBusy)
         {
             <div class="obs-win-result">
                 <span class="win-label">🎉 中獎：</span>
@@ -387,6 +396,8 @@ else
     private SpinResult? lastResult;
     private bool isSpinning = false;
     private bool isLoading = true;
+    private LiveDrawPhase flowPhase = LiveDrawPhase.Ready;
+    private int? countdownRemaining;
     private double currentRotation = 0;
     private bool isRecording;
     private string? lastRecordedSignature;
@@ -394,7 +405,19 @@ else
     private bool statusIsError;
 
     private const int PostSpinDelayMs = 300;
-    private bool CanRecordCurrentActivity => template != null && lastResult != null && !isSpinning && BuildRecordSignature() != lastRecordedSignature;
+    private const int SpinCountdownSeconds = 3;
+    private bool IsBusy => isSpinning || countdownRemaining.HasValue;
+    private bool CanRecordCurrentActivity => template != null && lastResult != null && !IsBusy && BuildRecordSignature() != lastRecordedSignature;
+
+    private string FlowDetailText =>
+        flowPhase switch
+        {
+            LiveDrawPhase.Ready => "先確認畫面與來源，再開始倒數或立即轉動。",
+            LiveDrawPhase.CountingDown => "請確認 OBS 已切好場景，倒數結束就會開始轉動。",
+            LiveDrawPhase.Spinning => "轉盤正在轉動，等待最終結果。",
+            LiveDrawPhase.ShowingResult when lastResult != null => $"本次結果已產生：「{lastResult.SegmentTitle}」。",
+            _ => "抽獎流程已就緒。"
+        };
 
     private string WrapperStyle =>
         string.IsNullOrEmpty(template?.BackgroundImageUrl)
@@ -436,18 +459,47 @@ else
             template = await RouletteService.LoadTemplateAsync(Id);
         }
 
+        flowPhase = LiveDrawPhase.Ready;
+        countdownRemaining = null;
         SetStatus("已重新載入模板。", false);
         StateHasChanged();
     }
 
     private async Task SpinWheel()
     {
-        if (template == null || isSpinning) return;
+        await StartSpinAsync(null, false);
+    }
+
+    private async Task SpinWheelWithCountdown()
+    {
+        await StartSpinAsync(null, true);
+    }
+
+    private async Task StartSpinAsync(int? forced, bool useCountdown)
+    {
+        if (template == null || IsBusy) return;
 
         lastResult = null;
-        var result = RouletteService.Spin(template, null, currentRotation);
+        if (useCountdown)
+        {
+            flowPhase = LiveDrawPhase.CountingDown;
+            countdownRemaining = SpinCountdownSeconds;
+            StateHasChanged();
 
+            while (countdownRemaining > 0)
+            {
+                await Task.Delay(1000);
+                countdownRemaining--;
+                StateHasChanged();
+            }
+        }
+
+        flowPhase = LiveDrawPhase.Spinning;
         isSpinning = true;
+        countdownRemaining = null;
+
+        var result = RouletteService.Spin(template, forced, currentRotation);
+
         currentRotation += result.TotalRotationDeg;
         StateHasChanged();
 
@@ -456,6 +508,7 @@ else
 
         isSpinning = false;
         lastResult = result;
+        flowPhase = LiveDrawPhase.ShowingResult;
         StateHasChanged();
     }
 
