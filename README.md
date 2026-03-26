@@ -142,6 +142,7 @@ dotnet test EasyLottery.generated.sln
 
 如果你要依照這個專案的標準流程進行開發，請看：
 
+- [EasyLottery 開發憲法](docs/constitution.md)
 - [EasyLottery 開發流程](docs/development-process.md)
 - [通用開發流程（跨專案可重用）](temp/development-process.md)
 
