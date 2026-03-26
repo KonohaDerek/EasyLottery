@@ -1,0 +1,37 @@
+{
+  "name": "EasyLottery",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": "../.."
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-dotnettools.csharp",
+        "ms-dotnettools.csdevkit",
+        "rust-lang.rust-analyzer",
+        "tauri-apps.tauri-vscode",
+        "ms-azuretools.vscode-docker",
+        "esbenp.prettier-vscode",
+        "dbaeumer.vscode-eslint",
+        "eamodio.gitlens",
+        "openai.chatgpt"
+      ],
+      "settings": {}
+    }
+  },
+  "mounts": [
+    "source=${localWorkspaceFolder}/.devcontainer/local/data/gh,target=/home/vscode/.config/gh,type=bind",
+    "source=${localWorkspaceFolder}/.devcontainer/local/data/codex,target=/home/vscode/.codex,type=bind",
+    "source=${localWorkspaceFolder}/.devcontainer/local/data/copilot,target=/home/vscode/.copilot,type=bind",
+    "source=${localWorkspaceFolder}/.devcontainer/local/data/ssh,target=/home/vscode/.ssh,type=bind",
+    "source=${localWorkspaceFolder}/.devcontainer/local/data/gh-local-share,target=/home/vscode/.local/share/gh,type=bind"
+  ],
+  "forwardPorts": [
+    22398,
+    22400,
+    22399
+  ],
+  "postCreateCommand": "dotnet restore EasyLottery.generated.sln",
+  "remoteUser": "vscode"
+}
