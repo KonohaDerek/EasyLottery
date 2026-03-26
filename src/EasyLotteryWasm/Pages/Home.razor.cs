@@ -3,6 +3,7 @@ using System.Text.Json;
 using EasyLotteryDomain.Models.Pages;
 using EasyLotteryWasm.Models;
 using MiniExcelLibs;
+using Microsoft.JSInterop;
 
 namespace EasyLotteryWasm.Pages;
 
