@@ -119,7 +119,7 @@ else
             <details>
                 <summary style="color:#aaa;cursor:pointer;">除錯：強制指定格子</summary>
                 <div class="d-flex gap-2 align-items-center mt-2">
-                    <NumericEdit TValue="int" @bind-Value="@forceIndex" Min="0"
+                    <NumericInput TValue="int" @bind-Value="@forceIndex" Min="0"
                                  Max="@(template.Segments.Count - 1)" style="width:80px;" />
                     <Button Color="Color.Secondary" Size="Size.Small" Clicked="@SpinForce" Disabled="@isSpinning">
                         強制轉到格 @(forceIndex + 1)

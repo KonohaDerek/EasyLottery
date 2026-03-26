@@ -24,19 +24,19 @@ else
                 <CardBody>
                     <Field>
                         <FieldLabel>模板名稱</FieldLabel>
-                        <TextEdit @bind-Text="@template.Name" Placeholder="模板名稱" />
+                        <TextInput @bind-Value="@template.Name" Placeholder="模板名稱" />
                     </Field>
                     <Field>
                         <FieldLabel>說明</FieldLabel>
-                        <TextEdit @bind-Text="@template.Description" Placeholder="說明" />
+                        <TextInput @bind-Value="@template.Description" Placeholder="說明" />
                     </Field>
                     <Field>
                         <FieldLabel>行數</FieldLabel>
-                        <NumericEdit TValue="int" @bind-Value="@template.GridRows" Min="1" Max="10" />
+                        <NumericInput TValue="int" @bind-Value="@template.GridRows" Min="1" Max="10" />
                     </Field>
                     <Field>
                         <FieldLabel>欄數</FieldLabel>
-                        <NumericEdit TValue="int" @bind-Value="@template.GridColumns" Min="1" Max="10" />
+                        <NumericInput TValue="int" @bind-Value="@template.GridColumns" Min="1" Max="10" />
                     </Field>
                     <Field>
                         <FieldLabel>戳擊模式</FieldLabel>
@@ -51,7 +51,7 @@ else
                     </Field>
                     <Field>
                         <FieldLabel>次數限制（0=無限）</FieldLabel>
-                        <NumericEdit TValue="int" @bind-Value="@template.MaxPokeCount" Min="0" />
+                        <NumericInput TValue="int" @bind-Value="@template.MaxPokeCount" Min="0" />
                     </Field>
                     <Field>
                         <FieldLabel>動畫效果</FieldLabel>
@@ -65,19 +65,19 @@ else
                     </Field>
                     <Field>
                         <FieldLabel>字體</FieldLabel>
-                        <TextEdit @bind-Text="@template.FontFamily" Placeholder="例如：Arial" />
+                        <TextInput @bind-Value="@template.FontFamily" Placeholder="例如：Arial" />
                     </Field>
                     <Field>
                         <FieldLabel>背景圖片 URL</FieldLabel>
-                        <TextEdit @bind-Text="@template.BackgroundImageUrl" Placeholder="https://…" />
+                        <TextInput @bind-Value="@template.BackgroundImageUrl" Placeholder="https://…" />
                     </Field>
                     <Field>
                         <FieldLabel>Overlay 寬度</FieldLabel>
-                        <NumericEdit TValue="int" @bind-Value="@template.OverlayWidth" Min="320" Max="3840" />
+                        <NumericInput TValue="int" @bind-Value="@template.OverlayWidth" Min="320" Max="3840" />
                     </Field>
                     <Field>
                         <FieldLabel>Overlay 高度</FieldLabel>
-                        <NumericEdit TValue="int" @bind-Value="@template.OverlayHeight" Min="240" Max="2160" />
+                        <NumericInput TValue="int" @bind-Value="@template.OverlayHeight" Min="240" Max="2160" />
                     </Field>
                 </CardBody>
             </Card>
@@ -100,16 +100,16 @@ else
                             <div class="poke-cell-editor border rounded p-2" style="background:@(string.IsNullOrEmpty(cell.RevealedColor)?"#f0f0f0":cell.RevealedColor);">
                                 <small><strong>格 @(cell.Index + 1)</strong></small>
                                 <Field>
-                                    <TextEdit @bind-Text="@cell.Title" Placeholder="標題" Size="Size.Small" />
+                                    <TextInput @bind-Value="@cell.Title" Placeholder="標題" Size="Size.Small" />
                                 </Field>
                                 <Field>
-                                    <TextEdit @bind-Text="@cell.SubTitle" Placeholder="副標" Size="Size.Small" />
+                                    <TextInput @bind-Value="@cell.SubTitle" Placeholder="副標" Size="Size.Small" />
                                 </Field>
                                 <Field>
-                                    <TextEdit @bind-Text="@cell.ImageUrl" Placeholder="圖片URL" Size="Size.Small" />
+                                    <TextInput @bind-Value="@cell.ImageUrl" Placeholder="圖片URL" Size="Size.Small" />
                                 </Field>
                                 <Field>
-                                    <TextEdit @bind-Text="@cell.RevealedImageUrl" Placeholder="開啟後圖片URL" Size="Size.Small" />
+                                    <TextInput @bind-Value="@cell.RevealedImageUrl" Placeholder="開啟後圖片URL" Size="Size.Small" />
                                 </Field>
                                 <Field>
                                     <FieldLabel>開啟後顏色</FieldLabel>

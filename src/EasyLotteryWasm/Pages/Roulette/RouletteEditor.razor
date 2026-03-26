@@ -24,11 +24,11 @@ else
                 <CardBody>
                     <Field>
                         <FieldLabel>模板名稱</FieldLabel>
-                        <TextEdit @bind-Text="@template.Name" Placeholder="模板名稱" />
+                        <TextInput @bind-Value="@template.Name" Placeholder="模板名稱" />
                     </Field>
                     <Field>
                         <FieldLabel>說明</FieldLabel>
-                        <TextEdit @bind-Text="@template.Description" Placeholder="說明" />
+                        <TextInput @bind-Value="@template.Description" Placeholder="說明" />
                     </Field>
                     <Field>
                         <FieldLabel>格數</FieldLabel>
@@ -41,7 +41,7 @@ else
                     </Field>
                     <Field>
                         <FieldLabel>旋轉時間（秒）</FieldLabel>
-                        <NumericEdit TValue="double" @bind-Value="@template.SpinDurationSec" Min="1.0" Max="30.0" />
+                        <NumericInput TValue="double" @bind-Value="@template.SpinDurationSec" Min="1.0" Max="30.0" />
                     </Field>
                     <Field>
                         <FieldLabel>Easing 曲線</FieldLabel>
@@ -55,27 +55,27 @@ else
                     </Field>
                     <Field>
                         <FieldLabel>初始角度（度）</FieldLabel>
-                        <NumericEdit TValue="double" @bind-Value="@template.InitialAngleDeg" Min="0" Max="359" />
+                        <NumericInput TValue="double" @bind-Value="@template.InitialAngleDeg" Min="0" Max="359" />
                     </Field>
                     <Field>
                         <FieldLabel>中心圖片 URL</FieldLabel>
-                        <TextEdit @bind-Text="@template.CenterImageUrl" Placeholder="https://…" />
+                        <TextInput @bind-Value="@template.CenterImageUrl" Placeholder="https://…" />
                     </Field>
                     <Field>
                         <FieldLabel>背景圖片 URL</FieldLabel>
-                        <TextEdit @bind-Text="@template.BackgroundImageUrl" Placeholder="https://…" />
+                        <TextInput @bind-Value="@template.BackgroundImageUrl" Placeholder="https://…" />
                     </Field>
                     <Field>
                         <FieldLabel>指針圖片 URL</FieldLabel>
-                        <TextEdit @bind-Text="@template.PointerImageUrl" Placeholder="https://…" />
+                        <TextInput @bind-Value="@template.PointerImageUrl" Placeholder="https://…" />
                     </Field>
                     <Field>
                         <FieldLabel>轉動音效 URL</FieldLabel>
-                        <TextEdit @bind-Text="@template.SpinSoundUrl" Placeholder="https://…" />
+                        <TextInput @bind-Value="@template.SpinSoundUrl" Placeholder="https://…" />
                     </Field>
                     <Field>
                         <FieldLabel>中獎音效 URL</FieldLabel>
-                        <TextEdit @bind-Text="@template.WinSoundUrl" Placeholder="https://…" />
+                        <TextInput @bind-Value="@template.WinSoundUrl" Placeholder="https://…" />
                     </Field>
                 </CardBody>
             </Card>
@@ -102,13 +102,13 @@ else
                                 </div>
                                 <div class="row g-1">
                                     <div class="col-md-4">
-                                        <TextEdit @bind-Text="@seg.Title" Placeholder="標題" Size="Size.Small" />
+                                        <TextInput @bind-Value="@seg.Title" Placeholder="標題" Size="Size.Small" />
                                     </div>
                                     <div class="col-md-5">
-                                        <TextEdit @bind-Text="@seg.ImageUrl" Placeholder="圖片 URL" Size="Size.Small" />
+                                        <TextInput @bind-Value="@seg.ImageUrl" Placeholder="圖片 URL" Size="Size.Small" />
                                     </div>
                                     <div class="col-md-3">
-                                        <NumericEdit TValue="double" @bind-Value="@seg.Probability"
+                                        <NumericInput TValue="double" @bind-Value="@seg.Probability"
                                                      Min="0" Max="100" Placeholder="機率%" Size="Size.Small" />
                                     </div>
                                 </div>
