@@ -90,5 +90,66 @@ namespace EasyLotteryDomainTests.Services
             Assert.AreEqual(1, savedDocument.ActivityResults.Count);
             Assert.AreEqual(5, savedDocument.IdSequence.NextActivityResultId);
         }
+
+        [TestMethod]
+        public void FilterActivityResults_FiltersBySearchTypeAndDateRange()
+        {
+            var records = new List<ActivityResultRecord>
+            {
+                new()
+                {
+                    Id = 1,
+                    ActivityType = ActivityResultType.PokeBox,
+                    ActivityName = "四月戳戳樂",
+                    Summary = "已揭曉 3 / 9 格",
+                    ActivityDateUtc = new DateTime(2026, 4, 10, 10, 0, 0, DateTimeKind.Utc),
+                    Items =
+                    [
+                        new ActivityResultItem { Order = 1, Name = "A 獎", Description = "頭獎" }
+                    ]
+                },
+                new()
+                {
+                    Id = 2,
+                    ActivityType = ActivityResultType.Roulette,
+                    ActivityName = "直播轉盤",
+                    Summary = "中獎項目：頭獎",
+                    ActivityDateUtc = new DateTime(2026, 4, 12, 10, 0, 0, DateTimeKind.Utc),
+                    Items =
+                    [
+                        new ActivityResultItem { Order = 1, Name = "頭獎", Description = "第 2 格" }
+                    ]
+                }
+            };
+
+            var filtered = ActivityResultService.FilterActivityResults(
+                records,
+                searchText: "頭獎",
+                activityType: ActivityResultType.Roulette,
+                startDate: new DateOnly(2026, 4, 11),
+                endDate: new DateOnly(2026, 4, 13));
+
+            Assert.AreEqual(1, filtered.Count);
+            Assert.AreEqual(2, filtered[0].Id);
+        }
+
+        [TestMethod]
+        public void SerializeActivityResults_ReturnsIndentedJson()
+        {
+            var json = ActivityResultService.SerializeActivityResults(
+                new[]
+                {
+                    new ActivityResultRecord
+                    {
+                        Id = 1,
+                        ActivityType = ActivityResultType.Roulette,
+                        ActivityName = "直播轉盤",
+                        Summary = "中獎項目：頭獎"
+                    }
+                });
+
+            Assert.IsTrue(json.Contains("\"ActivityName\""));
+            Assert.IsTrue(json.Contains("\n"));
+        }
     }
 }

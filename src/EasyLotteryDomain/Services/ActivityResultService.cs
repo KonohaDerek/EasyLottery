@@ -1,3 +1,4 @@
+using System.Text.Json;
 using EasyLotteryDomain.Models.Config;
 using EasyLotteryDomain.Models.Entities;
 
@@ -5,6 +6,11 @@ namespace EasyLotteryDomain.Services
 {
     public sealed class ActivityResultService
     {
+        private static readonly JsonSerializerOptions ExportJsonOptions = new()
+        {
+            WriteIndented = true
+        };
+
         private readonly IEasyLotteryConfigStore _configStore;
 
         public ActivityResultService(IEasyLotteryConfigStore configStore)
@@ -19,6 +25,47 @@ namespace EasyLotteryDomain.Services
                 .OrderByDescending(record => record.ActivityDateUtc)
                 .ThenByDescending(record => record.Id)
                 .ToList();
+        }
+
+        public static List<ActivityResultRecord> FilterActivityResults(
+            IEnumerable<ActivityResultRecord> records,
+            string? searchText = null,
+            ActivityResultType? activityType = null,
+            DateOnly? startDate = null,
+            DateOnly? endDate = null)
+        {
+            var query = records ?? Enumerable.Empty<ActivityResultRecord>();
+
+            if (activityType.HasValue)
+            {
+                query = query.Where(record => record.ActivityType == activityType.Value);
+            }
+
+            if (startDate.HasValue)
+            {
+                query = query.Where(record => DateOnly.FromDateTime(record.ActivityDateUtc.ToLocalTime()) >= startDate.Value);
+            }
+
+            if (endDate.HasValue)
+            {
+                query = query.Where(record => DateOnly.FromDateTime(record.ActivityDateUtc.ToLocalTime()) <= endDate.Value);
+            }
+
+            if (!string.IsNullOrWhiteSpace(searchText))
+            {
+                var normalizedSearch = searchText.Trim();
+                query = query.Where(record => MatchesSearch(record, normalizedSearch));
+            }
+
+            return query
+                .OrderByDescending(record => record.ActivityDateUtc)
+                .ThenByDescending(record => record.Id)
+                .ToList();
+        }
+
+        public static string SerializeActivityResults(IEnumerable<ActivityResultRecord> records)
+        {
+            return JsonSerializer.Serialize(records, ExportJsonOptions);
         }
 
         public async Task<ActivityResultRecord?> LoadActivityResultAsync(int id, CancellationToken cancellationToken = default)
@@ -112,6 +159,26 @@ namespace EasyLotteryDomain.Services
             document.ActivityResults.Add(record);
             await _configStore.SaveAsync(document, cancellationToken);
             return record;
+        }
+
+        private static bool MatchesSearch(ActivityResultRecord record, string searchText)
+        {
+            if (Contains(record.ActivityName, searchText) ||
+                Contains(record.Summary, searchText) ||
+                Contains(record.ActivityType.ToString(), searchText))
+            {
+                return true;
+            }
+
+            return record.Items.Any(item =>
+                Contains(item.Name, searchText) ||
+                Contains(item.Description, searchText));
+        }
+
+        private static bool Contains(string? source, string searchText)
+        {
+            return !string.IsNullOrWhiteSpace(source) &&
+                   source.Contains(searchText, StringComparison.OrdinalIgnoreCase);
         }
     }
 }

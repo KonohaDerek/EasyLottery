@@ -1,8 +1,12 @@
 @page "/activity-results"
 @using EasyLotteryDomain.Models.Config
 @using EasyLotteryDomain.Services
+@using System.Globalization
+@using System.Text.Json
 
 @inject ActivityResultService ActivityResultService
+@inject IMessageService MessageService
+@inject IJSRuntime JSRuntime
 
 <PageTitle>活動結果</PageTitle>
 
@@ -17,6 +21,10 @@
             <div class="results-metric-card">
                 <div class="results-metric-label">活動總數</div>
                 <div class="results-metric-value">@records.Count</div>
+            </div>
+            <div class="results-metric-card results-metric-card-filtered">
+                <div class="results-metric-label">符合篩選</div>
+                <div class="results-metric-value">@FilteredRecordCount</div>
             </div>
             <div class="results-metric-card results-metric-card-poke">
                 <div class="results-metric-label">戳戳樂</div>
@@ -33,6 +41,43 @@
         </div>
     </section>
 
+    @if (!isLoading && records.Any())
+    {
+        <section class="results-filter-panel">
+            <div class="results-filter-grid">
+                <div class="results-filter-field">
+                    <label class="results-filter-label">搜尋</label>
+                    <TextInput @bind-Value="@searchText" Placeholder="活動名稱、摘要或內容關鍵字" />
+                </div>
+                <div class="results-filter-field">
+                    <label class="results-filter-label">類型</label>
+                    <select class="form-select" @bind="@activityTypeFilter">
+                        <option value="all">全部</option>
+                        <option value="pokebox">戳戳樂</option>
+                        <option value="roulette">轉盤</option>
+                    </select>
+                </div>
+                <div class="results-filter-field">
+                    <label class="results-filter-label">開始日期</label>
+                    <input class="form-control" type="date" @bind="@startDateText" />
+                </div>
+                <div class="results-filter-field">
+                    <label class="results-filter-label">結束日期</label>
+                    <input class="form-control" type="date" @bind="@endDateText" />
+                </div>
+            </div>
+
+            <div class="results-filter-actions">
+                <Button Color="Color.Secondary" Clicked="@ClearFilters">清除篩選</Button>
+                <Button Color="Color.Primary" Clicked="@ExportFilteredResultsAsync">匯出目前結果</Button>
+            </div>
+
+            <div class="results-filter-meta">
+                目前顯示 @FilteredRecordCount / @records.Count 筆結果
+            </div>
+        </section>
+    }
+
     @if (isLoading)
     {
         <div class="results-loading-panel">
@@ -48,10 +93,17 @@
             <div class="result-empty-description">完成一次戳戳樂或轉盤活動後，按下「結束本次活動並記錄」，結果就會自動出現在這裡。</div>
         </div>
     }
+    else if (!FilteredRecords.Any())
+    {
+        <div class="result-empty-state">
+            <div class="result-empty-title">找不到符合條件的活動結果</div>
+            <div class="result-empty-description">請調整搜尋條件，或按下「清除篩選」查看全部紀錄。</div>
+        </div>
+    }
     else
     {
         <div class="result-card-list">
-            @foreach (var record in records)
+            @foreach (var record in FilteredRecords)
             {
                 <article class="result-card @GetCardCss(record.ActivityType)">
                     <div class="result-card-header">
@@ -167,7 +219,7 @@
 
     .results-metric-grid {
         display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
         gap: 12px;
         align-self: stretch;
     }
@@ -191,6 +243,10 @@
 
     .results-metric-card-latest {
         background: linear-gradient(180deg, rgba(239, 246, 255, 0.95), rgba(255, 255, 255, 0.92));
+    }
+
+    .results-metric-card-filtered {
+        background: linear-gradient(180deg, rgba(250, 245, 255, 0.95), rgba(255, 255, 255, 0.92));
     }
 
     .results-metric-label {
@@ -221,6 +277,45 @@
         background: var(--results-surface);
         border: 1px solid var(--results-line);
         box-shadow: var(--results-shadow);
+    }
+
+    .results-filter-panel {
+        margin-bottom: 22px;
+        padding: 20px 22px;
+        border-radius: 24px;
+        background: rgba(255, 255, 255, 0.88);
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        box-shadow: var(--results-shadow);
+    }
+
+    .results-filter-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+    }
+
+    .results-filter-field {
+        display: grid;
+        gap: 8px;
+    }
+
+    .results-filter-label {
+        color: var(--results-muted);
+        font-size: 0.84rem;
+        font-weight: 700;
+    }
+
+    .results-filter-actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-top: 14px;
+    }
+
+    .results-filter-meta {
+        margin-top: 10px;
+        color: var(--results-muted);
+        font-size: 0.92rem;
     }
 
     .results-loading-shimmer {
@@ -496,7 +591,7 @@
             padding: 22px 18px;
         }
 
-        .results-metric-grid {
+        .results-filter-grid {
             grid-template-columns: repeat(2, minmax(0, 1fr));
         }
 
@@ -512,7 +607,8 @@
     }
 
     @@media (max-width: 520px) {
-        .results-metric-grid {
+        .results-metric-grid,
+        .results-filter-grid {
             grid-template-columns: 1fr;
         }
 
@@ -544,9 +640,22 @@
 @code {
     private List<ActivityResultRecord> records = new();
     private bool isLoading = true;
-    private int PokeRecordCount => records.Count(record => record.ActivityType == ActivityResultType.PokeBox);
-    private int RouletteRecordCount => records.Count(record => record.ActivityType == ActivityResultType.Roulette);
-    private string LatestActivityLabel => records.Count == 0 ? "尚無紀錄" : FormatDate(records.Max(record => record.ActivityDateUtc));
+    private string searchText = "";
+    private string activityTypeFilter = "all";
+    private string startDateText = "";
+    private string endDateText = "";
+
+    private List<ActivityResultRecord> FilteredRecords => ActivityResultService.FilterActivityResults(
+        records,
+        searchText,
+        GetSelectedActivityType(),
+        ParseDate(startDateText),
+        ParseDate(endDateText));
+
+    private int FilteredRecordCount => FilteredRecords.Count;
+    private int PokeRecordCount => FilteredRecords.Count(record => record.ActivityType == ActivityResultType.PokeBox);
+    private int RouletteRecordCount => FilteredRecords.Count(record => record.ActivityType == ActivityResultType.Roulette);
+    private string LatestActivityLabel => FilteredRecords.Count == 0 ? "尚無紀錄" : FormatDate(FilteredRecords.Max(record => record.ActivityDateUtc));
 
     protected override async Task OnInitializedAsync()
     {
@@ -586,5 +695,45 @@
         return string.IsNullOrWhiteSpace(color)
             ? "background:linear-gradient(135deg, #dbeafe 0%, #e2e8f0 100%);"
             : $"background:{color};";
+    }
+
+    private async Task ExportFilteredResultsAsync()
+    {
+        var filtered = FilteredRecords;
+        if (!filtered.Any())
+        {
+            await MessageService.Warning("目前沒有符合篩選條件的結果可以匯出。");
+            return;
+        }
+
+        var json = ActivityResultService.SerializeActivityResults(filtered);
+        var fileName = $"activity-results-{DateTime.UtcNow:yyyyMMdd-HHmmss}.json";
+        await JSRuntime.InvokeVoidAsync("easyLotteryDownload.downloadText", fileName, json, "application/json;charset=utf-8");
+        await MessageService.Success("已匯出活動結果 JSON。");
+    }
+
+    private void ClearFilters()
+    {
+        searchText = "";
+        activityTypeFilter = "all";
+        startDateText = "";
+        endDateText = "";
+    }
+
+    private ActivityResultType? GetSelectedActivityType() => activityTypeFilter switch
+    {
+        "pokebox" => ActivityResultType.PokeBox,
+        "roulette" => ActivityResultType.Roulette,
+        _ => null
+    };
+
+    private static DateOnly? ParseDate(string? value)
+    {
+        if (DateOnly.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.None, out var date))
+        {
+            return date;
+        }
+
+        return null;
     }
 }
