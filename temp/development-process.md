@@ -1,6 +1,8 @@
 # Universal Development Process
 
 This file is a language-agnostic development SOP that can be reused across different projects and stacks.
+It follows the same workflow constitution pattern used in EasyLottery:
+Requirement -> OpenSpec (or equivalent planning) -> Issue -> Worktree -> Implementation -> Testing -> PR -> Sync.
 
 If you want a shorter version, use [Universal Development Checklist](./development-process-checklist.md).
 
@@ -33,12 +35,14 @@ If you want a shorter version, use [Universal Development Checklist](./developme
   - Acceptance criteria
   - Risks and notes
 - Do not start implementation before the issue is confirmed.
+- Do not skip the issue step.
 
 ### 3. Worktree
 
 - Check git status, branch, and remote information.
 - Create an isolated worktree or equivalent branch isolation.
 - Keep one issue per worktree.
+- Do not work in a shared checkout when isolation is possible.
 
 ### 4. Implementation
 
@@ -46,6 +50,7 @@ If you want a shorter version, use [Universal Development Checklist](./developme
 - Prefer the smallest safe change first.
 - Keep unrelated refactors out of scope.
 - If the design is unclear, stop and re-check the issue.
+- Do not bypass the worktree or issue steps to move faster.
 
 ### 5. Testing
 
@@ -75,3 +80,4 @@ If you want a shorter version, use [Universal Development Checklist](./developme
 - Make outcomes verifiable.
 - Prefer explicit acceptance criteria over vague goals.
 - Preserve existing conventions unless the issue says otherwise.
+- Treat worktree isolation and issue confirmation as required defaults, not optional optimizations.

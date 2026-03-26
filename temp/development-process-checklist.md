@@ -13,12 +13,14 @@ Use this as a short, reusable flow for any project, any language.
 - [ ] Draft the issue
 - [ ] Include background, goal, scope, non-goals, acceptance, and risks
 - [ ] Confirm the issue before implementation
+- [ ] Do not start coding before the issue is confirmed
 
 ## 3. Worktree
 
 - [ ] Check git status, branch, and remote
 - [ ] Create an isolated worktree or equivalent branch
 - [ ] Keep one issue per worktree
+- [ ] Do not use the shared checkout for implementation when a worktree is possible
 
 ## 4. Implementation
 
@@ -26,6 +28,7 @@ Use this as a short, reusable flow for any project, any language.
 - [ ] Follow the issue or spec step by step
 - [ ] Keep unrelated refactors out of scope
 - [ ] Re-check the issue if anything is unclear
+- [ ] Do not bypass worktree isolation to save time
 
 ## 5. Testing
 
@@ -46,4 +49,3 @@ Use this as a short, reusable flow for any project, any language.
 - [ ] Report how it was verified
 - [ ] Report remaining risks or follow-ups
 - [ ] Update issue / PR / docs state if needed
-

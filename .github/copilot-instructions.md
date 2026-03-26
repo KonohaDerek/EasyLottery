@@ -10,6 +10,9 @@
 
 ## Working conventions
 
+- Treat [docs/constitution.md](../docs/constitution.md) as the authoritative workflow contract.
+- Always follow the sequence: Requirement -> OpenSpec -> Issue -> Worktree -> Implementation -> Testing -> PR -> Sync.
+- Do not skip worktree isolation or start implementation before the issue is confirmed.
 - Prefer keeping changes aligned with the existing Chinese README and UI wording.
 - Make changes in the Domain layer first when behavior spans API and UI.
 - Preserve existing behavior unless the request explicitly says to change it.
@@ -26,4 +29,3 @@
 - Do not assume there is a front-end-only or API-only deployment; this repo includes both.
 - When adding settings or shared behavior, check all three layers: API, Domain, and Wasm.
 - Treat `openspec/` as the repo's planning and artifact context for issue-first work.
-
