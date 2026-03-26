@@ -13,3 +13,9 @@ appsettings.*.json
 !appsettings.json
 .devcontainer/local/data/
 temp/
+
+# Local Codex workspace artifacts
+.agent/skills/openspec/
+.agent/skills/openspec-*/
+.agent/workflows/opsx-*.md
+.devcontainer/
