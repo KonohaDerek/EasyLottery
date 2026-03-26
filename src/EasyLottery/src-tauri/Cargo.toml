@@ -1,6 +1,6 @@
 [package]
 name = "easylottery"
-version = "1.1.0"
+version = "1.2.7"
 description = "A Lottery App"
 authors = ["Makaku_Ch"]
 edition = "2021"
