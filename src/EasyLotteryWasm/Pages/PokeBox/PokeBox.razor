@@ -30,6 +30,7 @@ else
             <TableRow>
                 <TableHeaderCell>名稱</TableHeaderCell>
                 <TableHeaderCell>說明</TableHeaderCell>
+                <TableHeaderCell>狀態</TableHeaderCell>
                 <TableHeaderCell>格數</TableHeaderCell>
                 <TableHeaderCell>模式</TableHeaderCell>
                 <TableHeaderCell>動畫</TableHeaderCell>
@@ -42,6 +43,11 @@ else
                 <TableRow>
                     <TableRowCell>@t.Name @(t.IsBuiltIn ? "🔒" : "")</TableRowCell>
                     <TableRowCell>@t.Description</TableRowCell>
+                    <TableRowCell>
+                        <Badge Color="@(t.PublicationStatus == TemplatePublicationStatus.Draft ? Color.Warning : Color.Success)">
+                            @(t.PublicationStatus == TemplatePublicationStatus.Draft ? "草稿" : "已發布")
+                        </Badge>
+                    </TableRowCell>
                     <TableRowCell>@t.GridRows × @t.GridColumns</TableRowCell>
                     <TableRowCell>@(t.Mode == PokeMode.Random ? "隨機" : "手動")</TableRowCell>
                     <TableRowCell>@t.Animation</TableRowCell>
@@ -49,6 +55,9 @@ else
                         <div class="d-flex gap-1">
                             <Button Size="Size.Small" Color="Color.Success" Clicked="@(() => NavigateToPreview(t.Id))">預覽</Button>
                             <Button Size="Size.Small" Color="Color.Warning" Clicked="@(() => NavigateToEditor(t.Id))">編輯</Button>
+                            <Button Size="Size.Small" Color="@(t.PublicationStatus == TemplatePublicationStatus.Draft ? Color.Success : Color.Secondary)" Clicked="@(() => TogglePublicationStatus(t))">
+                                @(t.PublicationStatus == TemplatePublicationStatus.Draft ? "發布" : "轉草稿")
+                            </Button>
                             <Button Size="Size.Small" Color="Color.Primary" Clicked="@(() => DuplicateTemplate(t.Id))">複製</Button>
                             <Button Size="Size.Small" Color="Color.Info" Clicked="@(() => ExportTemplate(t.Id))">匯出</Button>
                             @if (!t.IsBuiltIn)
@@ -127,6 +136,17 @@ else
         await LoadTemplates();
         NavigationManager.NavigateTo($"/pokebox/editor/{duplicate.Id}");
         await MessageService.Success($"已建立複本「{duplicate.Name}」。");
+    }
+
+    private async Task TogglePublicationStatus(PokeTemplate template)
+    {
+        var nextStatus = template.PublicationStatus == TemplatePublicationStatus.Draft
+            ? TemplatePublicationStatus.Published
+            : TemplatePublicationStatus.Draft;
+
+        await PokeService.SetPublicationStatusAsync(template.Id, nextStatus);
+        await LoadTemplates();
+        await MessageService.Success(nextStatus == TemplatePublicationStatus.Published ? "已發布模板。" : "已轉為草稿。");
     }
 
     private async Task ExportTemplate(int id)

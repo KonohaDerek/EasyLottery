@@ -57,6 +57,8 @@ namespace EasyLotteryDomain.Models.Entities
 
         public bool IsBuiltIn { get; set; } = false;
 
+        public TemplatePublicationStatus PublicationStatus { get; set; } = TemplatePublicationStatus.Published;
+
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;

@@ -83,6 +83,7 @@ namespace EasyLotteryDomain.Services
                 PokeSoundUrl = source.PokeSoundUrl,
                 OpenSoundUrl = source.OpenSoundUrl,
                 IsBuiltIn = false,
+                PublicationStatus = TemplatePublicationStatus.Draft,
                 Cells = source.Cells
                     .OrderBy(cell => cell.Index)
                     .Select(cell => new PokeCell
@@ -106,7 +107,8 @@ namespace EasyLotteryDomain.Services
         {
             var document = await LoadDocumentAsync(ensureBuiltIns: true);
             return document.PokeTemplates
-                .OrderByDescending(t => t.UpdatedAt)
+                .OrderBy(t => t.PublicationStatus)
+                .ThenByDescending(t => t.UpdatedAt)
                 .ToList();
         }
 
@@ -115,6 +117,18 @@ namespace EasyLotteryDomain.Services
             var document = await LoadDocumentAsync(ensureBuiltIns: true);
             return document.PokeTemplates
                 .FirstOrDefault(t => t.Id == id);
+        }
+
+        public async Task<PokeTemplate> SetPublicationStatusAsync(int id, TemplatePublicationStatus status)
+        {
+            var document = await _configStore.LoadAsync();
+            var template = document.PokeTemplates.FirstOrDefault(t => t.Id == id)
+                ?? throw new InvalidOperationException($"Template {id} not found.");
+
+            template.PublicationStatus = status;
+            template.UpdatedAt = DateTime.UtcNow;
+            await _configStore.SaveAsync(document);
+            return template;
         }
 
         // ── Poke Logic ────────────────────────────────────────────────────────
@@ -208,6 +222,7 @@ namespace EasyLotteryDomain.Services
             // Reset IDs so EF treats them as new records
             template.Id = 0;
             template.IsBuiltIn = false;
+            template.PublicationStatus = TemplatePublicationStatus.Draft;
             foreach (var cell in template.Cells)
             {
                 cell.Id = 0;
@@ -333,6 +348,7 @@ namespace EasyLotteryDomain.Services
                 Mode = PokeMode.Random,
                 Animation = PokeAnimation.Burst,
                 IsBuiltIn = true,
+                PublicationStatus = TemplatePublicationStatus.Published,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow,
             };
@@ -351,6 +367,7 @@ namespace EasyLotteryDomain.Services
                 Mode = PokeMode.Random,
                 Animation = PokeAnimation.Bounce,
                 IsBuiltIn = true,
+                PublicationStatus = TemplatePublicationStatus.Published,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow,
             };
@@ -369,6 +386,7 @@ namespace EasyLotteryDomain.Services
                 Mode = PokeMode.Random,
                 Animation = PokeAnimation.Flash,
                 IsBuiltIn = true,
+                PublicationStatus = TemplatePublicationStatus.Published,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow,
             };

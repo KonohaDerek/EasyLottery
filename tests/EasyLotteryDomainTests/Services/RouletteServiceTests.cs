@@ -133,6 +133,7 @@ namespace EasyLotteryDomainTests.Services
             Assert.AreNotEqual(created.Id, duplicate.Id);
             Assert.AreEqual("Original - 複製", duplicate.Name);
             Assert.IsFalse(duplicate.IsBuiltIn);
+            Assert.AreEqual(TemplatePublicationStatus.Draft, duplicate.PublicationStatus);
             Assert.AreEqual(template.Description, duplicate.Description);
             Assert.AreEqual(template.SegmentCount, duplicate.SegmentCount);
             Assert.AreEqual(template.SpinDurationSec, duplicate.SpinDurationSec);
@@ -148,6 +149,21 @@ namespace EasyLotteryDomainTests.Services
             Assert.AreEqual("B", duplicate.Segments[1].Title);
             Assert.AreEqual(10, duplicate.Segments[0].Probability);
             Assert.AreEqual(20, duplicate.Segments[1].Probability);
+        }
+
+        [TestMethod]
+        public async Task SetPublicationStatus_UpdatesTemplateStatus()
+        {
+            var svc = new RouletteService(new InMemoryEasyLotteryConfigStore());
+
+            var created = await svc.CreateTemplateAsync(new RouletteTemplate { Name = "Status" });
+
+            var updated = await svc.SetPublicationStatusAsync(created.Id, TemplatePublicationStatus.Draft);
+
+            Assert.AreEqual(TemplatePublicationStatus.Draft, updated.PublicationStatus);
+            var loaded = await svc.LoadTemplateAsync(created.Id);
+            Assert.IsNotNull(loaded);
+            Assert.AreEqual(TemplatePublicationStatus.Draft, loaded.PublicationStatus);
         }
 
         // ── Spin Algorithm ────────────────────────────────────────────────────
