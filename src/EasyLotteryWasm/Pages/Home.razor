@@ -7,14 +7,17 @@
 @using MiniExcelLibs.Attributes
 @using Serilog
 @using System.Timers
+@using System.Text
+@using System.Text.Json
 @using EasyLotteryDomain.Models.Pages
 
 
 @inject NavigationManager NavigationManager
 @inject IMessageService MessageService
-@implements IDisposable
-@inject YouTubeServiceHelper youTubeServiceHelper;
+@inject IJSRuntime JSRuntime
+@inject YouTubeServiceHelper youTubeServiceHelper
 @inject ILogger<YouTubeServiceHelper> Logger
+@implements IDisposable
 
 
 <PageTitle>抽獎</PageTitle>
@@ -41,6 +44,62 @@
                 {
                     <Badge Color="Color.Secondary">YT 未授權</Badge>
                 }
+            </Column>
+        </Row>
+    </CardBody>
+</Card>
+
+<Divider />
+
+<Card>
+    <CardBody>
+        <CardTitle>
+            <h2>名單與獎項匯入 / 匯出</h2>
+        </CardTitle>
+        <Row>
+            <Column ColumnSize="ColumnSize.Is6">
+                <Card>
+                    <CardBody>
+                        <CardTitle><h5>參加者</h5></CardTitle>
+                        <Field>
+                            <FieldLabel>格式</FieldLabel>
+                            <select class="form-select" @bind="@participantDataFormat">
+                                <option value="json">JSON</option>
+                                <option value="csv">CSV</option>
+                            </select>
+                        </Field>
+                        <Field>
+                            <FieldLabel>內容</FieldLabel>
+                            <textarea class="form-control" rows="8" @bind="@participantDataText"></textarea>
+                        </Field>
+                        <div class="d-flex gap-2 flex-wrap">
+                            <Button Color="Color.Secondary" Clicked="@ExportParticipantsAsync">匯出參加者</Button>
+                            <Button Color="Color.Primary" Clicked="@ImportParticipantsAsync">匯入參加者</Button>
+                        </div>
+                    </CardBody>
+                </Card>
+            </Column>
+            <Column ColumnSize="ColumnSize.Is6">
+                <Card>
+                    <CardBody>
+                        <CardTitle><h5>獎項</h5></CardTitle>
+                        <Field>
+                            <FieldLabel>格式</FieldLabel>
+                            <select class="form-select" @bind="@prizeDataFormat">
+                                <option value="json">JSON</option>
+                                <option value="csv">CSV</option>
+                            </select>
+                        </Field>
+                        <Field>
+                            <FieldLabel>內容</FieldLabel>
+                            <textarea class="form-control" rows="8" @bind="@prizeDataText"></textarea>
+                        </Field>
+                        <div class="d-flex gap-2 flex-wrap">
+                            <Button Color="Color.Secondary" Clicked="@ExportPrizesAsync">匯出獎項</Button>
+                            <Button Color="Color.Primary" Clicked="@ImportPrizesAsync">匯入獎項</Button>
+                        </div>
+                    </CardBody>
+                </Card>
             </Column>
         </Row>
     </CardBody>
