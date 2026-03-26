@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Project documentation
+    url: https://github.com/KonohaDerek/EasyLottery
+    about: 先查看專案 README 與現有說明，再提出具體 issue。
