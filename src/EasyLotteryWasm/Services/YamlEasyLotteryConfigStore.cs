@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using System.Text.Json;
 using EasyLotteryDomain.Models.Config;
 using EasyLotteryDomain.Models.Entities;
@@ -133,6 +135,7 @@ namespace EasyLotteryWasm.Services
             document.PokeTemplates ??= new List<PokeTemplate>();
             document.RouletteTemplates ??= new List<RouletteTemplate>();
             document.ActivityResults ??= new List<ActivityResultRecord>();
+            document.DrawingRulePresets ??= new List<DrawingRulePreset>();
 
             foreach (var template in document.PokeTemplates)
             {
@@ -147,6 +150,11 @@ namespace EasyLotteryWasm.Services
             foreach (var activityResult in document.ActivityResults)
             {
                 NormalizeActivityResult(activityResult);
+            }
+
+            foreach (var preset in document.DrawingRulePresets)
+            {
+                NormalizeDrawingRulePreset(preset);
             }
 
             document.IdSequence.NextPokeTemplateId = Math.Max(document.IdSequence.NextPokeTemplateId, document.PokeTemplates.Select(t => t.Id).DefaultIfEmpty(0).Max() + 1);
@@ -239,6 +247,18 @@ namespace EasyLotteryWasm.Services
             }
 
             activityResult.Items = orderedItems;
+        }
+
+        private static void NormalizeDrawingRulePreset(DrawingRulePreset preset)
+        {
+            preset.Name ??= "";
+            preset.Description ??= "";
+            preset.LevelRates ??= new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var key in preset.LevelRates.Keys.ToList())
+            {
+                preset.LevelRates[key] = Math.Max(1, preset.LevelRates[key]);
+            }
         }
     }
 }
