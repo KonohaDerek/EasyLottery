@@ -121,12 +121,29 @@
                             </TextInput>
                         </Validation>
                         <Validation>
-                            <TextInput @bind-Value="@chatRoomCatch.KeyWord" Placeholder="請輸入通關密語" Disabled="@catchChat" >
+                            <TextInput @bind-Value="@chatRoomCatch.KeyWord" Placeholder="請輸入通關密語，可用逗號或換行分隔多組" Disabled="@catchChat" >
                                 <Feedback>
                                     <ValidationError />
                                 </Feedback>
                             </TextInput>
                         </Validation>
+                        <div class="mt-3">
+                            <div class="mb-1">白名單</div>
+                            <MemoInput @bind-Value="@chatRoomCatch.WhiteList" Rows="2" Placeholder="可輸入帳號名稱，逗號或換行分隔；留空表示全部允許" Disabled="@catchChat" />
+                        </div>
+                        <div class="mt-3">
+                            <div class="mb-1">黑名單</div>
+                            <MemoInput @bind-Value="@chatRoomCatch.BlackList" Rows="2" Placeholder="可輸入帳號名稱，逗號或換行分隔" Disabled="@catchChat" />
+                        </div>
+                        <div class="mt-3">
+                            <div class="mb-1">同帳號冷卻秒數</div>
+                            <Validation>
+                                <NumericInput TValue="int" @bind-Value="@chatRoomCatch.CooldownSeconds" Min="0" Max="86400" Disabled="@catchChat" />
+                                <Feedback>
+                                    <ValidationError />
+                                </Feedback>
+                            </Validation>
+                        </div>
                     </FieldBody>
                     <FieldBody ColumnSize="ColumnSize.Is2">
                         <Switch TValue="bool" Value="@catchChat" ValueChanged="@OnCatchChatChanged">
@@ -303,6 +320,7 @@
 
     private ChatRoomCatch chatRoomCatch = new ChatRoomCatch();
     private bool catchChat = false;
+    private Dictionary<string, DateTimeOffset> lastAcceptedMessageTimes = new(StringComparer.OrdinalIgnoreCase);
 
     private string toastMessage = "";
 
@@ -549,6 +567,7 @@
 
         // 重設最後訊息時間
         chatRoomCatch.LastMessageTime = DateTime.Now;
+        lastAcceptedMessageTimes.Clear();
         timer = new Timer(5000); // 設置每 5 秒觸發一次
         timer.Elapsed += OnTimerTick;
         timer.Start();
@@ -563,6 +582,7 @@
             timer.Stop();
             timer.Dispose();
         }
+        lastAcceptedMessageTimes.Clear();
     }
 
     // 每次 Timer 觸發時顯示訊息
@@ -572,27 +592,56 @@
         {
             Log.Information("DisplayMessage");
             var chatMessages = await youTubeServiceHelper.ListLiveChatMessageAsync(chatRoomCatch.ID);
-            var messages = chatMessages.Where(x => x.Snippet.PublishedAtDateTimeOffset > chatRoomCatch.LastMessageTime)
-                                        .Where(x => x.Snippet.DisplayMessage.Contains(chatRoomCatch.KeyWord))
-                                        .OrderByDescending(x => x.Snippet.PublishedAtDateTimeOffset).ToList();
+            var messages = chatMessages
+                .Where(x => (x.Snippet.PublishedAtDateTimeOffset ?? DateTimeOffset.MinValue) > chatRoomCatch.LastMessageTime)
+                .OrderBy(x => x.Snippet.PublishedAtDateTimeOffset ?? DateTimeOffset.MinValue)
+                .ToList();
 
             if(!messages.Any())
             {
                 toastMessage = "無訊息";
+                toastVisible = true;
+                StateHasChanged();
+                return;
             }
-            
+
+            var latestSeenTime = chatRoomCatch.LastMessageTime;
+            var acceptedCount = 0;
+
             foreach (var message in messages)
             {
-                Log.Information($"PublishedAtDateTimeOffset: { message.Snippet.PublishedAtDateTimeOffset}");
-                Log.Information($"lastMessageTime: { chatRoomCatch.LastMessageTime}");
-                toastMessage = $"{message.AuthorDetails.DisplayName}:{ message.Snippet.DisplayMessage}";
-                chatRoomCatch.LastMessageTime = message.Snippet.PublishedAtDateTimeOffset ?? chatRoomCatch.LastMessageTime;
-                if (!Participants.Any(x => x.Name == message.AuthorDetails.DisplayName)){
-                    Participants.Add(new Participant { Name = message.AuthorDetails.DisplayName, Level = "", IsWinner = false });
+                var publishedAt = message.Snippet.PublishedAtDateTimeOffset ?? latestSeenTime;
+                if (publishedAt > latestSeenTime)
+                {
+                    latestSeenTime = publishedAt;
+                }
+
+                var authorName = message.AuthorDetails?.DisplayName ?? "";
+                var displayMessage = message.Snippet?.DisplayMessage ?? "";
+
+                if (!chatRoomCatch.IsMessageAllowed(authorName, displayMessage, publishedAt, lastAcceptedMessageTimes, out var reason))
+                {
+                    Log.Information("Skip chat message from {Author}: {Reason}", authorName, reason);
+                    continue;
+                }
+
+                toastMessage = $"{authorName}:{displayMessage}";
+                lastAcceptedMessageTimes[authorName] = publishedAt;
+                acceptedCount++;
+
+                if (!Participants.Any(x => x.Name == authorName))
+                {
+                    Participants.Add(new Participant { Name = authorName, Level = "", IsWinner = false });
                 }
             }
-           
-            toastVisible = true; 
+
+            chatRoomCatch.LastMessageTime = latestSeenTime;
+            if (acceptedCount == 0)
+            {
+                toastMessage = "沒有符合規則的訊息";
+            }
+
+            toastVisible = true;
             StateHasChanged(); // 更新 UI
         });
     }
