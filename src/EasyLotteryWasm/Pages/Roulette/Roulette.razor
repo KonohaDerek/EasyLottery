@@ -49,6 +49,7 @@ else
                         <div class="d-flex gap-1">
                             <Button Size="Size.Small" Color="Color.Success" Clicked="@(() => NavigateToPreview(t.Id))">預覽</Button>
                             <Button Size="Size.Small" Color="Color.Warning" Clicked="@(() => NavigateToEditor(t.Id))">編輯</Button>
+                            <Button Size="Size.Small" Color="Color.Primary" Clicked="@(() => DuplicateTemplate(t.Id))">複製</Button>
                             <Button Size="Size.Small" Color="Color.Info" Clicked="@(() => ExportTemplate(t.Id))">匯出</Button>
                             @if (!t.IsBuiltIn)
                             {
@@ -118,6 +119,14 @@ else
     {
         await RouletteService.DeleteTemplateAsync(id);
         await LoadTemplates();
+    }
+
+    private async Task DuplicateTemplate(int id)
+    {
+        var duplicate = await RouletteService.DuplicateTemplateAsync(id);
+        await LoadTemplates();
+        NavigationManager.NavigateTo($"/roulette/editor/{duplicate.Id}");
+        await MessageService.Success($"已建立複本「{duplicate.Name}」。");
     }
 
     private async Task ExportTemplate(int id)

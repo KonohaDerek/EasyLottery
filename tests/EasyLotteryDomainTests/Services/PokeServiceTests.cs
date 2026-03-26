@@ -83,6 +83,62 @@ namespace EasyLotteryDomainTests.Services
             Assert.IsNull(loaded);
         }
 
+        [TestMethod]
+        public async Task DuplicateTemplate_CreatesEditableCopy()
+        {
+            var svc = new PokeService(new InMemoryEasyLotteryConfigStore());
+
+            var template = new PokeTemplate
+            {
+                Name = "Original",
+                Description = "Base template",
+                GridRows = 2,
+                GridColumns = 3,
+                Mode = PokeMode.Manual,
+                AllowRePoking = true,
+                MaxPokeCount = 4,
+                BackgroundImageUrl = "/bg.png",
+                FontFamily = "Noto Sans TC",
+                OverlayWidth = 1280,
+                OverlayHeight = 720,
+                Animation = PokeAnimation.Flash,
+                PokeSoundUrl = "/poke.mp3",
+                OpenSoundUrl = "/open.mp3",
+                Cells = new List<PokeCell>
+                {
+                    new PokeCell { Index = 0, Title = "A", SubTitle = "One", ImageUrl = "/a.png", RevealedImageUrl = "/ra.png", RevealedColor = "#111111", IsRevealed = true, RevealedAt = DateTime.UtcNow },
+                    new PokeCell { Index = 1, Title = "B", SubTitle = "Two", ImageUrl = "/b.png", RevealedImageUrl = "/rb.png", RevealedColor = "#222222" }
+                }
+            };
+            var created = await svc.CreateTemplateAsync(template);
+
+            var duplicate = await svc.DuplicateTemplateAsync(created.Id);
+            var loaded = await svc.LoadTemplateAsync(duplicate.Id);
+
+            Assert.IsNotNull(loaded);
+            Assert.AreNotEqual(created.Id, duplicate.Id);
+            Assert.AreEqual("Original - 複製", duplicate.Name);
+            Assert.IsFalse(duplicate.IsBuiltIn);
+            Assert.AreEqual(template.Description, duplicate.Description);
+            Assert.AreEqual(template.GridRows, duplicate.GridRows);
+            Assert.AreEqual(template.GridColumns, duplicate.GridColumns);
+            Assert.AreEqual(template.Mode, duplicate.Mode);
+            Assert.AreEqual(template.AllowRePoking, duplicate.AllowRePoking);
+            Assert.AreEqual(template.MaxPokeCount, duplicate.MaxPokeCount);
+            Assert.AreEqual(template.BackgroundImageUrl, duplicate.BackgroundImageUrl);
+            Assert.AreEqual(template.FontFamily, duplicate.FontFamily);
+            Assert.AreEqual(template.OverlayWidth, duplicate.OverlayWidth);
+            Assert.AreEqual(template.OverlayHeight, duplicate.OverlayHeight);
+            Assert.AreEqual(template.Animation, duplicate.Animation);
+            Assert.AreEqual(template.PokeSoundUrl, duplicate.PokeSoundUrl);
+            Assert.AreEqual(template.OpenSoundUrl, duplicate.OpenSoundUrl);
+            Assert.AreEqual(2, duplicate.Cells.Count);
+            Assert.IsTrue(duplicate.Cells.All(cell => !cell.IsRevealed));
+            Assert.IsTrue(duplicate.Cells.All(cell => cell.RevealedAt == null));
+            Assert.AreEqual("A", duplicate.Cells[0].Title);
+            Assert.AreEqual("B", duplicate.Cells[1].Title);
+        }
+
         // ── Poke Logic ────────────────────────────────────────────────────────
 
         [TestMethod]
