@@ -6,6 +6,8 @@
 
 @inject ActivityResultService ActivityResultService
 @inject PokeService PokeService
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
 
 <PageTitle>戳戳樂 - OBS</PageTitle>
 
@@ -25,6 +27,28 @@ else if (template == null)
 else
 {
     <div class="obs-poke-wrapper" style="@WrapperStyle">
+        <div class="obs-topbar">
+            <div class="obs-topbar-copy">
+                <div class="obs-topbar-eyebrow">OBS CONTROL</div>
+                <div class="obs-topbar-title">戳戳樂控制台</div>
+                <div class="obs-topbar-subtitle">@template.Name</div>
+            </div>
+            <div class="obs-topbar-actions">
+                <button class="obs-secondary-btn" @onclick="@CopyObsUrlAsync">複製來源網址</button>
+                <button class="obs-secondary-btn" @onclick="@LoadTemplate">重新載入模板</button>
+            </div>
+        </div>
+
+        <div class="obs-status-panel">
+            <div class="obs-status-pill">模式：@(template.Mode == PokeMode.Random ? "隨機" : "手動")</div>
+            <div class="obs-status-pill">已戳：@RevealedCount / @template.Cells.Count</div>
+            @if (template.MaxPokeCount > 0)
+            {
+                <div class="obs-status-pill">上限：@template.MaxPokeCount</div>
+            }
+            <div class="obs-status-pill">來源：@ObsUrl</div>
+        </div>
+
         <div class="poke-grid" style="@GridStyle">
             @foreach (var cell in template.Cells.OrderBy(c => c.Index))
             {
@@ -98,6 +122,81 @@ else
         align-items: center;
         justify-content: center;
         padding: 16px;
+        gap: 12px;
+    }
+
+    .obs-topbar,
+    .obs-status-panel {
+        width: min(100%, 960px);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+        padding: 12px 16px;
+        border-radius: 16px;
+        background: rgba(15, 23, 42, 0.78);
+        color: white;
+        box-shadow: 0 18px 48px rgba(0, 0, 0, 0.22);
+    }
+
+    .obs-topbar-eyebrow {
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.18em;
+        opacity: 0.7;
+    }
+
+    .obs-topbar-title {
+        margin-top: 2px;
+        font-size: 1.08rem;
+        font-weight: 800;
+    }
+
+    .obs-topbar-subtitle {
+        margin-top: 2px;
+        font-size: 0.92rem;
+        opacity: 0.82;
+    }
+
+    .obs-topbar-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+    }
+
+    .obs-secondary-btn {
+        background: rgba(255, 255, 255, 0.12);
+        color: white;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        border-radius: 8px;
+        padding: 10px 16px;
+        font-size: 0.95rem;
+        font-weight: 700;
+        cursor: pointer;
+        transition: background 0.2s, transform 0.2s;
+    }
+
+    .obs-secondary-btn:hover {
+        background: rgba(255, 255, 255, 0.2);
+        transform: translateY(-1px);
+    }
+
+    .obs-status-panel {
+        justify-content: flex-start;
+    }
+
+    .obs-status-pill {
+        display: inline-flex;
+        align-items: center;
+        padding: 6px 12px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        font-size: 0.88rem;
+        font-weight: 700;
+        word-break: break-all;
     }
 
     .obs-state {
@@ -372,6 +471,14 @@ else
         }
 
         isLoading = false;
+    }
+
+    private string ObsUrl => NavigationManager.ToAbsoluteUri($"/obs/pokebox/{Id}").ToString();
+
+    private async Task CopyObsUrlAsync()
+    {
+        await JSRuntime.InvokeVoidAsync("easyLotteryClipboard.copyText", ObsUrl);
+        SetStatus("已複製 OBS 來源網址。", false);
     }
 
     private async Task OnCellClick(PokeCell cell)
