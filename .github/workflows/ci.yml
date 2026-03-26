@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore
+        run: dotnet restore EasyLottery.generated.sln
+
+      - name: Build
+        run: dotnet build EasyLottery.generated.sln --configuration Release --no-restore
+
+      - name: Test Domain
+        run: dotnet test tests/EasyLotteryDomainTests/EasyLotteryDomainTests.csproj --configuration Release --no-build --logger "console;verbosity=normal" --logger "trx;LogFileName=domain-test-results.trx"
+
+      - name: Test API
+        run: dotnet test tests/EasyLotteryAPITests/EasyLotteryAPITests.csproj --configuration Release --no-build --logger "console;verbosity=normal" --logger "trx;LogFileName=api-test-results.trx"

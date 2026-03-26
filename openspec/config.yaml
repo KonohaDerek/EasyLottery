@@ -1,0 +1,48 @@
+schema: spec-driven
+
+# Project context (optional)
+# This is shown to AI when creating artifacts.
+# Add your tech stack, conventions, style guides, domain knowledge, etc.
+context: |
+  專案名稱：EasyLottery
+  產品定位：直播與活動抽獎工具，支援 YouTube 互動、戳戳樂、轉盤抽獎、活動結果與系統設定。
+
+  技術堆疊：
+  - .NET 8
+  - ASP.NET Core API
+  - Blazor WebAssembly
+  - Domain Service
+  - MSTest
+  - YamlDotNet
+  - Serilog
+
+  專案結構：
+  - `src/EasyLotteryAPI`：後端 API 與 YouTube 會員相關服務
+  - `src/EasyLotteryDomain`：核心商業邏輯、模型與服務
+  - `src/EasyLotteryWasm`：Blazor WebAssembly 前端
+  - `tests/EasyLotteryDomainTests`：Domain 層測試
+  - `tests/EasyLotteryAPITests`：API 層測試
+
+  常用指令：
+  - `dotnet test EasyLottery.generated.sln`
+  - `dotnet run --project src/EasyLotteryAPI/EasyLotteryAPI.csproj --launch-profile EasyLotteryAPI`
+  - `dotnet run --project src/EasyLotteryWasm/EasyLotteryWasm.csproj --launch-profile EasyLotteryWasm`
+
+  開發原則：
+  - 優先維持現有中文說明與命名風格
+  - 變更要對應到可驗證的測試或手動驗證步驟
+  - 若需求影響多層，優先調整 Domain，再同步更新 API 與 Wasm
+  - 不要任意移除既有行為，除非在 issue 或 PR 中明確說明
+
+# Per-artifact rules (optional)
+# Add custom rules for specific artifacts.
+rules:
+  proposal:
+    - 以中文撰寫，並明確區分背景、目標、範圍、非目標、驗收與風險
+    - 如果變更涉及多個層級，先列出受影響的專案與檔案類型
+  tasks:
+    - 將任務拆成可單獨驗證的小步驟
+    - 優先提供可執行的驗證命令與測試範圍
+  spec:
+    - 驗收標準必須可測試或可手動驗證
+    - 若需要新增 API，請同步說明前端與測試的配套調整

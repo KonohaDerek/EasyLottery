@@ -36,6 +36,7 @@ namespace EasyLotteryAPITests.Services
         }
 
         [TestMethod]
+        [Ignore("Depends on external Google OAuth / network and can hang in CI; keep as manual integration coverage.")]
         public async Task GetChannelMembers_WithInvalidCredentials_ReturnsEmptyList()
         {
             // DemoService 使用硬編碼的憑證，在沒有有效授權的環境中應回傳空清單
