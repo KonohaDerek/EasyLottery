@@ -677,7 +677,7 @@
     private static string EscapeCsv(string? value)
     {
         var safeValue = value ?? "";
-        if (safeValue.Contains('"'"'"'"'"') || safeValue.Contains('"'"','"'"') || safeValue.Contains('"'"'\n'"'"') || safeValue.Contains('"'"'\r'"'"'))
+        if (safeValue.Contains('"'"'"'"'"') || safeValue.Contains('"'"','"'"') || safeValue.Contains('\n') || safeValue.Contains('\r'))
         {
             return $"\"{safeValue.Replace("\"", "\"\"")}\"";
         }
