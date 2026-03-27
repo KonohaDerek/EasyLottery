@@ -265,32 +265,133 @@
 
 <Divider />
 
-@if (Participants.Where(o=> !string.IsNullOrWhiteSpace(o.Level)).Any())
-{
-    <Card>
-        <CardBody>
-            <CardTitle>
-                <h2>設定中獎倍率</h2>
-            </CardTitle>
-            <CardText>
-                    <div>
-                        @foreach (var entry in levelRate)
-                        {
-                            <div>
-                                <input type="text" value="@entry.Key" disabled />
-                                <input type="number" @bind="levelRate[entry.Key]" min="1" />
-                            </div>
-                        }
+<Card>
+    <CardBody>
+        <CardTitle>
+            <h2>倍率管理器</h2>
+        </CardTitle>
+        <Row>
+            <Column ColumnSize="ColumnSize.Is5">
+                <Field>
+                    <FieldLabel>新增等級</FieldLabel>
+                    <div class="d-flex gap-2 flex-wrap align-items-end">
+                        <div style="min-width: 180px; flex: 1 1 180px;">
+                            <TextInput @bind-Value="@newLevelName" Placeholder="例如：VIP" />
+                        </div>
+                        <div style="min-width: 120px;">
+                            <NumericInput TValue="int" @bind-Value="@newLevelRate" Min="1" />
+                        </div>
+                        <Button Color="Color.Primary" Clicked="@AddLevelRateRowAsync">新增等級</Button>
+                        <Button Color="Color.Success" Clicked="@SaveLevelRatesAsync">儲存倍率設定</Button>
                     </div>
-            </CardText>
-        </CardBody>
-        <CardFooter>
-            <Button Color="Color.Primary" @onclick="LoadDrawPrize">確認設定倍率</Button>
-        </CardFooter>
-    </Card>
+                </Field>
 
-    <Divider />
- }  
+                <div class="mt-3">
+                    <FieldLabel>目前倍率</FieldLabel>
+                    @if (levelRateRows.Any())
+                    {
+                        <Table FullWidth Striped Hoverable Bordered Responsive>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHeaderCell>等級</TableHeaderCell>
+                                    <TableHeaderCell>倍率</TableHeaderCell>
+                                    <TableHeaderCell>操作</TableHeaderCell>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                @foreach (var row in levelRateRows)
+                                {
+                                    <TableRow>
+                                        <TableRowCell>
+                                            <TextInput @bind-Value="@row.Level" Placeholder="等級名稱" />
+                                        </TableRowCell>
+                                        <TableRowCell>
+                                            <NumericInput TValue="int" @bind-Value="@row.Rate" Min="1" />
+                                        </TableRowCell>
+                                        <TableRowCell>
+                                            <Button Size="Size.Small" Color="Color.Danger" Clicked="@(() => RemoveLevelRateRowAsync(row.Level))">
+                                                <Icon Name="IconName.Delete" /> 刪除
+                                            </Button>
+                                        </TableRowCell>
+                                    </TableRow>
+                                }
+                            </TableBody>
+                        </Table>
+                    }
+                    else
+                    {
+                        <div class="text-muted">尚未建立任何倍率，請先新增等級，或從會員名單匯入後自動帶入。</div>
+                    }
+                </div>
+            </Column>
+            <Column ColumnSize="ColumnSize.Is7">
+                <Field>
+                    <FieldLabel>模板名稱</FieldLabel>
+                    <TextInput @bind-Value="@rulePresetName" Placeholder="例如：VIP 兩倍、一般一倍" />
+                </Field>
+                <Field>
+                    <FieldLabel>說明</FieldLabel>
+                    <TextInput @bind-Value="@rulePresetDescription" Placeholder="規則說明" />
+                </Field>
+                <div class="d-flex gap-2 flex-wrap">
+                    <Button Color="Color.Primary" Clicked="@SaveCurrentRulePresetAsync">儲存成模板</Button>
+                    <Button Color="Color.Success" Clicked="@ApplySelectedRulePresetAsync" Disabled="@string.IsNullOrWhiteSpace(selectedRulePresetName)">套用模板</Button>
+                </div>
+
+                <Field class="mt-3">
+                    <FieldLabel>已儲存模板</FieldLabel>
+                    <Select TValue="string" @bind-SelectedValue="@selectedRulePresetName">
+                        @foreach (var preset in drawingRulePresets)
+                        {
+                            <SelectItem Value="@preset.Name">@preset.Name</SelectItem>
+                        }
+                    </Select>
+                </Field>
+                @if (drawingRulePresets.Any())
+                {
+                    <Table FullWidth Striped Hoverable Bordered Responsive>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHeaderCell>名稱</TableHeaderCell>
+                                <TableHeaderCell>說明</TableHeaderCell>
+                                <TableHeaderCell>倍率內容</TableHeaderCell>
+                                <TableHeaderCell>操作</TableHeaderCell>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            @foreach (var preset in drawingRulePresets)
+                            {
+                                <TableRow>
+                                    <TableRowCell>@preset.Name</TableRowCell>
+                                    <TableRowCell>@preset.Description</TableRowCell>
+                                    <TableRowCell>
+                                        @if (preset.LevelRates.Any())
+                                        {
+                                            @string.Join("、", preset.LevelRates.OrderBy(x => x.Key).Select(x => $"{x.Key}×{x.Value}"))
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">尚未設定倍率</span>
+                                        }
+                                    </TableRowCell>
+                                    <TableRowCell>
+                                        <Button Size="Size.Small" Color="Color.Danger" Clicked="@(() => RemoveRulePresetAsync(preset.Name))">
+                                            <Icon Name="IconName.Delete" /> 刪除
+                                        </Button>
+                                    </TableRowCell>
+                                </TableRow>
+                            }
+                        </TableBody>
+                    </Table>
+                }
+                else
+                {
+                    <div class="text-muted">尚未建立任何規則模板。</div>
+                }
+            </Column>
+        </Row>
+    </CardBody>
+</Card>
 
 <Button Size="Size.Small" Color="Color.Primary" Clicked="@OnDrawPrize">抽獎</Button>
 <Table FullWidth Striped Hoverable Bordered Responsive>
@@ -403,6 +504,7 @@
             await youTubeServiceHelper.RefreshTokenAsync();
         }
 
+        await LoadDrawingRuleStateAsync();
         await LoadRulePresetsAsync();
     }
 
@@ -451,30 +553,9 @@
     private List<Winner> Winners {get;set;} = new();
 
     // 會員等級對應倍率
-    private Dictionary<string, int> levelRate = new Dictionary<string, int>(); 
-
+    private Dictionary<string, int> levelRate = new Dictionary<string, int>();
 
     private List<YoutubeMemberInfo> YTMembers = new();
-
-    // 載入抽獎
-    private void LoadDrawPrize()
-    {
-
-        // 處理會員等級對應
-        // 會員等級 ｜ 倍率
-        foreach (var level in YTMembers.Select(x => x.Level).Distinct())
-        {
-            if (!levelRate.ContainsKey(level))
-            {
-                levelRate.Add(level, 1);
-            }
-        }
-
-        // 載入參加者
-        // Participants 資料為各會員資料＊會員等級的倍率 ＝ 總參加者
-        // 使用Linq
-        Participants = YTMembers.SelectMany(x => Enumerable.Repeat(new Participant { Name = x.Name, Level= x.Level, IsWinner = false }, (int)levelRate[x.Level])).ToList();
-    }
 
     // 抽獎
     private void OnDrawPrize()
@@ -583,7 +664,7 @@
                 var rows = stream.Query<YoutubeMemberInfo>(excelType: ExcelType.CSV).ToList();
 
                 YTMembers = rows.Select(x => new YoutubeMemberInfo { Name = x.Name, Level = x.Level }).ToList();
-                LoadDrawPrize();
+                await LoadDrawPrizeAsync();
             }
         }
         catch ( Exception exc )

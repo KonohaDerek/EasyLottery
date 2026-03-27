@@ -136,6 +136,7 @@ namespace EasyLotteryWasm.Services
             document.RouletteTemplates ??= new List<RouletteTemplate>();
             document.ActivityResults ??= new List<ActivityResultRecord>();
             document.DrawingRulePresets ??= new List<DrawingRulePreset>();
+            document.DrawingRules ??= new DrawingRuleSettings();
 
             foreach (var template in document.PokeTemplates)
             {
@@ -156,6 +157,8 @@ namespace EasyLotteryWasm.Services
             {
                 NormalizeDrawingRulePreset(preset);
             }
+
+            NormalizeDrawingRuleSettings(document.DrawingRules);
 
             document.IdSequence.NextPokeTemplateId = Math.Max(document.IdSequence.NextPokeTemplateId, document.PokeTemplates.Select(t => t.Id).DefaultIfEmpty(0).Max() + 1);
             document.IdSequence.NextPokeCellId = Math.Max(document.IdSequence.NextPokeCellId, document.PokeTemplates.SelectMany(t => t.Cells).Select(c => c.Id).DefaultIfEmpty(0).Max() + 1);
@@ -258,6 +261,16 @@ namespace EasyLotteryWasm.Services
             foreach (var key in preset.LevelRates.Keys.ToList())
             {
                 preset.LevelRates[key] = Math.Max(1, preset.LevelRates[key]);
+            }
+        }
+
+        private static void NormalizeDrawingRuleSettings(DrawingRuleSettings settings)
+        {
+            settings.LevelRates ??= new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var key in settings.LevelRates.Keys.ToList())
+            {
+                settings.LevelRates[key] = Math.Max(1, settings.LevelRates[key]);
             }
         }
     }

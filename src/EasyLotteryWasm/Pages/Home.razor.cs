@@ -24,6 +24,13 @@ public partial class Home
         public string? Prize { get; set; }
     }
 
+    private sealed class LevelRateRow
+    {
+        public string Level { get; set; } = "";
+
+        public int Rate { get; set; } = 1;
+    }
+
     private string participantDataFormat = "json";
     private string participantDataText = "";
     private string prizeDataFormat = "json";
@@ -32,24 +39,14 @@ public partial class Home
     private string selectedRulePresetName = "";
     private string rulePresetName = "";
     private string rulePresetDescription = "";
+    private List<LevelRateRow> levelRateRows = new();
+    private string newLevelName = "";
+    private int newLevelRate = 1;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         WriteIndented = true
     };
-
-    private void RebuildLevelRatesFromParticipants()
-    {
-        levelRate.Clear();
-
-        foreach (var level in Participants
-                     .Where(participant => !string.IsNullOrWhiteSpace(participant.Level))
-                     .Select(participant => participant.Level)
-                     .Distinct())
-        {
-            levelRate[level] = 1;
-        }
-    }
 
     private async Task LoadRulePresetsAsync()
     {
@@ -64,6 +61,12 @@ public partial class Home
         }
     }
 
+    private async Task LoadDrawingRuleStateAsync()
+    {
+        var document = await ConfigStore.LoadAsync();
+        SetLevelRates(document.DrawingRules.LevelRates);
+    }
+
     private async Task SaveCurrentRulePresetAsync()
     {
         if (string.IsNullOrWhiteSpace(rulePresetName))
@@ -72,6 +75,11 @@ public partial class Home
             return;
         }
 
+        if (!TrySyncLevelRatesFromRows(out var errorMessage))
+        {
+            await MessageService.Warning(errorMessage ?? "倍率設定有重複或無效資料。");
+            return;
+        }
         var document = await ConfigStore.LoadAsync();
         var preset = new DrawingRulePreset
         {
@@ -114,9 +122,90 @@ public partial class Home
             return;
         }
 
-        levelRate = new Dictionary<string, int>(preset.LevelRates, StringComparer.OrdinalIgnoreCase);
-        LoadDrawPrize();
+        SetLevelRates(preset.LevelRates);
+        await PersistLevelRatesAsync();
+        await LoadDrawPrizeAsync();
         await MessageService.Success($"已套用規則模板「{preset.Name}」。");
+    }
+
+    private async Task SaveLevelRatesAsync()
+    {
+        if (!TrySyncLevelRatesFromRows(out var errorMessage))
+        {
+            await MessageService.Warning(errorMessage ?? "倍率設定有重複或無效資料。");
+            return;
+        }
+
+        await PersistLevelRatesAsync();
+        await LoadDrawPrizeAsync();
+        await MessageService.Success("已儲存倍率設定。");
+    }
+
+    private async Task AddLevelRateRowAsync()
+    {
+        var level = newLevelName.Trim();
+        if (string.IsNullOrWhiteSpace(level))
+        {
+            await MessageService.Warning("請輸入等級名稱。");
+            return;
+        }
+
+        if (levelRateRows.Any(row => string.Equals(row.Level, level, StringComparison.OrdinalIgnoreCase)))
+        {
+            await MessageService.Warning("這個等級已經存在。");
+            return;
+        }
+
+        levelRateRows.Add(new LevelRateRow
+        {
+            Level = level,
+            Rate = Math.Max(1, newLevelRate)
+        });
+
+        newLevelName = "";
+        newLevelRate = 1;
+        await MessageService.Success($"已新增等級「{level}」。");
+    }
+
+    private async Task RemoveLevelRateRowAsync(string level)
+    {
+        var row = levelRateRows.FirstOrDefault(item => string.Equals(item.Level, level, StringComparison.OrdinalIgnoreCase));
+        if (row == null)
+        {
+            return;
+        }
+
+        levelRateRows.Remove(row);
+        await MessageService.Success($"已移除等級「{level}」。");
+    }
+
+    private async Task RemoveRulePresetAsync(string presetName)
+    {
+        if (string.IsNullOrWhiteSpace(presetName))
+        {
+            return;
+        }
+
+        var document = await ConfigStore.LoadAsync();
+        var preset = document.DrawingRulePresets
+            .FirstOrDefault(item => string.Equals(item.Name, presetName, StringComparison.OrdinalIgnoreCase));
+
+        if (preset == null)
+        {
+            await MessageService.Warning("找不到指定的規則模板。");
+            return;
+        }
+
+        document.DrawingRulePresets.Remove(preset);
+        await ConfigStore.SaveAsync(document);
+        await LoadRulePresetsAsync();
+
+        if (string.Equals(selectedRulePresetName, presetName, StringComparison.OrdinalIgnoreCase))
+        {
+            selectedRulePresetName = drawingRulePresets.FirstOrDefault()?.Name ?? "";
+        }
+
+        await MessageService.Success($"已刪除規則模板「{presetName}」。");
     }
 
     private async Task ExportParticipantsAsync()
@@ -156,7 +245,8 @@ public partial class Home
 
             Participants = importedParticipants;
             Winners.Clear();
-            RebuildLevelRatesFromParticipants();
+            EnsureLevelRatesForLevels(importedParticipants.Select(participant => participant.Level));
+            await PersistLevelRatesAsync();
             await MessageService.Success($"已匯入 {Participants.Count} 筆參加者資料。");
         }
         catch (Exception ex)
@@ -184,6 +274,93 @@ public partial class Home
         {
             await MessageService.Error($"獎項匯入失敗：{ex.Message}");
         }
+    }
+
+    private void SetLevelRates(Dictionary<string, int> rates)
+    {
+        levelRate = new Dictionary<string, int>(rates, StringComparer.OrdinalIgnoreCase);
+        SyncLevelRatesRowsFromDictionary();
+    }
+
+    private void SyncLevelRatesRowsFromDictionary()
+    {
+        levelRateRows = levelRate
+            .OrderBy(item => item.Key, StringComparer.OrdinalIgnoreCase)
+            .Select(item => new LevelRateRow
+            {
+                Level = item.Key,
+                Rate = Math.Max(1, item.Value)
+            })
+            .ToList();
+    }
+
+    private bool TrySyncLevelRatesFromRows(out string? errorMessage)
+    {
+        var normalized = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        foreach (var row in levelRateRows)
+        {
+            var level = row.Level.Trim();
+            if (string.IsNullOrWhiteSpace(level))
+            {
+                continue;
+            }
+
+            if (normalized.ContainsKey(level))
+            {
+                errorMessage = $"等級「{level}」重複，請先修正再儲存。";
+                return false;
+            }
+
+            normalized[level] = Math.Max(1, row.Rate);
+        }
+
+        levelRate = normalized;
+        errorMessage = null;
+        return true;
+    }
+
+    private bool EnsureLevelRatesForLevels(IEnumerable<string> levels)
+    {
+        var changed = false;
+        foreach (var level in levels
+                     .Where(item => !string.IsNullOrWhiteSpace(item))
+                     .Select(item => item.Trim())
+                     .Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            if (!levelRate.ContainsKey(level))
+            {
+                levelRate[level] = 1;
+                changed = true;
+            }
+        }
+
+        if (changed)
+        {
+            SyncLevelRatesRowsFromDictionary();
+        }
+
+        return changed;
+    }
+
+    private async Task PersistLevelRatesAsync()
+    {
+        var document = await ConfigStore.LoadAsync();
+        document.DrawingRules.LevelRates = new Dictionary<string, int>(levelRate, StringComparer.OrdinalIgnoreCase);
+        await ConfigStore.SaveAsync(document);
+    }
+
+    private async Task LoadDrawPrizeAsync()
+    {
+        if (YTMembers.Any())
+        {
+            EnsureLevelRatesForLevels(YTMembers.Select(member => member.Level));
+
+            Participants = YTMembers.SelectMany(x => Enumerable.Repeat(
+                new Participant { Name = x.Name, Level = x.Level, IsWinner = false },
+                levelRate.TryGetValue(x.Level, out var rate) ? rate : 1)).ToList();
+        }
+
+        await PersistLevelRatesAsync();
     }
 
     private static List<Participant> ParseParticipants(string content, string format)
