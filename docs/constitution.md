@@ -62,8 +62,11 @@ Every change must follow this sequence:
 ### PR
 
 - Prepare a PR title and description.
+- PR descriptions must be complete enough for review without reading the full diff.
+- Include a concise summary, what changed, why it changed, how it was verified, and any remaining risk or follow-up.
 - Link back to the issue.
 - Summarize what changed, what was tested, and the remaining risk.
+- If the PR description is too short or vague, treat that as incomplete work.
 
 ### Sync
 

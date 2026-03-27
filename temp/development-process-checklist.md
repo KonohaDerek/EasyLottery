@@ -39,6 +39,8 @@ Use this as a short, reusable flow for any project, any language.
 ## 6. PR
 
 - [ ] Write the PR title and description
+- [ ] Make the description complete enough to review without reading the diff first
+- [ ] Include summary, what changed, why, verification, and risk / follow-up
 - [ ] Link back to the issue
 - [ ] Summarize what changed, what was tested, and the risks
 
