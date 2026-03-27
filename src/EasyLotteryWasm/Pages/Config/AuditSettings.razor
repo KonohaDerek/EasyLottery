@@ -1,0 +1,104 @@
+@page "/system/audit"
+@using EasyLotteryDomain.Models.Config
+
+@inject SystemSettingsService SystemSettingsService
+@inject EasyLotteryAuditService AuditService
+@inject IMessageService MessageService
+
+<PageTitle>審計紀錄</PageTitle>
+
+<Card Margin="Margin.Is3.FromBottom">
+    <CardHeader>
+        <CardTitle>審計紀錄</CardTitle>
+    </CardHeader>
+    <CardBody>
+        <CardText>
+            <p>這裡會記錄模板與設定的變更，方便追蹤誰在什麼時間改了什麼。</p>
+        </CardText>
+
+        <Row>
+            <Column ColumnSize="ColumnSize.Is6">
+                <Field>
+                    <FieldLabel>操作名稱</FieldLabel>
+                    <InputText @bind-Value="auditActorName" />
+                </Field>
+                <Button Color="Color.Primary" Clicked="@SaveActorNameAsync">儲存操作名稱</Button>
+            </Column>
+            <Column ColumnSize="ColumnSize.Is6">
+                <Alert Color="Color.Info" Visible>
+                    <AlertMessage>說明</AlertMessage>
+                    <AlertDescription>
+                        變更設定或模板時，系統會使用這個名稱寫入審計紀錄。若留空，預設會使用「本機操作」。
+                    </AlertDescription>
+                </Alert>
+            </Column>
+        </Row>
+    </CardBody>
+</Card>
+
+<Card>
+    <CardHeader>
+        <CardTitle>最近變更</CardTitle>
+    </CardHeader>
+    <CardBody>
+        @if (!auditRecords.Any())
+        {
+            <p class="text-muted mb-0">目前還沒有審計紀錄。</p>
+        }
+        else
+        {
+            <Table Responsive Striped Hoverable>
+                <TableHeader>
+                    <TableRow>
+                        <TableHeaderCell>時間</TableHeaderCell>
+                        <TableHeaderCell>誰</TableHeaderCell>
+                        <TableHeaderCell>類別</TableHeaderCell>
+                        <TableHeaderCell>動作</TableHeaderCell>
+                        <TableHeaderCell>對象</TableHeaderCell>
+                        <TableHeaderCell>內容</TableHeaderCell>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    @foreach (var record in auditRecords)
+                    {
+                        <TableRow>
+                            <TableRowCell>@FormatDate(record.ChangedAtUtc)</TableRowCell>
+                            <TableRowCell>@record.ChangedBy</TableRowCell>
+                            <TableRowCell>@record.Category</TableRowCell>
+                            <TableRowCell>@record.Action</TableRowCell>
+                            <TableRowCell>@record.TargetName</TableRowCell>
+                            <TableRowCell>@record.Details</TableRowCell>
+                        </TableRow>
+                    }
+                </TableBody>
+            </Table>
+        }
+    </CardBody>
+</Card>
+
+@code {
+    private string auditActorName = "";
+    private List<ChangeAuditRecord> auditRecords = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var settings = await SystemSettingsService.GetSettingsAsync();
+        auditActorName = settings.Audit.ActorName;
+        auditRecords = await AuditService.ListAsync();
+    }
+
+    private async Task SaveActorNameAsync()
+    {
+        var settings = await SystemSettingsService.GetSettingsAsync();
+        settings.Audit.ActorName = string.IsNullOrWhiteSpace(auditActorName) ? "本機操作" : auditActorName.Trim();
+        await SystemSettingsService.SaveSettingsAsync(settings);
+        auditRecords = await AuditService.ListAsync();
+        await MessageService.Success("已儲存操作名稱。");
+    }
+
+    private static string FormatDate(DateTime dateTime)
+    {
+        var local = dateTime.Kind == DateTimeKind.Utc ? dateTime.ToLocalTime() : dateTime;
+        return local.ToString("yyyy/MM/dd HH:mm:ss");
+    }
+}

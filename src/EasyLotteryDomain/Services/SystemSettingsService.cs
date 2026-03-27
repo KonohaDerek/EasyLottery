@@ -5,10 +5,12 @@ namespace EasyLotteryDomain.Services
     public class SystemSettingsService
     {
         private readonly IEasyLotteryConfigStore _configStore;
+        private readonly EasyLotteryAuditService? _auditService;
 
-        public SystemSettingsService(IEasyLotteryConfigStore configStore)
+        public SystemSettingsService(IEasyLotteryConfigStore configStore, EasyLotteryAuditService? auditService = null)
         {
             _configStore = configStore;
+            _auditService = auditService;
         }
 
         public async Task<LotterySystemSettings> GetSettingsAsync(CancellationToken cancellationToken = default)
@@ -28,6 +30,10 @@ namespace EasyLotteryDomain.Services
             var document = await _configStore.LoadAsync(cancellationToken);
             document.SystemSettings = settings ?? new LotterySystemSettings();
             await _configStore.SaveAsync(document, cancellationToken);
+            if (_auditService != null)
+            {
+                await _auditService.RecordAsync("SystemSettings", "更新系統設定", "系統設定", changedBy: document.SystemSettings.Audit.ActorName, cancellationToken: cancellationToken);
+            }
         }
 
         public async Task UpdateYouTubeSettingsAsync(Action<YouTubeApiSettings> updateAction, CancellationToken cancellationToken = default)
@@ -35,6 +41,10 @@ namespace EasyLotteryDomain.Services
             var document = await _configStore.LoadAsync(cancellationToken);
             updateAction(document.SystemSettings.YouTube);
             await _configStore.SaveAsync(document, cancellationToken);
+            if (_auditService != null)
+            {
+                await _auditService.RecordAsync("SystemSettings", "更新 YouTube 設定", "YouTube", changedBy: document.SystemSettings.Audit.ActorName, cancellationToken: cancellationToken);
+            }
         }
     }
 }

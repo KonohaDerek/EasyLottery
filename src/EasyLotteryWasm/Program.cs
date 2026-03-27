@@ -37,6 +37,7 @@ builder.Services.AddScoped<SystemSettingsService>();
 builder.Services.AddScoped<ActivityResultService>();
 builder.Services.AddScoped<VisualStyleService>();
 builder.Services.AddScoped<OvertimeFeedClient>();
+builder.Services.AddScoped<EasyLotteryAuditService>();
 
 // 添加服務
 builder.Services.AddScoped<YouTubeServiceHelper>();

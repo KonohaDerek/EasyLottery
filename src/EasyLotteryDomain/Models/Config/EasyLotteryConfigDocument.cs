@@ -21,6 +21,7 @@ namespace EasyLotteryDomain.Models.Config
         public DrawingRuleSettings DrawingRules { get; set; } = new();
         public VisualStyleSettings VisualStyle { get; set; } = new();
         public OvertimeOverlaySettings OvertimeOverlay { get; set; } = new();
+        public List<ChangeAuditRecord> AuditRecords { get; set; } = new();
     }
 
     public sealed class LotterySystemSettings
@@ -28,6 +29,8 @@ namespace EasyLotteryDomain.Models.Config
         public YouTubeApiSettings YouTube { get; set; } = new();
 
         public string OpenAIKey { get; set; } = "";
+
+        public AuditSettings Audit { get; set; } = new();
     }
 
     public sealed class YouTubeApiSettings
@@ -52,10 +55,34 @@ namespace EasyLotteryDomain.Models.Config
         public int NextRouletteSegmentId { get; set; } = 1;
 
         public int NextActivityResultId { get; set; } = 1;
+
+        public int NextAuditRecordId { get; set; } = 1;
     }
 
     public sealed class DrawingRuleSettings
     {
         public Dictionary<string, int> LevelRates { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+    }
+
+    public sealed class AuditSettings
+    {
+        public string ActorName { get; set; } = "本機操作";
+    }
+
+    public sealed class ChangeAuditRecord
+    {
+        public int Id { get; set; }
+
+        public DateTime ChangedAtUtc { get; set; } = DateTime.UtcNow;
+
+        public string ChangedBy { get; set; } = "本機操作";
+
+        public string Category { get; set; } = "";
+
+        public string Action { get; set; } = "";
+
+        public string TargetName { get; set; } = "";
+
+        public string Details { get; set; } = "";
     }
 }
