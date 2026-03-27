@@ -6,15 +6,15 @@
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"
       },
-      "applicationUrl": "http://localhost:22399"
+      "applicationUrl": "http://localhost:18930"
     },
     "WSL": {
       "commandName": "WSL2",
       "launchBrowser": true,
-      "launchUrl": "http://localhost:22399",
+      "launchUrl": "http://localhost:18930",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
-        "ASPNETCORE_URLS": "http://0.0.0.0:22399"
+        "ASPNETCORE_URLS": "http://0.0.0.0:18930"
       },
       "distributionName": ""
     }

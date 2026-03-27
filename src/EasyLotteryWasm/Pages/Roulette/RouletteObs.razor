@@ -6,8 +6,6 @@
 
 @inject ActivityResultService ActivityResultService
 @inject RouletteService RouletteService
-@inject NavigationManager NavigationManager
-@inject IJSRuntime JSRuntime
 
 <PageTitle>轉盤 - OBS</PageTitle>
 
@@ -27,118 +25,94 @@ else if (template == null)
 else
 {
     <div class="obs-roulette-wrapper" style="@WrapperStyle">
-        <div class="obs-topbar">
-            <div class="obs-topbar-copy">
-                <div class="obs-topbar-eyebrow">OBS CONTROL</div>
-                <div class="obs-topbar-title">轉盤控制台</div>
-                <div class="obs-topbar-subtitle">@template.Name</div>
-            </div>
-            <div class="obs-topbar-actions">
-                <button class="obs-secondary-btn" @onclick="@CopyObsUrlAsync">複製來源網址</button>
-                <button class="obs-secondary-btn" @onclick="@ReloadTemplateAsync">重新載入模板</button>
-            </div>
-        </div>
-
-        <div class="obs-status-panel">
-            <div class="obs-status-pill">段數：@template.SegmentCount</div>
-            <div class="obs-status-pill">狀態：@(isSpinning ? "轉動中" : "待轉動")</div>
-            <div class="obs-status-pill">目前角度：@currentRotation.ToString("F1")°</div>
-            @if (lastResult != null)
-            {
-                <div class="obs-status-pill">最近結果：@lastResult.SegmentTitle</div>
-            }
-            <div class="obs-status-pill">來源：@ObsUrl</div>
-        </div>
-
-        <LiveDrawFlowGuide Title="OBS 直播流程"
-                           Subtitle="@template.Name"
-                           Phase="@flowPhase"
-                           CountdownRemaining="@countdownRemaining"
-                           DetailText="@FlowDetailText" />
-
-        <div class="roulette-container">
-            <!-- Pointer -->
-            <div class="roulette-pointer">
-                @if (!string.IsNullOrEmpty(template.PointerImageUrl))
+        <div class="obs-stage">
+            <div class="roulette-container">
+                @if (isSpinning)
                 {
-                    <img src="@template.PointerImageUrl" alt="指針" style="width:40px;" />
+                    <div class="roulette-spinning-aura"></div>
                 }
-                else
-                {
-                    <div class="default-pointer">▼</div>
-                }
-            </div>
 
-            <!-- Wheel -->
-            <div class="roulette-wheel-wrapper">
-                <svg class="roulette-wheel @(isSpinning ? "spinning" : "")"
-                     viewBox="0 0 400 400"
-                     style="@WheelStyle">
-                    @{
-                        var segments = template.Segments.OrderBy(s => s.Index).ToList();
-                        int count = segments.Count;
-                        double segAngle = 360.0 / count;
-                    }
-                    @for (int i = 0; i < count; i++)
+                <div class="roulette-pointer">
+                    @if (!string.IsNullOrEmpty(template.PointerImageUrl))
                     {
-                        var seg = segments[i];
-                        var startAngle = i * segAngle - 90;
-                        var endAngle = startAngle + segAngle;
-                        var midAngle = startAngle + segAngle / 2.0;
-                        var path = DescribeSector(200, 200, 180, startAngle, endAngle);
-                        var textX = 200 + 120 * Math.Cos(midAngle * Math.PI / 180);
-                        var textY = 200 + 120 * Math.Sin(midAngle * Math.PI / 180);
-                        var isWinner = lastResult != null && lastResult.SegmentIndex == i && !isSpinning;
-
-                        <g>
-                            <path d="@path" fill="@seg.Color"
-                                  stroke="var(--el-border-strong)" stroke-width="2"
-                                  class="@(isWinner ? "winner-segment" : "")" />
-                            <text x="@textX.ToString("F1")" y="@textY.ToString("F1")"
-                                  text-anchor="middle" dominant-baseline="middle"
-                                  font-size="14" fill="var(--el-text)" font-weight="bold"
-                                  transform="rotate(@midAngle.ToString("F1"), @textX.ToString("F1"), @textY.ToString("F1"))">
-                                @seg.Title
-                            </text>
-                        </g>
-                    }
-                    <!-- Center image or circle -->
-                    @if (!string.IsNullOrEmpty(template.CenterImageUrl))
-                    {
-                        <image href="@template.CenterImageUrl" x="160" y="160" width="80" height="80" />
+                        <img src="@template.PointerImageUrl" alt="指針" style="width:40px;" />
                     }
                     else
                     {
-                        <circle cx="200" cy="200" r="30" fill="var(--el-surface-strong)" />
+                        <div class="default-pointer">▼</div>
                     }
-                </svg>
+                </div>
+
+                <div class="roulette-wheel-wrapper">
+                    <svg class="roulette-wheel @(isSpinning ? "spinning" : "")"
+                         viewBox="0 0 400 400"
+                         style="@WheelStyle">
+                        @{
+                            var segments = template.Segments.OrderBy(s => s.Index).ToList();
+                            int count = segments.Count;
+                            double segAngle = 360.0 / count;
+                        }
+                        @for (int i = 0; i < count; i++)
+                        {
+                            var seg = segments[i];
+                            var startAngle = i * segAngle - 90;
+                            var endAngle = startAngle + segAngle;
+                            var midAngle = startAngle + segAngle / 2.0;
+                            var path = DescribeSector(200, 200, 180, startAngle, endAngle);
+                            var textX = 200 + 120 * Math.Cos(midAngle * Math.PI / 180);
+                            var textY = 200 + 120 * Math.Sin(midAngle * Math.PI / 180);
+                            var isWinner = lastResult != null && lastResult.SegmentIndex == i && !isSpinning;
+
+                            <g>
+                                <path d="@path" fill="@seg.Color"
+                                      stroke="var(--el-border-strong)" stroke-width="2"
+                                      class="@(isWinner ? "winner-segment" : "")" />
+                                <text x="@textX.ToString("F1")" y="@textY.ToString("F1")"
+                                      text-anchor="middle" dominant-baseline="middle"
+                                      font-size="14" fill="var(--el-text)" font-weight="bold"
+                                      transform="rotate(@midAngle.ToString("F1"), @textX.ToString("F1"), @textY.ToString("F1"))">
+                                    @seg.Title
+                                </text>
+                            </g>
+                        }
+                        @if (!string.IsNullOrEmpty(template.CenterImageUrl))
+                        {
+                            <image href="@template.CenterImageUrl" x="160" y="160" width="80" height="80" />
+                        }
+                        else
+                        {
+                            <circle cx="200" cy="200" r="30" fill="var(--el-surface-strong)" />
+                        }
+                    </svg>
+                </div>
+
+                @if (lastResult != null && !IsBusy)
+                {
+                    <div class="roulette-result-flare"></div>
+                    <div class="obs-win-result">
+                        <span class="win-label">🎉 中獎：</span>
+                        <span class="win-title">@lastResult.SegmentTitle</span>
+                    </div>
+                }
             </div>
-        </div>
 
-        <div class="obs-controls">
-            <button class="obs-spin-btn" @onclick="@SpinWheelWithCountdown" disabled="@IsBusy">
-                @((IsBusy && flowPhase == LiveDrawPhase.CountingDown) ? $"倒數中… {countdownRemaining}" : "⏳ 倒數 3 秒後轉動")
-            </button>
-            <button class="obs-spin-btn" @onclick="@SpinWheel" disabled="@IsBusy">
-                @(IsBusy && flowPhase == LiveDrawPhase.Spinning ? "轉動中…" : "🎰 立即轉動")
-            </button>
-            <button class="obs-record-btn" @onclick="@EndActivityAndRecord" disabled="@(!CanRecordCurrentActivity || isRecording)">
-                @(isRecording ? "記錄中…" : "結束本次活動並記錄")
-            </button>
-        </div>
-
-        @if (lastResult != null && !IsBusy)
-        {
-            <div class="obs-win-result">
-                <span class="win-label">🎉 中獎：</span>
-                <span class="win-title">@lastResult.SegmentTitle</span>
+            <div class="obs-controls">
+                <button class="obs-spin-btn" @onclick="@SpinWheelWithCountdown" disabled="@IsBusy">
+                    @((IsBusy && flowPhase == LiveDrawPhase.CountingDown) ? $"倒數中… {countdownRemaining}" : "⏳ 倒數 3 秒後轉動")
+                </button>
+                <button class="obs-spin-btn" @onclick="@SpinWheel" disabled="@IsBusy">
+                    @(IsBusy && flowPhase == LiveDrawPhase.Spinning ? "轉動中…" : "🎰 立即轉動")
+                </button>
+                <button class="obs-record-btn" @onclick="@EndActivityAndRecord" disabled="@(!CanRecordCurrentActivity || isRecording)">
+                    @(isRecording ? "記錄中…" : "結束本次活動並記錄")
+                </button>
             </div>
-        }
 
-        @if (!string.IsNullOrWhiteSpace(statusMessage))
-        {
-            <div class="obs-feedback @(statusIsError ? "obs-feedback-error" : "obs-feedback-success")">@statusMessage</div>
-        }
+            @if (!string.IsNullOrWhiteSpace(statusMessage))
+            {
+                <div class="obs-feedback @(statusIsError ? "obs-feedback-error" : "obs-feedback-success")">@statusMessage</div>
+            }
+        </div>
     </div>
 }
 
@@ -155,83 +129,25 @@ else
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        padding: 16px;
+        min-height: 100vh;
+        padding: 24px;
         gap: 12px;
     }
 
-    .obs-topbar,
-    .obs-status-panel {
-        width: min(100%, 980px);
+    .obs-stage {
+        width: min(100%, 1040px);
         display: flex;
+        flex-direction: column;
         align-items: center;
-        justify-content: space-between;
-        gap: 12px;
-        flex-wrap: wrap;
-        padding: 12px 16px;
-        border-radius: 16px;
-        background: var(--el-surface-strong);
-        color: var(--el-text);
-        box-shadow: 0 18px 48px rgba(0, 0, 0, 0.22);
-        border: 1px solid var(--el-border);
-    }
-
-    .obs-topbar-eyebrow {
-        font-size: 0.72rem;
-        font-weight: 700;
-        letter-spacing: 0.18em;
-        opacity: 0.7;
-    }
-
-    .obs-topbar-title {
-        margin-top: 2px;
-        font-size: 1.08rem;
-        font-weight: 800;
-    }
-
-    .obs-topbar-subtitle {
-        margin-top: 2px;
-        font-size: 0.92rem;
-        opacity: 0.82;
-    }
-
-    .obs-topbar-actions {
-        display: flex;
-        gap: 8px;
-        flex-wrap: wrap;
-        justify-content: flex-end;
-    }
-
-    .obs-secondary-btn {
-        background: rgba(255, 255, 255, 0.08);
-        color: var(--el-text);
-        border: 1px solid var(--el-border);
-        border-radius: 8px;
-        padding: 10px 16px;
-        font-size: 0.95rem;
-        font-weight: 700;
-        cursor: pointer;
-        transition: background 0.2s, transform 0.2s;
-    }
-
-    .obs-secondary-btn:hover {
-        background: rgba(255, 255, 255, 0.16);
-        transform: translateY(-1px);
-    }
-
-    .obs-status-panel {
-        justify-content: flex-start;
-    }
-
-    .obs-status-pill {
-        display: inline-flex;
-        align-items: center;
-        padding: 6px 12px;
-        border-radius: 999px;
-        background: rgba(255, 255, 255, 0.08);
-        border: 1px solid var(--el-border);
-        font-size: 0.88rem;
-        font-weight: 700;
-        word-break: break-all;
+        gap: 16px;
+        padding: 24px;
+        border-radius: 32px;
+        background:
+            radial-gradient(circle at 50% 0%, rgba(255, 255, 255, 0.12), transparent 28%),
+            linear-gradient(180deg, rgba(12, 18, 34, 0.78), rgba(12, 18, 34, 0.52));
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        box-shadow: 0 28px 72px rgba(0, 0, 0, 0.35);
+        backdrop-filter: blur(10px);
     }
 
     .obs-state {
@@ -268,6 +184,28 @@ else
         flex-direction: column;
         align-items: center;
         position: relative;
+        gap: 10px;
+    }
+
+    .roulette-spinning-aura,
+    .roulette-result-flare {
+        position: absolute;
+        inset: -24px;
+        border-radius: 50%;
+        pointer-events: none;
+        z-index: 0;
+    }
+
+    .roulette-spinning-aura {
+        background:
+            radial-gradient(circle, rgba(255, 192, 66, 0.24) 0%, rgba(255, 192, 66, 0.06) 34%, transparent 66%);
+        animation: spin-aura 1s ease-in-out infinite;
+    }
+
+    .roulette-result-flare {
+        background:
+            radial-gradient(circle, rgba(255, 211, 104, 0.36) 0%, rgba(255, 211, 104, 0.1) 30%, transparent 70%);
+        animation: result-flare 1.1s ease-out infinite;
     }
 
     .roulette-pointer {
@@ -285,16 +223,20 @@ else
     }
 
     .roulette-wheel-wrapper {
-        width: 400px;
-        height: 400px;
+        width: min(64vw, 520px);
+        height: min(64vw, 520px);
         border-radius: 50%;
-        box-shadow: 0 0 30px rgba(0,0,0,0.35);
+        box-shadow:
+            0 0 0 10px rgba(255, 255, 255, 0.06),
+            0 24px 54px rgba(0, 0, 0, 0.36);
         overflow: hidden;
+        position: relative;
+        z-index: 1;
     }
 
     .roulette-wheel {
-        width: 400px;
-        height: 400px;
+        width: min(64vw, 520px);
+        height: min(64vw, 520px);
         transition-property: transform;
         transition-timing-function: cubic-bezier(0.17, 0.67, 0.12, 0.99);
     }
@@ -303,28 +245,36 @@ else
         filter: brightness(1.4);
         stroke: var(--el-accent) !important;
         stroke-width: 4 !important;
+        animation: winner-pulse 0.9s ease-in-out infinite;
     }
 
     .obs-controls {
-        margin-top: 16px;
-        text-align: center;
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 10px;
+        padding: 14px 16px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.14);
     }
 
     .obs-spin-btn {
-        background: var(--bs-warning);
-        color: var(--el-accent-contrast);
+        background: linear-gradient(135deg, #ffcb47, #ff9f1a);
+        color: #18121a;
         border: none;
-        border-radius: 8px;
-        padding: 12px 32px;
-        font-size: 1.2rem;
-        font-weight: bold;
+        border-radius: 999px;
+        padding: 14px 26px;
+        font-size: 1rem;
+        font-weight: 900;
         cursor: pointer;
         box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-        transition: background 0.2s;
+        transition: transform 0.18s ease, filter 0.18s ease;
     }
 
     .obs-spin-btn:hover:not(:disabled) {
-        filter: brightness(0.92);
+        transform: translateY(-1px);
+        filter: brightness(1.03);
     }
 
     .obs-spin-btn:disabled {
@@ -333,20 +283,21 @@ else
     }
 
     .obs-record-btn {
-        background: var(--bs-success);
-        color: var(--el-text);
+        background: linear-gradient(135deg, #41c97d, #20935d);
+        color: white;
         border: none;
-        border-radius: 8px;
-        padding: 12px 32px;
-        font-size: 1.2rem;
-        font-weight: bold;
+        border-radius: 999px;
+        padding: 14px 26px;
+        font-size: 1rem;
+        font-weight: 900;
         cursor: pointer;
         box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-        transition: background 0.2s;
+        transition: transform 0.18s ease, filter 0.18s ease;
     }
 
     .obs-record-btn:hover:not(:disabled) {
-        filter: brightness(0.92);
+        transform: translateY(-1px);
+        filter: brightness(1.03);
     }
 
     .obs-record-btn:disabled {
@@ -355,10 +306,19 @@ else
     }
 
     .obs-win-result {
-        margin-top: 12px;
-        font-size: 1.4rem;
+        display: inline-flex;
+        align-items: baseline;
+        gap: 10px;
+        padding: 12px 18px;
+        border-radius: 999px;
+        font-size: 1.2rem;
         color: var(--el-text);
         text-align: center;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        box-shadow: 0 14px 34px rgba(0, 0, 0, 0.2);
+        position: relative;
+        z-index: 1;
     }
 
     .obs-win-result .win-label {
@@ -370,6 +330,7 @@ else
         color: var(--el-accent);
         font-size: 1.6rem;
         text-shadow: 0 0 12px var(--el-glow);
+        animation: result-pop 0.35s ease-out;
     }
 
     .obs-feedback {
@@ -388,6 +349,27 @@ else
 
     .obs-feedback-error {
         border: 1px solid rgba(248, 113, 113, 0.5);
+    }
+
+    @@keyframes winner-pulse {
+        0%, 100% { filter: brightness(1.3); }
+        50% { filter: brightness(1.7); }
+    }
+
+    @@keyframes result-pop {
+        0% { transform: scale(0.96); opacity: 0.4; }
+        100% { transform: scale(1); opacity: 1; }
+    }
+
+    @@keyframes spin-aura {
+        0%, 100% { transform: scale(0.98); opacity: 0.7; }
+        50% { transform: scale(1.04); opacity: 1; }
+    }
+
+    @@keyframes result-flare {
+        0% { transform: scale(0.92); opacity: 0.3; }
+        40% { transform: scale(1.02); opacity: 0.9; }
+        100% { transform: scale(1.08); opacity: 0.0; }
     }
 </style>
 
@@ -411,16 +393,6 @@ else
     private bool IsBusy => isSpinning || countdownRemaining.HasValue;
     private bool CanRecordCurrentActivity => template != null && lastResult != null && !IsBusy && BuildRecordSignature() != lastRecordedSignature;
 
-    private string FlowDetailText =>
-        flowPhase switch
-        {
-            LiveDrawPhase.Ready => "先確認畫面與來源，再開始倒數或立即轉動。",
-            LiveDrawPhase.CountingDown => "請確認 OBS 已切好場景，倒數結束就會開始轉動。",
-            LiveDrawPhase.Spinning => "轉盤正在轉動，等待最終結果。",
-            LiveDrawPhase.ShowingResult when lastResult != null => $"本次結果已產生：「{lastResult.SegmentTitle}」。",
-            _ => "抽獎流程已就緒。"
-        };
-
     private string WrapperStyle =>
         string.IsNullOrEmpty(template?.BackgroundImageUrl)
             ? ""
@@ -440,31 +412,6 @@ else
         }
 
         isLoading = false;
-    }
-
-    private string ObsUrl => NavigationManager.ToAbsoluteUri($"/obs/roulette/{Id}").ToString();
-
-    private async Task CopyObsUrlAsync()
-    {
-        await JSRuntime.InvokeVoidAsync("easyLotteryClipboard.copyText", ObsUrl);
-        SetStatus("已複製 OBS 來源網址。", false);
-    }
-
-    private async Task ReloadTemplateAsync()
-    {
-        if (template == null) return;
-
-        template = await RouletteService.LoadTemplateAsync(Id);
-        if (template == null)
-        {
-            await RouletteService.SeedDefaultTemplatesAsync();
-            template = await RouletteService.LoadTemplateAsync(Id);
-        }
-
-        flowPhase = LiveDrawPhase.Ready;
-        countdownRemaining = null;
-        SetStatus("已重新載入模板。", false);
-        StateHasChanged();
     }
 
     private async Task SpinWheel()

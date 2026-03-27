@@ -6,8 +6,6 @@
 
 @inject ActivityResultService ActivityResultService
 @inject PokeService PokeService
-@inject NavigationManager NavigationManager
-@inject IJSRuntime JSRuntime
 
 <PageTitle>戳戳樂 - OBS</PageTitle>
 
@@ -27,84 +25,56 @@ else if (template == null)
 else
 {
     <div class="obs-poke-wrapper" style="@WrapperStyle">
-        <div class="obs-topbar">
-            <div class="obs-topbar-copy">
-                <div class="obs-topbar-eyebrow">OBS CONTROL</div>
-                <div class="obs-topbar-title">戳戳樂控制台</div>
-                <div class="obs-topbar-subtitle">@template.Name</div>
-            </div>
-            <div class="obs-topbar-actions">
-                <button class="obs-secondary-btn" @onclick="@CopyObsUrlAsync">複製來源網址</button>
-                <button class="obs-secondary-btn" @onclick="@LoadTemplate">重新載入模板</button>
-            </div>
-        </div>
-
-        <div class="obs-status-panel">
-            <div class="obs-status-pill">模式：@(template.Mode == PokeMode.Random ? "隨機" : "手動")</div>
-            <div class="obs-status-pill">已戳：@RevealedCount / @template.Cells.Count</div>
-            @if (template.MaxPokeCount > 0)
-            {
-                <div class="obs-status-pill">上限：@template.MaxPokeCount</div>
-            }
-            <div class="obs-status-pill">來源：@ObsUrl</div>
-        </div>
-
-        <div class="poke-grid" style="@GridStyle">
-            @foreach (var cell in template.Cells.OrderBy(c => c.Index))
-            {
-                <div class="poke-cell @(cell.IsRevealed ? "revealed " + AnimationClass : "") @(lastPokedIndex == cell.Index ? "just-poked" : "")"
-                     style="@CellStyle(cell)"
-                     @onclick="@(() => OnCellClick(cell))">
-                    @if (cell.IsRevealed)
-                    {
-                        @if (!string.IsNullOrEmpty(cell.RevealedImageUrl))
+        <div class="obs-stage">
+            <div class="poke-grid" style="@GridStyle">
+                @foreach (var cell in template.Cells.OrderBy(c => c.Index))
+                {
+                    <div class="poke-cell @(cell.IsRevealed ? "revealed " + AnimationClass : "") @(lastPokedIndex == cell.Index ? "just-poked" : "")"
+                         style="@CellStyle(cell)"
+                         @onclick="@(() => OnCellClick(cell))">
+                        @if (cell.IsRevealed)
                         {
-                            <img src="@cell.RevealedImageUrl" alt="@cell.Title" style="max-width:100%;max-height:80%;" />
-                        }
-                        <div class="cell-title">@cell.Title</div>
-                        @if (!string.IsNullOrEmpty(cell.SubTitle))
-                        {
-                            <div class="cell-subtitle">@cell.SubTitle</div>
-                        }
-                    }
-                    else
-                    {
-                        @if (!string.IsNullOrEmpty(cell.ImageUrl))
-                        {
-                            <img src="@cell.ImageUrl" alt="@cell.Title" style="max-width:100%;max-height:80%;" />
+                            @if (!string.IsNullOrEmpty(cell.RevealedImageUrl))
+                            {
+                                <img src="@cell.RevealedImageUrl" alt="@cell.Title" style="max-width:100%;max-height:80%;" />
+                            }
+                            <div class="cell-title">@cell.Title</div>
+                            @if (!string.IsNullOrEmpty(cell.SubTitle))
+                            {
+                                <div class="cell-subtitle">@cell.SubTitle</div>
+                            }
                         }
                         else
                         {
-                            <span class="poke-icon">👆</span>
+                            @if (!string.IsNullOrEmpty(cell.ImageUrl))
+                            {
+                                <img src="@cell.ImageUrl" alt="@cell.Title" style="max-width:100%;max-height:80%;" />
+                            }
+                            else
+                            {
+                                <span class="poke-icon">👆</span>
+                            }
                         }
-                    }
-                </div>
-            }
-        </div>
+                    </div>
+                }
+            </div>
 
-        <div class="obs-controls">
-            @if (template.Mode == PokeMode.Random)
+            <div class="obs-controls">
+                @if (template.Mode == PokeMode.Random)
+                {
+                    <button class="obs-poke-btn" @onclick="@PokeRandom">隨機戳一格</button>
+                }
+                <button class="obs-record-btn" @onclick="@EndActivityAndRecord" disabled="@(!CanRecordCurrentActivity || isRecording)">
+                    @(isRecording ? "記錄中…" : "結束本次活動並記錄")
+                </button>
+                <button class="obs-reset-btn" @onclick="@ResetTemplate">重設</button>
+            </div>
+
+            @if (!string.IsNullOrWhiteSpace(statusMessage))
             {
-                <button class="obs-poke-btn" @onclick="@PokeRandom">隨機戳一格</button>
-            }
-            <button class="obs-record-btn" @onclick="@EndActivityAndRecord" disabled="@(!CanRecordCurrentActivity || isRecording)">
-                @(isRecording ? "記錄中…" : "結束本次活動並記錄")
-            </button>
-            <button class="obs-reset-btn" @onclick="@ResetTemplate">重設</button>
-        </div>
-
-        <div class="obs-status">
-            已戳：@RevealedCount / @template.Cells.Count
-            @if (template.MaxPokeCount > 0)
-            {
-                <span>（上限：@template.MaxPokeCount）</span>
+                <div class="obs-feedback @(statusIsError ? "obs-feedback-error" : "obs-feedback-success")">@statusMessage</div>
             }
         </div>
-
-        @if (!string.IsNullOrWhiteSpace(statusMessage))
-        {
-            <div class="obs-feedback @(statusIsError ? "obs-feedback-error" : "obs-feedback-success")">@statusMessage</div>
-        }
     </div>
 }
 
@@ -121,83 +91,25 @@ else
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        padding: 16px;
+        min-height: 100vh;
+        padding: 24px;
         gap: 12px;
     }
 
-    .obs-topbar,
-    .obs-status-panel {
-        width: min(100%, 960px);
+    .obs-stage {
+        width: min(100%, 980px);
         display: flex;
+        flex-direction: column;
         align-items: center;
-        justify-content: space-between;
-        gap: 12px;
-        flex-wrap: wrap;
-        padding: 12px 16px;
-        border-radius: 16px;
-        background: var(--el-surface-strong);
-        color: var(--el-text);
-        box-shadow: 0 18px 48px rgba(0, 0, 0, 0.22);
-        border: 1px solid var(--el-border);
-    }
-
-    .obs-topbar-eyebrow {
-        font-size: 0.72rem;
-        font-weight: 700;
-        letter-spacing: 0.18em;
-        opacity: 0.7;
-    }
-
-    .obs-topbar-title {
-        margin-top: 2px;
-        font-size: 1.08rem;
-        font-weight: 800;
-    }
-
-    .obs-topbar-subtitle {
-        margin-top: 2px;
-        font-size: 0.92rem;
-        opacity: 0.82;
-    }
-
-    .obs-topbar-actions {
-        display: flex;
-        gap: 8px;
-        flex-wrap: wrap;
-        justify-content: flex-end;
-    }
-
-    .obs-secondary-btn {
-        background: rgba(255, 255, 255, 0.08);
-        color: var(--el-text);
-        border: 1px solid var(--el-border);
-        border-radius: 8px;
-        padding: 10px 16px;
-        font-size: 0.95rem;
-        font-weight: 700;
-        cursor: pointer;
-        transition: background 0.2s, transform 0.2s;
-    }
-
-    .obs-secondary-btn:hover {
-        background: rgba(255, 255, 255, 0.16);
-        transform: translateY(-1px);
-    }
-
-    .obs-status-panel {
-        justify-content: flex-start;
-    }
-
-    .obs-status-pill {
-        display: inline-flex;
-        align-items: center;
-        padding: 6px 12px;
-        border-radius: 999px;
-        background: rgba(255, 255, 255, 0.08);
-        border: 1px solid var(--el-border);
-        font-size: 0.88rem;
-        font-weight: 700;
-        word-break: break-all;
+        gap: 16px;
+        padding: 24px;
+        border-radius: 32px;
+        background:
+            radial-gradient(circle at 50% 0%, rgba(255, 255, 255, 0.12), transparent 28%),
+            linear-gradient(180deg, rgba(12, 18, 34, 0.78), rgba(12, 18, 34, 0.52));
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        box-shadow: 0 28px 72px rgba(0, 0, 0, 0.35);
+        backdrop-filter: blur(10px);
     }
 
     .obs-state {
@@ -232,10 +144,11 @@ else
     .poke-grid {
         gap: 8px;
         width: 100%;
-        max-width: 600px;
+        max-width: 760px;
     }
 
     .poke-cell {
+        position: relative;
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -251,6 +164,7 @@ else
         color: var(--el-text);
         border: 2px solid var(--el-border-strong);
         user-select: none;
+        overflow: hidden;
     }
 
     .poke-cell:hover:not(.revealed) {
@@ -260,6 +174,29 @@ else
 
     .poke-cell.revealed {
         cursor: default;
+    }
+
+    .poke-cell.revealed::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.24), transparent 38%, rgba(255, 255, 255, 0.08));
+        pointer-events: none;
+        animation: reveal-sheen 1.1s ease-out infinite;
+        mix-blend-mode: screen;
+    }
+
+    .poke-cell.revealed::after {
+        content: "✦";
+        position: absolute;
+        top: 8px;
+        right: 10px;
+        font-size: 0.9rem;
+        color: rgba(255, 255, 255, 0.9);
+        text-shadow: 0 0 10px var(--el-glow);
+        animation: reveal-star 1s ease-in-out infinite;
+        pointer-events: none;
     }
 
     .poke-cell .poke-icon {
@@ -297,6 +234,13 @@ else
         animation: flip 0.5s ease-out;
     }
 
+    .poke-cell.revealed {
+        box-shadow:
+            0 0 0 2px rgba(255, 255, 255, 0.08) inset,
+            0 12px 26px rgba(0, 0, 0, 0.18);
+        animation: reveal-glow 0.7s ease-out;
+    }
+
     @@keyframes burst {
         0% { transform: scale(1); }
         30% { transform: scale(1.4); }
@@ -328,19 +272,24 @@ else
     }
 
     .obs-controls {
-        margin-top: 12px;
         display: flex;
-        gap: 8px;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 10px;
+        padding: 14px 16px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.14);
     }
 
     .obs-poke-btn {
-        background: var(--bs-warning);
-        color: var(--el-accent-contrast);
+        background: linear-gradient(135deg, #ffcb47, #ff9f1a);
+        color: #18121a;
         border: none;
-        border-radius: 8px;
-        padding: 10px 24px;
-        font-size: 1rem;
-        font-weight: bold;
+        border-radius: 999px;
+        padding: 12px 22px;
+        font-size: 0.98rem;
+        font-weight: 900;
         cursor: pointer;
         box-shadow: 0 2px 8px rgba(0,0,0,0.3);
     }
@@ -350,13 +299,13 @@ else
     }
 
     .obs-reset-btn {
-        background: var(--bs-danger);
-        color: var(--el-text);
+        background: linear-gradient(135deg, #ef6b6b, #c53e3e);
+        color: white;
         border: none;
-        border-radius: 8px;
-        padding: 10px 24px;
-        font-size: 1rem;
-        font-weight: bold;
+        border-radius: 999px;
+        padding: 12px 22px;
+        font-size: 0.98rem;
+        font-weight: 900;
         cursor: pointer;
         box-shadow: 0 2px 8px rgba(0,0,0,0.3);
     }
@@ -366,13 +315,13 @@ else
     }
 
     .obs-record-btn {
-        background: var(--bs-success);
-        color: var(--el-text);
+        background: linear-gradient(135deg, #41c97d, #20935d);
+        color: white;
         border: none;
-        border-radius: 8px;
-        padding: 10px 24px;
-        font-size: 1rem;
-        font-weight: bold;
+        border-radius: 999px;
+        padding: 12px 22px;
+        font-size: 0.98rem;
+        font-weight: 900;
         cursor: pointer;
         box-shadow: 0 2px 8px rgba(0,0,0,0.3);
     }
@@ -386,13 +335,6 @@ else
     .obs-reset-btn:disabled {
         opacity: 0.6;
         cursor: not-allowed;
-    }
-
-    .obs-status {
-        margin-top: 8px;
-        color: var(--el-text);
-        font-size: 0.9rem;
-        opacity: 0.8;
     }
 
     .obs-feedback {
@@ -411,6 +353,23 @@ else
 
     .obs-feedback-error {
         border: 1px solid rgba(248, 113, 113, 0.5);
+    }
+
+    @@keyframes reveal-glow {
+        0% { transform: scale(0.96); filter: brightness(0.9); }
+        50% { transform: scale(1.02); filter: brightness(1.18); }
+        100% { transform: scale(1); filter: brightness(1); }
+    }
+
+    @@keyframes reveal-sheen {
+        0% { opacity: 0.1; transform: translateX(-6px); }
+        50% { opacity: 0.8; transform: translateX(6px); }
+        100% { opacity: 0.12; transform: translateX(-6px); }
+    }
+
+    @@keyframes reveal-star {
+        0%, 100% { transform: scale(0.85) rotate(0deg); opacity: 0.5; }
+        50% { transform: scale(1.15) rotate(12deg); opacity: 1; }
     }
 </style>
 
@@ -473,14 +432,6 @@ else
         }
 
         isLoading = false;
-    }
-
-    private string ObsUrl => NavigationManager.ToAbsoluteUri($"/obs/pokebox/{Id}").ToString();
-
-    private async Task CopyObsUrlAsync()
-    {
-        await JSRuntime.InvokeVoidAsync("easyLotteryClipboard.copyText", ObsUrl);
-        SetStatus("已複製 OBS 來源網址。", false);
     }
 
     private async Task OnCellClick(PokeCell cell)

@@ -75,13 +75,16 @@ else
         <!-- OBS Browser Source -->
         <div class="mt-3">
             <details>
-                <summary style="color:var(--el-text-muted);cursor:pointer;">📺 OBS 瀏覽器來源</summary>
-                <div class="mt-2 p-2" style="background:var(--el-surface-soft);border-radius:6px;">
-                    <p style="color:var(--el-text-muted);font-size:0.85rem;margin-bottom:4px;">在 OBS 加入「瀏覽器」來源，將以下網址貼入：</p>
-                    <code style="color:var(--el-accent);word-break:break-all;">@ObsUrl</code>
-                    <p style="color:var(--el-text-muted);font-size:0.75rem;margin-top:8px;margin-bottom:0;">
-                        💡 建議寬高依格數調整（如 3×3 建議 500×550），勾選「關閉時使場景不活躍」。背景會自動透明。
-                    </p>
+                <summary style="color:var(--el-text-muted);cursor:pointer;">📺 OBS 瀏覽器來源（固定網址）</summary>
+                <div class="mt-2 p-3 obs-source-guide">
+                    <p class="obs-source-guide-title">這是固定的 OBS 來源網址，設定一次後就可以長期使用。</p>
+                    <p class="obs-source-guide-body">在 OBS 新增「瀏覽器」來源，直接貼上下面網址：</p>
+                    <code class="obs-source-code">@ObsUrl</code>
+                    <ul class="obs-source-list">
+                        <li>建議依格數調整大小，例如 <strong>3 × 3 建議 500 × 550</strong></li>
+                        <li>勾選「關閉時使場景不活躍」</li>
+                        <li>背景已預設透明，可直接疊加在直播場景上</li>
+                    </ul>
                 </div>
             </details>
         </div>
@@ -139,6 +142,42 @@ else
     .poke-cell .cell-subtitle {
         font-size: 0.75rem;
         opacity: 0.8;
+    }
+
+    .obs-source-guide {
+        background: var(--el-surface-soft);
+        border-radius: 10px;
+        border: 1px solid var(--el-border);
+    }
+
+    .obs-source-guide-title {
+        color: var(--el-text);
+        font-weight: 700;
+        margin-bottom: 8px;
+    }
+
+    .obs-source-guide-body {
+        color: var(--el-text-muted);
+        font-size: 0.9rem;
+        margin-bottom: 8px;
+    }
+
+    .obs-source-code {
+        display: block;
+        color: var(--el-accent);
+        word-break: break-all;
+        padding: 10px 12px;
+        border-radius: 8px;
+        background: color-mix(in srgb, var(--el-surface-strong) 82%, transparent);
+        border: 1px solid var(--el-border);
+    }
+
+    .obs-source-list {
+        margin: 10px 0 0;
+        padding-left: 20px;
+        color: var(--el-text-muted);
+        font-size: 0.85rem;
+        line-height: 1.6;
     }
 
     /* Animation classes */
