@@ -19,6 +19,7 @@ namespace EasyLotteryDomain.Models.Config
         public List<DrawingRulePreset> DrawingRulePresets { get; set; } = new();
 
         public DrawingRuleSettings DrawingRules { get; set; } = new();
+        public VisualStyleSettings VisualStyle { get; set; } = new();
     }
 
     public sealed class LotterySystemSettings

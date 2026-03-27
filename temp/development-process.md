@@ -61,8 +61,11 @@ If you want a shorter version, use [Universal Development Checklist](./developme
 ### 6. PR
 
 - Prepare a PR title and description.
+- PR descriptions must be complete enough for review without opening the full diff first.
+- Include a concise summary, what changed, why it changed, how it was verified, and any remaining risk or follow-up.
 - Link back to the issue.
 - Summarize what changed, what was tested, and the remaining risk.
+- If the PR description is too short or vague, treat it as unfinished work.
 
 ### 7. Sync
 

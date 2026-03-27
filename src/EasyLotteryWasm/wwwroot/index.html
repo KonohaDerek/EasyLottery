@@ -108,6 +108,45 @@
         };
     </script>
     <script>
+        (() => {
+            const storageKey = "easy-lottery.visual-style";
+            const root = document.documentElement;
+
+            function applyThemeKey(key) {
+                const safeKey = key || "arcade-neon";
+                root.dataset.visualStyle = safeKey;
+
+                if (document.body) {
+                    document.body.dataset.visualStyle = safeKey;
+                }
+
+                try {
+                    window.localStorage.setItem(storageKey, safeKey);
+                } catch {
+                }
+            }
+
+            let storedKey = "arcade-neon";
+            try {
+                storedKey = window.localStorage.getItem(storageKey) || storedKey;
+            } catch {
+            }
+
+            applyThemeKey(storedKey);
+
+            window.easyLotteryTheme = {
+                apply: (key) => applyThemeKey(key),
+                getStoredKey: () => {
+                    try {
+                        return window.localStorage.getItem(storageKey) || "";
+                    } catch {
+                        return "";
+                    }
+                }
+            };
+        })();
+    </script>
+    <script>
         window.easyLotteryClipboard = {
             copyText: async (text) => {
                 const safeText = text == null ? "" : String(text);

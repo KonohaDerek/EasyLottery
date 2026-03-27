@@ -92,11 +92,11 @@ else
 
                         <g>
                             <path d="@path" fill="@seg.Color"
-                                  stroke="white" stroke-width="2"
+                                  stroke="var(--el-border-strong)" stroke-width="2"
                                   class="@(isWinner ? "winner-segment" : "")" />
                             <text x="@textX.ToString("F1")" y="@textY.ToString("F1")"
                                   text-anchor="middle" dominant-baseline="middle"
-                                  font-size="14" fill="white" font-weight="bold"
+                                  font-size="14" fill="var(--el-text)" font-weight="bold"
                                   transform="rotate(@midAngle.ToString("F1"), @textX.ToString("F1"), @textY.ToString("F1"))">
                                 @seg.Title
                             </text>
@@ -109,7 +109,7 @@ else
                     }
                     else
                     {
-                        <circle cx="200" cy="200" r="30" fill="#333" />
+                        <circle cx="200" cy="200" r="30" fill="var(--el-surface-strong)" />
                     }
                 </svg>
             </div>
@@ -169,9 +169,10 @@ else
         flex-wrap: wrap;
         padding: 12px 16px;
         border-radius: 16px;
-        background: rgba(15, 23, 42, 0.78);
-        color: white;
+        background: var(--el-surface-strong);
+        color: var(--el-text);
         box-shadow: 0 18px 48px rgba(0, 0, 0, 0.22);
+        border: 1px solid var(--el-border);
     }
 
     .obs-topbar-eyebrow {
@@ -201,9 +202,9 @@ else
     }
 
     .obs-secondary-btn {
-        background: rgba(255, 255, 255, 0.12);
-        color: white;
-        border: 1px solid rgba(255, 255, 255, 0.18);
+        background: rgba(255, 255, 255, 0.08);
+        color: var(--el-text);
+        border: 1px solid var(--el-border);
         border-radius: 8px;
         padding: 10px 16px;
         font-size: 0.95rem;
@@ -213,7 +214,7 @@ else
     }
 
     .obs-secondary-btn:hover {
-        background: rgba(255, 255, 255, 0.2);
+        background: rgba(255, 255, 255, 0.16);
         transform: translateY(-1px);
     }
 
@@ -226,8 +227,8 @@ else
         align-items: center;
         padding: 6px 12px;
         border-radius: 999px;
-        background: rgba(255, 255, 255, 0.1);
-        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid var(--el-border);
         font-size: 0.88rem;
         font-weight: 700;
         word-break: break-all;
@@ -239,10 +240,11 @@ else
         margin: 24px;
         padding: 20px 24px;
         border-radius: 14px;
-        background: rgba(15, 23, 42, 0.88);
-        color: white;
+        background: var(--el-surface-strong);
+        color: var(--el-text);
         text-align: center;
         box-shadow: 0 18px 48px rgba(0, 0, 0, 0.28);
+        border: 1px solid var(--el-border);
     }
 
     .obs-state-error {
@@ -270,7 +272,7 @@ else
 
     .roulette-pointer {
         font-size: 2rem;
-        color: white;
+        color: var(--el-text);
         text-align: center;
         z-index: 10;
         margin-bottom: -10px;
@@ -278,15 +280,15 @@ else
 
     .default-pointer {
         font-size: 2.5rem;
-        color: #ffd700;
-        text-shadow: 0 0 8px rgba(255,215,0,0.8);
+        color: var(--el-accent);
+        text-shadow: 0 0 8px var(--el-glow);
     }
 
     .roulette-wheel-wrapper {
         width: 400px;
         height: 400px;
         border-radius: 50%;
-        box-shadow: 0 0 30px rgba(0,0,0,0.5);
+        box-shadow: 0 0 30px rgba(0,0,0,0.35);
         overflow: hidden;
     }
 
@@ -299,7 +301,7 @@ else
 
     .winner-segment {
         filter: brightness(1.4);
-        stroke: gold !important;
+        stroke: var(--el-accent) !important;
         stroke-width: 4 !important;
     }
 
@@ -309,8 +311,8 @@ else
     }
 
     .obs-spin-btn {
-        background: #f0c040;
-        color: #333;
+        background: var(--bs-warning);
+        color: var(--el-accent-contrast);
         border: none;
         border-radius: 8px;
         padding: 12px 32px;
@@ -322,7 +324,7 @@ else
     }
 
     .obs-spin-btn:hover:not(:disabled) {
-        background: #e0b030;
+        filter: brightness(0.92);
     }
 
     .obs-spin-btn:disabled {
@@ -331,8 +333,8 @@ else
     }
 
     .obs-record-btn {
-        background: #27ae60;
-        color: white;
+        background: var(--bs-success);
+        color: var(--el-text);
         border: none;
         border-radius: 8px;
         padding: 12px 32px;
@@ -344,7 +346,7 @@ else
     }
 
     .obs-record-btn:hover:not(:disabled) {
-        background: #1f8a4d;
+        filter: brightness(0.92);
     }
 
     .obs-record-btn:disabled {
@@ -355,7 +357,7 @@ else
     .obs-win-result {
         margin-top: 12px;
         font-size: 1.4rem;
-        color: white;
+        color: var(--el-text);
         text-align: center;
     }
 
@@ -365,9 +367,9 @@ else
 
     .obs-win-result .win-title {
         font-weight: bold;
-        color: #ffd700;
+        color: var(--el-accent);
         font-size: 1.6rem;
-        text-shadow: 0 0 12px rgba(255,215,0,0.8);
+        text-shadow: 0 0 12px var(--el-glow);
     }
 
     .obs-feedback {
@@ -376,7 +378,7 @@ else
         border-radius: 8px;
         font-size: 0.9rem;
         font-weight: 600;
-        color: white;
+        color: var(--el-text);
         background: rgba(15, 23, 42, 0.72);
     }
 

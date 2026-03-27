@@ -34,6 +34,7 @@ builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(builder.
 builder.Services.AddScoped<IEasyLotteryConfigStore, YamlEasyLotteryConfigStore>();
 builder.Services.AddScoped<SystemSettingsService>();
 builder.Services.AddScoped<ActivityResultService>();
+builder.Services.AddScoped<VisualStyleService>();
 
 // 添加服務
 builder.Services.AddScoped<YouTubeServiceHelper>();

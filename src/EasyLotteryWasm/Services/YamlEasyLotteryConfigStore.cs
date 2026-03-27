@@ -4,6 +4,7 @@ using System.Text.Json;
 using EasyLotteryDomain.Models.Config;
 using EasyLotteryDomain.Models.Entities;
 using EasyLotteryDomain.Services;
+using EasyLotteryWasm.Models;
 using Microsoft.JSInterop;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
@@ -137,6 +138,8 @@ namespace EasyLotteryWasm.Services
             document.ActivityResults ??= new List<ActivityResultRecord>();
             document.DrawingRulePresets ??= new List<DrawingRulePreset>();
             document.DrawingRules ??= new DrawingRuleSettings();
+            document.VisualStyle ??= new VisualStyleSettings();
+            document.VisualStyle.ActiveThemeKey = VisualStyleCatalog.NormalizeKey(document.VisualStyle.ActiveThemeKey);
 
             foreach (var template in document.PokeTemplates)
             {
