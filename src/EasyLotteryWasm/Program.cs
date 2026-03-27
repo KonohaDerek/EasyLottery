@@ -29,12 +29,14 @@ builder.RootComponents.Add<HeadOutlet>("head::after");
 
 builder.Services.AddDistributedMemoryCache();
 
-builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) });
+var apiBaseUrl = builder.Configuration["Api:BaseUrl"] ?? "http://localhost:5297/";
+builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(apiBaseUrl) });
 
 builder.Services.AddScoped<IEasyLotteryConfigStore, YamlEasyLotteryConfigStore>();
 builder.Services.AddScoped<SystemSettingsService>();
 builder.Services.AddScoped<ActivityResultService>();
 builder.Services.AddScoped<VisualStyleService>();
+builder.Services.AddScoped<OvertimeFeedClient>();
 
 // 添加服務
 builder.Services.AddScoped<YouTubeServiceHelper>();
@@ -42,14 +44,12 @@ builder.Services.AddScoped<PokeService>();
 builder.Services.AddScoped<RouletteService>();
 
 builder.Services
-    .AddBlazorise( options =>
+    .AddBlazorise(options =>
     {
         options.Immediate = true;
     })
     .AddBootstrap5Providers()
     .AddFontAwesomeIcons();
-
-
 
 builder.Logging.AddSerilog(Log.Logger);
 

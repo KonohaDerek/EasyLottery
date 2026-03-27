@@ -20,6 +20,7 @@ namespace EasyLotteryDomain.Models.Config
 
         public DrawingRuleSettings DrawingRules { get; set; } = new();
         public VisualStyleSettings VisualStyle { get; set; } = new();
+        public OvertimeOverlaySettings OvertimeOverlay { get; set; } = new();
     }
 
     public sealed class LotterySystemSettings

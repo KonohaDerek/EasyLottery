@@ -1,0 +1,477 @@
+@page "/obs/overtime"
+@layout ObsLayout
+@using EasyLotteryDomain.Models.Config
+@using EasyLotteryDomain.Models.Overtime
+@using EasyLotteryWasm.Layout
+@using EasyLotteryWasm.Models
+@inject IEasyLotteryConfigStore ConfigStore
+@inject OvertimeFeedClient OvertimeFeedClient
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+
+<PageTitle>加班台 - OBS</PageTitle>
+
+@if (isLoading)
+{
+    <div class="overtime-state">
+        <div class="overtime-state-title">載入加班台中…</div>
+    </div>
+}
+else
+{
+    <div class="overtime-overlay" style="@ThemeStyle">
+        <div class="overtime-shell">
+            <div class="overtime-topbar">
+                <div>
+                    <div class="overtime-eyebrow">SUPPORT OVERLAY</div>
+                    <div class="overtime-title">@settings.Title</div>
+                    <div class="overtime-subtitle">@settings.Subtitle</div>
+                </div>
+                <div class="overtime-topbar-actions">
+                    <button class="overtime-secondary-btn" @onclick="@CopyOverlayUrlAsync">複製來源網址</button>
+                    <button class="overtime-secondary-btn" @onclick="@ReloadAsync">重新載入</button>
+                </div>
+            </div>
+
+            <div class="overtime-status-panel">
+                <span class="overtime-status-pill">風格：@CurrentTheme.Name</span>
+                <span class="overtime-status-pill">最大顯示：@settings.MaxVisibleItems 筆</span>
+                <span class="overtime-status-pill">金額：@(settings.ShowAmounts ? "顯示" : "隱藏")</span>
+                <span class="overtime-status-pill">頭像：@(settings.ShowAvatars ? "顯示" : "隱藏")</span>
+                <span class="overtime-status-pill">來源：@OverlayUrl</span>
+            </div>
+
+            @if (!settings.IsEnabled)
+            {
+                <div class="overtime-disabled-panel">
+                    <div class="overtime-disabled-title">加班台尚未啟用</div>
+                    <div class="overtime-disabled-subtitle">請到「系統配置 / 加班台」開啟後，這個畫面才會開始顯示 SuperChat 與綠界 Donate。</div>
+                </div>
+            }
+            else if (!events.Any())
+            {
+                <div class="overtime-empty-panel">
+                    <div class="overtime-empty-title">目前還沒有事件</div>
+                    <div class="overtime-empty-subtitle">當收到 SuperChat 或綠界贊助時，訊息會在這裡出現。</div>
+                </div>
+            }
+            else
+            {
+                <div class="overtime-feed">
+                    @foreach (var item in events.Take(settings.MaxVisibleItems))
+                    {
+                        <article class="overtime-card">
+                            <div class="overtime-card-left">
+                                @if (settings.ShowAvatars && !string.IsNullOrWhiteSpace(item.AvatarUrl))
+                                {
+                                    <img class="overtime-avatar" src="@item.AvatarUrl" alt="@item.DisplayName" />
+                                }
+                                else
+                                {
+                                    <div class="overtime-avatar fallback">@GetAvatarFallback(item.DisplayName)</div>
+                                }
+                            </div>
+                            <div class="overtime-card-main">
+                                <div class="overtime-card-head">
+                                    <div>
+                                        <div class="overtime-card-name">@item.DisplayName</div>
+                                        <div class="overtime-card-source">@item.SourceLabel</div>
+                                    </div>
+                                    <div class="overtime-card-time">@item.OccurredAtUtc.ToLocalTime().ToString("HH:mm:ss")</div>
+                                </div>
+                                @if (!string.IsNullOrWhiteSpace(item.Message))
+                                {
+                                    <div class="overtime-card-message">@item.Message</div>
+                                }
+                                <div class="overtime-card-footer">
+                                    <span class="overtime-card-tag">@item.Source</span>
+                                    @if (settings.ShowAmounts && !string.IsNullOrWhiteSpace(item.AmountDisplay))
+                                    {
+                                        <span class="overtime-card-amount">@item.AmountDisplay</span>
+                                    }
+                                    else if (settings.ShowAmounts && item.Amount.HasValue)
+                                    {
+                                        <span class="overtime-card-amount">@item.Amount.Value.ToString("0.##") @item.Currency</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="overtime-card-amount muted">金額已隱藏</span>
+                                    }
+                                </div>
+                            </div>
+                        </article>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+}
+
+<style>
+    html, body, #app, .obs-layout {
+        background: transparent !important;
+        margin: 0;
+        padding: 0;
+    }
+
+    .overtime-overlay {
+        width: 100vw;
+        height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        box-sizing: border-box;
+    }
+
+    .overtime-shell {
+        width: min(100%, 1220px);
+        height: min(100%, 860px);
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        color: white;
+        border-radius: 32px;
+        padding: 20px;
+        background:
+            radial-gradient(circle at top left, rgba(255, 255, 255, 0.16), transparent 36%),
+            linear-gradient(135deg, color-mix(in srgb, var(--overtime-background-start) 92%, black), var(--overtime-background-end));
+        box-shadow: 0 28px 80px rgba(0, 0, 0, 0.36);
+        border: 1px solid var(--overtime-surface-border);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .overtime-shell::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+            radial-gradient(circle at 15% 20%, color-mix(in srgb, var(--overtime-glow) 35%, transparent), transparent 28%),
+            radial-gradient(circle at 85% 20%, color-mix(in srgb, var(--overtime-accent-soft) 30%, transparent), transparent 30%);
+        pointer-events: none;
+        opacity: 0.7;
+    }
+
+    .overtime-shell > * {
+        position: relative;
+        z-index: 1;
+    }
+
+    .overtime-topbar {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        flex-wrap: wrap;
+        padding: 18px 20px;
+        border-radius: 24px;
+        background: color-mix(in srgb, var(--overtime-surface) 88%, transparent);
+        border: 1px solid var(--overtime-surface-border);
+    }
+
+    .overtime-eyebrow {
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.24em;
+        opacity: 0.7;
+        text-transform: uppercase;
+    }
+
+    .overtime-title {
+        margin-top: 4px;
+        font-size: 2.1rem;
+        font-weight: 900;
+        line-height: 1.1;
+    }
+
+    .overtime-subtitle {
+        margin-top: 4px;
+        font-size: 0.98rem;
+        opacity: 0.86;
+    }
+
+    .overtime-topbar-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        align-items: flex-start;
+        justify-content: flex-end;
+    }
+
+    .overtime-secondary-btn {
+        appearance: none;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        background: rgba(255, 255, 255, 0.12);
+        color: white;
+        border-radius: 12px;
+        padding: 10px 14px;
+        font-weight: 800;
+        cursor: pointer;
+        transition: transform 0.18s ease, background 0.18s ease;
+    }
+
+    .overtime-secondary-btn:hover {
+        transform: translateY(-1px);
+        background: rgba(255, 255, 255, 0.18);
+    }
+
+    .overtime-status-panel {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .overtime-status-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 7px 12px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.12);
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        font-size: 0.84rem;
+        font-weight: 800;
+    }
+
+    .overtime-feed {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+        overflow: hidden;
+    }
+
+    .overtime-card,
+    .overtime-disabled-panel,
+    .overtime-empty-panel {
+        border-radius: 24px;
+        padding: 16px 18px;
+        background: color-mix(in srgb, var(--overtime-surface) 88%, transparent);
+        border: 1px solid var(--overtime-surface-border);
+        box-shadow: 0 18px 48px rgba(0, 0, 0, 0.14);
+    }
+
+    .overtime-card {
+        display: flex;
+        gap: 14px;
+        align-items: flex-start;
+    }
+
+    .overtime-avatar {
+        width: 64px;
+        height: 64px;
+        border-radius: 18px;
+        object-fit: cover;
+        border: 2px solid rgba(255, 255, 255, 0.26);
+        box-shadow: 0 10px 24px rgba(0, 0, 0, 0.22);
+    }
+
+    .overtime-avatar.fallback {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, var(--overtime-accent), var(--overtime-accent-soft));
+        color: #08111d;
+        font-weight: 900;
+        font-size: 1.35rem;
+    }
+
+    .overtime-card-main {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .overtime-card-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        align-items: flex-start;
+    }
+
+    .overtime-card-name {
+        font-size: 1.06rem;
+        font-weight: 900;
+    }
+
+    .overtime-card-source {
+        margin-top: 2px;
+        font-size: 0.82rem;
+        opacity: 0.78;
+    }
+
+    .overtime-card-time {
+        font-size: 0.8rem;
+        opacity: 0.72;
+        white-space: nowrap;
+    }
+
+    .overtime-card-message {
+        margin-top: 10px;
+        line-height: 1.55;
+        font-size: 0.98rem;
+        opacity: 0.96;
+        word-break: break-word;
+    }
+
+    .overtime-card-footer {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 12px;
+    }
+
+    .overtime-card-tag,
+    .overtime-card-amount {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        padding: 6px 10px;
+        font-size: 0.82rem;
+        font-weight: 800;
+        background: rgba(255, 255, 255, 0.12);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+    }
+
+    .overtime-card-amount {
+        color: var(--overtime-accent);
+    }
+
+    .overtime-card-amount.muted {
+        color: rgba(255, 255, 255, 0.72);
+    }
+
+    .overtime-state {
+        min-width: 320px;
+        max-width: 640px;
+        margin: 24px;
+        padding: 22px 28px;
+        border-radius: 18px;
+        background: rgba(15, 23, 42, 0.9);
+        color: white;
+        text-align: center;
+        box-shadow: 0 18px 48px rgba(0, 0, 0, 0.28);
+    }
+
+    .overtime-state-title {
+        font-size: 1.2rem;
+        font-weight: 700;
+    }
+
+    .overtime-disabled-panel,
+    .overtime-empty-panel {
+        min-height: 180px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        gap: 8px;
+    }
+
+    .overtime-disabled-title,
+    .overtime-empty-title {
+        font-size: 1.3rem;
+        font-weight: 900;
+    }
+
+    .overtime-disabled-subtitle,
+    .overtime-empty-subtitle {
+        opacity: 0.84;
+        line-height: 1.55;
+    }
+
+    @media (max-width: 992px) {
+        .overtime-feed {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+@code {
+    private bool isLoading = true;
+    private System.Timers.Timer? refreshTimer;
+    private bool isRefreshing;
+    private EasyLotteryConfigDocument document = new();
+    private OvertimeOverlaySettings settings = new();
+    private IReadOnlyList<OvertimeSupportEvent> events = [];
+    private OvertimeThemePreset CurrentTheme => OvertimeThemePreset.GetByKey(settings.ThemeKey);
+    private string OverlayUrl => NavigationManager.ToAbsoluteUri("/obs/overtime").ToString();
+    private string ThemeStyle => CurrentTheme.BuildCssVariables();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await ReloadAsync();
+
+        refreshTimer = new System.Timers.Timer(2500);
+        refreshTimer.Elapsed += OnTimerElapsed;
+        refreshTimer.AutoReset = true;
+        refreshTimer.Start();
+    }
+
+    private async void OnTimerElapsed(object? sender, System.Timers.ElapsedEventArgs e)
+    {
+        if (isRefreshing)
+        {
+            return;
+        }
+
+        isRefreshing = true;
+        try
+        {
+            await InvokeAsync(async () =>
+            {
+                await ReloadEventsAsync();
+                StateHasChanged();
+            });
+        }
+        finally
+        {
+            isRefreshing = false;
+        }
+    }
+
+    private async Task ReloadAsync()
+    {
+        isLoading = true;
+        document = await ConfigStore.LoadAsync();
+        settings = document.OvertimeOverlay ?? new OvertimeOverlaySettings();
+        settings.ThemeKey = string.IsNullOrWhiteSpace(settings.ThemeKey) ? OvertimeThemePreset.Catalog[0].Key : settings.ThemeKey;
+        await ReloadEventsAsync();
+        isLoading = false;
+    }
+
+    private async Task ReloadEventsAsync()
+    {
+        try
+        {
+            events = await OvertimeFeedClient.GetEventsAsync();
+        }
+        catch
+        {
+            events = [];
+        }
+    }
+
+    private async Task CopyOverlayUrlAsync()
+    {
+        await JSRuntime.InvokeVoidAsync("easyLotteryClipboard.copyText", OverlayUrl);
+    }
+
+    private static string GetAvatarFallback(string? displayName)
+    {
+        if (string.IsNullOrWhiteSpace(displayName))
+        {
+            return "?";
+        }
+
+        return displayName.Trim().Substring(0, 1).ToUpperInvariant();
+    }
+
+    public void Dispose()
+    {
+        if (refreshTimer != null)
+        {
+            refreshTimer.Elapsed -= OnTimerElapsed;
+            refreshTimer.Dispose();
+        }
+    }
+}

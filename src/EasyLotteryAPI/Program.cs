@@ -5,6 +5,17 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddHttpContextAccessor();
 // 添加其他服務
 builder.Services.AddControllers();
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("EasyLotteryCors", policy =>
+    {
+        policy
+            .AllowAnyOrigin()
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+    });
+});
+builder.Services.AddSingleton<OvertimeFeedStore>();
 
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
@@ -14,6 +25,7 @@ builder.Services.AddEndpointsApiExplorer();
 var app = builder.Build();
    app.UseAuthentication();
     app.UseRouting();
+app.UseCors("EasyLotteryCors");
     app.UseAuthorization();
 
 app.MapGet("/", () => Results.Content("""

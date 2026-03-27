@@ -140,6 +140,13 @@ namespace EasyLotteryWasm.Services
             document.DrawingRules ??= new DrawingRuleSettings();
             document.VisualStyle ??= new VisualStyleSettings();
             document.VisualStyle.ActiveThemeKey = VisualStyleCatalog.NormalizeKey(document.VisualStyle.ActiveThemeKey);
+            document.OvertimeOverlay ??= new OvertimeOverlaySettings();
+            document.OvertimeOverlay.Title = document.OvertimeOverlay.Title.Trim();
+            document.OvertimeOverlay.Subtitle = document.OvertimeOverlay.Subtitle.Trim();
+            document.OvertimeOverlay.ThemeKey = string.IsNullOrWhiteSpace(document.OvertimeOverlay.ThemeKey)
+                ? "festival-stage"
+                : document.OvertimeOverlay.ThemeKey.Trim();
+            document.OvertimeOverlay.MaxVisibleItems = Math.Max(1, document.OvertimeOverlay.MaxVisibleItems);
 
             foreach (var template in document.PokeTemplates)
             {
