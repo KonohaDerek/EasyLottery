@@ -10,12 +10,14 @@ namespace EasyLotteryDomain.Services
     public class PokeService
     {
         private readonly IEasyLotteryConfigStore _configStore;
+        private readonly EasyLotteryAuditService? _auditService;
 
         private static readonly Random _random = Random.Shared;
 
-        public PokeService(IEasyLotteryConfigStore configStore)
+        public PokeService(IEasyLotteryConfigStore configStore, EasyLotteryAuditService? auditService = null)
         {
             _configStore = configStore;
+            _auditService = auditService;
         }
 
         // ── CRUD ──────────────────────────────────────────────────────────────
@@ -30,6 +32,7 @@ namespace EasyLotteryDomain.Services
             document.IdSequence.NextPokeCellId = Math.Max(document.IdSequence.NextPokeCellId, template.Cells.Select(c => c.Id).DefaultIfEmpty(document.IdSequence.NextPokeCellId - 1).Max() + 1);
             document.PokeTemplates.Add(template);
             await _configStore.SaveAsync(document);
+            await RecordAuditAsync(document, "建立戳戳樂模板", template.Name, $"模板 ID {template.Id}");
             return template;
         }
 
@@ -49,6 +52,7 @@ namespace EasyLotteryDomain.Services
             var existingIndex = document.PokeTemplates.FindIndex(t => t.Id == template.Id);
             document.PokeTemplates[existingIndex] = template;
             await _configStore.SaveAsync(document);
+            await RecordAuditAsync(document, "更新戳戳樂模板", template.Name, $"模板 ID {template.Id}");
         }
 
         public async Task DeleteTemplateAsync(int id)
@@ -58,6 +62,7 @@ namespace EasyLotteryDomain.Services
                 ?? throw new InvalidOperationException($"Template {id} not found.");
             document.PokeTemplates.Remove(template);
             await _configStore.SaveAsync(document);
+            await RecordAuditAsync(document, "刪除戳戳樂模板", template.Name, $"模板 ID {template.Id}");
         }
 
         public async Task<PokeTemplate> DuplicateTemplateAsync(int id)
@@ -100,7 +105,9 @@ namespace EasyLotteryDomain.Services
                     .ToList()
             };
 
-            return await CreateTemplateAsync(duplicate);
+            var created = await CreateTemplateAsync(duplicate);
+            await RecordAuditAsync(document, "複製戳戳樂模板", created.Name, $"來源模板 ID {source.Id}");
+            return created;
         }
 
         public async Task<List<PokeTemplate>> ListTemplatesAsync()
@@ -128,6 +135,7 @@ namespace EasyLotteryDomain.Services
             template.PublicationStatus = status;
             template.UpdatedAt = DateTime.UtcNow;
             await _configStore.SaveAsync(document);
+            await RecordAuditAsync(document, status == TemplatePublicationStatus.Published ? "發布戳戳樂模板" : "轉為戳戳樂草稿", template.Name, $"模板 ID {template.Id}");
             return template;
         }
 
@@ -246,6 +254,7 @@ namespace EasyLotteryDomain.Services
             }
 
             await _configStore.SaveAsync(document);
+            await RecordAuditAsync(document, "建立內建戳戳樂模板", "預設模板", "初始化 3 組內建模板");
         }
 
         // ── Helpers ───────────────────────────────────────────────────────────
@@ -325,6 +334,14 @@ namespace EasyLotteryDomain.Services
             }
 
             return candidate;
+        }
+
+        private async Task RecordAuditAsync(EasyLotteryDomain.Models.Config.EasyLotteryConfigDocument document, string action, string targetName, string details)
+        {
+            if (_auditService != null)
+            {
+                await _auditService.RecordAsync("Template", action, targetName, details, changedBy: document.SystemSettings.Audit.ActorName);
+            }
         }
 
         public static List<PokeTemplate> BuildDefaultTemplates()

@@ -132,6 +132,7 @@ namespace EasyLotteryWasm.Services
             document ??= new EasyLotteryConfigDocument();
             document.SystemSettings ??= new LotterySystemSettings();
             document.SystemSettings.YouTube ??= new YouTubeApiSettings();
+            document.SystemSettings.Audit ??= new AuditSettings();
             document.IdSequence ??= new LotteryIdSequence();
             document.PokeTemplates ??= new List<PokeTemplate>();
             document.RouletteTemplates ??= new List<RouletteTemplate>();
@@ -147,6 +148,7 @@ namespace EasyLotteryWasm.Services
                 ? "festival-stage"
                 : document.OvertimeOverlay.ThemeKey.Trim();
             document.OvertimeOverlay.MaxVisibleItems = Math.Max(1, document.OvertimeOverlay.MaxVisibleItems);
+            document.AuditRecords ??= new List<ChangeAuditRecord>();
 
             foreach (var template in document.PokeTemplates)
             {
@@ -168,6 +170,11 @@ namespace EasyLotteryWasm.Services
                 NormalizeDrawingRulePreset(preset);
             }
 
+            foreach (var auditRecord in document.AuditRecords)
+            {
+                NormalizeAuditRecord(auditRecord);
+            }
+
             NormalizeDrawingRuleSettings(document.DrawingRules);
 
             document.IdSequence.NextPokeTemplateId = Math.Max(document.IdSequence.NextPokeTemplateId, document.PokeTemplates.Select(t => t.Id).DefaultIfEmpty(0).Max() + 1);
@@ -175,6 +182,8 @@ namespace EasyLotteryWasm.Services
             document.IdSequence.NextRouletteTemplateId = Math.Max(document.IdSequence.NextRouletteTemplateId, document.RouletteTemplates.Select(t => t.Id).DefaultIfEmpty(0).Max() + 1);
             document.IdSequence.NextRouletteSegmentId = Math.Max(document.IdSequence.NextRouletteSegmentId, document.RouletteTemplates.SelectMany(t => t.Segments).Select(s => s.Id).DefaultIfEmpty(0).Max() + 1);
             document.IdSequence.NextActivityResultId = Math.Max(document.IdSequence.NextActivityResultId, document.ActivityResults.Select(result => result.Id).DefaultIfEmpty(0).Max() + 1);
+            document.IdSequence.NextAuditRecordId = Math.Max(document.IdSequence.NextAuditRecordId, document.AuditRecords.Select(record => record.Id).DefaultIfEmpty(0).Max() + 1);
+            document.SystemSettings.Audit.ActorName = string.IsNullOrWhiteSpace(document.SystemSettings.Audit.ActorName) ? "本機操作" : document.SystemSettings.Audit.ActorName.Trim();
 
             return document;
         }
@@ -282,6 +291,15 @@ namespace EasyLotteryWasm.Services
             {
                 settings.LevelRates[key] = Math.Max(1, settings.LevelRates[key]);
             }
+        }
+
+        private static void NormalizeAuditRecord(ChangeAuditRecord auditRecord)
+        {
+            auditRecord.ChangedBy ??= "本機操作";
+            auditRecord.Category ??= "";
+            auditRecord.Action ??= "";
+            auditRecord.TargetName ??= "";
+            auditRecord.Details ??= "";
         }
     }
 }

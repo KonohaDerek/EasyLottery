@@ -10,14 +10,16 @@ namespace EasyLotteryDomain.Services
     public class RouletteService
     {
         private readonly IEasyLotteryConfigStore _configStore;
+        private readonly EasyLotteryAuditService? _auditService;
         private static readonly Random _random = Random.Shared;
 
         private const double MinRevolutions = 5;
         private const double SegmentOffsetFactor = 0.6;
 
-        public RouletteService(IEasyLotteryConfigStore configStore)
+        public RouletteService(IEasyLotteryConfigStore configStore, EasyLotteryAuditService? auditService = null)
         {
             _configStore = configStore;
+            _auditService = auditService;
         }
 
         // ── CRUD ──────────────────────────────────────────────────────────────
@@ -32,6 +34,7 @@ namespace EasyLotteryDomain.Services
             document.IdSequence.NextRouletteSegmentId = Math.Max(document.IdSequence.NextRouletteSegmentId, template.Segments.Select(s => s.Id).DefaultIfEmpty(document.IdSequence.NextRouletteSegmentId - 1).Max() + 1);
             document.RouletteTemplates.Add(template);
             await _configStore.SaveAsync(document);
+            await RecordAuditAsync(document, "建立轉盤模板", template.Name, $"模板 ID {template.Id}");
             return template;
         }
 
@@ -51,6 +54,7 @@ namespace EasyLotteryDomain.Services
             var existingIndex = document.RouletteTemplates.FindIndex(t => t.Id == template.Id);
             document.RouletteTemplates[existingIndex] = template;
             await _configStore.SaveAsync(document);
+            await RecordAuditAsync(document, "更新轉盤模板", template.Name, $"模板 ID {template.Id}");
         }
 
         public async Task DeleteTemplateAsync(int id)
@@ -60,6 +64,7 @@ namespace EasyLotteryDomain.Services
                 ?? throw new InvalidOperationException($"Template {id} not found.");
             document.RouletteTemplates.Remove(template);
             await _configStore.SaveAsync(document);
+            await RecordAuditAsync(document, "刪除轉盤模板", template.Name, $"模板 ID {template.Id}");
         }
 
         public async Task<RouletteTemplate> DuplicateTemplateAsync(int id)
@@ -96,7 +101,9 @@ namespace EasyLotteryDomain.Services
                     .ToList()
             };
 
-            return await CreateTemplateAsync(duplicate);
+            var created = await CreateTemplateAsync(duplicate);
+            await RecordAuditAsync(document, "複製轉盤模板", created.Name, $"來源模板 ID {source.Id}");
+            return created;
         }
 
         public async Task<List<RouletteTemplate>> ListTemplatesAsync()
@@ -124,6 +131,7 @@ namespace EasyLotteryDomain.Services
             template.PublicationStatus = status;
             template.UpdatedAt = DateTime.UtcNow;
             await _configStore.SaveAsync(document);
+            await RecordAuditAsync(document, status == TemplatePublicationStatus.Published ? "發布轉盤模板" : "轉為轉盤草稿", template.Name, $"模板 ID {template.Id}");
             return template;
         }
 
@@ -250,6 +258,7 @@ namespace EasyLotteryDomain.Services
             }
 
             await _configStore.SaveAsync(document);
+            await RecordAuditAsync(document, "建立內建轉盤模板", "預設模板", "初始化 3 組內建模板");
         }
 
         private async Task<EasyLotteryDomain.Models.Config.EasyLotteryConfigDocument> LoadDocumentAsync(bool ensureBuiltIns)
@@ -279,6 +288,14 @@ namespace EasyLotteryDomain.Services
             }
 
             return true;
+        }
+
+        private async Task RecordAuditAsync(EasyLotteryDomain.Models.Config.EasyLotteryConfigDocument document, string action, string targetName, string details)
+        {
+            if (_auditService != null)
+            {
+                await _auditService.RecordAsync("Template", action, targetName, details, changedBy: document.SystemSettings.Audit.ActorName);
+            }
         }
 
         private static void PrepareTemplateForSave(RouletteTemplate template, int nextSegmentId)

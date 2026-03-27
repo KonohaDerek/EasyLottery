@@ -103,6 +103,7 @@ public partial class Home
         }
 
         await ConfigStore.SaveAsync(document);
+        await AuditService.RecordAsync("Template", "儲存規則模板", preset.Name, $"模板包含 {preset.LevelRates.Count} 個等級", changedBy: document.SystemSettings.Audit.ActorName);
         await LoadRulePresetsAsync();
         selectedRulePresetName = preset.Name;
         await MessageService.Success($"已儲存規則模板「{preset.Name}」。");
@@ -128,6 +129,7 @@ public partial class Home
 
         SetLevelRates(preset.LevelRates);
         await PersistLevelRatesAsync();
+        await AuditService.RecordAsync("Template", "套用規則模板", preset.Name, $"套用 {preset.LevelRates.Count} 個等級倍率", changedBy: document.SystemSettings.Audit.ActorName);
         await LoadDrawPrizeAsync();
         await MessageService.Success($"已套用規則模板「{preset.Name}」。");
     }
@@ -141,6 +143,7 @@ public partial class Home
         }
 
         await PersistLevelRatesAsync();
+        await AuditService.RecordAsync("Settings", "更新抽獎倍率", "倍率設定", $"共 {levelRate.Count} 個等級", changedBy: (await ConfigStore.LoadAsync()).SystemSettings.Audit.ActorName);
         await LoadDrawPrizeAsync();
         await MessageService.Success("已儲存倍率設定。");
     }
@@ -202,6 +205,7 @@ public partial class Home
 
         document.DrawingRulePresets.Remove(preset);
         await ConfigStore.SaveAsync(document);
+        await AuditService.RecordAsync("Template", "刪除規則模板", preset.Name, $"模板名稱 {preset.Name}", changedBy: document.SystemSettings.Audit.ActorName);
         await LoadRulePresetsAsync();
 
         if (string.Equals(selectedRulePresetName, presetName, StringComparison.OrdinalIgnoreCase))
