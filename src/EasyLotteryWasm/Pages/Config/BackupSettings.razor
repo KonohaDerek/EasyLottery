@@ -1,0 +1,143 @@
+@page "/system/backup"
+
+@inject EasyLotteryBackupService BackupService
+@inject IMessageService MessageService
+@inject IJSRuntime JSRuntime
+@using System.Text
+
+<PageTitle>備份還原</PageTitle>
+
+<Card>
+    <CardHeader>
+        <CardTitle>備份還原</CardTitle>
+    </CardHeader>
+    <CardBody>
+        <CardText>
+            <p>這裡可以將目前的設定、模板與活動結果一起備份，也可以從備份檔還原整份資料。</p>
+            <p>備份格式會包含版本資訊，並保留相容於既有資料格式的還原能力。</p>
+        </CardText>
+
+        <Row>
+            <Column ColumnSize="ColumnSize.Is6">
+                <Card Margin="Margin.Is3.FromBottom">
+                    <CardBody>
+                        <CardTitle><h5>建立備份</h5></CardTitle>
+                        <CardText>
+                            下載內容會包含：
+                            <ul>
+                                <li>系統設定</li>
+                                <li>戳戳樂模板</li>
+                                <li>轉盤模板</li>
+                                <li>抽獎規則模板</li>
+                                <li>活動結果</li>
+                                <li>流水號</li>
+                            </ul>
+                        </CardText>
+                        <Button Color="Color.Primary" Clicked="@ExportBackupAsync">下載版本化備份</Button>
+                    </CardBody>
+                </Card>
+            </Column>
+            <Column ColumnSize="ColumnSize.Is6">
+                <Card Margin="Margin.Is3.FromBottom">
+                    <CardBody>
+                        <CardTitle><h5>還原備份</h5></CardTitle>
+                        <CardText>
+                            <p class="text-danger mb-2">還原會直接覆蓋目前的所有設定、模板與活動結果。</p>
+                        </CardText>
+                        <InputFile OnChange="OnBackupFileSelected" />
+                        <div class="d-flex gap-2 flex-wrap mt-3">
+                            <Button Color="Color.Warning" Clicked="@RestoreBackupAsync" Disabled="@(!canRestore)">還原備份</Button>
+                            <Button Color="Color.Secondary" Clicked="@ClearSelectedBackupAsync" Disabled="@string.IsNullOrWhiteSpace(backupFileName) && string.IsNullOrWhiteSpace(backupText)">清除檔案</Button>
+                        </div>
+                        @if (!string.IsNullOrWhiteSpace(backupFileName))
+                        {
+                            <p class="mt-3 mb-1"><strong>已選取檔案：</strong>@backupFileName</p>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(backupSummary))
+                        {
+                            <p class="mb-0"><strong>備份摘要：</strong>@backupSummary</p>
+                        }
+                    </CardBody>
+                </Card>
+            </Column>
+        </Row>
+    </CardBody>
+</Card>
+
+@code {
+    private string backupText = "";
+    private string backupFileName = "";
+    private string backupSummary = "";
+    private bool canRestore => !string.IsNullOrWhiteSpace(backupText);
+
+    private async Task ExportBackupAsync()
+    {
+        var package = await BackupService.CreateBackupAsync();
+        var json = BackupService.SerializeBackup(package);
+        var fileName = $"easy-lottery-backup-v{package.BackupVersion}-{package.CreatedAtUtc:yyyyMMdd-HHmmss}.json";
+
+        await JSRuntime.InvokeVoidAsync("easyLotteryDownload.downloadText", fileName, json, "application/json;charset=utf-8");
+        await MessageService.Success("已下載版本化備份。");
+    }
+
+    private async Task OnBackupFileSelected(InputFileChangeEventArgs e)
+    {
+        try
+        {
+            var file = e.File;
+            using var stream = file.OpenReadStream(maxAllowedSize: 2 * 1024 * 1024);
+            using var reader = new StreamReader(stream, Encoding.UTF8);
+            backupText = await reader.ReadToEndAsync();
+            backupFileName = file.Name;
+            backupSummary = BuildSummary(backupText);
+            await MessageService.Success("已載入備份檔，請確認後再還原。");
+        }
+        catch (Exception ex)
+        {
+            backupText = "";
+            backupFileName = "";
+            backupSummary = "";
+            await MessageService.Error($"讀取備份檔失敗：{ex.Message}");
+        }
+    }
+
+    private async Task RestoreBackupAsync()
+    {
+        if (string.IsNullOrWhiteSpace(backupText))
+        {
+            await MessageService.Warning("請先選擇備份檔案。");
+            return;
+        }
+
+        await BackupService.RestoreAsync(backupText);
+        await MessageService.Success("已還原備份。");
+
+        backupText = "";
+        backupFileName = "";
+        backupSummary = "";
+    }
+
+    private Task ClearSelectedBackupAsync()
+    {
+        backupText = "";
+        backupFileName = "";
+        backupSummary = "";
+        return Task.CompletedTask;
+    }
+
+    private static string BuildSummary(string json)
+    {
+        if (!EasyLotteryBackupService.TryDeserializeBackupPackage(json, out var package) || package is null)
+        {
+            return "無法辨識版本化備份格式，將以相容模式嘗試還原。";
+        }
+
+        return $"版本 {package.BackupVersion}，建立於 {FormatDate(package.CreatedAtUtc)}";
+    }
+
+    private static string FormatDate(DateTime dateTime)
+    {
+        var local = dateTime.Kind == DateTimeKind.Utc ? dateTime.ToLocalTime() : dateTime;
+        return local.ToString("yyyy/MM/dd HH:mm:ss");
+    }
+}
