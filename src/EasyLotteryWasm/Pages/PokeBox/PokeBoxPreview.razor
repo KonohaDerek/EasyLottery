@@ -17,7 +17,7 @@ else
 {
     <div class="poke-preview-wrapper" style="@PreviewWrapperStyle">
         <div class="d-flex justify-content-between align-items-center mb-2">
-            <h4 class="mb-0" style="color:white;">@template.Name</h4>
+            <h4 class="mb-0" style="color:var(--el-text);">@template.Name</h4>
             <div class="d-flex gap-2">
                 @if (template.Mode == PokeMode.Random)
                 {
@@ -64,7 +64,7 @@ else
             }
         </div>
 
-        <div class="mt-2" style="color:white;">
+        <div class="mt-2" style="color:var(--el-text);">
             已戳：@RevealedCount / @template.Cells.Count
             @if (template.MaxPokeCount > 0)
             {
@@ -75,11 +75,11 @@ else
         <!-- OBS Browser Source -->
         <div class="mt-3">
             <details>
-                <summary style="color:#aaa;cursor:pointer;">📺 OBS 瀏覽器來源</summary>
-                <div class="mt-2 p-2" style="background:rgba(255,255,255,0.1);border-radius:6px;">
-                    <p style="color:#ccc;font-size:0.85rem;margin-bottom:4px;">在 OBS 加入「瀏覽器」來源，將以下網址貼入：</p>
-                    <code style="color:#ffd700;word-break:break-all;">@ObsUrl</code>
-                    <p style="color:#aaa;font-size:0.75rem;margin-top:8px;margin-bottom:0;">
+                <summary style="color:var(--el-text-muted);cursor:pointer;">📺 OBS 瀏覽器來源</summary>
+                <div class="mt-2 p-2" style="background:var(--el-surface-soft);border-radius:6px;">
+                    <p style="color:var(--el-text-muted);font-size:0.85rem;margin-bottom:4px;">在 OBS 加入「瀏覽器」來源，將以下網址貼入：</p>
+                    <code style="color:var(--el-accent);word-break:break-all;">@ObsUrl</code>
+                    <p style="color:var(--el-text-muted);font-size:0.75rem;margin-top:8px;margin-bottom:0;">
                         💡 建議寬高依格數調整（如 3×3 建議 500×550），勾選「關閉時使場景不活躍」。背景會自動透明。
                     </p>
                 </div>
@@ -93,6 +93,7 @@ else
         padding: 16px;
         border-radius: 8px;
         min-height: 400px;
+        color: var(--el-text);
     }
 
     .poke-grid {
@@ -111,15 +112,15 @@ else
         text-align: center;
         padding: 4px;
         transition: transform 0.2s, box-shadow 0.2s;
-        background: #4a4a6a;
-        color: white;
-        border: 2px solid #6a6a8a;
+        background: var(--el-surface-strong);
+        color: var(--el-text);
+        border: 2px solid var(--el-border-strong);
         user-select: none;
     }
 
     .poke-cell:hover:not(.revealed) {
         transform: scale(1.05);
-        box-shadow: 0 0 12px rgba(255,255,100,0.6);
+        box-shadow: 0 0 12px var(--el-glow);
     }
 
     .poke-cell.revealed {
@@ -176,7 +177,7 @@ else
 
     @@keyframes flash {
         0%, 100% { opacity: 1; box-shadow: none; }
-        50% { opacity: 0.5; box-shadow: 0 0 24px 8px gold; }
+        50% { opacity: 0.5; box-shadow: 0 0 24px 8px var(--el-glow); }
     }
 
     @@keyframes smoke {
@@ -208,8 +209,8 @@ else
 
     private string PreviewWrapperStyle =>
         string.IsNullOrEmpty(template?.BackgroundImageUrl)
-            ? "background:#2a2a4a;"
-            : $"background:url('{template.BackgroundImageUrl}') center/cover;";
+            ? "background:var(--el-stage-bg);"
+            : $"background:linear-gradient(135deg, rgba(0,0,0,0.2), rgba(0,0,0,0.5)), url('{template.BackgroundImageUrl}') center/cover;";
 
     private string GridStyle =>
         $"display:grid;grid-template-columns:repeat({template?.GridColumns ?? 3},1fr);gap:8px;";
@@ -229,7 +230,7 @@ else
         if (cell.IsRevealed)
         {
             var bg = string.IsNullOrEmpty(cell.RevealedColor) ? "#cccccc" : cell.RevealedColor;
-            return $"background:{bg};color:#333;border-color:{bg};";
+            return $"background:{bg};color:var(--el-accent-contrast);border-color:{bg};";
         }
         return "";
     }

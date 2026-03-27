@@ -1,5 +1,6 @@
 ﻿@using System.Web
 @inject NavigationManager NavigationManager
+@inject EasyLotteryWasm.Services.VisualStyleService VisualStyleService
 
 <Router AppAssembly="@typeof(App).Assembly">
     <Found Context="routeData">
@@ -15,13 +16,14 @@
 </Router>
 
 @code {
-    protected override void OnAfterRender(bool firstRender)
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender)
         {
             return;
         }
 
+        await VisualStyleService.InitializeAsync();
         TryForwardYoutubeOAuthCallback();
     }
 

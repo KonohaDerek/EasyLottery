@@ -1,0 +1,93 @@
+@page "/system/visual-styles"
+@using EasyLotteryWasm.Models
+
+@inject EasyLotteryWasm.Services.VisualStyleService VisualStyleService
+@inject IMessageService MessageService
+
+<PageTitle>視覺風格</PageTitle>
+
+<Card class="theme-page-hero mb-4">
+    <CardBody>
+        <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3">
+            <div>
+                <div class="theme-page-eyebrow">VISUAL STYLE TEMPLATES</div>
+                <h2 class="mb-2">選擇你想要的直播風格</h2>
+                <p class="mb-0 theme-page-description">
+                    這些模板會同步影響首頁、戳戳樂、轉盤與 OBS 頁面，讓整個系統看起來更像一個有舞台感的遊戲直播工具。
+                </p>
+            </div>
+            <Badge Color="Color.Info" class="align-self-start align-self-lg-center">
+                目前使用：@activePreset?.Name
+            </Badge>
+        </div>
+    </CardBody>
+</Card>
+
+@if (isLoading)
+{
+    <p>載入中…</p>
+}
+else
+{
+    <div class="row g-4">
+        @foreach (var preset in presets)
+        {
+            <div class="col-12 col-lg-4">
+                <Card class="visual-style-card @(preset.Key == activeThemeKey ? "is-active" : "") h-100">
+                    <div class="visual-style-preview visual-style-preview-@preset.Key">
+                        <div class="visual-style-preview-badge">@string.Join(" · ", preset.Tags)</div>
+                        <div class="visual-style-preview-title">@preset.Name</div>
+                        <div class="visual-style-preview-subtitle">@preset.Tagline</div>
+                    </div>
+                    <CardBody class="d-flex flex-column">
+                        <CardTitle>
+                            <div class="d-flex justify-content-between align-items-center gap-2">
+                                <h4 class="mb-0">@preset.Name</h4>
+                                @if (preset.Key == activeThemeKey)
+                                {
+                                    <Badge Color="Color.Success">已啟用</Badge>
+                                }
+                            </div>
+                        </CardTitle>
+                        <CardText class="flex-grow-1">
+                            <p>@preset.Description</p>
+                            <div class="d-flex flex-wrap gap-2 mb-3">
+                                @foreach (var tag in preset.Tags)
+                                {
+                                    <span class="theme-tag">@tag</span>
+                                }
+                            </div>
+                        </CardText>
+                        <Button Color="@(preset.Key == activeThemeKey ? Color.Secondary : Color.Primary)"
+                                Clicked="@(() => ApplyPresetAsync(preset.Key))"
+                                Disabled="@(preset.Key == activeThemeKey)">
+                            @(preset.Key == activeThemeKey ? "目前使用" : "套用模板")
+                        </Button>
+                    </CardBody>
+                </Card>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private IReadOnlyList<VisualStylePreset> presets = Array.Empty<VisualStylePreset>();
+    private string activeThemeKey = VisualStyleCatalog.DefaultThemeKey;
+    private VisualStylePreset? activePreset;
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        presets = VisualStyleService.Presets;
+        activeThemeKey = await VisualStyleService.GetActiveThemeKeyAsync();
+        activePreset = VisualStyleService.GetPreset(activeThemeKey);
+        isLoading = false;
+    }
+
+    private async Task ApplyPresetAsync(string themeKey)
+    {
+        activePreset = await VisualStyleService.SetActiveThemeAsync(themeKey);
+        activeThemeKey = activePreset.Key;
+        await MessageService.Success($"已切換為「{activePreset.Name}」。");
+    }
+}
