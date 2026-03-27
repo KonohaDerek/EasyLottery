@@ -16,6 +16,10 @@ public partial class Home
 
         public string? Level { get; set; }
 
+        public string? Group { get; set; }
+
+        public string? Tags { get; set; }
+
         public bool IsWinner { get; set; }
     }
 
@@ -245,6 +249,7 @@ public partial class Home
 
             Participants = importedParticipants;
             Winners.Clear();
+            UpdateParticipantGroupFilter();
             EnsureLevelRatesForLevels(importedParticipants.Select(participant => participant.Level));
             await PersistLevelRatesAsync();
             await MessageService.Success($"已匯入 {Participants.Count} 筆參加者資料。");
@@ -356,8 +361,9 @@ public partial class Home
             EnsureLevelRatesForLevels(YTMembers.Select(member => member.Level));
 
             Participants = YTMembers.SelectMany(x => Enumerable.Repeat(
-                new Participant { Name = x.Name, Level = x.Level, IsWinner = false },
+                new Participant { Name = x.Name, Level = x.Level, Group = "YT會員", Tags = new List<string>(), IsWinner = false },
                 levelRate.TryGetValue(x.Level, out var rate) ? rate : 1)).ToList();
+            UpdateParticipantGroupFilter();
         }
 
         await PersistLevelRatesAsync();
@@ -389,7 +395,8 @@ public partial class Home
 
     private static List<Participant> ParseParticipantsJson(string content)
     {
-        return JsonSerializer.Deserialize<List<Participant>>(content) ?? new List<Participant>();
+        var participants = JsonSerializer.Deserialize<List<Participant>>(content) ?? new List<Participant>();
+        return participants.Select(NormalizeParticipant).ToList();
     }
 
     private static List<string> ParsePrizesJson(string content)
@@ -408,8 +415,11 @@ public partial class Home
             {
                 Name = row.Name?.Trim() ?? "",
                 Level = row.Level?.Trim() ?? "",
+                Group = row.Group?.Trim() ?? "",
+                Tags = ParseTags(row.Tags),
                 IsWinner = row.IsWinner
             })
+            .Select(NormalizeParticipant)
             .ToList();
     }
 
@@ -426,12 +436,15 @@ public partial class Home
 
     private static string BuildParticipantsCsv(IEnumerable<Participant> participants)
     {
-        var lines = new List<string> { "Name,Level,IsWinner" };
+        var lines = new List<string> { "Name,Level,Group,Tags,IsWinner" };
         foreach (var participant in participants)
         {
+            var tags = string.Join("|", participant.Tags ?? []);
             lines.Add(string.Join(",",
                 EscapeCsv(participant.Name),
                 EscapeCsv(participant.Level),
+                EscapeCsv(participant.Group),
+                EscapeCsv(tags),
                 participant.IsWinner ? "true" : "false"));
         }
 
