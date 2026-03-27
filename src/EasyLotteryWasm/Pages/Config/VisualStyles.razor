@@ -33,7 +33,7 @@ else
         @foreach (var preset in presets)
         {
             <div class="col-12 col-lg-4">
-                <Card class="visual-style-card @(preset.Key == activeThemeKey ? "is-active" : "") h-100">
+                <Card class="@GetCardClass(preset)">
                     <div class="visual-style-preview visual-style-preview-@preset.Key">
                         <div class="visual-style-preview-badge">@string.Join(" · ", preset.Tags)</div>
                         <div class="visual-style-preview-title">@preset.Name</div>
@@ -89,5 +89,16 @@ else
         activePreset = await VisualStyleService.SetActiveThemeAsync(themeKey);
         activeThemeKey = activePreset.Key;
         await MessageService.Success($"已切換為「{activePreset.Name}」。");
+    }
+
+    private string GetCardClass(VisualStylePreset preset)
+    {
+        var classes = new List<string> { "visual-style-card", "h-100" };
+        if (preset.Key == activeThemeKey)
+        {
+            classes.Add("is-active");
+        }
+
+        return string.Join(" ", classes);
     }
 }

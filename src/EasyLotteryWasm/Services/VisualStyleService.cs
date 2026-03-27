@@ -1,4 +1,5 @@
 using EasyLotteryDomain.Models.Config;
+using EasyLotteryDomain.Services;
 using Microsoft.JSInterop;
 using EasyLotteryWasm.Models;
 
