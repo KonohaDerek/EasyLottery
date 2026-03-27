@@ -1,0 +1,488 @@
+@page "/system/overtime"
+@using EasyLotteryDomain.Models.Config
+@using EasyLotteryDomain.Models.Overtime
+@using EasyLotteryWasm.Models
+@inject IEasyLotteryConfigStore ConfigStore
+@inject IMessageService MessageService
+@inject IConfiguration Configuration
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+@inject OvertimeFeedClient OvertimeFeedClient
+
+<PageTitle>加班台</PageTitle>
+
+@if (isLoading)
+{
+    <Card>
+        <CardBody>
+            <div class="text-muted">加班台設定載入中…</div>
+        </CardBody>
+    </Card>
+}
+else
+{
+    <Card class="overtime-settings-shell">
+        <CardBody>
+            <div class="overtime-page-header">
+                <div>
+                    <div class="overtime-eyebrow">LIVE SUPPORT OVERLAY</div>
+                    <h2 class="overtime-title">加班台設定</h2>
+                    <div class="overtime-subtitle">設定直播加班台樣式、啟用狀態與事件來源。</div>
+                </div>
+                <div class="overtime-actions">
+                    <Button Color="Color.Secondary" Clicked="@CopyOverlayUrlAsync">複製 OBS 網址</Button>
+                    <Button Color="Color.Secondary" Clicked="@CopySuperChatWebhookAsync">複製 SuperChat API</Button>
+                    <Button Color="Color.Secondary" Clicked="@CopyEcpayWebhookAsync">複製綠界 API</Button>
+                </div>
+            </div>
+
+            <Row>
+                <Column ColumnSize="ColumnSize.Is7">
+                    <Card class="overtime-config-card">
+                        <CardBody>
+                            <Row>
+                                <Column ColumnSize="ColumnSize.Is6">
+                                    <Field>
+                                        <FieldLabel>啟用加班台</FieldLabel>
+                                        <Switch TValue="bool" @bind-Value="@settings.IsEnabled">
+                                            @(settings.IsEnabled ? "已啟用" : "已停用")
+                                        </Switch>
+                                    </Field>
+                                </Column>
+                                <Column ColumnSize="ColumnSize.Is6">
+                                    <Field>
+                                        <FieldLabel>最大顯示筆數</FieldLabel>
+                                        <NumericInput TValue="int" @bind-Value="@settings.MaxVisibleItems" Min="1" Max="30" />
+                                    </Field>
+                                </Column>
+                            </Row>
+
+                            <Field>
+                                <FieldLabel>標題</FieldLabel>
+                                <TextInput @bind-Value="@settings.Title" Placeholder="例如：加班台" />
+                            </Field>
+
+                            <Field>
+                                <FieldLabel>副標題</FieldLabel>
+                                <TextInput @bind-Value="@settings.Subtitle" Placeholder="例如：SuperChat / 綠界贊助" />
+                            </Field>
+
+                            <Row>
+                                <Column ColumnSize="ColumnSize.Is6">
+                                    <Field>
+                                        <FieldLabel>顯示金額</FieldLabel>
+                                        <Switch TValue="bool" @bind-Value="@settings.ShowAmounts">
+                                            @(settings.ShowAmounts ? "顯示" : "隱藏")
+                                        </Switch>
+                                    </Field>
+                                </Column>
+                                <Column ColumnSize="ColumnSize.Is6">
+                                    <Field>
+                                        <FieldLabel>顯示頭像</FieldLabel>
+                                        <Switch TValue="bool" @bind-Value="@settings.ShowAvatars">
+                                            @(settings.ShowAvatars ? "顯示" : "隱藏")
+                                        </Switch>
+                                    </Field>
+                                </Column>
+                            </Row>
+
+                            <Field>
+                                <FieldLabel>目前選用風格</FieldLabel>
+                                <Select TValue="string" @bind-SelectedValue="@selectedThemeKey">
+                                    @foreach (var preset in presets)
+                                    {
+                                        <SelectItem Value="@preset.Key">@preset.Name</SelectItem>
+                                    }
+                                </Select>
+                            </Field>
+
+                            <div class="d-flex gap-2 flex-wrap mt-4">
+                                <Button Color="Color.Primary" Clicked="@SaveAsync">儲存設定</Button>
+                                <Button Color="Color.Success" Clicked="@SendDemoSuperChatAsync">送出示範 SuperChat</Button>
+                                <Button Color="Color.Warning" Clicked="@SendDemoEcpayAsync">送出示範綠界 Donate</Button>
+                                <Button Color="Color.Danger" Clicked="@ClearFeedAsync">清除加班台訊息</Button>
+                            </div>
+                        </CardBody>
+                    </Card>
+                </Column>
+
+                <Column ColumnSize="ColumnSize.Is5">
+                    <Card class="overtime-preview-card" style="@CurrentTheme.BuildPreviewStyle()">
+                        <CardBody>
+                            <div class="overtime-preview-eyebrow">PREVIEW</div>
+                            <div class="overtime-preview-title">@settings.Title</div>
+                            <div class="overtime-preview-subtitle">@settings.Subtitle</div>
+                            <div class="overtime-preview-badges">
+                                <span class="overtime-preview-badge">@CurrentTheme.Emoji @CurrentTheme.Name</span>
+                                <span class="overtime-preview-badge">最大 @settings.MaxVisibleItems 筆</span>
+                            </div>
+                            <div class="overtime-preview-sample">
+                                <div class="overtime-preview-sample-header">
+                                    <span class="sample-avatar">VT</span>
+                                    <div>
+                                        <div class="sample-name">示範觀眾</div>
+                                        <div class="sample-source">YouTube SuperChat</div>
+                                    </div>
+                                </div>
+                                <div class="sample-message">祝直播順利，這裡是示範訊息。</div>
+                                <div class="sample-amount">NT$ 300</div>
+                            </div>
+                        </CardBody>
+                    </Card>
+                </Column>
+            </Row>
+
+            <div class="mt-4">
+                <h5 class="mb-3">風格模板</h5>
+                <Row>
+                    @foreach (var preset in presets)
+                    {
+                        <Column ColumnSize="ColumnSize.Is4">
+                            <Card class="@ThemeCardClass(preset.Key)"
+                                  style="@preset.BuildPreviewStyle()"
+                                  @onclick="@(() => SelectTheme(preset.Key))">
+                                <CardBody>
+                                    <div class="theme-card-header">
+                                        <div class="theme-card-emoji">@preset.Emoji</div>
+                                        <div class="theme-card-title">@preset.Name</div>
+                                    </div>
+                                    <div class="theme-card-desc">@preset.Description</div>
+                                    <div class="theme-card-key">@preset.Key</div>
+                                </CardBody>
+                            </Card>
+                        </Column>
+                    }
+                </Row>
+            </div>
+
+            <div class="mt-4">
+                <h5 class="mb-3">介面連結</h5>
+                <Table FullWidth Striped Hoverable Bordered Responsive>
+                    <TableBody>
+                        <TableRow>
+                            <TableRowCell>OBS 來源網址</TableRowCell>
+                            <TableRowCell class="text-break">@OverlayUrl</TableRowCell>
+                            <TableRowCell>
+                                <Button Size="Size.Small" Color="Color.Secondary" Clicked="@CopyOverlayUrlAsync">複製</Button>
+                            </TableRowCell>
+                        </TableRow>
+                        <TableRow>
+                            <TableRowCell>SuperChat API</TableRowCell>
+                            <TableRowCell class="text-break">@SuperChatWebhookUrl</TableRowCell>
+                            <TableRowCell>
+                                <Button Size="Size.Small" Color="Color.Secondary" Clicked="@CopySuperChatWebhookAsync">複製</Button>
+                            </TableRowCell>
+                        </TableRow>
+                        <TableRow>
+                            <TableRowCell>綠界 Donate API</TableRowCell>
+                            <TableRowCell class="text-break">@EcpayWebhookUrl</TableRowCell>
+                            <TableRowCell>
+                                <Button Size="Size.Small" Color="Color.Secondary" Clicked="@CopyEcpayWebhookAsync">複製</Button>
+                            </TableRowCell>
+                        </TableRow>
+                    </TableBody>
+                </Table>
+            </div>
+        </CardBody>
+    </Card>
+}
+
+<style>
+    .overtime-settings-shell {
+        background: linear-gradient(180deg, rgba(7, 10, 24, 0.98), rgba(16, 20, 43, 0.96));
+        color: #ecf2ff;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .overtime-page-header {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        flex-wrap: wrap;
+        margin-bottom: 20px;
+    }
+
+    .overtime-eyebrow,
+    .overtime-preview-eyebrow {
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.2em;
+        opacity: 0.72;
+        text-transform: uppercase;
+    }
+
+    .overtime-title {
+        margin: 4px 0 6px;
+        font-size: 2rem;
+        font-weight: 900;
+    }
+
+    .overtime-subtitle {
+        color: rgba(236, 242, 255, 0.78);
+    }
+
+    .overtime-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        align-items: flex-start;
+        justify-content: flex-end;
+    }
+
+    .overtime-config-card,
+    .overtime-preview-card,
+    .theme-card {
+        border-radius: 20px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        box-shadow: 0 24px 60px rgba(0, 0, 0, 0.18);
+    }
+
+    .overtime-preview-card {
+        min-height: 100%;
+        color: white;
+        overflow: hidden;
+    }
+
+    .overtime-preview-title {
+        margin-top: 8px;
+        font-size: 1.6rem;
+        font-weight: 900;
+    }
+
+    .overtime-preview-subtitle {
+        margin-top: 4px;
+        opacity: 0.84;
+    }
+
+    .overtime-preview-badges {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-top: 14px;
+    }
+
+    .overtime-preview-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 6px 10px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.14);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        font-size: 0.85rem;
+        font-weight: 700;
+    }
+
+    .overtime-preview-sample {
+        margin-top: 18px;
+        padding: 16px;
+        border-radius: 18px;
+        background: rgba(8, 12, 24, 0.26);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        backdrop-filter: blur(12px);
+    }
+
+    .overtime-preview-sample-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .sample-avatar {
+        width: 42px;
+        height: 42px;
+        border-radius: 14px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 900;
+        background: rgba(255, 255, 255, 0.2);
+    }
+
+    .sample-name {
+        font-weight: 800;
+    }
+
+    .sample-source {
+        opacity: 0.8;
+        font-size: 0.86rem;
+    }
+
+    .sample-message {
+        margin-top: 14px;
+        line-height: 1.6;
+    }
+
+    .sample-amount {
+        margin-top: 12px;
+        font-size: 1.35rem;
+        font-weight: 900;
+        color: var(--overtime-accent, #ffd166);
+    }
+
+    .theme-card {
+        cursor: pointer;
+        color: white;
+        overflow: hidden;
+        transition: transform 0.18s ease, box-shadow 0.18s ease;
+        min-height: 172px;
+    }
+
+    .theme-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 28px 60px rgba(0, 0, 0, 0.24);
+    }
+
+    .theme-card.selected {
+        outline: 3px solid var(--overtime-accent, #ffd166);
+        transform: translateY(-2px);
+    }
+
+    .theme-card-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 10px;
+    }
+
+    .theme-card-emoji {
+        width: 42px;
+        height: 42px;
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.18);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.25rem;
+    }
+
+    .theme-card-title {
+        font-size: 1.08rem;
+        font-weight: 900;
+    }
+
+    .theme-card-desc {
+        line-height: 1.55;
+        opacity: 0.9;
+    }
+
+    .theme-card-key {
+        margin-top: 12px;
+        font-size: 0.82rem;
+        opacity: 0.74;
+        word-break: break-all;
+    }
+</style>
+
+@code {
+    private bool isLoading = true;
+    private EasyLotteryConfigDocument document = new();
+    private OvertimeOverlaySettings settings = new();
+    private IReadOnlyList<OvertimeThemePreset> presets = OvertimeThemePreset.Catalog;
+    private string selectedThemeKey = OvertimeThemePreset.Catalog[0].Key;
+    private string OverlayUrl => NavigationManager.ToAbsoluteUri("/obs/overtime").ToString();
+
+    private string ApiBaseUrl => Configuration["Api:BaseUrl"] ?? "http://localhost:5297/";
+
+    private string SuperChatWebhookUrl => new Uri(new Uri(ApiBaseUrl, UriKind.Absolute), "api/overtime/superchat").ToString();
+
+    private string EcpayWebhookUrl => new Uri(new Uri(ApiBaseUrl, UriKind.Absolute), "api/overtime/ecpay").ToString();
+
+    private OvertimeThemePreset CurrentTheme => OvertimeThemePreset.GetByKey(selectedThemeKey);
+
+    protected override async Task OnInitializedAsync()
+    {
+        document = await ConfigStore.LoadAsync();
+        settings = document.OvertimeOverlay ?? new OvertimeOverlaySettings();
+        selectedThemeKey = string.IsNullOrWhiteSpace(settings.ThemeKey) ? OvertimeThemePreset.Catalog[0].Key : settings.ThemeKey;
+        isLoading = false;
+    }
+
+    private void SelectTheme(string key)
+    {
+        selectedThemeKey = key;
+        settings.ThemeKey = key;
+    }
+
+    private async Task SaveAsync()
+    {
+        document.OvertimeOverlay = settings;
+        document.OvertimeOverlay.ThemeKey = selectedThemeKey;
+        await ConfigStore.SaveAsync(document);
+        await MessageService.Success("已儲存加班台設定。");
+    }
+
+    private async Task CopyOverlayUrlAsync()
+    {
+        await JSRuntime.InvokeVoidAsync("easyLotteryClipboard.copyText", OverlayUrl);
+        await MessageService.Success("已複製 OBS 網址。");
+    }
+
+    private async Task CopySuperChatWebhookAsync()
+    {
+        await JSRuntime.InvokeVoidAsync("easyLotteryClipboard.copyText", SuperChatWebhookUrl);
+        await MessageService.Success("已複製 SuperChat API。");
+    }
+
+    private async Task CopyEcpayWebhookAsync()
+    {
+        await JSRuntime.InvokeVoidAsync("easyLotteryClipboard.copyText", EcpayWebhookUrl);
+        await MessageService.Success("已複製綠界 API。");
+    }
+
+    private async Task SendDemoSuperChatAsync()
+    {
+        var entry = await OvertimeFeedClient.PostSuperChatAsync(new OvertimeSupportEvent
+        {
+            Source = OvertimeSupportSource.SuperChat,
+            SourceLabel = "YouTube SuperChat",
+            DisplayName = "示範觀眾",
+            Message = "祝直播順利，這是示範 SuperChat。",
+            Amount = 300m,
+            AmountDisplay = "NT$300",
+            Currency = "TWD",
+            AvatarUrl = "https://placehold.co/96x96/png",
+            Color = "#ff7ab6",
+            ExternalId = Guid.NewGuid().ToString("N")
+        });
+
+        if (entry != null)
+        {
+            await MessageService.Success("已送出示範 SuperChat。");
+        }
+    }
+
+    private async Task SendDemoEcpayAsync()
+    {
+        var entry = await OvertimeFeedClient.PostEcpayDonateAsync(new OvertimeSupportEvent
+        {
+            Source = OvertimeSupportSource.EcpayDonate,
+            SourceLabel = "ECPay Donate",
+            DisplayName = "示範贊助者",
+            Message = "綠界示範贊助。",
+            Amount = 500m,
+            AmountDisplay = "NT$500",
+            Currency = "TWD",
+            AvatarUrl = "https://placehold.co/96x96/png?text=EC",
+            Color = "#ffd166",
+            ExternalId = Guid.NewGuid().ToString("N")
+        });
+
+        if (entry != null)
+        {
+            await MessageService.Success("已送出示範綠界 Donate。");
+        }
+    }
+
+    private async Task ClearFeedAsync()
+    {
+        await OvertimeFeedClient.ClearAsync();
+        await MessageService.Success("已清除加班台訊息。");
+    }
+
+    private string ThemeCardClass(string key)
+    {
+        return string.Equals(selectedThemeKey, key, StringComparison.OrdinalIgnoreCase)
+            ? "theme-card selected"
+            : "theme-card";
+    }
+}

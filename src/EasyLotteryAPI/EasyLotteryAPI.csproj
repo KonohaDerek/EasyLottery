@@ -8,6 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\EasyLotteryDomain\EasyLotteryDomain.csproj" />
     <PackageReference Include="Google.Apis.Youtube.v3" Version="1.73.0.4099" />
   </ItemGroup>
 

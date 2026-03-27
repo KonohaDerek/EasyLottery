@@ -1,5 +1,6 @@
 ﻿@page "/"
 @using EasyLotteryDomain.Models.Youtube
+@using EasyLotteryDomain.Models.Overtime
 @using EasyLotteryWasm.Models
 @using Google.Apis.YouTube.v3
 @using System.Web
@@ -16,6 +17,7 @@
 @inject IMessageService MessageService
 @inject IJSRuntime JSRuntime
 @inject YouTubeServiceHelper youTubeServiceHelper
+@inject OvertimeFeedClient OvertimeFeedClient
 @inject IEasyLotteryConfigStore ConfigStore
 @inject ILogger<YouTubeServiceHelper> Logger
 @implements IDisposable
@@ -734,6 +736,48 @@
         lastAcceptedMessageTimes.Clear();
     }
 
+    private async Task PublishSupportEventAsync(Google.Apis.YouTube.v3.Data.LiveChatMessage message, string authorName, string displayMessage)
+    {
+        var snippetType = message.Snippet?.Type?.ToString() ?? "";
+        if (!snippetType.Contains("SuperChatEvent", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        var superChatDetails = message.Snippet?.SuperChatDetails;
+        if (superChatDetails == null)
+        {
+            return;
+        }
+
+        decimal? amount = superChatDetails.AmountMicros.HasValue
+            ? superChatDetails.AmountMicros.Value / 1_000_000m
+            : null;
+
+        var entry = new OvertimeSupportEvent
+        {
+            Source = OvertimeSupportSource.SuperChat,
+            SourceLabel = "YouTube SuperChat",
+            DisplayName = string.IsNullOrWhiteSpace(authorName) ? "YouTube 觀眾" : authorName,
+            Message = string.IsNullOrWhiteSpace(superChatDetails.UserComment) ? displayMessage : superChatDetails.UserComment,
+            Amount = amount,
+            AmountDisplay = superChatDetails.AmountDisplayString ?? "",
+            Currency = string.IsNullOrWhiteSpace(superChatDetails.Currency) ? "TWD" : superChatDetails.Currency,
+            AvatarUrl = message.AuthorDetails?.ProfileImageUrl ?? "",
+            Color = "#ff7ab6",
+            ExternalId = message.Id
+        };
+
+        try
+        {
+            await OvertimeFeedClient.PostSuperChatAsync(entry);
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "Failed to publish overtime support event for SuperChat");
+        }
+    }
+
     // 每次 Timer 觸發時顯示訊息
     private void OnTimerTick(object? source, ElapsedEventArgs e)
     {
@@ -782,6 +826,8 @@
                 {
                     Participants.Add(new Participant { Name = authorName, Level = "", IsWinner = false });
                 }
+
+                await PublishSupportEventAsync(message, authorName, displayMessage);
             }
 
             chatRoomCatch.LastMessageTime = latestSeenTime;
