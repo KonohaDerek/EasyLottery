@@ -6,8 +6,6 @@
 @using EasyLotteryWasm.Models
 @inject IEasyLotteryConfigStore ConfigStore
 @inject OvertimeFeedClient OvertimeFeedClient
-@inject NavigationManager NavigationManager
-@inject IJSRuntime JSRuntime
 
 <PageTitle>加班台 - OBS</PageTitle>
 
@@ -21,31 +19,11 @@ else
 {
     <div class="overtime-overlay" style="@ThemeStyle">
         <div class="overtime-shell">
-            <div class="overtime-topbar">
-                <div>
-                    <div class="overtime-eyebrow">SUPPORT OVERLAY</div>
-                    <div class="overtime-title">@settings.Title</div>
-                    <div class="overtime-subtitle">@settings.Subtitle</div>
-                </div>
-                <div class="overtime-topbar-actions">
-                    <button class="overtime-secondary-btn" @onclick="@CopyOverlayUrlAsync">複製來源網址</button>
-                    <button class="overtime-secondary-btn" @onclick="@ReloadAsync">重新載入</button>
-                </div>
-            </div>
-
-            <div class="overtime-status-panel">
-                <span class="overtime-status-pill">風格：@CurrentTheme.Name</span>
-                <span class="overtime-status-pill">最大顯示：@settings.MaxVisibleItems 筆</span>
-                <span class="overtime-status-pill">金額：@(settings.ShowAmounts ? "顯示" : "隱藏")</span>
-                <span class="overtime-status-pill">頭像：@(settings.ShowAvatars ? "顯示" : "隱藏")</span>
-                <span class="overtime-status-pill">來源：@OverlayUrl</span>
-            </div>
-
             @if (!settings.IsEnabled)
             {
                 <div class="overtime-disabled-panel">
                     <div class="overtime-disabled-title">加班台尚未啟用</div>
-                    <div class="overtime-disabled-subtitle">請到「系統配置 / 加班台」開啟後，這個畫面才會開始顯示 SuperChat 與綠界 Donate。</div>
+                    <div class="overtime-disabled-subtitle">請到「活動配置 / 加班台」開啟後，這個畫面才會開始顯示 SuperChat 與綠界 Donate。</div>
                 </div>
             }
             else if (!events.Any())
@@ -158,81 +136,6 @@ else
         z-index: 1;
     }
 
-    .overtime-topbar {
-        display: flex;
-        justify-content: space-between;
-        gap: 16px;
-        flex-wrap: wrap;
-        padding: 18px 20px;
-        border-radius: 24px;
-        background: color-mix(in srgb, var(--overtime-surface) 88%, transparent);
-        border: 1px solid var(--overtime-surface-border);
-    }
-
-    .overtime-eyebrow {
-        font-size: 0.72rem;
-        font-weight: 800;
-        letter-spacing: 0.24em;
-        opacity: 0.7;
-        text-transform: uppercase;
-    }
-
-    .overtime-title {
-        margin-top: 4px;
-        font-size: 2.1rem;
-        font-weight: 900;
-        line-height: 1.1;
-    }
-
-    .overtime-subtitle {
-        margin-top: 4px;
-        font-size: 0.98rem;
-        opacity: 0.86;
-    }
-
-    .overtime-topbar-actions {
-        display: flex;
-        gap: 8px;
-        flex-wrap: wrap;
-        align-items: flex-start;
-        justify-content: flex-end;
-    }
-
-    .overtime-secondary-btn {
-        appearance: none;
-        border: 1px solid rgba(255, 255, 255, 0.18);
-        background: rgba(255, 255, 255, 0.12);
-        color: white;
-        border-radius: 12px;
-        padding: 10px 14px;
-        font-weight: 800;
-        cursor: pointer;
-        transition: transform 0.18s ease, background 0.18s ease;
-    }
-
-    .overtime-secondary-btn:hover {
-        transform: translateY(-1px);
-        background: rgba(255, 255, 255, 0.18);
-    }
-
-    .overtime-status-panel {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-    }
-
-    .overtime-status-pill {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        padding: 7px 12px;
-        border-radius: 999px;
-        background: rgba(255, 255, 255, 0.12);
-        border: 1px solid rgba(255, 255, 255, 0.14);
-        font-size: 0.84rem;
-        font-weight: 800;
-    }
-
     .overtime-feed {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -254,6 +157,30 @@ else
         display: flex;
         gap: 14px;
         align-items: flex-start;
+        animation: overtime-card-pop 0.45s ease-out;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .overtime-card::before {
+        content: "";
+        position: absolute;
+        inset: 0 auto 0 0;
+        width: 6px;
+        border-radius: 24px 0 0 24px;
+        background: linear-gradient(180deg, var(--overtime-accent), var(--overtime-accent-soft));
+        opacity: 0.9;
+    }
+
+    .overtime-card::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+            linear-gradient(120deg, rgba(255, 255, 255, 0.06), transparent 26%),
+            radial-gradient(circle at 100% 0%, rgba(255, 255, 255, 0.08), transparent 28%);
+        pointer-events: none;
+        opacity: 0.6;
     }
 
     .overtime-avatar {
@@ -278,6 +205,8 @@ else
     .overtime-card-main {
         flex: 1;
         min-width: 0;
+        position: relative;
+        z-index: 1;
     }
 
     .overtime-card-head {
@@ -288,14 +217,17 @@ else
     }
 
     .overtime-card-name {
-        font-size: 1.06rem;
+        font-size: 1.08rem;
         font-weight: 900;
+        letter-spacing: 0.01em;
     }
 
     .overtime-card-source {
         margin-top: 2px;
         font-size: 0.82rem;
         opacity: 0.78;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
     }
 
     .overtime-card-time {
@@ -329,6 +261,7 @@ else
         font-weight: 800;
         background: rgba(255, 255, 255, 0.12);
         border: 1px solid rgba(255, 255, 255, 0.12);
+        backdrop-filter: blur(8px);
     }
 
     .overtime-card-amount {
@@ -337,6 +270,11 @@ else
 
     .overtime-card-amount.muted {
         color: rgba(255, 255, 255, 0.72);
+    }
+
+    .overtime-card:hover {
+        transform: translateY(-3px) scale(1.005);
+        transition: transform 0.18s ease;
     }
 
     .overtime-state {
@@ -354,6 +292,11 @@ else
     .overtime-state-title {
         font-size: 1.2rem;
         font-weight: 700;
+    }
+
+    @@keyframes overtime-card-pop {
+        0% { transform: translateY(8px); opacity: 0; }
+        100% { transform: translateY(0); opacity: 1; }
     }
 
     .overtime-disabled-panel,
@@ -390,11 +333,9 @@ else
     private bool isLoading = true;
     private System.Timers.Timer? refreshTimer;
     private bool isRefreshing;
-    private EasyLotteryConfigDocument document = new();
     private OvertimeOverlaySettings settings = new();
     private IReadOnlyList<OvertimeSupportEvent> events = [];
     private OvertimeThemePreset CurrentTheme => OvertimeThemePreset.GetByKey(settings.ThemeKey);
-    private string OverlayUrl => NavigationManager.ToAbsoluteUri("/obs/overtime").ToString();
     private string ThemeStyle => CurrentTheme.BuildCssVariables();
 
     protected override async Task OnInitializedAsync()
@@ -432,7 +373,7 @@ else
     private async Task ReloadAsync()
     {
         isLoading = true;
-        document = await ConfigStore.LoadAsync();
+        var document = await ConfigStore.LoadAsync();
         settings = document.OvertimeOverlay ?? new OvertimeOverlaySettings();
         settings.ThemeKey = string.IsNullOrWhiteSpace(settings.ThemeKey) ? OvertimeThemePreset.Catalog[0].Key : settings.ThemeKey;
         await ReloadEventsAsync();
@@ -449,11 +390,6 @@ else
         {
             events = [];
         }
-    }
-
-    private async Task CopyOverlayUrlAsync()
-    {
-        await JSRuntime.InvokeVoidAsync("easyLotteryClipboard.copyText", OverlayUrl);
     }
 
     private static string GetAvatarFallback(string? displayName)

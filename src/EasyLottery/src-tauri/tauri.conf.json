@@ -1,8 +1,8 @@
 {
   "build": {
-    "beforeDevCommand": "ASPNETCORE_URLS=http://0.0.0.0:22399 dotnet watch run --project ../../EasyLotteryWasm/EasyLotteryWasm.csproj --non-interactive",
+    "beforeDevCommand": "ASPNETCORE_URLS=http://0.0.0.0:18930 dotnet watch run --project ../../EasyLotteryWasm/EasyLotteryWasm.csproj --non-interactive",
     "beforeBuildCommand": "dotnet publish --self-contained -c release ../../EasyLotteryWasm/EasyLotteryWasm.csproj -o ../dist",
-    "devPath": "http://localhost:22399/",
+    "devPath": "http://localhost:18930/",
     "distDir": "../dist/wwwroot",
     "withGlobalTauri": true
   },
