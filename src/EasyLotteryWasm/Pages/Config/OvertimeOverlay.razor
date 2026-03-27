@@ -138,7 +138,7 @@ else
                     @foreach (var preset in presets)
                     {
                         <Column ColumnSize="ColumnSize.Is4">
-                            <Card class="theme-card @(string.Equals(selectedThemeKey, preset.Key, StringComparison.OrdinalIgnoreCase) ? "selected" : "")"
+                            <Card class="@ThemeCardClass(preset.Key)"
                                   style="@preset.BuildPreviewStyle()"
                                   @onclick="@(() => SelectTheme(preset.Key))">
                                 <CardBody>
@@ -477,5 +477,12 @@ else
     {
         await OvertimeFeedClient.ClearAsync();
         await MessageService.Success("已清除加班台訊息。");
+    }
+
+    private string ThemeCardClass(string key)
+    {
+        return string.Equals(selectedThemeKey, key, StringComparison.OrdinalIgnoreCase)
+            ? "theme-card selected"
+            : "theme-card";
     }
 }
