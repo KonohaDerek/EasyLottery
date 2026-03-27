@@ -17,6 +17,8 @@ namespace EasyLotteryDomain.Models.Config
         public List<ActivityResultRecord> ActivityResults { get; set; } = new();
 
         public List<DrawingRulePreset> DrawingRulePresets { get; set; } = new();
+
+        public DrawingRuleSettings DrawingRules { get; set; } = new();
     }
 
     public sealed class LotterySystemSettings
@@ -48,5 +50,10 @@ namespace EasyLotteryDomain.Models.Config
         public int NextRouletteSegmentId { get; set; } = 1;
 
         public int NextActivityResultId { get; set; } = 1;
+    }
+
+    public sealed class DrawingRuleSettings
+    {
+        public Dictionary<string, int> LevelRates { get; set; } = new(StringComparer.OrdinalIgnoreCase);
     }
 }
