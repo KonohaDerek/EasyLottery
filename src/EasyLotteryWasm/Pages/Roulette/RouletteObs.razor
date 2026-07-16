@@ -5,6 +5,7 @@
 @using EasyLotteryWasm.Layout
 
 @inject ActivityResultService ActivityResultService
+@inject ResultNotificationService ResultNotificationService
 @inject RouletteService RouletteService
 
 <PageTitle>轉盤 - OBS</PageTitle>
@@ -470,6 +471,7 @@ else
         {
             var record = await ActivityResultService.RecordRouletteActivityAsync(template.Id, lastResult);
             lastRecordedSignature = BuildRecordSignature();
+            await ResultNotificationService.NotifyActivityResultAsync(record);
             SetStatus($"已記錄活動「{record.ActivityName}」結果。", false);
         }
         catch (Exception ex)

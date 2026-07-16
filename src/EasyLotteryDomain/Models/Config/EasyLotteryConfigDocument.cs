@@ -28,6 +28,14 @@ namespace EasyLotteryDomain.Models.Config
     {
         public YouTubeApiSettings YouTube { get; set; } = new();
 
+        public DonationIntegrationSettings DonationIntegration { get; set; } = new();
+
+        public MailDeliverySettings MailDelivery { get; set; } = new();
+
+        public bool EnableYouTubeSuperChat { get; set; }
+
+        public string ResultNotificationEmail { get; set; } = "";
+
         public string OpenAIKey { get; set; } = "";
 
         public AuditSettings Audit { get; set; } = new();
@@ -42,6 +50,84 @@ namespace EasyLotteryDomain.Models.Config
         public string RedirectUri { get; set; } = "";
 
         public string RefreshToken { get; set; } = "";
+
+        public bool HasConfiguration =>
+            !string.IsNullOrWhiteSpace(ApiKey) ||
+            !string.IsNullOrWhiteSpace(CredentialsBase64) ||
+            !string.IsNullOrWhiteSpace(RedirectUri) ||
+            !string.IsNullOrWhiteSpace(RefreshToken);
+    }
+
+    public sealed class DonationIntegrationSettings
+    {
+        public DonationProviderSettings Ecpay { get; set; } = new()
+        {
+            Name = "綠界"
+        };
+
+        public DonationProviderSettings NewebPay { get; set; } = new()
+        {
+            Name = "藍新"
+        };
+
+        public DonationProviderSettings OenTw { get; set; } = new()
+        {
+            Name = "oen.tw"
+        };
+
+        public DonationProviderSettings TwitchBits { get; set; } = new()
+        {
+            Name = "Twitch 小奇點"
+        };
+    }
+
+    public sealed class DonationProviderSettings
+    {
+        public string Name { get; set; } = "";
+
+        public bool IsEnabled { get; set; }
+
+        public string MerchantId { get; set; } = "";
+
+        public string ApiKey { get; set; } = "";
+
+        public string SecretKey { get; set; } = "";
+
+        public string ChannelId { get; set; } = "";
+
+        public string AccessToken { get; set; } = "";
+
+        public string CreatorId { get; set; } = "";
+
+        public bool HasConfiguration =>
+            !string.IsNullOrWhiteSpace(MerchantId) ||
+            !string.IsNullOrWhiteSpace(ApiKey) ||
+            !string.IsNullOrWhiteSpace(SecretKey) ||
+            !string.IsNullOrWhiteSpace(ChannelId) ||
+            !string.IsNullOrWhiteSpace(AccessToken) ||
+            !string.IsNullOrWhiteSpace(CreatorId);
+    }
+
+    public sealed class MailDeliverySettings
+    {
+        public string SmtpHost { get; set; } = "";
+
+        public int SmtpPort { get; set; } = 587;
+
+        public string SmtpUsername { get; set; } = "";
+
+        public string SmtpPassword { get; set; } = "";
+
+        public string FromAddress { get; set; } = "";
+
+        public string FromName { get; set; } = "EasyLottery";
+
+        public bool EnableSsl { get; set; } = true;
+
+        public bool HasConfiguration =>
+            !string.IsNullOrWhiteSpace(SmtpHost) &&
+            SmtpPort > 0 &&
+            !string.IsNullOrWhiteSpace(FromAddress);
     }
 
     public sealed class LotteryIdSequence

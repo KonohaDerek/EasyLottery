@@ -85,6 +85,32 @@
             };
         })();
     </script>
+    <script>
+        (() => {
+            if (window.easyLotteryMail) {
+                return;
+            }
+
+            function getTauriInvoker() {
+                if (window.__TAURI__ && typeof window.__TAURI__.invoke === "function") {
+                    return window.__TAURI__.invoke.bind(window.__TAURI__);
+                }
+
+                return null;
+            }
+
+            window.easyLotteryMail = {
+                send: async (request) => {
+                    const tauriInvoke = getTauriInvoker();
+                    if (!tauriInvoke) {
+                        return;
+                    }
+
+                    await tauriInvoke("send_result_notification_email", { request });
+                }
+            };
+        })();
+    </script>
     <script src="js/configStorage.js"></script>
     <script>
         window.easyLotteryDownload = {

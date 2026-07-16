@@ -45,6 +45,8 @@ namespace EasyLotteryDomain.Models.Entities
 
         public string FontFamily { get; set; } = "";
 
+        public string CongratulationMessage { get; set; } = "";
+
         public int OverlayWidth { get; set; } = 1920;
 
         public int OverlayHeight { get; set; } = 1080;

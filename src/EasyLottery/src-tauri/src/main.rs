@@ -2,6 +2,9 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use reqwest::blocking::Client;
+use lettre::{Message, SmtpTransport, Transport};
+use lettre::message::Mailbox;
+use lettre::transport::smtp::authentication::Credentials;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -29,6 +32,81 @@ fn write_config_yaml(app_handle: tauri::AppHandle, content: String) -> Result<()
     }
 
     fs::write(path, content).map_err(|error| error.to_string())
+}
+
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct EmailRequest {
+    recipient: String,
+    subject: String,
+    body: String,
+    smtp: SmtpRequest,
+}
+
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SmtpRequest {
+    host: String,
+    port: u16,
+    username: String,
+    password: String,
+    from_address: String,
+    from_name: String,
+    enable_ssl: bool,
+}
+
+#[tauri::command]
+fn send_result_notification_email(request: EmailRequest) -> Result<(), String> {
+    if request.recipient.trim().is_empty() {
+        return Ok(());
+    }
+
+    if request.smtp.host.trim().is_empty() || request.smtp.from_address.trim().is_empty() || request.smtp.port == 0 {
+        return Ok(());
+    }
+
+    let from_mailbox: Mailbox = if request.smtp.from_name.trim().is_empty() {
+        request
+            .smtp
+            .from_address
+            .parse()
+            .map_err(|error| error.to_string())?
+    } else {
+        format!("{} <{}>", request.smtp.from_name.trim(), request.smtp.from_address.trim())
+            .parse()
+            .map_err(|error| error.to_string())?
+    };
+
+    let recipient_mailbox: Mailbox = request
+        .recipient
+        .parse()
+        .map_err(|error| error.to_string())?;
+
+    let email = Message::builder()
+        .from(from_mailbox)
+        .to(recipient_mailbox)
+        .subject(request.subject)
+        .body(request.body)
+        .map_err(|error| error.to_string())?;
+
+    let credentials = Credentials::new(request.smtp.username, request.smtp.password);
+    let mailer = if request.smtp.enable_ssl {
+        SmtpTransport::relay(&request.smtp.host)
+            .map_err(|error| error.to_string())?
+            .port(request.smtp.port)
+            .credentials(credentials)
+            .build()
+    } else {
+        SmtpTransport::builder_dangerous(&request.smtp.host)
+            .port(request.smtp.port)
+            .credentials(credentials)
+            .build()
+    };
+
+    mailer
+        .send(&email)
+        .map(|_| ())
+        .map_err(|error| error.to_string())
 }
 
 fn resolve_config_yaml_path(app_handle: &tauri::AppHandle) -> Result<PathBuf, String> {

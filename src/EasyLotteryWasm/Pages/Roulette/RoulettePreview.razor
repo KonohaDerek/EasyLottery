@@ -3,6 +3,7 @@
 @using EasyLotteryDomain.Services
 
 @inject ActivityResultService ActivityResultService
+@inject ResultNotificationService ResultNotificationService
 @inject RouletteService RouletteService
 @inject NavigationManager NavigationManager
 @inject IMessageService MessageService
@@ -355,6 +356,7 @@ else
         {
             var record = await ActivityResultService.RecordRouletteActivityAsync(template.Id, lastResult);
             lastRecordedSignature = BuildRecordSignature();
+            await ResultNotificationService.NotifyActivityResultAsync(record);
             await MessageService.Success($"已記錄活動「{record.ActivityName}」結果。");
         }
         catch (Exception ex)

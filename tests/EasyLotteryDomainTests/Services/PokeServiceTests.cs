@@ -99,6 +99,7 @@ namespace EasyLotteryDomainTests.Services
                 MaxPokeCount = 4,
                 BackgroundImageUrl = "/bg.png",
                 FontFamily = "Noto Sans TC",
+                CongratulationMessage = "恭喜中獎",
                 OverlayWidth = 1280,
                 OverlayHeight = 720,
                 Animation = PokeAnimation.Flash,
@@ -128,6 +129,7 @@ namespace EasyLotteryDomainTests.Services
             Assert.AreEqual(template.MaxPokeCount, duplicate.MaxPokeCount);
             Assert.AreEqual(template.BackgroundImageUrl, duplicate.BackgroundImageUrl);
             Assert.AreEqual(template.FontFamily, duplicate.FontFamily);
+            Assert.AreEqual(template.CongratulationMessage, duplicate.CongratulationMessage);
             Assert.AreEqual(template.OverlayWidth, duplicate.OverlayWidth);
             Assert.AreEqual(template.OverlayHeight, duplicate.OverlayHeight);
             Assert.AreEqual(template.Animation, duplicate.Animation);
