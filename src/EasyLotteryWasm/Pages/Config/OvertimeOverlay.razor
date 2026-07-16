@@ -87,10 +87,10 @@ else
                                     <Column ColumnSize="ColumnSize.Is12">
                                         <Field>
                                             <FieldLabel>預計結束時間</FieldLabel>
-                                            <input class="overtime-datetime-input"
-                                                   type="datetime-local"
-                                                   value="@PlannedEndAtInput"
-                                                   @onchange="OnPlannedEndAtInputChanged" />
+                                              <input class="overtime-datetime-input"
+                                                  type="datetime-local"
+                                                  value="@PlannedEndAtInput"
+                                                  @oninput="OnPlannedEndAtInputChanged" />
                                         </Field>
                                     </Column>
                                 </Row>
@@ -176,6 +176,28 @@ else
                                         <SelectItem Value="@preset.Key">@preset.Name</SelectItem>
                                     }
                                 </Select>
+                            </Field>
+
+                            <Field>
+                                <FieldLabel>單行文字動畫</FieldLabel>
+                                <select class="overtime-animation-select" value="@selectedTextAnimationKey" @onchange="OnTextAnimationChanged">
+                                    @foreach (var preset in textAnimationPresets)
+                                    {
+                                        <option value="@preset.Key">@preset.Name</option>
+                                    }
+                                </select>
+                                <div class="text-muted mt-1">@SelectedTextAnimation.Description</div>
+                            </Field>
+
+                            <Field>
+                                <FieldLabel>聊天室樣板配置</FieldLabel>
+                                <select class="overtime-template-select" value="@selectedMessageTemplateKey" @onchange="OnMessageTemplateChanged">
+                                    @foreach (var preset in messageTemplatePresets)
+                                    {
+                                        <option value="@preset.Key">@preset.Name</option>
+                                    }
+                                </select>
+                                <div class="text-muted mt-1">@SelectedMessageTemplate.Description</div>
                             </Field>
 
                             <Row>
@@ -736,11 +758,17 @@ else
     private EasyLotteryConfigDocument document = new();
     private OvertimeOverlaySettings settings = new();
     private IReadOnlyList<OvertimeThemePreset> presets = OvertimeThemePreset.Catalog;
+    private IReadOnlyList<OvertimeTextAnimationPreset> textAnimationPresets = OvertimeTextAnimationPreset.Catalog;
+    private IReadOnlyList<OvertimeMessageTemplatePreset> messageTemplatePresets = OvertimeMessageTemplatePreset.Catalog;
     private string selectedThemeKey = OvertimeThemePreset.Catalog[0].Key;
+    private string selectedTextAnimationKey = OvertimeTextAnimationPreset.Catalog[0].Key;
+    private string selectedMessageTemplateKey = OvertimeMessageTemplatePreset.Catalog[0].Key;
     private string OverlayUrl => NavigationManager.ToAbsoluteUri("/obs/overtime").ToString();
     private string PlannedEndAtInput { get; set; } = "";
 
     private OvertimeThemePreset CurrentTheme => OvertimeThemePreset.GetByKey(selectedThemeKey);
+    private OvertimeTextAnimationPreset SelectedTextAnimation => OvertimeTextAnimationPreset.GetByKey(selectedTextAnimationKey);
+    private OvertimeMessageTemplatePreset SelectedMessageTemplate => OvertimeMessageTemplatePreset.GetByKey(selectedMessageTemplateKey);
 
     protected override async Task OnInitializedAsync()
     {
@@ -750,6 +778,8 @@ else
         settings.DemoSuperChatAmount = Math.Max(0, settings.DemoSuperChatAmount);
         settings.DemoEcpayAmount = Math.Max(0, settings.DemoEcpayAmount);
         selectedThemeKey = string.IsNullOrWhiteSpace(settings.ThemeKey) ? OvertimeThemePreset.Catalog[0].Key : settings.ThemeKey;
+        selectedTextAnimationKey = string.IsNullOrWhiteSpace(settings.TextAnimationKey) ? OvertimeTextAnimationPreset.Catalog[0].Key : settings.TextAnimationKey;
+        selectedMessageTemplateKey = string.IsNullOrWhiteSpace(settings.MessageTemplateKey) ? OvertimeMessageTemplatePreset.Catalog[0].Key : settings.MessageTemplateKey;
         PlannedEndAtInput = FormatDateTimeLocal(settings.PlannedEndAtUtc);
         isLoading = false;
     }
@@ -758,6 +788,16 @@ else
     {
         PlannedEndAtInput = args.Value?.ToString() ?? "";
         settings.PlannedEndAtUtc = ParseDateTimeLocal(PlannedEndAtInput);
+    }
+
+    private void OnTextAnimationChanged(ChangeEventArgs args)
+    {
+        selectedTextAnimationKey = args.Value?.ToString() ?? OvertimeTextAnimationPreset.Catalog[0].Key;
+    }
+
+    private void OnMessageTemplateChanged(ChangeEventArgs args)
+    {
+        selectedMessageTemplateKey = args.Value?.ToString() ?? OvertimeMessageTemplatePreset.Catalog[0].Key;
     }
 
     private void SelectTheme(string key)
@@ -801,9 +841,13 @@ else
 
     private async Task SaveAsync()
     {
+        PlannedEndAtInput = await JSRuntime.InvokeAsync<string>("easyLotteryDom.getValue", ".overtime-datetime-input");
+        selectedTextAnimationKey = await JSRuntime.InvokeAsync<string>("easyLotteryDom.getValue", ".overtime-animation-select");
         settings.PlannedEndAtUtc = ParseDateTimeLocal(PlannedEndAtInput);
         document.OvertimeOverlay = settings;
         document.OvertimeOverlay.ThemeKey = selectedThemeKey;
+        document.OvertimeOverlay.MessageTemplateKey = selectedMessageTemplateKey;
+        document.OvertimeOverlay.TextAnimationKey = selectedTextAnimationKey;
         await ConfigStore.SaveAsync(document);
 
         if (!await IsSessionStartedAsync())
