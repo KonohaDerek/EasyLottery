@@ -134,6 +134,8 @@ namespace EasyLotteryWasm.Services
             document.SystemSettings.DonationIntegration.OenTw ??= new DonationProviderSettings { Name = "oen.tw" };
             document.SystemSettings.DonationIntegration.TwitchBits ??= new DonationProviderSettings { Name = "Twitch 小奇點" };
             document.SystemSettings.Audit ??= new AuditSettings();
+            document.ObsLayout ??= new ObsLayoutSettings();
+            document.ObsLayout.ActiveLayoutKey = ObsLayoutCatalog.NormalizeKey(document.ObsLayout.ActiveLayoutKey);
             document.IdSequence ??= new LotteryIdSequence();
             document.PokeTemplates ??= new List<PokeTemplate>();
             document.RouletteTemplates ??= new List<RouletteTemplate>();
