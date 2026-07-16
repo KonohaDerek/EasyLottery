@@ -25,7 +25,11 @@
             {
                 <Field>
                     <FieldLabel>YouTube API Key</FieldLabel>
-                    <TextInput @bind-Value="settings.YouTube.ApiKey" Placeholder="AIza..." />
+                    <input class="form-control"
+                           type="password"
+                           @bind="settings.YouTube.ApiKey"
+                           @bind:event="oninput"
+                           placeholder="AIza..." />
                 </Field>
 
                 <div class="d-flex gap-2 flex-wrap mt-3">
