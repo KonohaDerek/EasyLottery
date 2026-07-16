@@ -47,11 +47,6 @@ namespace EasyLotteryWasm.Services
             await _gate.WaitAsync(cancellationToken);
             try
             {
-                if (_cachedDocument != null)
-                {
-                    return CloneDocument(_cachedDocument);
-                }
-
                 _cachedDocument = await LoadFromJsAsync(cancellationToken);
                 return CloneDocument(_cachedDocument);
             }
@@ -170,6 +165,13 @@ namespace EasyLotteryWasm.Services
             document.SystemSettings.DonationIntegration.NewebPay.IsEnabled &= document.SystemSettings.DonationIntegration.NewebPay.HasConfiguration;
             document.SystemSettings.DonationIntegration.OenTw.IsEnabled &= document.SystemSettings.DonationIntegration.OenTw.HasConfiguration;
             document.SystemSettings.DonationIntegration.TwitchBits.IsEnabled &= document.SystemSettings.DonationIntegration.TwitchBits.HasConfiguration;
+            document.OvertimeOverlay.DemoSuperChatAmount = Math.Max(0, document.OvertimeOverlay.DemoSuperChatAmount);
+            document.OvertimeOverlay.DemoEcpayAmount = Math.Max(0, document.OvertimeOverlay.DemoEcpayAmount);
+            document.OvertimeOverlay.SupportMessageVisibleSeconds = Math.Clamp(document.OvertimeOverlay.SupportMessageVisibleSeconds, 1, 60);
+            document.OvertimeOverlay.StreamStartedAtUtc = NormalizeDateTimeOffset(document.OvertimeOverlay.StreamStartedAtUtc);
+            document.OvertimeOverlay.PlannedEndAtUtc = NormalizeDateTimeOffset(document.OvertimeOverlay.PlannedEndAtUtc);
+            document.OvertimeOverlay.RewardRules ??= new List<OvertimeRewardRule>();
+            NormalizeOvertimeRewardRules(document.OvertimeOverlay.RewardRules);
             document.AuditRecords ??= new List<ChangeAuditRecord>();
 
             foreach (var template in document.PokeTemplates)
@@ -315,6 +317,35 @@ namespace EasyLotteryWasm.Services
             {
                 settings.LevelRates[key] = Math.Max(1, settings.LevelRates[key]);
             }
+        }
+
+        private static void NormalizeOvertimeRewardRules(List<OvertimeRewardRule> rules)
+        {
+            for (var index = 0; index < rules.Count; index++)
+            {
+                var rule = rules[index] ?? new OvertimeRewardRule();
+                rule.Label = rule.Label?.Trim() ?? "";
+                rule.AmountThreshold = Math.Max(0, rule.AmountThreshold);
+                rule.AddHours = Math.Max(0, rule.AddHours);
+                rule.AddMinutes = Math.Max(0, rule.AddMinutes);
+                rules[index] = rule;
+            }
+        }
+
+        private static DateTimeOffset? NormalizeDateTimeOffset(DateTimeOffset? value)
+        {
+            if (!value.HasValue)
+            {
+                return null;
+            }
+
+            var utcValue = value.Value.ToUniversalTime();
+            if (utcValue.Year < 2000)
+            {
+                return null;
+            }
+
+            return utcValue;
         }
 
         private static void NormalizeAuditRecord(ChangeAuditRecord auditRecord)

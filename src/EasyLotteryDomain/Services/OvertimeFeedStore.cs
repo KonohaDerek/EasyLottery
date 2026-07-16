@@ -1,24 +1,25 @@
+using System.Threading.Tasks;
 using EasyLotteryDomain.Models.Overtime;
 
-namespace EasyLotteryAPI.Services
+namespace EasyLotteryDomain.Services
 {
-    public sealed class OvertimeFeedStore
+    public sealed class OvertimeFeedStore : IOvertimeFeedStore
     {
         private readonly object _gate = new();
         private readonly List<OvertimeSupportEvent> _events = new();
         private const int MaxEvents = 30;
 
-        public IReadOnlyList<OvertimeSupportEvent> Snapshot()
+        public Task<IReadOnlyList<OvertimeSupportEvent>> SnapshotAsync()
         {
             lock (_gate)
             {
-                return _events
+                return Task.FromResult<IReadOnlyList<OvertimeSupportEvent>>(_events
                     .OrderByDescending(item => item.OccurredAtUtc)
-                    .ToList();
+                    .ToList());
             }
         }
 
-        public OvertimeSupportEvent Add(OvertimeSupportEvent entry)
+        public Task<OvertimeSupportEvent> AddAsync(OvertimeSupportEvent entry)
         {
             lock (_gate)
             {
@@ -29,16 +30,18 @@ namespace EasyLotteryAPI.Services
                     _events.RemoveRange(MaxEvents, _events.Count - MaxEvents);
                 }
 
-                return normalized;
+                return Task.FromResult(normalized);
             }
         }
 
-        public void Clear()
+        public Task ClearAsync()
         {
             lock (_gate)
             {
                 _events.Clear();
             }
+
+            return Task.CompletedTask;
         }
 
         private static OvertimeSupportEvent Normalize(OvertimeSupportEvent entry)

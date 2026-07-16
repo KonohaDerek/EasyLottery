@@ -25,174 +25,345 @@
     </div>
 
     <div id="blazor-error-ui">
-        An unhandled error has occurred.
-        <a href="" class="reload">Reload</a>
-        <a class="dismiss">🗙</a>
-    </div>
-    <script>
-        (() => {
-            if (window.easyLotteryConfig) {
-                return;
-            }
-
-            const storageKey = "easy-lottery.config.yaml";
-            let memoryFallback = "";
-
-            function getSafeContent(content) {
-                return content == null ? "" : content;
-            }
-
-            function getTauriInvoker() {
-                if (window.__TAURI__ && typeof window.__TAURI__.invoke === "function") {
-                    return window.__TAURI__.invoke.bind(window.__TAURI__);
+        <script>
+            (() => {
+                if (window.easyLotteryConfig) {
+                    return;
                 }
 
-                return null;
-            }
+                const storageKey = "easy-lottery.config.yaml";
+                const remoteConfigUrl = "http://localhost:18930/easy-lottery-config.yaml";
+                let memoryFallback = "";
 
-            window.easyLotteryConfig = {
-                read: async () => {
-                    const tauriInvoke = getTauriInvoker();
-                    if (tauriInvoke) {
-                        const content = await tauriInvoke("read_config_yaml");
-                        memoryFallback = getSafeContent(content);
-                        return memoryFallback;
+                function getSafeContent(content) {
+                    return content == null ? "" : content;
+                }
+
+                function getTauriInvoker() {
+                    if (window.__TAURI__ && typeof window.__TAURI__.invoke === "function") {
+                        return window.__TAURI__.invoke.bind(window.__TAURI__);
                     }
 
-                    try {
-                        const content = window.localStorage.getItem(storageKey);
-                        memoryFallback = getSafeContent(content);
+                    return null;
+                }
+
+                window.easyLotteryConfig = {
+                    read: async () => {
+                        const tauriInvoke = getTauriInvoker();
+                        if (tauriInvoke) {
+                            const content = await tauriInvoke("read_config_yaml");
+                            memoryFallback = getSafeContent(content);
+                            return memoryFallback;
+                        }
+
+                        try {
+                            const content = window.localStorage.getItem(storageKey);
+                            memoryFallback = getSafeContent(content);
+                        } catch {
+                        }
+
+                        if (memoryFallback) {
+                            return memoryFallback;
+                        }
+
+                        try {
+                            const response = await fetch(remoteConfigUrl, { cache: "no-store", mode: "cors" });
+                            if (response.ok) {
+                                const content = await response.text();
+                                memoryFallback = getSafeContent(content);
+                                return memoryFallback;
+                            }
+                        } catch {
+                        }
+
                         return memoryFallback;
+                    },
+                    write: async (content) => {
+                        const safeContent = getSafeContent(content);
+                        memoryFallback = safeContent;
+
+                        try {
+                            window.localStorage.setItem(storageKey, safeContent);
+                        } catch {
+                        }
+
+                        const tauriInvoke = getTauriInvoker();
+                        if (tauriInvoke) {
+                            await tauriInvoke("write_config_yaml", { content: safeContent });
+                            return;
+                        }
+
+                        try {
+                            await fetch(remoteConfigUrl, {
+                                method: "PUT",
+                                cache: "no-store",
+                                mode: "cors",
+                                headers: {
+                                    "Content-Type": "text/yaml; charset=utf-8"
+                                },
+                                body: safeContent
+                            });
+                        } catch {
+                        }
+                    }
+                };
+            })();
+        </script>
+        <script>
+            (() => {
+                if (window.easyLotteryMail) {
+                    return;
+                }
+
+                function getTauriInvoker() {
+                    if (window.__TAURI__ && typeof window.__TAURI__.invoke === "function") {
+                        return window.__TAURI__.invoke.bind(window.__TAURI__);
+                    }
+
+                    return null;
+                }
+
+                window.easyLotteryMail = {
+                    send: async (request) => {
+                        const tauriInvoke = getTauriInvoker();
+                        if (!tauriInvoke) {
+                            return;
+                        }
+
+                        await tauriInvoke("send_result_notification_email", { request });
+                    }
+                };
+            })();
+        </script>
+                            const content = await response.text();
+                            memoryFallback = getSafeContent(content);
+                            return memoryFallback;
+                        }
                     } catch {
-                        return memoryFallback;
-                    }
-                },
-                write: async (content) => {
-                    const safeContent = getSafeContent(content);
-                    memoryFallback = safeContent;
-
-                    const tauriInvoke = getTauriInvoker();
-                    if (tauriInvoke) {
-                        await tauriInvoke("write_config_yaml", { content: safeContent });
-                        return;
                     }
 
-                    try {
-                        window.localStorage.setItem(storageKey, safeContent);
-                    } catch {
-                    }
-                }
-            };
-        })();
-    </script>
-    <script>
-        (() => {
-            if (window.easyLotteryMail) {
-                return;
-            }
-
-            function getTauriInvoker() {
-                if (window.__TAURI__ && typeof window.__TAURI__.invoke === "function") {
-                    return window.__TAURI__.invoke.bind(window.__TAURI__);
-                }
-
-                return null;
-            }
-
-            window.easyLotteryMail = {
-                send: async (request) => {
-                    const tauriInvoke = getTauriInvoker();
-                    if (!tauriInvoke) {
+                    return memoryFallback;
                         return;
                     }
 
                     await tauriInvoke("send_result_notification_email", { request });
                 }
-            };
-        })();
-    </script>
-    <script src="js/configStorage.js"></script>
-    <script>
-        window.easyLotteryDownload = {
-            downloadText: (fileName, content, mimeType) => {
-                const safeFileName = fileName || "download.txt";
-                const safeContent = content == null ? "" : content;
-                const blob = new Blob([safeContent], { type: mimeType || "text/plain;charset=utf-8" });
-                const url = URL.createObjectURL(blob);
-
-                const anchor = document.createElement("a");
-                anchor.href = url;
-                anchor.download = safeFileName;
-                anchor.rel = "noopener";
-                document.body.appendChild(anchor);
-                anchor.click();
-                anchor.remove();
-                URL.revokeObjectURL(url);
-            }
-        };
-    </script>
-    <script>
-        (() => {
-            const storageKey = "easy-lottery.visual-style";
-            const root = document.documentElement;
-
-            function applyThemeKey(key) {
-                const safeKey = key || "arcade-neon";
-                root.dataset.visualStyle = safeKey;
-
-                if (document.body) {
-                    document.body.dataset.visualStyle = safeKey;
-                }
-
-                try {
-                    window.localStorage.setItem(storageKey, safeKey);
-                } catch {
-                }
-            }
-
-            let storedKey = "arcade-neon";
-            try {
-                storedKey = window.localStorage.getItem(storageKey) || storedKey;
-            } catch {
-            }
-
-            applyThemeKey(storedKey);
-
-            window.easyLotteryTheme = {
-                apply: (key) => applyThemeKey(key),
-                getStoredKey: () => {
                     try {
-                        return window.localStorage.getItem(storageKey) || "";
+                        window.localStorage.setItem(storageKey, safeContent);
                     } catch {
-                        return "";
                     }
-                }
+
             };
         })();
     </script>
-    <script>
-        window.easyLotteryClipboard = {
-            copyText: async (text) => {
-                const safeText = text == null ? "" : String(text);
-
-                if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
-                    await navigator.clipboard.writeText(safeText);
+        <script>
+            (() => {
+                if (window.easyLotteryOvertimeFeed) {
                     return;
                 }
 
-                const textarea = document.createElement("textarea");
-                textarea.value = safeText;
-                textarea.setAttribute("readonly", "true");
-                textarea.style.position = "fixed";
-                textarea.style.opacity = "0";
-                document.body.appendChild(textarea);
-                textarea.select();
-                document.execCommand("copy");
-                textarea.remove();
-            }
-        };
-    </script>
-    <script src="_framework/blazor.webassembly.js"></script>
-</body>
+                const storageKey = "easy-lottery.overtime-feed";
+                const remoteFeedUrl = "http://localhost:18930/easy-lottery-overtime-feed.json";
 
-</html>
+                function getSafeContent(content) {
+                    return content == null ? "[]" : String(content);
+                }
+
+                function getTauriInvoker() {
+                    if (window.__TAURI__ && typeof window.__TAURI__.invoke === "function") {
+                        return window.__TAURI__.invoke.bind(window.__TAURI__);
+                    }
+
+                    return null;
+                }
+
+                async function readRemoteFeed() {
+                    try {
+                        const response = await fetch(remoteFeedUrl, { cache: "no-store", mode: "cors" });
+                        if (response.ok) {
+                            return getSafeContent(await response.text());
+                        }
+                    } catch {
+                    }
+
+                    return "";
+                }
+
+                function readLocalStorage() {
+                    try {
+                        return getSafeContent(window.localStorage.getItem(storageKey));
+                    } catch {
+                        return "[]";
+                    }
+                }
+
+                async function writeRemoteFeed(content) {
+                    try {
+                        await fetch(remoteFeedUrl, {
+                            method: "PUT",
+                            cache: "no-store",
+                            mode: "cors",
+                            headers: {
+                                "Content-Type": "application/json; charset=utf-8"
+                            },
+                            body: getSafeContent(content)
+                        });
+                    } catch {
+                    }
+                }
+
+                function writeLocalStorage(content) {
+                    try {
+                        window.localStorage.setItem(storageKey, getSafeContent(content));
+                    } catch {
+                    }
+                }
+
+                window.easyLotteryOvertimeFeed = {
+                    read: async () => {
+                        const tauriInvoke = getTauriInvoker();
+                        if (tauriInvoke) {
+                            try {
+                                const content = await tauriInvoke("read_overtime_feed_json");
+                                return getSafeContent(content);
+                            } catch {
+                            }
+                        }
+
+                        const local = readLocalStorage();
+                        if (local && local !== "[]") {
+                            return local;
+                        }
+
+                        const remote = await readRemoteFeed();
+                        if (remote) {
+                            writeLocalStorage(remote);
+                            return remote;
+                        }
+
+                        return local;
+                    },
+                    write: async (content) => {
+                        const safeContent = getSafeContent(content);
+                        writeLocalStorage(safeContent);
+
+                        const tauriInvoke = getTauriInvoker();
+                        if (tauriInvoke) {
+                            try {
+                                await tauriInvoke("write_overtime_feed_json", { content: safeContent });
+                                return;
+                            } catch {
+                            }
+                        }
+
+                        await writeRemoteFeed(safeContent);
+                    },
+                    clear: async () => {
+                        writeLocalStorage("[]");
+
+                        const tauriInvoke = getTauriInvoker();
+                        if (tauriInvoke) {
+                            try {
+                                await tauriInvoke("clear_overtime_feed_json");
+                                return;
+                            } catch {
+                            }
+                        }
+
+                        try {
+                            await fetch(remoteFeedUrl, {
+                                method: "DELETE",
+                                cache: "no-store",
+                                mode: "cors"
+                            });
+                        } catch {
+                        }
+                    }
+                };
+            })();
+        </script>
+        <script>
+            window.easyLotteryDownload = {
+                downloadText: (fileName, content, mimeType) => {
+                    const safeFileName = fileName || "download.txt";
+                    const safeContent = content == null ? "" : content;
+                    const blob = new Blob([safeContent], { type: mimeType || "text/plain;charset=utf-8" });
+                    const url = URL.createObjectURL(blob);
+
+                    const anchor = document.createElement("a");
+                    anchor.href = url;
+                    anchor.download = safeFileName;
+                    anchor.rel = "noopener";
+                    document.body.appendChild(anchor);
+                    anchor.click();
+                    anchor.remove();
+                    URL.revokeObjectURL(url);
+                }
+            };
+        </script>
+        <script>
+            (() => {
+                const storageKey = "easy-lottery.visual-style";
+                const root = document.documentElement;
+
+                function applyThemeKey(key) {
+                    const safeKey = key === "arcade-neon" ? "dashboard-console" : (key || "dashboard-console");
+                    root.dataset.visualStyle = safeKey;
+
+                    if (document.body) {
+                        document.body.dataset.visualStyle = safeKey;
+                    }
+
+                    try {
+                        window.localStorage.setItem(storageKey, safeKey);
+                    } catch {
+                    }
+                }
+
+                let storedKey = "dashboard-console";
+                try {
+                    storedKey = window.localStorage.getItem(storageKey) || storedKey;
+                } catch {
+                }
+
+                if (storedKey === "arcade-neon") {
+                    storedKey = "dashboard-console";
+                }
+
+                applyThemeKey(storedKey);
+
+                window.easyLotteryTheme = {
+                    apply: (key) => applyThemeKey(key),
+                    getStoredKey: () => {
+                        try {
+                            return window.localStorage.getItem(storageKey) || "";
+                        } catch {
+                            return "";
+                        }
+                    }
+                };
+            })();
+        </script>
+        <script>
+            window.easyLotteryClipboard = {
+                copyText: async (text) => {
+                    const safeText = text == null ? "" : String(text);
+
+                    if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
+                        await navigator.clipboard.writeText(safeText);
+                        return;
+                    }
+
+                    const textarea = document.createElement("textarea");
+                    textarea.value = safeText;
+                    textarea.setAttribute("readonly", "true");
+                    textarea.style.position = "fixed";
+                    textarea.style.opacity = "0";
+                    document.body.appendChild(textarea);
+                    textarea.select();
+                    document.execCommand("copy");
+                    textarea.remove();
+                }
+            };
+        </script>
+        <script src="_framework/blazor.webassembly.js"></script>

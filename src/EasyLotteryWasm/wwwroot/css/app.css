@@ -1,48 +1,48 @@
 :root {
-    --el-page-bg: #090513;
-    --el-page-bg-alt: #151026;
-    --el-surface: rgba(12, 16, 28, 0.82);
-    --el-surface-strong: rgba(18, 23, 39, 0.94);
-    --el-surface-soft: rgba(255, 255, 255, 0.06);
-    --el-border: rgba(255, 255, 255, 0.12);
-    --el-border-strong: rgba(255, 255, 255, 0.2);
-    --el-text: #f5f7ff;
-    --el-text-muted: #b7bddc;
-    --el-accent: #6ee7ff;
-    --el-accent-2: #ff67d1;
-    --el-accent-contrast: #07111f;
-    --el-glow: rgba(110, 231, 255, 0.34);
-    --el-shadow: 0 24px 64px rgba(0, 0, 0, 0.35);
-    --el-stage-bg: linear-gradient(180deg, rgba(11, 15, 28, 0.88) 0%, rgba(22, 18, 42, 0.96) 100%);
-    --el-stage-overlay: linear-gradient(135deg, rgba(110, 231, 255, 0.14), rgba(255, 103, 209, 0.16));
-    --el-topbar-image: url('asserts/images/channels4_banner.svg');
-    --el-topbar-overlay: linear-gradient(135deg, rgba(0, 0, 0, 0.35), rgba(0, 0, 0, 0.12));
-    --el-sidebar-bg: linear-gradient(180deg, rgba(8, 10, 20, 0.98) 0%, rgba(15, 18, 33, 0.98) 100%);
-    --el-sidebar-accent: rgba(110, 231, 255, 0.22);
+    --el-page-bg: #eef3f9;
+    --el-page-bg-alt: #e4ebf5;
+    --el-surface: rgba(255, 255, 255, 0.9);
+    --el-surface-strong: #ffffff;
+    --el-surface-soft: rgba(37, 99, 235, 0.06);
+    --el-border: rgba(51, 65, 85, 0.12);
+    --el-border-strong: rgba(37, 99, 235, 0.22);
+    --el-text: #1f2a37;
+    --el-text-muted: #66758d;
+    --el-accent: #2563eb;
+    --el-accent-2: #0ea5e9;
+    --el-accent-contrast: #ffffff;
+    --el-glow: rgba(37, 99, 235, 0.18);
+    --el-shadow: 0 18px 45px rgba(15, 23, 42, 0.12);
+    --el-stage-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(241, 246, 253, 0.96) 100%);
+    --el-stage-overlay: linear-gradient(135deg, rgba(37, 99, 235, 0.08), rgba(14, 165, 233, 0.08));
+    --el-topbar-image: linear-gradient(90deg, rgba(255, 255, 255, 0.82), rgba(255, 255, 255, 0.78)), url('asserts/images/channels4_banner.svg');
+    --el-topbar-overlay: linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.08));
+    --el-sidebar-bg: linear-gradient(180deg, #07183e 0%, #31104d 100%);
+    --el-sidebar-accent: rgba(255, 255, 255, 0.2);
 
     --bs-body-bg: var(--el-page-bg);
     --bs-body-color: var(--el-text);
-    --bs-body-color-rgb: 245, 247, 255;
+    --bs-body-color-rgb: 31, 42, 55;
     --bs-tertiary-bg: var(--el-surface-soft);
-    --bs-card-bg: var(--el-surface);
+    --bs-card-bg: var(--el-surface-strong);
     --bs-card-color: var(--el-text);
     --bs-border-color: var(--el-border);
     --bs-secondary-bg: var(--el-surface-strong);
-    --bs-primary: #6ee7ff;
-    --bs-primary-rgb: 110, 231, 255;
-    --bs-secondary: #a78bfa;
-    --bs-secondary-rgb: 167, 139, 250;
-    --bs-success: #22c55e;
-    --bs-success-rgb: 34, 197, 94;
+    --bs-primary: #2563eb;
+    --bs-primary-rgb: 37, 99, 235;
+    --bs-secondary: #475569;
+    --bs-secondary-rgb: 71, 85, 105;
+    --bs-success: #16a34a;
+    --bs-success-rgb: 22, 163, 74;
     --bs-warning: #f59e0b;
     --bs-warning-rgb: 245, 158, 11;
-    --bs-danger: #ef4444;
-    --bs-danger-rgb: 239, 68, 68;
-    --bs-info: #38bdf8;
-    --bs-info-rgb: 56, 189, 248;
-    --bs-link-color: var(--el-accent);
-    --bs-link-hover-color: #9bf0ff;
-    --bs-focus-ring-color: rgba(110, 231, 255, 0.25);
+    --bs-danger: #dc2626;
+    --bs-danger-rgb: 220, 38, 38;
+    --bs-info: #0ea5e9;
+    --bs-info-rgb: 14, 165, 233;
+    --bs-link-color: #2563eb;
+    --bs-link-hover-color: #1d4ed8;
+    --bs-focus-ring-color: rgba(37, 99, 235, 0.2);
 }
 
 html[data-visual-style="arcade-neon"] {
@@ -130,6 +130,52 @@ html[data-visual-style="festival-stage"] {
     --bs-warning-rgb: 255, 209, 102;
 }
 
+html[data-visual-style="dashboard-console"] {
+    --el-page-bg: #eef3f9;
+    --el-page-bg-alt: #e4ebf5;
+    --el-surface: rgba(255, 255, 255, 0.9);
+    --el-surface-strong: #ffffff;
+    --el-surface-soft: rgba(37, 99, 235, 0.06);
+    --el-border: rgba(51, 65, 85, 0.12);
+    --el-border-strong: rgba(37, 99, 235, 0.22);
+    --el-text: #1f2a37;
+    --el-text-muted: #66758d;
+    --el-accent: #2563eb;
+    --el-accent-2: #0ea5e9;
+    --el-accent-contrast: #ffffff;
+    --el-glow: rgba(37, 99, 235, 0.18);
+    --el-shadow: 0 18px 45px rgba(15, 23, 42, 0.12);
+    --el-stage-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(241, 246, 253, 0.96) 100%);
+    --el-stage-overlay: linear-gradient(135deg, rgba(37, 99, 235, 0.08), rgba(14, 165, 233, 0.08));
+    --el-topbar-image: linear-gradient(90deg, rgba(255, 255, 255, 0.82), rgba(255, 255, 255, 0.78)), url('asserts/images/channels4_banner.svg');
+    --el-topbar-overlay: linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.08));
+    --el-sidebar-bg: linear-gradient(180deg, #07183e 0%, #31104d 100%);
+    --el-sidebar-accent: rgba(255, 255, 255, 0.2);
+    --bs-body-bg: var(--el-page-bg);
+    --bs-body-color: var(--el-text);
+    --bs-body-color-rgb: 31, 42, 55;
+    --bs-tertiary-bg: var(--el-surface-soft);
+    --bs-card-bg: var(--el-surface-strong);
+    --bs-card-color: var(--el-text);
+    --bs-border-color: var(--el-border);
+    --bs-secondary-bg: var(--el-surface-strong);
+    --bs-primary: #2563eb;
+    --bs-primary-rgb: 37, 99, 235;
+    --bs-secondary: #475569;
+    --bs-secondary-rgb: 71, 85, 105;
+    --bs-success: #16a34a;
+    --bs-success-rgb: 22, 163, 74;
+    --bs-warning: #f59e0b;
+    --bs-warning-rgb: 245, 158, 11;
+    --bs-danger: #dc2626;
+    --bs-danger-rgb: 220, 38, 38;
+    --bs-info: #0ea5e9;
+    --bs-info-rgb: 14, 165, 233;
+    --bs-link-color: #2563eb;
+    --bs-link-hover-color: #1d4ed8;
+    --bs-focus-ring-color: rgba(37, 99, 235, 0.2);
+}
+
 html, body {
     min-height: 100%;
 }
@@ -142,8 +188,8 @@ body {
     font-family: 'Inter', 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif;
     color: var(--el-text);
     background:
-        radial-gradient(circle at top left, rgba(255, 255, 255, 0.08), transparent 34%),
-        radial-gradient(circle at bottom right, rgba(110, 231, 255, 0.06), transparent 28%),
+        radial-gradient(circle at top left, rgba(37, 99, 235, 0.08), transparent 30%),
+        radial-gradient(circle at bottom right, rgba(124, 58, 237, 0.07), transparent 24%),
         linear-gradient(180deg, var(--el-page-bg) 0%, var(--el-page-bg-alt) 100%);
     position: relative;
     overflow-x: hidden;
@@ -171,7 +217,7 @@ body::before {
 body::after {
     right: -10vw;
     bottom: -12vh;
-    background: radial-gradient(circle, rgba(255, 103, 209, 0.16) 0%, transparent 72%);
+    background: radial-gradient(circle, rgba(14, 165, 233, 0.14) 0%, transparent 72%);
 }
 
 #app {
@@ -221,7 +267,7 @@ a, .btn-link {
     background-position: center;
     background-size: cover;
     border-bottom: 1px solid var(--el-border);
-    box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.05), 0 18px 48px rgba(0, 0, 0, 0.15);
+    box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.66), 0 12px 28px rgba(15, 23, 42, 0.08);
     position: relative;
     overflow: hidden;
 }
@@ -344,6 +390,13 @@ a, .btn-link {
         radial-gradient(circle at top right, rgba(126, 224, 255, 0.38), transparent 32%),
         radial-gradient(circle at bottom left, rgba(255, 133, 180, 0.28), transparent 30%),
         linear-gradient(135deg, #17122b 0%, #3e204e 100%);
+}
+
+.visual-style-preview-dashboard-console {
+    background:
+        radial-gradient(circle at top right, rgba(37, 99, 235, 0.42), transparent 34%),
+        radial-gradient(circle at bottom left, rgba(14, 165, 233, 0.28), transparent 30%),
+        linear-gradient(135deg, #eef3f9 0%, #d9e4f3 100%);
 }
 
 .table,

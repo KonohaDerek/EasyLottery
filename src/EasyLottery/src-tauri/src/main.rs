@@ -109,6 +109,36 @@ fn send_result_notification_email(request: EmailRequest) -> Result<(), String> {
         .map_err(|error| error.to_string())
 }
 
+#[tauri::command]
+fn read_overtime_feed_json(app_handle: tauri::AppHandle) -> Result<String, String> {
+    let path = resolve_overtime_feed_path(&app_handle)?;
+    if !path.exists() {
+        return Ok(String::from("[]"));
+    }
+
+    fs::read_to_string(path).map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+fn write_overtime_feed_json(app_handle: tauri::AppHandle, content: String) -> Result<(), String> {
+    let path = resolve_overtime_feed_path(&app_handle)?;
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|error| error.to_string())?;
+    }
+
+    fs::write(path, content).map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+fn clear_overtime_feed_json(app_handle: tauri::AppHandle) -> Result<(), String> {
+    let path = resolve_overtime_feed_path(&app_handle)?;
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|error| error.to_string())?;
+    }
+
+    fs::write(path, "[]").map_err(|error| error.to_string())
+}
+
 fn resolve_config_yaml_path(app_handle: &tauri::AppHandle) -> Result<PathBuf, String> {
     let config_dir = tauri::api::path::app_config_dir(&app_handle.config())
         .ok_or_else(|| String::from("Unable to resolve app config directory."))?;
@@ -119,8 +149,8 @@ fn resolve_config_yaml_path(app_handle: &tauri::AppHandle) -> Result<PathBuf, St
 const OBS_SERVER_PORT: u16 = 18930;
 
 enum ObsServerMode {
-    Static { dist_dir: PathBuf },
-    DevProxy { base_url: String, client: Client },
+    Static { dist_dir: PathBuf, config_path: PathBuf, feed_path: PathBuf },
+    DevProxy { base_url: String, client: Client, config_path: PathBuf, feed_path: PathBuf },
 }
 
 fn resolve_dev_server_url() -> Option<String> {
@@ -130,6 +160,12 @@ fn resolve_dev_server_url() -> Option<String> {
         .get("devPath")?
         .as_str()
         .map(|value| value.trim_end_matches('/').to_string())
+}
+
+fn resolve_overtime_feed_path(app_handle: &tauri::AppHandle) -> Result<PathBuf, String> {
+    let config_dir = tauri::api::path::app_config_dir(&app_handle.config())
+        .ok_or_else(|| String::from("Unable to resolve app config directory."))?;
+    Ok(config_dir.join("easy-lottery-overtime-feed.json"))
 }
 
 fn find_obs_asset_root(app_handle: &tauri::AppHandle) -> PathBuf {
@@ -286,14 +322,392 @@ fn start_obs_http_server(mode: ObsServerMode) {
 
         for request in server.incoming_requests() {
             match &mode {
-                ObsServerMode::Static { dist_dir } => serve_static_request(request, dist_dir),
-                ObsServerMode::DevProxy { base_url, client } => proxy_dev_request(request, base_url, client),
+                ObsServerMode::Static { dist_dir, config_path, feed_path } => {
+                    serve_static_request(request, dist_dir, config_path, feed_path)
+                }
+                ObsServerMode::DevProxy { base_url, client, config_path, feed_path } => {
+                    proxy_dev_request(request, base_url, client, config_path, feed_path)
+                }
             }
         }
     });
 }
 
-fn serve_static_request(request: tiny_http::Request, dist_dir: &std::path::Path) {
+fn is_config_yaml_request(request: &tiny_http::Request) -> bool {
+    let url_path = request.url().to_string();
+    let clean_path = url_path.split('?').next().unwrap_or("/");
+
+    clean_path == "/easy-lottery-config.yaml"
+}
+
+fn is_overtime_feed_request(request: &tiny_http::Request) -> bool {
+    let url_path = request.url().to_string();
+    let clean_path = url_path.split('?').next().unwrap_or("/");
+
+    clean_path == "/easy-lottery-overtime-feed.json"
+}
+
+fn respond_with_config_yaml(request: tiny_http::Request, config_path: &Path) {
+
+    let body = match fs::read_to_string(config_path) {
+        Ok(content) => content,
+        Err(_) => String::new(),
+    };
+
+    let response = tiny_http::Response::from_string(body)
+        .with_header(
+            tiny_http::Header::from_bytes(
+                &b"Content-Type"[..],
+                &b"text/yaml; charset=utf-8"[..],
+            )
+            .unwrap(),
+        )
+        .with_header(
+            tiny_http::Header::from_bytes(
+                &b"Cache-Control"[..],
+                &b"no-store, no-cache, must-revalidate"[..],
+            )
+            .unwrap(),
+        )
+        .with_header(
+            tiny_http::Header::from_bytes(
+                &b"Access-Control-Allow-Origin"[..],
+                &b"*"[..],
+            )
+            .unwrap(),
+        )
+        .with_header(
+            tiny_http::Header::from_bytes(
+                &b"Access-Control-Allow-Methods"[..],
+                &b"GET, PUT, POST, OPTIONS"[..],
+            )
+            .unwrap(),
+        )
+        .with_header(
+            tiny_http::Header::from_bytes(
+                &b"Access-Control-Allow-Headers"[..],
+                &b"Content-Type"[..],
+            )
+            .unwrap(),
+        );
+
+    let _ = request.respond(response);
+}
+
+fn respond_to_config_yaml_preflight(request: tiny_http::Request) {
+    let response = tiny_http::Response::empty(204)
+        .with_header(
+            tiny_http::Header::from_bytes(
+                &b"Access-Control-Allow-Origin"[..],
+                &b"*"[..],
+            )
+            .unwrap(),
+        )
+        .with_header(
+            tiny_http::Header::from_bytes(
+                &b"Access-Control-Allow-Methods"[..],
+                &b"GET, PUT, POST, OPTIONS"[..],
+            )
+            .unwrap(),
+        )
+        .with_header(
+            tiny_http::Header::from_bytes(
+                &b"Access-Control-Allow-Headers"[..],
+                &b"Content-Type"[..],
+            )
+            .unwrap(),
+        )
+        .with_header(
+            tiny_http::Header::from_bytes(
+                &b"Cache-Control"[..],
+                &b"no-store, no-cache, must-revalidate"[..],
+            )
+            .unwrap(),
+        );
+
+    let _ = request.respond(response);
+}
+
+fn respond_with_overtime_feed(request: tiny_http::Request, feed_path: &Path) {
+    let body = match fs::read_to_string(feed_path) {
+        Ok(content) if !content.trim().is_empty() => content,
+        _ => String::from("[]"),
+    };
+
+    let response = tiny_http::Response::from_string(body)
+        .with_header(
+            tiny_http::Header::from_bytes(
+                &b"Content-Type"[..],
+                &b"application/json; charset=utf-8"[..],
+            )
+            .unwrap(),
+        )
+        .with_header(
+            tiny_http::Header::from_bytes(
+                &b"Cache-Control"[..],
+                &b"no-store, no-cache, must-revalidate"[..],
+            )
+            .unwrap(),
+        )
+        .with_header(
+            tiny_http::Header::from_bytes(
+                &b"Access-Control-Allow-Origin"[..],
+                &b"*"[..],
+            )
+            .unwrap(),
+        )
+        .with_header(
+            tiny_http::Header::from_bytes(
+                &b"Access-Control-Allow-Methods"[..],
+                &b"GET, PUT, POST, DELETE, OPTIONS"[..],
+            )
+            .unwrap(),
+        )
+        .with_header(
+            tiny_http::Header::from_bytes(
+                &b"Access-Control-Allow-Headers"[..],
+                &b"Content-Type"[..],
+            )
+            .unwrap(),
+        );
+
+    let _ = request.respond(response);
+}
+
+fn respond_to_overtime_feed_preflight(request: tiny_http::Request) {
+    let response = tiny_http::Response::empty(204)
+        .with_header(
+            tiny_http::Header::from_bytes(
+                &b"Access-Control-Allow-Origin"[..],
+                &b"*"[..],
+            )
+            .unwrap(),
+        )
+        .with_header(
+            tiny_http::Header::from_bytes(
+                &b"Access-Control-Allow-Methods"[..],
+                &b"GET, PUT, POST, DELETE, OPTIONS"[..],
+            )
+            .unwrap(),
+        )
+        .with_header(
+            tiny_http::Header::from_bytes(
+                &b"Access-Control-Allow-Headers"[..],
+                &b"Content-Type"[..],
+            )
+            .unwrap(),
+        )
+        .with_header(
+            tiny_http::Header::from_bytes(
+                &b"Cache-Control"[..],
+                &b"no-store, no-cache, must-revalidate"[..],
+            )
+            .unwrap(),
+        );
+
+    let _ = request.respond(response);
+}
+
+fn handle_overtime_feed_write(request: tiny_http::Request, feed_path: &Path) {
+    let mut body = String::new();
+    if let Err(error) = request.as_reader().read_to_string(&mut body) {
+        let _ = request.respond(
+            tiny_http::Response::from_string(format!("Failed to read overtime feed body: {}", error))
+                .with_status_code(400),
+        );
+        return;
+    }
+
+    if let Some(parent) = feed_path.parent() {
+        if let Err(error) = fs::create_dir_all(parent) {
+            let _ = request.respond(
+                tiny_http::Response::from_string(format!("Failed to create overtime feed dir: {}", error))
+                    .with_status_code(500),
+            );
+            return;
+        }
+    }
+
+    match fs::write(feed_path, body) {
+        Ok(_) => {
+            let response = tiny_http::Response::from_string("ok")
+                .with_header(
+                    tiny_http::Header::from_bytes(
+                        &b"Cache-Control"[..],
+                        &b"no-store, no-cache, must-revalidate"[..],
+                    )
+                    .unwrap(),
+                )
+                .with_header(
+                    tiny_http::Header::from_bytes(
+                        &b"Access-Control-Allow-Origin"[..],
+                        &b"*"[..],
+                    )
+                    .unwrap(),
+                )
+                .with_header(
+                    tiny_http::Header::from_bytes(
+                        &b"Access-Control-Allow-Methods"[..],
+                        &b"GET, PUT, POST, DELETE, OPTIONS"[..],
+                    )
+                    .unwrap(),
+                )
+                .with_header(
+                    tiny_http::Header::from_bytes(
+                        &b"Access-Control-Allow-Headers"[..],
+                        &b"Content-Type"[..],
+                    )
+                    .unwrap(),
+                );
+            let _ = request.respond(response);
+        }
+        Err(error) => {
+            let _ = request.respond(
+                tiny_http::Response::from_string(format!("Failed to write overtime feed: {}", error))
+                    .with_status_code(500),
+            );
+        }
+    }
+}
+
+fn handle_overtime_feed_clear(request: tiny_http::Request, feed_path: &Path) {
+    if let Some(parent) = feed_path.parent() {
+        let _ = fs::create_dir_all(parent);
+    }
+
+    let write_result = fs::write(feed_path, "[]");
+    let response = match write_result {
+        Ok(_) => tiny_http::Response::from_string("ok"),
+        Err(error) => tiny_http::Response::from_string(format!("Failed to clear overtime feed: {}", error))
+            .with_status_code(500),
+    }
+    .with_header(
+        tiny_http::Header::from_bytes(
+            &b"Access-Control-Allow-Origin"[..],
+            &b"*"[..],
+        )
+        .unwrap(),
+    )
+    .with_header(
+        tiny_http::Header::from_bytes(
+            &b"Access-Control-Allow-Methods"[..],
+            &b"GET, PUT, POST, DELETE, OPTIONS"[..],
+        )
+        .unwrap(),
+    )
+    .with_header(
+        tiny_http::Header::from_bytes(
+            &b"Access-Control-Allow-Headers"[..],
+            &b"Content-Type"[..],
+        )
+        .unwrap(),
+    );
+
+    let _ = request.respond(response);
+}
+
+fn handle_config_yaml_write(request: tiny_http::Request, config_path: &Path) {
+    let mut body = String::new();
+    if let Err(error) = request.as_reader().read_to_string(&mut body) {
+        let _ = request.respond(
+            tiny_http::Response::from_string(format!("Failed to read config body: {}", error))
+                .with_status_code(400),
+        );
+        return;
+    }
+
+    if let Some(parent) = config_path.parent() {
+        if let Err(error) = fs::create_dir_all(parent) {
+            let _ = request.respond(
+                tiny_http::Response::from_string(format!("Failed to create config dir: {}", error))
+                    .with_status_code(500),
+            );
+            return;
+        }
+    }
+
+    match fs::write(config_path, body) {
+        Ok(_) => {
+            let response = tiny_http::Response::from_string("ok")
+                .with_header(
+                    tiny_http::Header::from_bytes(
+                        &b"Cache-Control"[..],
+                        &b"no-store, no-cache, must-revalidate"[..],
+                    )
+                    .unwrap(),
+                )
+                .with_header(
+                    tiny_http::Header::from_bytes(
+                        &b"Access-Control-Allow-Origin"[..],
+                        &b"*"[..],
+                    )
+                    .unwrap(),
+                )
+                .with_header(
+                    tiny_http::Header::from_bytes(
+                        &b"Access-Control-Allow-Methods"[..],
+                        &b"GET, PUT, POST, OPTIONS"[..],
+                    )
+                    .unwrap(),
+                )
+                .with_header(
+                    tiny_http::Header::from_bytes(
+                        &b"Access-Control-Allow-Headers"[..],
+                        &b"Content-Type"[..],
+                    )
+                    .unwrap(),
+                );
+            let _ = request.respond(response);
+        }
+        Err(error) => {
+            let _ = request.respond(
+                tiny_http::Response::from_string(format!("Failed to write config: {}", error))
+                    .with_status_code(500),
+            );
+        }
+    }
+}
+
+fn serve_static_request(
+    request: tiny_http::Request,
+    dist_dir: &std::path::Path,
+    config_path: &Path,
+    feed_path: &Path,
+) {
+    let is_config_request = is_config_yaml_request(&request);
+    let is_feed_request = is_overtime_feed_request(&request);
+    let is_preflight_request = matches!(request.method(), tiny_http::Method::Options);
+    let is_write_request = matches!(request.method(), tiny_http::Method::Put | tiny_http::Method::Post);
+    if is_config_request && is_preflight_request {
+        respond_to_config_yaml_preflight(request);
+        return;
+    }
+    if is_config_request && is_write_request {
+        handle_config_yaml_write(request, config_path);
+        return;
+    }
+    if is_feed_request && is_preflight_request {
+        respond_to_overtime_feed_preflight(request);
+        return;
+    }
+    if is_feed_request && is_write_request {
+        handle_overtime_feed_write(request, feed_path);
+        return;
+    }
+    if is_feed_request && matches!(request.method(), tiny_http::Method::Delete) {
+        handle_overtime_feed_clear(request, feed_path);
+        return;
+    }
+
+    if is_config_request {
+        respond_with_config_yaml(request, config_path);
+        return;
+    }
+    if is_feed_request {
+        respond_with_overtime_feed(request, feed_path);
+        return;
+    }
+
     let url_path = request.url().to_string();
     let clean_path = url_path.split('?').next().unwrap_or("/");
     let relative = clean_path.trim_start_matches('/');
@@ -348,7 +762,47 @@ fn serve_static_request(request: tiny_http::Request, dist_dir: &std::path::Path)
     let _ = request.respond(response);
 }
 
-fn proxy_dev_request(request: tiny_http::Request, base_url: &str, client: &Client) {
+fn proxy_dev_request(
+    request: tiny_http::Request,
+    base_url: &str,
+    client: &Client,
+    config_path: &Path,
+    feed_path: &Path,
+) {
+    let is_config_request = is_config_yaml_request(&request);
+    let is_feed_request = is_overtime_feed_request(&request);
+    let is_preflight_request = matches!(request.method(), tiny_http::Method::Options);
+    let is_write_request = matches!(request.method(), tiny_http::Method::Put | tiny_http::Method::Post);
+    if is_config_request && is_preflight_request {
+        respond_to_config_yaml_preflight(request);
+        return;
+    }
+    if is_config_request && is_write_request {
+        handle_config_yaml_write(request, config_path);
+        return;
+    }
+    if is_feed_request && is_preflight_request {
+        respond_to_overtime_feed_preflight(request);
+        return;
+    }
+    if is_feed_request && is_write_request {
+        handle_overtime_feed_write(request, feed_path);
+        return;
+    }
+    if is_feed_request && matches!(request.method(), tiny_http::Method::Delete) {
+        handle_overtime_feed_clear(request, feed_path);
+        return;
+    }
+
+    if is_config_request {
+        respond_with_config_yaml(request, config_path);
+        return;
+    }
+    if is_feed_request {
+        respond_with_overtime_feed(request, feed_path);
+        return;
+    }
+
     let target_url = format!("{}{}", base_url, request.url());
     let proxied = match client.get(&target_url).send() {
         Ok(response) => response,
@@ -404,6 +858,17 @@ fn main() {
     tauri::Builder::default()
         .setup(|app| {
             let server_mode = if cfg!(debug_assertions) {
+                let config_path = resolve_config_yaml_path(&app.handle())
+                    .unwrap_or_else(|error| {
+                        eprintln!("[OBS Server] Unable to resolve config path: {}", error);
+                        PathBuf::from("easy-lottery.yaml")
+                    });
+                let feed_path = resolve_overtime_feed_path(&app.handle())
+                    .unwrap_or_else(|error| {
+                        eprintln!("[OBS Server] Unable to resolve overtime feed path: {}", error);
+                        PathBuf::from("easy-lottery-overtime-feed.json")
+                    });
+
                 if let Some(dev_server_url) = resolve_dev_server_url() {
                     println!("[OBS Server] Proxying development server from: {}", dev_server_url);
                     ObsServerMode::DevProxy {
@@ -412,24 +877,43 @@ fn main() {
                             .danger_accept_invalid_certs(true)
                             .build()
                             .expect("failed to create OBS dev proxy client"),
+                        config_path,
+                        feed_path,
                     }
                 } else {
                     let resource_dir = find_obs_asset_root(&app.handle());
 
                     println!("[OBS Server] Serving fallback static files from: {}", resource_dir.display());
-                    ObsServerMode::Static { dist_dir: resource_dir }
+                    ObsServerMode::Static { dist_dir: resource_dir, config_path, feed_path }
                 }
             } else {
+                let config_path = resolve_config_yaml_path(&app.handle())
+                    .unwrap_or_else(|error| {
+                        eprintln!("[OBS Server] Unable to resolve config path: {}", error);
+                        PathBuf::from("easy-lottery.yaml")
+                    });
+                let feed_path = resolve_overtime_feed_path(&app.handle())
+                    .unwrap_or_else(|error| {
+                        eprintln!("[OBS Server] Unable to resolve overtime feed path: {}", error);
+                        PathBuf::from("easy-lottery-overtime-feed.json")
+                    });
                 let resource_dir = find_obs_asset_root(&app.handle());
 
                 println!("[OBS Server] Serving bundled files from: {}", resource_dir.display());
-                ObsServerMode::Static { dist_dir: resource_dir }
+                ObsServerMode::Static { dist_dir: resource_dir, config_path, feed_path }
             };
 
             start_obs_http_server(server_mode);
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![greet, read_config_yaml, write_config_yaml])
+        .invoke_handler(tauri::generate_handler![
+            greet,
+            read_config_yaml,
+            write_config_yaml,
+            read_overtime_feed_json,
+            write_overtime_feed_json,
+            clear_overtime_feed_json
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

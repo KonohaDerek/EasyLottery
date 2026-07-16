@@ -33,7 +33,12 @@ namespace EasyLotteryWasm.Models
 
         public string BuildPreviewStyle()
         {
-            return $"background: linear-gradient(135deg, {BackgroundStart}, {BackgroundEnd}); border-color: {SurfaceBorderColor};";
+            return
+                $"background: " +
+                $"radial-gradient(circle at 18% 18%, color-mix(in srgb, {AccentSoftColor} 32%, transparent), transparent 34%), " +
+                $"radial-gradient(circle at 82% 0%, color-mix(in srgb, {GlowColor} 28%, transparent), transparent 30%), " +
+                $"linear-gradient(135deg, {BackgroundStart}, {BackgroundEnd}); " +
+                $"border-color: {SurfaceBorderColor};";
         }
 
         public static IReadOnlyList<OvertimeThemePreset> Catalog { get; } = new[]

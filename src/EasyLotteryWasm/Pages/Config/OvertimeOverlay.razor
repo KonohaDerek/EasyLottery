@@ -1,10 +1,11 @@
 @page "/activity/overtime"
+@using System.Globalization
 @using EasyLotteryDomain.Models.Config
 @using EasyLotteryDomain.Models.Overtime
+@using EasyLotteryDomain.Services
 @using EasyLotteryWasm.Models
 @inject IEasyLotteryConfigStore ConfigStore
 @inject IMessageService MessageService
-@inject IConfiguration Configuration
 @inject NavigationManager NavigationManager
 @inject IJSRuntime JSRuntime
 @inject OvertimeFeedClient OvertimeFeedClient
@@ -27,12 +28,7 @@ else
                 <div>
                     <div class="overtime-eyebrow">LIVE SUPPORT OVERLAY</div>
                     <h2 class="overtime-title">加班台設定</h2>
-                    <div class="overtime-subtitle">設定直播加班台的啟用狀態、事件來源與畫面樣式。</div>
-                </div>
-                <div class="overtime-actions">
-                    <Button Color="Color.Secondary" Clicked="@CopyOverlayUrlAsync">複製 OBS 網址</Button>
-                    <Button Color="Color.Secondary" Clicked="@CopySuperChatWebhookAsync">複製 SuperChat API</Button>
-                    <Button Color="Color.Secondary" Clicked="@CopyEcpayWebhookAsync">複製綠界 API</Button>
+                    <div class="overtime-subtitle">設定直播加班台的事件來源與畫面樣式。</div>
                 </div>
             </div>
 
@@ -43,10 +39,8 @@ else
                             <Row>
                                 <Column ColumnSize="ColumnSize.Is6">
                                     <Field>
-                                        <FieldLabel>啟用加班台</FieldLabel>
-                                        <Switch TValue="bool" @bind-Value="@settings.IsEnabled">
-                                            @(settings.IsEnabled ? "已啟用" : "已停用")
-                                        </Switch>
+                                        <FieldLabel>OBS 開始控制</FieldLabel>
+                                        <div class="text-muted">開始按鈕已移到 OBS 頁，這裡只保留設定與預覽。</div>
                                     </Field>
                                 </Column>
                                 <Column ColumnSize="ColumnSize.Is6">
@@ -86,6 +80,94 @@ else
                                 </Column>
                             </Row>
 
+                            <div class="overtime-time-card">
+                                <div class="overtime-time-title">預計結束時間</div>
+                                <div class="overtime-time-hint">先設定預計關台時間。OBS 按下開始後，donate 才會在這個時間基準上往後延長。</div>
+                                <Row>
+                                    <Column ColumnSize="ColumnSize.Is12">
+                                        <Field>
+                                            <FieldLabel>預計結束時間</FieldLabel>
+                                            <input class="overtime-datetime-input"
+                                                   type="datetime-local"
+                                                   value="@PlannedEndAtInput"
+                                                   @onchange="OnPlannedEndAtInputChanged" />
+                                        </Field>
+                                    </Column>
+                                </Row>
+                                <Row>
+                                    <Column ColumnSize="ColumnSize.Is6">
+                                        <Field>
+                                            <FieldLabel>單行訊息顯示秒數</FieldLabel>
+                                            <NumericInput TValue="int" @bind-Value="@settings.SupportMessageVisibleSeconds" Min="1" Max="60" />
+                                        </Field>
+                                    </Column>
+                                </Row>
+                            </div>
+
+                            <div class="overtime-rules-card">
+                                <div class="overtime-rules-header">
+                                    <div>
+                                        <div class="overtime-rules-title">金額換算加班時間</div>
+                                        <div class="overtime-rules-hint">設定每筆贊助滿多少錢，就要加幾小時或幾分鐘。</div>
+                                    </div>
+                                    <div class="overtime-rules-actions">
+                                        <Button Size="Size.Small" Color="Color.Secondary" Clicked="@ResetRewardRules">重設預設</Button>
+                                        <Button Size="Size.Small" Color="Color.Primary" Clicked="@AddRewardRule">新增規則</Button>
+                                    </div>
+                                </div>
+
+                                @if (settings.RewardRules.Count == 0)
+                                {
+                                    <div class="overtime-rules-empty">目前還沒有規則，先按「新增規則」建立一筆。</div>
+                                }
+                                else
+                                {
+                                    <div class="overtime-rules-list">
+                                        @for (var index = 0; index < settings.RewardRules.Count; index++)
+                                        {
+                                            var rule = settings.RewardRules[index];
+                                            <div class="overtime-rule-row">
+                                                <div class="overtime-rule-main">
+                                                    <Field>
+                                                        <FieldLabel>規則名稱</FieldLabel>
+                                                        <TextInput @bind-Value="@rule.Label" Placeholder="例如：滿 300 元加 30 分" />
+                                                    </Field>
+                                                    <Row>
+                                                        <Column ColumnSize="ColumnSize.Is4">
+                                                            <Field>
+                                                                <FieldLabel>門檻金額</FieldLabel>
+                                                                <NumericInput TValue="decimal" @bind-Value="@rule.AmountThreshold" Min="0" />
+                                                            </Field>
+                                                        </Column>
+                                                        <Column ColumnSize="ColumnSize.Is4">
+                                                            <Field>
+                                                                <FieldLabel>加幾小時</FieldLabel>
+                                                                <NumericInput TValue="int" @bind-Value="@rule.AddHours" Min="0" />
+                                                            </Field>
+                                                        </Column>
+                                                        <Column ColumnSize="ColumnSize.Is4">
+                                                            <Field>
+                                                                <FieldLabel>加幾分鐘</FieldLabel>
+                                                                <NumericInput TValue="int" @bind-Value="@rule.AddMinutes" Min="0" />
+                                                            </Field>
+                                                        </Column>
+                                                    </Row>
+                                                </div>
+                                                <div class="overtime-rule-side">
+                                                    <Field>
+                                                        <FieldLabel>啟用</FieldLabel>
+                                                        <Switch TValue="bool" @bind-Value="@rule.IsEnabled">
+                                                            @(rule.IsEnabled ? "啟用" : "停用")
+                                                        </Switch>
+                                                    </Field>
+                                                    <Button Size="Size.Small" Color="Color.Danger" Clicked="@(() => RemoveRewardRule(index))">刪除</Button>
+                                                </div>
+                                            </div>
+                                        }
+                                    </div>
+                                }
+                            </div>
+
                             <Field>
                                 <FieldLabel>目前選用風格</FieldLabel>
                                 <Select TValue="string" @bind-SelectedValue="@selectedThemeKey">
@@ -96,10 +178,25 @@ else
                                 </Select>
                             </Field>
 
+                            <Row>
+                                <Column ColumnSize="ColumnSize.Is6">
+                                    <Field>
+                                        <FieldLabel>示範 SuperChat 金額</FieldLabel>
+                                        <NumericInput TValue="decimal" @bind-Value="@settings.DemoSuperChatAmount" Min="0" />
+                                    </Field>
+                                </Column>
+                                <Column ColumnSize="ColumnSize.Is6">
+                                    <Field>
+                                        <FieldLabel>示範綠界金額</FieldLabel>
+                                        <NumericInput TValue="decimal" @bind-Value="@settings.DemoEcpayAmount" Min="0" />
+                                    </Field>
+                                </Column>
+                            </Row>
+
                             <div class="d-flex gap-2 flex-wrap mt-4">
                                 <Button Color="Color.Primary" Clicked="@SaveAsync">儲存設定</Button>
-                                <Button Color="Color.Success" Clicked="@SendDemoSuperChatAsync">送出示範 SuperChat</Button>
-                                <Button Color="Color.Warning" Clicked="@SendDemoEcpayAsync">送出示範綠界 Donate</Button>
+                                <Button Color="Color.Success" Clicked="@SendDemoSuperChatAsync">送出示範 SuperChat (@FormatAmountDisplay(settings.DemoSuperChatAmount))</Button>
+                                <Button Color="Color.Warning" Clicked="@SendDemoEcpayAsync">送出示範綠界 Donate (@FormatAmountDisplay(settings.DemoEcpayAmount))</Button>
                                 <Button Color="Color.Danger" Clicked="@ClearFeedAsync">清除加班台訊息</Button>
                             </div>
                         </CardBody>
@@ -127,6 +224,15 @@ else
                                 <div class="sample-message">祝直播順利，這裡是示範訊息。</div>
                                 <div class="sample-amount">NT$ 300</div>
                             </div>
+                            @if (settings.RewardRules.Count > 0)
+                            {
+                                <div class="overtime-preview-rules">
+                                    @foreach (var rule in settings.RewardRules.Where(rule => rule.IsEnabled).Take(3))
+                                    {
+                                        <span class="overtime-preview-rule">@OvertimeRewardRuleCalculator.DescribeRule(rule)</span>
+                                    }
+                                </div>
+                            }
                         </CardBody>
                     </Card>
                 </Column>
@@ -146,7 +252,13 @@ else
                                         <div class="theme-card-emoji">@preset.Emoji</div>
                                         <div class="theme-card-title">@preset.Name</div>
                                     </div>
+                                    <div class="theme-card-ribbon" style="@ThemeRibbonStyle(preset)"></div>
                                     <div class="theme-card-desc">@preset.Description</div>
+                                    <div class="theme-card-swatches">
+                                        <span class="theme-card-swatch" style="@SwatchStyle(preset.BackgroundStart)"></span>
+                                        <span class="theme-card-swatch" style="@SwatchStyle(preset.AccentColor)"></span>
+                                        <span class="theme-card-swatch" style="@SwatchStyle(preset.AccentSoftColor)"></span>
+                                    </div>
                                     <div class="theme-card-key">@preset.Key</div>
                                 </CardBody>
                             </Card>
@@ -155,33 +267,18 @@ else
                 </Row>
             </div>
 
-            <div class="mt-4">
-                <h5 class="mb-3">介面連結</h5>
-                <Table FullWidth Striped Hoverable Bordered Responsive>
-                    <TableBody>
-                        <TableRow>
-                            <TableRowCell>OBS 來源網址</TableRowCell>
-                            <TableRowCell class="text-break">@OverlayUrl</TableRowCell>
-                            <TableRowCell>
-                                <Button Size="Size.Small" Color="Color.Secondary" Clicked="@CopyOverlayUrlAsync">複製</Button>
-                            </TableRowCell>
-                        </TableRow>
-                        <TableRow>
-                            <TableRowCell>SuperChat API</TableRowCell>
-                            <TableRowCell class="text-break">@SuperChatWebhookUrl</TableRowCell>
-                            <TableRowCell>
-                                <Button Size="Size.Small" Color="Color.Secondary" Clicked="@CopySuperChatWebhookAsync">複製</Button>
-                            </TableRowCell>
-                        </TableRow>
-                        <TableRow>
-                            <TableRowCell>綠界 Donate API</TableRowCell>
-                            <TableRowCell class="text-break">@EcpayWebhookUrl</TableRowCell>
-                            <TableRowCell>
-                                <Button Size="Size.Small" Color="Color.Secondary" Clicked="@CopyEcpayWebhookAsync">複製</Button>
-                            </TableRowCell>
-                        </TableRow>
-                    </TableBody>
-                </Table>
+            <div class="overtime-links-panel mt-4">
+                <div class="overtime-links-header">
+                    <h5 class="overtime-links-title">OBS 連結</h5>
+                    <div class="overtime-links-hint">把這個網址貼到 OBS 的瀏覽器來源即可。</div>
+                </div>
+                <div class="overtime-links-list">
+                    <div class="overtime-link-row">
+                        <div class="overtime-link-label">OBS 來源網址</div>
+                        <input class="overtime-link-value" value="@OverlayUrl" readonly />
+                        <Button Size="Size.Small" Color="Color.Primary" Clicked="@CopyOverlayUrlAsync">複製</Button>
+                    </div>
+                </div>
             </div>
         </CardBody>
     </Card>
@@ -319,12 +416,30 @@ else
         color: var(--overtime-accent, #ffd166);
     }
 
+    .overtime-preview-rules {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 14px;
+    }
+
+    .overtime-preview-rule {
+        display: inline-flex;
+        align-items: center;
+        padding: 6px 10px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.12);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        font-size: 0.82rem;
+        font-weight: 700;
+    }
+
     .theme-card {
         cursor: pointer;
         color: white;
         overflow: hidden;
         transition: transform 0.18s ease, box-shadow 0.18s ease;
-        min-height: 172px;
+        min-height: 216px;
     }
 
     .theme-card:hover {
@@ -365,27 +480,265 @@ else
         opacity: 0.9;
     }
 
+    .overtime-time-card {
+        margin-top: 16px;
+        padding: 18px;
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.96);
+        color: #0f172a;
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75);
+    }
+
+    .overtime-time-title {
+        font-size: 1.05rem;
+        font-weight: 900;
+    }
+
+    .overtime-time-hint {
+        margin-top: 4px;
+        margin-bottom: 12px;
+        color: #64748b;
+        font-size: 0.92rem;
+    }
+
+    .overtime-time-input {
+        width: 100%;
+        border: 1px solid rgba(148, 163, 184, 0.35);
+        border-radius: 12px;
+        padding: 10px 12px;
+        background: #fff;
+        color: #0f172a;
+        font-size: 0.95rem;
+    }
+
+    .overtime-time-input:focus {
+        outline: 3px solid rgba(37, 99, 235, 0.18);
+        border-color: rgba(37, 99, 235, 0.55);
+    }
+
+    .overtime-datetime-input {
+        width: 100%;
+        min-height: 48px;
+        border: 1px solid rgba(148, 163, 184, 0.35);
+        border-radius: 12px;
+        padding: 10px 12px;
+        background: #fff;
+        color: #0f172a;
+        font-size: 0.95rem;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+    }
+
+    .overtime-datetime-input:focus {
+        outline: 3px solid rgba(37, 99, 235, 0.18);
+        border-color: rgba(37, 99, 235, 0.55);
+    }
+
+    .theme-card-ribbon {
+        height: 12px;
+        border-radius: 999px;
+        margin: 12px 0 12px;
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.18);
+    }
+
+    .theme-card-swatches {
+        display: flex;
+        gap: 8px;
+        margin-top: 14px;
+    }
+
+    .theme-card-swatch {
+        width: 42px;
+        height: 12px;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.18);
+    }
+
     .theme-card-key {
         margin-top: 12px;
         font-size: 0.82rem;
         opacity: 0.74;
         word-break: break-all;
     }
+
+    .overtime-rules-card {
+        margin-top: 16px;
+        padding: 18px;
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.96);
+        color: #0f172a;
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75);
+    }
+
+    .overtime-rules-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 14px;
+    }
+
+    .overtime-rules-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+    }
+
+    .overtime-rules-title {
+        font-size: 1.05rem;
+        font-weight: 900;
+    }
+
+    .overtime-rules-hint {
+        margin-top: 4px;
+        color: #64748b;
+        font-size: 0.92rem;
+    }
+
+    .overtime-rules-empty {
+        padding: 14px 16px;
+        border-radius: 14px;
+        background: rgba(248, 250, 252, 0.96);
+        border: 1px dashed rgba(148, 163, 184, 0.45);
+        color: #475569;
+    }
+
+    .overtime-rules-list {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .overtime-rule-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 170px;
+        gap: 14px;
+        padding: 14px;
+        border-radius: 16px;
+        background: rgba(248, 250, 252, 0.95);
+        border: 1px solid rgba(148, 163, 184, 0.18);
+    }
+
+    .overtime-rule-main {
+        min-width: 0;
+    }
+
+    .overtime-rule-side {
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        gap: 10px;
+        align-items: flex-start;
+    }
+
+    @@media (max-width: 767.98px) {
+        .overtime-rule-row {
+            grid-template-columns: 1fr;
+        }
+
+        .overtime-rule-side {
+            flex-direction: row;
+            align-items: center;
+            justify-content: space-between;
+        }
+    }
+
+    .overtime-links-panel {
+        padding: 22px 24px;
+        border-radius: 20px;
+        background: linear-gradient(180deg, rgba(10, 16, 36, 0.98), rgba(18, 24, 50, 0.96));
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        box-shadow: 0 20px 45px rgba(0, 0, 0, 0.22);
+    }
+
+    .overtime-links-header {
+        margin-bottom: 14px;
+    }
+
+    .overtime-links-title {
+        margin: 0;
+        color: #f8fbff;
+        font-weight: 900;
+        font-size: 1.15rem;
+    }
+
+    .overtime-links-hint {
+        margin-top: 4px;
+        color: rgba(236, 242, 255, 0.76);
+        font-size: 0.92rem;
+    }
+
+    .overtime-links-list {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .overtime-link-row {
+        display: grid;
+        grid-template-columns: 180px minmax(0, 1fr) auto;
+        gap: 12px;
+        align-items: center;
+        padding: 14px 16px;
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.95);
+        border: 1px solid rgba(148, 163, 184, 0.18);
+    }
+
+    .overtime-link-label {
+        color: #0f172a;
+        font-weight: 800;
+    }
+
+    .overtime-link-value {
+        width: 100%;
+        min-width: 0;
+        border: 1px solid rgba(148, 163, 184, 0.35);
+        border-radius: 12px;
+        padding: 10px 12px;
+        background: #fff;
+        color: #0f172a;
+        font-size: 0.95rem;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+    }
+
+    .overtime-link-value:focus {
+        outline: 3px solid rgba(37, 99, 235, 0.18);
+        border-color: rgba(37, 99, 235, 0.55);
+    }
+
+    @@media (max-width: 767.98px) {
+        .overtime-link-row {
+            grid-template-columns: 1fr;
+        }
+
+        .overtime-link-value {
+            order: 2;
+        }
+
+        .overtime-link-row .btn {
+            width: 100%;
+            order: 3;
+        }
+    }
 </style>
 
 @code {
+    private const string PlannedEndMarkerLabel = "預計關台時間";
+    private const string SessionStartMarkerLabel = "加班開始";
+    private const string SessionStopMarkerLabel = "加班停止";
+
     private bool isLoading = true;
     private EasyLotteryConfigDocument document = new();
     private OvertimeOverlaySettings settings = new();
     private IReadOnlyList<OvertimeThemePreset> presets = OvertimeThemePreset.Catalog;
     private string selectedThemeKey = OvertimeThemePreset.Catalog[0].Key;
     private string OverlayUrl => NavigationManager.ToAbsoluteUri("/obs/overtime").ToString();
-
-    private string ApiBaseUrl => Configuration["Api:BaseUrl"] ?? "http://localhost:5297/";
-
-    private string SuperChatWebhookUrl => new Uri(new Uri(ApiBaseUrl, UriKind.Absolute), "api/overtime/superchat").ToString();
-
-    private string EcpayWebhookUrl => new Uri(new Uri(ApiBaseUrl, UriKind.Absolute), "api/overtime/ecpay").ToString();
+    private string PlannedEndAtInput { get; set; } = "";
 
     private OvertimeThemePreset CurrentTheme => OvertimeThemePreset.GetByKey(selectedThemeKey);
 
@@ -393,8 +746,18 @@ else
     {
         document = await ConfigStore.LoadAsync();
         settings = document.OvertimeOverlay ?? new OvertimeOverlaySettings();
+        settings.RewardRules ??= new List<OvertimeRewardRule>();
+        settings.DemoSuperChatAmount = Math.Max(0, settings.DemoSuperChatAmount);
+        settings.DemoEcpayAmount = Math.Max(0, settings.DemoEcpayAmount);
         selectedThemeKey = string.IsNullOrWhiteSpace(settings.ThemeKey) ? OvertimeThemePreset.Catalog[0].Key : settings.ThemeKey;
+        PlannedEndAtInput = FormatDateTimeLocal(settings.PlannedEndAtUtc);
         isLoading = false;
+    }
+
+    private void OnPlannedEndAtInputChanged(ChangeEventArgs args)
+    {
+        PlannedEndAtInput = args.Value?.ToString() ?? "";
+        settings.PlannedEndAtUtc = ParseDateTimeLocal(PlannedEndAtInput);
     }
 
     private void SelectTheme(string key)
@@ -403,11 +766,51 @@ else
         settings.ThemeKey = key;
     }
 
+    private void AddRewardRule()
+    {
+        settings.RewardRules.Add(new OvertimeRewardRule
+        {
+            Label = "新規規則",
+            AmountThreshold = 100,
+            AddMinutes = 30,
+            IsEnabled = true
+        });
+    }
+
+    private void ResetRewardRules()
+    {
+        settings.RewardRules = new OvertimeOverlaySettings().RewardRules
+            .Select(rule => new OvertimeRewardRule
+            {
+                Label = rule.Label,
+                AmountThreshold = rule.AmountThreshold,
+                AddHours = rule.AddHours,
+                AddMinutes = rule.AddMinutes,
+                IsEnabled = rule.IsEnabled
+            })
+            .ToList();
+    }
+
+    private void RemoveRewardRule(int index)
+    {
+        if (index >= 0 && index < settings.RewardRules.Count)
+        {
+            settings.RewardRules.RemoveAt(index);
+        }
+    }
+
     private async Task SaveAsync()
     {
+        settings.PlannedEndAtUtc = ParseDateTimeLocal(PlannedEndAtInput);
         document.OvertimeOverlay = settings;
         document.OvertimeOverlay.ThemeKey = selectedThemeKey;
         await ConfigStore.SaveAsync(document);
+
+        if (!await IsSessionStartedAsync())
+        {
+            await PublishPlannedEndMarkerAsync(settings.PlannedEndAtUtc);
+        }
+
         await MessageService.Success("已儲存加班台設定。");
     }
 
@@ -417,60 +820,126 @@ else
         await MessageService.Success("已複製 OBS 網址。");
     }
 
-    private async Task CopySuperChatWebhookAsync()
-    {
-        await JSRuntime.InvokeVoidAsync("easyLotteryClipboard.copyText", SuperChatWebhookUrl);
-        await MessageService.Success("已複製 SuperChat API。");
-    }
-
-    private async Task CopyEcpayWebhookAsync()
-    {
-        await JSRuntime.InvokeVoidAsync("easyLotteryClipboard.copyText", EcpayWebhookUrl);
-        await MessageService.Success("已複製綠界 API。");
-    }
-
     private async Task SendDemoSuperChatAsync()
     {
+        var nowUtc = DateTimeOffset.UtcNow;
+        var isStarted = await IsSessionStartedAsync();
+        var currentSessionEndAtUtc = await GetCurrentSessionEndAtAsync();
+        var sessionEndAtUtc = isStarted
+            ? CalculateRewardExtension(settings.DemoSuperChatAmount, currentSessionEndAtUtc, nowUtc)
+            : currentSessionEndAtUtc;
+
         var entry = await OvertimeFeedClient.PostSuperChatAsync(new OvertimeSupportEvent
         {
             Source = OvertimeSupportSource.SuperChat,
             SourceLabel = "YouTube SuperChat",
             DisplayName = "示範觀眾",
             Message = "祝直播順利，這是示範 SuperChat。",
-            Amount = 300m,
-            AmountDisplay = "NT$300",
+            Amount = settings.DemoSuperChatAmount,
+            AmountDisplay = FormatAmountDisplay(settings.DemoSuperChatAmount),
             Currency = "TWD",
             AvatarUrl = "https://placehold.co/96x96/png",
             Color = "#ff7ab6",
-            ExternalId = Guid.NewGuid().ToString("N")
+            ExternalId = Guid.NewGuid().ToString("N"),
+            OccurredAtUtc = nowUtc,
+            SessionEndAtUtc = sessionEndAtUtc
         });
 
-        if (entry != null)
+        if (entry != null && isStarted)
         {
+            settings.PlannedEndAtUtc = entry.SessionEndAtUtc;
+            document.OvertimeOverlay = settings;
+            await ConfigStore.SaveAsync(document);
+            await PublishPlannedEndMarkerAsync(settings.PlannedEndAtUtc);
             await MessageService.Success("已送出示範 SuperChat。");
         }
     }
 
     private async Task SendDemoEcpayAsync()
     {
+        var nowUtc = DateTimeOffset.UtcNow;
+        var isStarted = await IsSessionStartedAsync();
+        var currentSessionEndAtUtc = await GetCurrentSessionEndAtAsync();
+        var sessionEndAtUtc = isStarted
+            ? CalculateRewardExtension(settings.DemoEcpayAmount, currentSessionEndAtUtc, nowUtc)
+            : currentSessionEndAtUtc;
+
         var entry = await OvertimeFeedClient.PostEcpayDonateAsync(new OvertimeSupportEvent
         {
             Source = OvertimeSupportSource.EcpayDonate,
             SourceLabel = "ECPay Donate",
             DisplayName = "示範贊助者",
             Message = "綠界示範贊助。",
-            Amount = 500m,
-            AmountDisplay = "NT$500",
+            Amount = settings.DemoEcpayAmount,
+            AmountDisplay = FormatAmountDisplay(settings.DemoEcpayAmount),
             Currency = "TWD",
             AvatarUrl = "https://placehold.co/96x96/png?text=EC",
             Color = "#ffd166",
-            ExternalId = Guid.NewGuid().ToString("N")
+            ExternalId = Guid.NewGuid().ToString("N"),
+            OccurredAtUtc = nowUtc,
+            SessionEndAtUtc = sessionEndAtUtc
         });
 
-        if (entry != null)
+        if (entry != null && isStarted)
         {
+            settings.PlannedEndAtUtc = entry.SessionEndAtUtc;
+            document.OvertimeOverlay = settings;
+            await ConfigStore.SaveAsync(document);
+            await PublishPlannedEndMarkerAsync(settings.PlannedEndAtUtc);
             await MessageService.Success("已送出示範綠界 Donate。");
         }
+    }
+
+    private DateTimeOffset? CalculateRewardExtension(decimal? amount, DateTimeOffset? currentSessionEndAtUtc, DateTimeOffset nowUtc)
+    {
+        var matchedRule = OvertimeRewardRuleCalculator.FindMatchedRule(settings.RewardRules, amount);
+        if (matchedRule == null)
+        {
+            return currentSessionEndAtUtc;
+        }
+
+        return OvertimeSessionTimeCalculator.ExtendPlannedEnd(
+            currentSessionEndAtUtc,
+            matchedRule,
+            nowUtc);
+    }
+
+    private async Task<bool> IsSessionStartedAsync()
+    {
+        var events = await OvertimeFeedClient.GetEventsAsync();
+        var marker = events.FirstOrDefault(item =>
+            item.Source == OvertimeSupportSource.Manual &&
+            (string.Equals(item.SourceLabel, SessionStartMarkerLabel, StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(item.SourceLabel, SessionStopMarkerLabel, StringComparison.OrdinalIgnoreCase)));
+
+        return marker != null && string.Equals(marker.SourceLabel, SessionStartMarkerLabel, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private async Task<DateTimeOffset?> GetCurrentSessionEndAtAsync()
+    {
+        var events = await OvertimeFeedClient.GetEventsAsync();
+        return events.FirstOrDefault(item => item.SessionEndAtUtc.HasValue)?.SessionEndAtUtc ?? settings.PlannedEndAtUtc;
+    }
+
+    private async Task PublishPlannedEndMarkerAsync(DateTimeOffset? plannedEndAtUtc)
+    {
+        await OvertimeFeedClient.PostManualAsync(new OvertimeSupportEvent
+        {
+            Source = OvertimeSupportSource.Manual,
+            SourceLabel = PlannedEndMarkerLabel,
+            DisplayName = PlannedEndMarkerLabel,
+            Message = plannedEndAtUtc.HasValue
+                ? "預計關台時間已更新。"
+                : "預計關台時間已清除。",
+            Amount = null,
+            AmountDisplay = "",
+            Currency = "TWD",
+            AvatarUrl = "",
+            Color = "#8bd3ff",
+            ExternalId = Guid.NewGuid().ToString("N"),
+            OccurredAtUtc = DateTimeOffset.UtcNow,
+            SessionEndAtUtc = plannedEndAtUtc
+        });
     }
 
     private async Task ClearFeedAsync()
@@ -481,8 +950,59 @@ else
 
     private string ThemeCardClass(string key)
     {
-        return string.Equals(selectedThemeKey, key, StringComparison.OrdinalIgnoreCase)
-            ? "theme-card selected"
-            : "theme-card";
+        var keyClass = key.ToLowerInvariant().Replace('_', '-');
+        var selectedClass = string.Equals(selectedThemeKey, key, StringComparison.OrdinalIgnoreCase) ? " selected" : "";
+        return $"theme-card theme-card-{keyClass}{selectedClass}";
+    }
+
+    private static string ThemeRibbonStyle(OvertimeThemePreset preset)
+    {
+        return $"background: linear-gradient(90deg, {preset.AccentColor}, {preset.AccentSoftColor});";
+    }
+
+    private static string SwatchStyle(string color)
+    {
+        return $"background: {color};";
+    }
+
+    private static string FormatAmountDisplay(decimal amount)
+    {
+        return $"NT${amount:N0}";
+    }
+
+    private static string FormatDateTimeLocal(DateTimeOffset? value)
+    {
+        if (!value.HasValue)
+        {
+            return "";
+        }
+
+        var utcValue = value.Value.ToUniversalTime();
+        if (utcValue.Year < 2000)
+        {
+            return "";
+        }
+
+        return utcValue.ToLocalTime().DateTime.ToString("yyyy-MM-ddTHH:mm", CultureInfo.InvariantCulture);
+    }
+
+    private static DateTimeOffset? ParseDateTimeLocal(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        if (!DateTime.TryParseExact(
+                value.Trim(),
+                "yyyy-MM-ddTHH:mm",
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.None,
+                out var parsed))
+        {
+            return null;
+        }
+
+        return new DateTimeOffset(DateTime.SpecifyKind(parsed, DateTimeKind.Local)).ToUniversalTime();
     }
 }

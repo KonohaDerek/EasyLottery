@@ -4,6 +4,7 @@
     }
 
     const storageKey = "easy-lottery.config.yaml";
+    const remoteConfigUrl = "http://localhost:18930/easy-lottery-config.yaml";
     let memoryFallback = "";
 
     function getSafeContent(content) {
@@ -21,23 +22,44 @@
     async function read() {
         const tauriInvoke = getTauriInvoker();
         if (tauriInvoke) {
-            const content = await tauriInvoke("read_config_yaml");
-            memoryFallback = getSafeContent(content);
-            return memoryFallback;
+            try {
+                const content = await tauriInvoke("read_config_yaml");
+                memoryFallback = getSafeContent(content);
+                return memoryFallback;
+            } catch {
+            }
         }
 
         try {
             const content = window.localStorage.getItem(storageKey);
             memoryFallback = getSafeContent(content);
-            return memoryFallback;
+            if (memoryFallback) {
+                return memoryFallback;
+            }
         } catch {
-            return memoryFallback;
         }
+
+        try {
+            const response = await fetch(remoteConfigUrl, { cache: "no-store", mode: "cors" });
+            if (response.ok) {
+                const content = await response.text();
+                memoryFallback = getSafeContent(content);
+                return memoryFallback;
+            }
+        } catch {
+        }
+
+        return memoryFallback;
     }
 
     async function write(content) {
         const safeContent = getSafeContent(content);
         memoryFallback = safeContent;
+
+        try {
+            window.localStorage.setItem(storageKey, safeContent);
+        } catch {
+        }
 
         const tauriInvoke = getTauriInvoker();
         if (tauriInvoke) {
@@ -46,7 +68,15 @@
         }
 
         try {
-            window.localStorage.setItem(storageKey, safeContent);
+            await fetch(remoteConfigUrl, {
+                method: "PUT",
+                cache: "no-store",
+                mode: "cors",
+                headers: {
+                    "Content-Type": "text/yaml; charset=utf-8"
+                },
+                body: safeContent
+            });
         } catch {
         }
     }

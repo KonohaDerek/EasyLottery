@@ -2,6 +2,7 @@
 @layout ObsLayout
 @using EasyLotteryDomain.Models.Config
 @using EasyLotteryDomain.Models.Overtime
+@using EasyLotteryDomain.Services
 @using EasyLotteryWasm.Layout
 @using EasyLotteryWasm.Models
 @inject IEasyLotteryConfigStore ConfigStore
@@ -19,65 +20,48 @@ else
 {
     <div class="overtime-overlay" style="@ThemeStyle">
         <div class="overtime-shell">
-            @if (!settings.IsEnabled)
+            @if (!HasSessionStarted)
             {
-                <div class="overtime-disabled-panel">
-                    <div class="overtime-disabled-title">加班台尚未啟用</div>
-                    <div class="overtime-disabled-subtitle">請到「活動配置 / 加班台」開啟後，這個畫面才會開始顯示 SuperChat 與綠界 Donate。</div>
-                </div>
-            }
-            else if (!events.Any())
-            {
-                <div class="overtime-empty-panel">
-                    <div class="overtime-empty-title">目前還沒有事件</div>
-                    <div class="overtime-empty-subtitle">當收到 SuperChat 或綠界贊助時，訊息會在這裡出現。</div>
+                <div class="overtime-standby-panel">
+                    <div class="overtime-countdown-label">預計關台時間</div>
+                    <div class="overtime-countdown-line">@PlannedCloseText</div>
+                    <div class="overtime-standby-actions">
+                        <Button Color="Color.Primary" Clicked="@StartCountdownAsync">開始加班</Button>
+                    </div>
                 </div>
             }
             else
             {
-                <div class="overtime-feed">
-                    @foreach (var item in events.Take(settings.MaxVisibleItems))
+                <div class="overtime-minimal-overlay">
+                    <div class="overtime-progress-wrap">
+                        <div class="overtime-countdown-line">@CountdownText</div>
+                        <div class="overtime-standby-actions">
+                            <Button Color="Color.Secondary" Clicked="@StopCountdownAsync">停止加班</Button>
+                        </div>
+                    </div>
+
+                    @if (VisibleEvent is not null)
                     {
-                        <article class="overtime-card">
-                            <div class="overtime-card-left">
-                                @if (settings.ShowAvatars && !string.IsNullOrWhiteSpace(item.AvatarUrl))
-                                {
-                                    <img class="overtime-avatar" src="@item.AvatarUrl" alt="@item.DisplayName" />
-                                }
-                                else
-                                {
-                                    <div class="overtime-avatar fallback">@GetAvatarFallback(item.DisplayName)</div>
-                                }
-                            </div>
-                            <div class="overtime-card-main">
-                                <div class="overtime-card-head">
-                                    <div>
-                                        <div class="overtime-card-name">@item.DisplayName</div>
-                                        <div class="overtime-card-source">@item.SourceLabel</div>
-                                    </div>
-                                    <div class="overtime-card-time">@item.OccurredAtUtc.ToLocalTime().ToString("HH:mm:ss")</div>
-                                </div>
-                                @if (!string.IsNullOrWhiteSpace(item.Message))
-                                {
-                                    <div class="overtime-card-message">@item.Message</div>
-                                }
-                                <div class="overtime-card-footer">
-                                    <span class="overtime-card-tag">@item.Source</span>
-                                    @if (settings.ShowAmounts && !string.IsNullOrWhiteSpace(item.AmountDisplay))
-                                    {
-                                        <span class="overtime-card-amount">@item.AmountDisplay</span>
-                                    }
-                                    else if (settings.ShowAmounts && item.Amount.HasValue)
-                                    {
-                                        <span class="overtime-card-amount">@item.Amount.Value.ToString("0.##") @item.Currency</span>
-                                    }
-                                    else
-                                    {
-                                        <span class="overtime-card-amount muted">金額已隱藏</span>
-                                    }
-                                </div>
-                            </div>
-                        </article>
+                        <div class="overtime-live-line">
+                            <span class="overtime-live-source">@VisibleEvent.SourceLabel</span>
+                            <span class="overtime-live-divider">·</span>
+                            <span class="overtime-live-name">@VisibleEvent.DisplayName</span>
+                            @if (settings.ShowAmounts && !string.IsNullOrWhiteSpace(VisibleEvent.AmountDisplay))
+                            {
+                                <span class="overtime-live-divider">·</span>
+                                <span class="overtime-live-amount">@VisibleEvent.AmountDisplay</span>
+                            }
+                            @if (TryGetRewardSummary(VisibleEvent, out var visibleRewardSummary))
+                            {
+                                <span class="overtime-live-divider">·</span>
+                                <span class="overtime-live-reward">@visibleRewardSummary</span>
+                            }
+                            else if (settings.ShowAmounts && VisibleEvent.Amount.HasValue && string.IsNullOrWhiteSpace(VisibleEvent.AmountDisplay))
+                            {
+                                <span class="overtime-live-divider">·</span>
+                                <span class="overtime-live-amount">@VisibleEvent.Amount.Value.ToString("0.##") @VisibleEvent.Currency</span>
+                            }
+                        </div>
                     }
                 </div>
             }
@@ -136,11 +120,305 @@ else
         z-index: 1;
     }
 
-    .overtime-feed {
+    .overtime-minimal-overlay {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 14px;
+        min-height: 0;
+    }
+
+    .overtime-standby-panel {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+        min-height: 0;
+        text-align: center;
+    }
+
+    .overtime-progress-wrap {
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+        align-items: center;
+    }
+
+    .overtime-countdown-line {
+        font-size: clamp(2.4rem, 4vw, 4.8rem);
+        font-weight: 950;
+        letter-spacing: 0.02em;
+        color: #ffffff;
+        text-align: center;
+        font-variant-numeric: tabular-nums;
+        text-shadow: 0 10px 30px rgba(0, 0, 0, 0.26);
+    }
+
+    .overtime-standby-actions {
+        display: flex;
+        justify-content: center;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    .overtime-live-line {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+        padding: 10px 14px;
+        border-radius: 999px;
+        background: rgba(10, 14, 26, 0.34);
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        color: rgba(255, 255, 255, 0.96);
+        font-size: 1rem;
+        font-weight: 800;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .overtime-live-source,
+    .overtime-live-name,
+    .overtime-live-amount,
+    .overtime-live-reward {
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .overtime-live-source {
+        color: rgba(255, 255, 255, 0.78);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        max-width: 180px;
+    }
+
+    .overtime-live-name {
+        max-width: 260px;
+    }
+
+    .overtime-live-amount {
+        color: var(--overtime-accent);
+        max-width: 160px;
+    }
+
+    .overtime-live-reward {
+        color: #cfe7ff;
+        max-width: 220px;
+    }
+
+    .overtime-live-divider {
+        opacity: 0.58;
+        flex: 0 0 auto;
+    }
+
+    .overtime-session-panel {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 12px;
+        margin-bottom: 2px;
+    }
+
+    .overtime-session-block {
+        border-radius: 22px;
+        padding: 18px 20px;
+        background:
+            linear-gradient(135deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.06)),
+            rgba(8, 12, 24, 0.34);
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        box-shadow: 0 16px 36px rgba(0, 0, 0, 0.16);
+    }
+
+    .overtime-session-label {
+        font-size: 0.88rem;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        opacity: 0.82;
+    }
+
+    .overtime-session-value {
+        margin-top: 8px;
+        font-size: 2.05rem;
+        line-height: 1;
+        font-weight: 950;
+        letter-spacing: 0.02em;
+        font-variant-numeric: tabular-nums;
+        color: #ffffff;
+    }
+
+    .overtime-session-status {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        justify-content: flex-end;
+        margin-top: -2px;
+        margin-bottom: 2px;
+    }
+
+    .overtime-session-pill {
+        display: inline-flex;
+        align-items: center;
+        padding: 6px 10px;
+        border-radius: 999px;
+        font-size: 0.82rem;
+        font-weight: 800;
+        letter-spacing: 0.02em;
+        color: rgba(255, 255, 255, 0.92);
+        background: rgba(255, 255, 255, 0.12);
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        backdrop-filter: blur(8px);
+        font-variant-numeric: tabular-nums;
+    }
+
+    .overtime-preview-card {
+        border-radius: 28px;
+        padding: 18px 20px 20px;
+        background:
+            radial-gradient(circle at 18% 12%, rgba(255, 255, 255, 0.08), transparent 24%),
+            linear-gradient(135deg, rgba(26, 13, 39, 0.92), rgba(48, 22, 69, 0.96));
+        border: 1px solid rgba(255, 203, 126, 0.34);
+        box-shadow: 0 20px 52px rgba(0, 0, 0, 0.22);
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+    }
+
+    .overtime-preview-eyebrow {
+        font-size: 0.8rem;
+        font-weight: 800;
+        letter-spacing: 0.3em;
+        color: rgba(255, 255, 255, 0.68);
+    }
+
+    .overtime-preview-title {
+        font-size: 2rem;
+        line-height: 1;
+        font-weight: 950;
+        letter-spacing: 0.01em;
+        color: #fff;
+    }
+
+    .overtime-preview-subtitle {
+        font-size: 1.02rem;
+        color: rgba(255, 255, 255, 0.86);
+    }
+
+    .overtime-preview-badges {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .overtime-preview-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 8px 14px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.12);
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        color: #fff;
+        font-weight: 800;
+        backdrop-filter: blur(8px);
+    }
+
+    .overtime-preview-sample {
+        border-radius: 24px;
+        padding: 18px 18px 14px;
+        background: rgba(10, 14, 26, 0.28);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        box-shadow: 0 18px 36px rgba(0, 0, 0, 0.16);
+        position: relative;
         overflow: hidden;
+    }
+
+    .overtime-preview-sample::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 6px;
+        background: linear-gradient(180deg, var(--overtime-accent), var(--overtime-accent-soft));
+    }
+
+    .overtime-preview-sample-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-width: 0;
+    }
+
+    .sample-avatar {
+        width: 64px;
+        height: 64px;
+        border-radius: 18px;
+        object-fit: cover;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, var(--overtime-accent), var(--overtime-accent-soft));
+        color: #08111d;
+        font-weight: 900;
+        font-size: 1.35rem;
+        border: 2px solid rgba(255, 255, 255, 0.22);
+        box-shadow: 0 10px 24px rgba(0, 0, 0, 0.22);
+    }
+
+    .sample-name {
+        font-size: 1.08rem;
+        font-weight: 900;
+        color: #fff;
+    }
+
+    .sample-source {
+        margin-top: 2px;
+        font-size: 0.82rem;
+        color: rgba(255, 255, 255, 0.72);
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+    }
+
+    .sample-message {
+        margin-top: 12px;
+        line-height: 1.55;
+        color: rgba(255, 255, 255, 0.95);
+        word-break: break-word;
+    }
+
+    .sample-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 12px;
+    }
+
+    .sample-tag {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        padding: 6px 10px;
+        font-size: 0.82rem;
+        font-weight: 800;
+        background: rgba(255, 255, 255, 0.12);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        color: rgba(255, 255, 255, 0.96);
+    }
+
+    .sample-tag.reward {
+        color: #cfe7ff;
+        background: rgba(59, 130, 246, 0.14);
+        border-color: rgba(96, 165, 250, 0.2);
+    }
+
+    .sample-tag.amount {
+        color: var(--overtime-accent);
+    }
+
+    .sample-tag.muted {
+        color: rgba(255, 255, 255, 0.72);
     }
 
     .overtime-card,
@@ -252,7 +530,8 @@ else
     }
 
     .overtime-card-tag,
-    .overtime-card-amount {
+    .overtime-card-amount,
+    .overtime-card-reward {
         display: inline-flex;
         align-items: center;
         border-radius: 999px;
@@ -266,6 +545,12 @@ else
 
     .overtime-card-amount {
         color: var(--overtime-accent);
+    }
+
+    .overtime-card-reward {
+        color: #cfe7ff;
+        background: rgba(59, 130, 246, 0.14);
+        border-color: rgba(96, 165, 250, 0.2);
     }
 
     .overtime-card-amount.muted {
@@ -323,26 +608,47 @@ else
     }
 
     @@media (max-width: 992px) {
-        .overtime-feed {
+        .overtime-session-panel {
             grid-template-columns: 1fr;
+        }
+
+        .overtime-preview-title {
+            font-size: 1.7rem;
         }
     }
 </style>
 
 @code {
+    private const string PlannedEndMarkerLabel = "預計關台時間";
+    private const string SessionStartMarkerLabel = "加班開始";
+    private const string SessionStopMarkerLabel = "加班停止";
+
     private bool isLoading = true;
     private System.Timers.Timer? refreshTimer;
     private bool isRefreshing;
+    private EasyLotteryConfigDocument document = new();
     private OvertimeOverlaySettings settings = new();
     private IReadOnlyList<OvertimeSupportEvent> events = [];
     private OvertimeThemePreset CurrentTheme => OvertimeThemePreset.GetByKey(settings.ThemeKey);
     private string ThemeStyle => CurrentTheme.BuildCssVariables();
+    private OvertimeSupportEvent? PlannedEndMarker => events.FirstOrDefault(item =>
+        item.Source == OvertimeSupportSource.Manual &&
+        string.Equals(item.SourceLabel, PlannedEndMarkerLabel, StringComparison.OrdinalIgnoreCase));
+    private OvertimeSupportEvent? SessionStateMarker => events.FirstOrDefault(item =>
+        item.Source == OvertimeSupportSource.Manual &&
+        (string.Equals(item.SourceLabel, SessionStartMarkerLabel, StringComparison.OrdinalIgnoreCase) ||
+         string.Equals(item.SourceLabel, SessionStopMarkerLabel, StringComparison.OrdinalIgnoreCase)));
+    private bool HasSessionStarted => string.Equals(SessionStateMarker?.SourceLabel, SessionStartMarkerLabel, StringComparison.OrdinalIgnoreCase);
+    private OvertimeSupportEvent? VisibleEvent => events.FirstOrDefault(item => item.Source != OvertimeSupportSource.Manual && OvertimeSessionTimeCalculator.IsEventVisible(item.OccurredAtUtc, DateTimeOffset.UtcNow, settings.SupportMessageVisibleSeconds));
+    private DateTimeOffset? SessionEndAtUtc => events.FirstOrDefault(item => item.SessionEndAtUtc.HasValue)?.SessionEndAtUtc ?? PlannedEndMarker?.SessionEndAtUtc ?? settings.PlannedEndAtUtc;
+    private string PlannedCloseText => BuildPlannedCloseText(PlannedEndMarker?.SessionEndAtUtc ?? settings.PlannedEndAtUtc);
+    private string CountdownText => BuildCountdownText(SessionEndAtUtc);
 
     protected override async Task OnInitializedAsync()
     {
-        await ReloadAsync();
+        await ReloadOverlayAsync();
 
-        refreshTimer = new System.Timers.Timer(2500);
+        refreshTimer = new System.Timers.Timer(1000);
         refreshTimer.Elapsed += OnTimerElapsed;
         refreshTimer.AutoReset = true;
         refreshTimer.Start();
@@ -360,7 +666,7 @@ else
         {
             await InvokeAsync(async () =>
             {
-                await ReloadEventsAsync();
+                await ReloadOverlayStateAsync();
                 StateHasChanged();
             });
         }
@@ -370,14 +676,19 @@ else
         }
     }
 
-    private async Task ReloadAsync()
+    private async Task ReloadOverlayAsync()
     {
         isLoading = true;
-        var document = await ConfigStore.LoadAsync();
+        await ReloadOverlayStateAsync();
+        isLoading = false;
+    }
+
+    private async Task ReloadOverlayStateAsync()
+    {
+        document = await ConfigStore.LoadAsync();
         settings = document.OvertimeOverlay ?? new OvertimeOverlaySettings();
         settings.ThemeKey = string.IsNullOrWhiteSpace(settings.ThemeKey) ? OvertimeThemePreset.Catalog[0].Key : settings.ThemeKey;
         await ReloadEventsAsync();
-        isLoading = false;
     }
 
     private async Task ReloadEventsAsync()
@@ -392,14 +703,88 @@ else
         }
     }
 
-    private static string GetAvatarFallback(string? displayName)
+    private async Task StartCountdownAsync()
     {
-        if (string.IsNullOrWhiteSpace(displayName))
+        var plannedEndAtUtc = PlannedEndMarker?.SessionEndAtUtc ?? settings.PlannedEndAtUtc;
+        if (!plannedEndAtUtc.HasValue || plannedEndAtUtc.Value.Year < 2000)
         {
-            return "?";
+            return;
         }
 
-        return displayName.Trim().Substring(0, 1).ToUpperInvariant();
+        await OvertimeFeedClient.PostManualAsync(new OvertimeSupportEvent
+        {
+            Source = OvertimeSupportSource.Manual,
+            SourceLabel = "加班開始",
+            DisplayName = "加班開始",
+            Message = "加班台已開始。",
+            Amount = null,
+            AmountDisplay = "",
+            Currency = "TWD",
+            AvatarUrl = "",
+            Color = "#8bd3ff",
+            ExternalId = Guid.NewGuid().ToString("N"),
+            OccurredAtUtc = DateTimeOffset.UtcNow,
+            SessionEndAtUtc = plannedEndAtUtc
+        });
+
+        await ReloadEventsAsync();
+        StateHasChanged();
+    }
+
+    private async Task StopCountdownAsync()
+    {
+        await OvertimeFeedClient.PostManualAsync(new OvertimeSupportEvent
+        {
+            Source = OvertimeSupportSource.Manual,
+            SourceLabel = "加班停止",
+            DisplayName = "加班停止",
+            Message = "加班台已停止。",
+            Amount = null,
+            AmountDisplay = "",
+            Currency = "TWD",
+            AvatarUrl = "",
+            Color = "#8bd3ff",
+            ExternalId = Guid.NewGuid().ToString("N"),
+            OccurredAtUtc = DateTimeOffset.UtcNow,
+            SessionEndAtUtc = SessionEndAtUtc
+        });
+
+        await ReloadEventsAsync();
+        StateHasChanged();
+    }
+
+    private bool TryGetRewardSummary(OvertimeSupportEvent item, out string summary)
+    {
+        summary = "";
+
+        var matchedRule = OvertimeRewardRuleCalculator.FindMatchedRule(settings.RewardRules, item.Amount);
+        if (matchedRule == null)
+        {
+            return false;
+        }
+
+        summary = $"加班 +{OvertimeRewardRuleCalculator.DescribeDuration(matchedRule.AddHours, matchedRule.AddMinutes)}";
+        return true;
+    }
+
+    private static string BuildCountdownText(DateTimeOffset? plannedEndAtUtc)
+    {
+        if (!plannedEndAtUtc.HasValue || plannedEndAtUtc.Value.Year < 2000)
+        {
+            return "尚未設定預計關台時間";
+        }
+
+        return OvertimeSessionTimeCalculator.DescribeRemaining(plannedEndAtUtc, DateTimeOffset.UtcNow);
+    }
+
+    private static string BuildPlannedCloseText(DateTimeOffset? plannedEndAtUtc)
+    {
+        if (!plannedEndAtUtc.HasValue || plannedEndAtUtc.Value.Year < 2000)
+        {
+            return "尚未設定預計關台時間";
+        }
+
+        return plannedEndAtUtc.Value.ToLocalTime().ToString("yyyy/MM/dd HH:mm");
     }
 
     public void Dispose()
