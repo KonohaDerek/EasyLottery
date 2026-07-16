@@ -3,6 +3,7 @@
 @using EasyLotteryDomain.Services
 
 @inject ActivityResultService ActivityResultService
+@inject ResultNotificationService ResultNotificationService
 @inject PokeService PokeService
 @inject NavigationManager NavigationManager
 @inject IMessageService MessageService
@@ -30,6 +31,13 @@ else
                 <Button Color="Color.Light" Clicked="@GoBack">返回</Button>
             </div>
         </div>
+
+        @if (!string.IsNullOrWhiteSpace(template.CongratulationMessage))
+        {
+            <div class="poke-congrats-banner mb-3">
+                @template.CongratulationMessage
+            </div>
+        }
 
         <div class="poke-grid" style="@GridStyle">
             @foreach (var cell in template.Cells.OrderBy(c => c.Index))
@@ -101,6 +109,19 @@ else
 
     .poke-grid {
         gap: 8px;
+    }
+
+    .poke-congrats-banner {
+        display: inline-flex;
+        align-items: center;
+        max-width: 100%;
+        padding: 12px 16px;
+        border-radius: 999px;
+        background: color-mix(in srgb, var(--el-accent) 24%, var(--el-surface-strong));
+        color: var(--el-text);
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
     }
 
     .poke-cell {
@@ -344,6 +365,7 @@ else
         {
             var record = await ActivityResultService.RecordPokeActivityAsync(template.Id);
             lastRecordedSignature = BuildRecordSignature();
+            await ResultNotificationService.NotifyActivityResultAsync(record);
             await MessageService.Success($"已記錄活動「{record.ActivityName}」結果。");
         }
         catch (Exception ex)

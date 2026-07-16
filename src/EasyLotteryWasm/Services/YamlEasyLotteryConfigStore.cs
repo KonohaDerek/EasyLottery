@@ -132,6 +132,12 @@ namespace EasyLotteryWasm.Services
             document ??= new EasyLotteryConfigDocument();
             document.SystemSettings ??= new LotterySystemSettings();
             document.SystemSettings.YouTube ??= new YouTubeApiSettings();
+            document.SystemSettings.DonationIntegration ??= new DonationIntegrationSettings();
+            document.SystemSettings.MailDelivery ??= new MailDeliverySettings();
+            document.SystemSettings.DonationIntegration.Ecpay ??= new DonationProviderSettings { Name = "綠界" };
+            document.SystemSettings.DonationIntegration.NewebPay ??= new DonationProviderSettings { Name = "藍新" };
+            document.SystemSettings.DonationIntegration.OenTw ??= new DonationProviderSettings { Name = "oen.tw" };
+            document.SystemSettings.DonationIntegration.TwitchBits ??= new DonationProviderSettings { Name = "Twitch 小奇點" };
             document.SystemSettings.Audit ??= new AuditSettings();
             document.IdSequence ??= new LotteryIdSequence();
             document.PokeTemplates ??= new List<PokeTemplate>();
@@ -148,6 +154,22 @@ namespace EasyLotteryWasm.Services
                 ? "festival-stage"
                 : document.OvertimeOverlay.ThemeKey.Trim();
             document.OvertimeOverlay.MaxVisibleItems = Math.Max(1, document.OvertimeOverlay.MaxVisibleItems);
+            document.SystemSettings.ResultNotificationEmail = document.SystemSettings.ResultNotificationEmail.Trim();
+            document.SystemSettings.DonationIntegration.Ecpay.Name = string.IsNullOrWhiteSpace(document.SystemSettings.DonationIntegration.Ecpay.Name) ? "綠界" : document.SystemSettings.DonationIntegration.Ecpay.Name.Trim();
+            document.SystemSettings.DonationIntegration.NewebPay.Name = string.IsNullOrWhiteSpace(document.SystemSettings.DonationIntegration.NewebPay.Name) ? "藍新" : document.SystemSettings.DonationIntegration.NewebPay.Name.Trim();
+            document.SystemSettings.DonationIntegration.OenTw.Name = string.IsNullOrWhiteSpace(document.SystemSettings.DonationIntegration.OenTw.Name) ? "oen.tw" : document.SystemSettings.DonationIntegration.OenTw.Name.Trim();
+            document.SystemSettings.DonationIntegration.TwitchBits.Name = string.IsNullOrWhiteSpace(document.SystemSettings.DonationIntegration.TwitchBits.Name) ? "Twitch 小奇點" : document.SystemSettings.DonationIntegration.TwitchBits.Name.Trim();
+            document.SystemSettings.MailDelivery.SmtpHost = document.SystemSettings.MailDelivery.SmtpHost.Trim();
+            document.SystemSettings.MailDelivery.SmtpPort = Math.Max(0, document.SystemSettings.MailDelivery.SmtpPort);
+            document.SystemSettings.MailDelivery.SmtpUsername = document.SystemSettings.MailDelivery.SmtpUsername.Trim();
+            document.SystemSettings.MailDelivery.SmtpPassword = document.SystemSettings.MailDelivery.SmtpPassword.Trim();
+            document.SystemSettings.MailDelivery.FromAddress = document.SystemSettings.MailDelivery.FromAddress.Trim();
+            document.SystemSettings.MailDelivery.FromName = string.IsNullOrWhiteSpace(document.SystemSettings.MailDelivery.FromName) ? "EasyLottery" : document.SystemSettings.MailDelivery.FromName.Trim();
+            document.SystemSettings.EnableYouTubeSuperChat &= document.SystemSettings.YouTube.HasConfiguration;
+            document.SystemSettings.DonationIntegration.Ecpay.IsEnabled &= document.SystemSettings.DonationIntegration.Ecpay.HasConfiguration;
+            document.SystemSettings.DonationIntegration.NewebPay.IsEnabled &= document.SystemSettings.DonationIntegration.NewebPay.HasConfiguration;
+            document.SystemSettings.DonationIntegration.OenTw.IsEnabled &= document.SystemSettings.DonationIntegration.OenTw.HasConfiguration;
+            document.SystemSettings.DonationIntegration.TwitchBits.IsEnabled &= document.SystemSettings.DonationIntegration.TwitchBits.HasConfiguration;
             document.AuditRecords ??= new List<ChangeAuditRecord>();
 
             foreach (var template in document.PokeTemplates)
@@ -184,6 +206,7 @@ namespace EasyLotteryWasm.Services
             document.IdSequence.NextActivityResultId = Math.Max(document.IdSequence.NextActivityResultId, document.ActivityResults.Select(result => result.Id).DefaultIfEmpty(0).Max() + 1);
             document.IdSequence.NextAuditRecordId = Math.Max(document.IdSequence.NextAuditRecordId, document.AuditRecords.Select(record => record.Id).DefaultIfEmpty(0).Max() + 1);
             document.SystemSettings.Audit.ActorName = string.IsNullOrWhiteSpace(document.SystemSettings.Audit.ActorName) ? "本機操作" : document.SystemSettings.Audit.ActorName.Trim();
+            document.SystemSettings.ResultNotificationEmail = document.SystemSettings.ResultNotificationEmail.Trim();
 
             return document;
         }
@@ -203,6 +226,7 @@ namespace EasyLotteryWasm.Services
             template.Description ??= "";
             template.BackgroundImageUrl ??= "";
             template.FontFamily ??= "";
+            template.CongratulationMessage ??= "";
             template.PokeSoundUrl ??= "";
             template.OpenSoundUrl ??= "";
             template.Cells ??= new List<PokeCell>();

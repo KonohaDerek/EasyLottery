@@ -35,6 +35,7 @@ builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(apiBaseU
 builder.Services.AddScoped<IEasyLotteryConfigStore, YamlEasyLotteryConfigStore>();
 builder.Services.AddScoped<SystemSettingsService>();
 builder.Services.AddScoped<ActivityResultService>();
+builder.Services.AddScoped<ResultNotificationService>();
 builder.Services.AddScoped<VisualStyleService>();
 builder.Services.AddScoped<OvertimeFeedClient>();
 builder.Services.AddScoped<EasyLotteryAuditService>();

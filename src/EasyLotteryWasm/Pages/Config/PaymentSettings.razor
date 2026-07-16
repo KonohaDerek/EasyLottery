@@ -1,4 +1,8 @@
 @page "/system/payment"
+@using EasyLotteryDomain.Models.Config
+
+@inject SystemSettingsService SystemSettingsService
+@inject IMessageService MessageService
 
 <PageTitle>支付配置</PageTitle>
 
@@ -8,8 +12,218 @@
     </CardHeader>
     <CardBody>
         <CardText>
-            <p>此功能開發中，敬請期待。</p>
-            <p>未來將可設定支付方式、金流串接等相關配置。</p>
+            <p>在這裡設定斗內來源是否可用，以及結果通知要寄送到哪個信箱。</p>
         </CardText>
+
+        @if (settings == null)
+        {
+            <p class="text-muted mb-0">載入中…</p>
+        }
+        else
+        {
+            <Row>
+                <Column ColumnSize="ColumnSize.Is12">
+                    <Field>
+                        <FieldLabel>結果通知信箱</FieldLabel>
+                        <TextInput @bind-Value="settings.ResultNotificationEmail" Placeholder="result@example.com" />
+                    </Field>
+                </Column>
+            </Row>
+
+            <Row Margin="Margin.Is3.FromTop">
+                <Column ColumnSize="ColumnSize.Is12">
+                    <Card>
+                        <CardHeader><CardTitle>SMTP 寄信設定</CardTitle></CardHeader>
+                        <CardBody>
+                            <Alert Color="@(settings.MailDelivery.HasConfiguration ? Color.Success : Color.Warning)" Visible>
+                                <AlertMessage>@(settings.MailDelivery.HasConfiguration ? "已具備寄信配置" : "尚未完成寄信配置")</AlertMessage>
+                                <AlertDescription>結果通知會透過此 SMTP 設定寄出，若沒有完成設定，通知流程會自動略過。</AlertDescription>
+                            </Alert>
+                            <Row>
+                                <Column ColumnSize="ColumnSize.Is6">
+                                    <Field>
+                                        <FieldLabel>SMTP Host</FieldLabel>
+                                        <TextInput @bind-Value="settings.MailDelivery.SmtpHost" Placeholder="smtp.example.com" />
+                                    </Field>
+                                </Column>
+                                <Column ColumnSize="ColumnSize.Is3">
+                                    <Field>
+                                        <FieldLabel>Port</FieldLabel>
+                                        <NumericInput TValue="int" @bind-Value="settings.MailDelivery.SmtpPort" Min="1" Max="65535" />
+                                    </Field>
+                                </Column>
+                                <Column ColumnSize="ColumnSize.Is3">
+                                    <Field>
+                                        <FieldLabel>啟用 SSL</FieldLabel>
+                                        <Switch TValue="bool" @bind-Value="settings.MailDelivery.EnableSsl" />
+                                    </Field>
+                                </Column>
+                            </Row>
+                            <Row>
+                                <Column ColumnSize="ColumnSize.Is6">
+                                    <Field>
+                                        <FieldLabel>SMTP 帳號</FieldLabel>
+                                        <TextInput @bind-Value="settings.MailDelivery.SmtpUsername" />
+                                    </Field>
+                                </Column>
+                                <Column ColumnSize="ColumnSize.Is6">
+                                    <Field>
+                                        <FieldLabel>SMTP 密碼</FieldLabel>
+                                        <TextInput @bind-Value="settings.MailDelivery.SmtpPassword" />
+                                    </Field>
+                                </Column>
+                            </Row>
+                            <Row>
+                                <Column ColumnSize="ColumnSize.Is6">
+                                    <Field>
+                                        <FieldLabel>寄件地址</FieldLabel>
+                                        <TextInput @bind-Value="settings.MailDelivery.FromAddress" Placeholder="noreply@example.com" />
+                                    </Field>
+                                </Column>
+                                <Column ColumnSize="ColumnSize.Is6">
+                                    <Field>
+                                        <FieldLabel>寄件名稱</FieldLabel>
+                                        <TextInput @bind-Value="settings.MailDelivery.FromName" Placeholder="EasyLottery" />
+                                    </Field>
+                                </Column>
+                            </Row>
+                        </CardBody>
+                    </Card>
+                </Column>
+            </Row>
+
+            <Divider />
+
+            <Row>
+                <Column ColumnSize="ColumnSize.Is6">
+                    <Card>
+                        <CardHeader><CardTitle>綠界</CardTitle></CardHeader>
+                        <CardBody>
+                            <Field>
+                                <FieldLabel>Merchant ID</FieldLabel>
+                                <TextInput @bind-Value="settings.DonationIntegration.Ecpay.MerchantId" />
+                            </Field>
+                            <Field>
+                                <FieldLabel>API Key</FieldLabel>
+                                <TextInput @bind-Value="settings.DonationIntegration.Ecpay.ApiKey" />
+                            </Field>
+                            <Field>
+                                <FieldLabel>Secret Key</FieldLabel>
+                                <TextInput @bind-Value="settings.DonationIntegration.Ecpay.SecretKey" />
+                            </Field>
+                            <Field>
+                                <FieldLabel>啟用</FieldLabel>
+                                <Switch TValue="bool" @bind-Value="settings.DonationIntegration.Ecpay.IsEnabled" Disabled="@(!settings.DonationIntegration.Ecpay.HasConfiguration)" />
+                            </Field>
+                        </CardBody>
+                    </Card>
+                </Column>
+                <Column ColumnSize="ColumnSize.Is6">
+                    <Card>
+                        <CardHeader><CardTitle>藍新</CardTitle></CardHeader>
+                        <CardBody>
+                            <Field>
+                                <FieldLabel>Merchant ID</FieldLabel>
+                                <TextInput @bind-Value="settings.DonationIntegration.NewebPay.MerchantId" />
+                            </Field>
+                            <Field>
+                                <FieldLabel>API Key</FieldLabel>
+                                <TextInput @bind-Value="settings.DonationIntegration.NewebPay.ApiKey" />
+                            </Field>
+                            <Field>
+                                <FieldLabel>Secret Key</FieldLabel>
+                                <TextInput @bind-Value="settings.DonationIntegration.NewebPay.SecretKey" />
+                            </Field>
+                            <Field>
+                                <FieldLabel>啟用</FieldLabel>
+                                <Switch TValue="bool" @bind-Value="settings.DonationIntegration.NewebPay.IsEnabled" Disabled="@(!settings.DonationIntegration.NewebPay.HasConfiguration)" />
+                            </Field>
+                        </CardBody>
+                    </Card>
+                </Column>
+            </Row>
+
+            <Row Margin="Margin.Is3.FromTop">
+                <Column ColumnSize="ColumnSize.Is6">
+                    <Card>
+                        <CardHeader><CardTitle>oen.tw</CardTitle></CardHeader>
+                        <CardBody>
+                            <Field>
+                                <FieldLabel>Creator ID</FieldLabel>
+                                <TextInput @bind-Value="settings.DonationIntegration.OenTw.CreatorId" />
+                            </Field>
+                            <Field>
+                                <FieldLabel>Access Token</FieldLabel>
+                                <TextInput @bind-Value="settings.DonationIntegration.OenTw.AccessToken" />
+                            </Field>
+                            <Field>
+                                <FieldLabel>啟用</FieldLabel>
+                                <Switch TValue="bool" @bind-Value="settings.DonationIntegration.OenTw.IsEnabled" Disabled="@(!settings.DonationIntegration.OenTw.HasConfiguration)" />
+                            </Field>
+                        </CardBody>
+                    </Card>
+                </Column>
+                <Column ColumnSize="ColumnSize.Is6">
+                    <Card>
+                        <CardHeader><CardTitle>Twitch 小奇點</CardTitle></CardHeader>
+                        <CardBody>
+                            <Field>
+                                <FieldLabel>Channel ID</FieldLabel>
+                                <TextInput @bind-Value="settings.DonationIntegration.TwitchBits.ChannelId" />
+                            </Field>
+                            <Field>
+                                <FieldLabel>Access Token</FieldLabel>
+                                <TextInput @bind-Value="settings.DonationIntegration.TwitchBits.AccessToken" />
+                            </Field>
+                            <Field>
+                                <FieldLabel>啟用</FieldLabel>
+                                <Switch TValue="bool" @bind-Value="settings.DonationIntegration.TwitchBits.IsEnabled" Disabled="@(!settings.DonationIntegration.TwitchBits.HasConfiguration)" />
+                            </Field>
+                        </CardBody>
+                    </Card>
+                </Column>
+            </Row>
+
+            <Row Margin="Margin.Is3.FromTop">
+                <Column ColumnSize="ColumnSize.Is12">
+                    <Card>
+                        <CardHeader><CardTitle>YouTube SuperChat</CardTitle></CardHeader>
+                        <CardBody>
+                            <Alert Color="@(settings.YouTube.HasConfiguration ? Color.Success : Color.Warning)" Visible>
+                                <AlertMessage>@(settings.YouTube.HasConfiguration ? "已具備 YouTube 配置" : "尚未完成 YouTube 配置")</AlertMessage>
+                                <AlertDescription>SuperChat 是否可啟用，會依照 YouTube OAuth / API 設定判斷。若沒有可用配置，這個來源會被自動停用。</AlertDescription>
+                            </Alert>
+                            <Field>
+                                <FieldLabel>啟用</FieldLabel>
+                                <Switch TValue="bool" @bind-Value="settings.EnableYouTubeSuperChat" Disabled="@(!settings.YouTube.HasConfiguration)" />
+                            </Field>
+                        </CardBody>
+                    </Card>
+                </Column>
+            </Row>
+
+            <Button Color="Color.Primary" Clicked="@SaveAsync" class="mt-3">儲存設定</Button>
+        }
     </CardBody>
 </Card>
+
+@code {
+    private LotterySystemSettings? settings;
+
+    protected override async Task OnInitializedAsync()
+    {
+        settings = await SystemSettingsService.GetSettingsAsync();
+    }
+
+    private async Task SaveAsync()
+    {
+        if (settings == null)
+        {
+            return;
+        }
+
+        await SystemSettingsService.SaveSettingsAsync(settings);
+        settings = await SystemSettingsService.GetSettingsAsync();
+        await MessageService.Success("已儲存支付配置。");
+    }
+}

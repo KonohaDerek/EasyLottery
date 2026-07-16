@@ -72,6 +72,10 @@ else
                         <TextInput @bind-Value="@template.BackgroundImageUrl" Placeholder="https://…" />
                     </Field>
                     <Field>
+                        <FieldLabel>恭喜語句</FieldLabel>
+                        <TextInput @bind-Value="@template.CongratulationMessage" Placeholder="例如：恭喜中獎，請保持聯絡！" />
+                    </Field>
+                    <Field>
                         <FieldLabel>Overlay 寬度</FieldLabel>
                         <NumericInput TValue="int" @bind-Value="@template.OverlayWidth" Min="320" Max="3840" />
                     </Field>

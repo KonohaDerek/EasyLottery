@@ -82,6 +82,7 @@ namespace EasyLotteryDomain.Services
                 MaxPokeCount = source.MaxPokeCount,
                 BackgroundImageUrl = source.BackgroundImageUrl,
                 FontFamily = source.FontFamily,
+                CongratulationMessage = source.CongratulationMessage,
                 OverlayWidth = source.OverlayWidth,
                 OverlayHeight = source.OverlayHeight,
                 Animation = source.Animation,

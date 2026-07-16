@@ -5,6 +5,7 @@
 @using EasyLotteryWasm.Layout
 
 @inject ActivityResultService ActivityResultService
+@inject ResultNotificationService ResultNotificationService
 @inject PokeService PokeService
 
 <PageTitle>戳戳樂 - OBS</PageTitle>
@@ -487,6 +488,7 @@ else
         {
             var record = await ActivityResultService.RecordPokeActivityAsync(template.Id);
             lastRecordedSignature = BuildRecordSignature();
+            await ResultNotificationService.NotifyActivityResultAsync(record);
             SetStatus($"已記錄活動「{record.ActivityName}」結果。", false);
         }
         catch (Exception ex)
