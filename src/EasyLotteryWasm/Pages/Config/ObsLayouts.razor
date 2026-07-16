@@ -1,0 +1,189 @@
+@page "/system/obs-layouts"
+@using EasyLotteryWasm.Models
+
+@inject EasyLotteryWasm.Services.ObsLayoutService ObsLayoutService
+@inject SystemSettingsService SystemSettingsService
+@inject IMessageService MessageService
+
+<PageTitle>OBS 版型</PageTitle>
+
+<Card class="obs-layout-page-hero mb-4">
+    <CardBody>
+        <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3">
+            <div>
+                <div class="obs-layout-page-eyebrow">OBS SCENE LAYOUT PRESETS</div>
+                <h2 class="mb-2">選擇直播用的 OBS 版型</h2>
+                <p class="mb-0 obs-layout-page-description">
+                    這些版型會影響 OBS 頁面外框與舞台節奏，和視覺風格分開管理，方便針對不同直播情境快速切換。
+                </p>
+            </div>
+            <Badge Color="Color.Info" class="align-self-start align-self-lg-center">
+                目前使用：@activePreset?.Name
+            </Badge>
+        </div>
+    </CardBody>
+</Card>
+
+@if (isLoading)
+{
+    <p>載入中…</p>
+}
+else
+{
+    <div class="row g-4">
+        @foreach (var preset in presets)
+        {
+            <div class="col-12 col-lg-4">
+                <Card class="@(GetCardClass(preset))">
+                    <div class="obs-layout-preview" style="--obs-preview-accent:@preset.AccentGradient;">
+                        <div class="obs-layout-preview-badge">@string.Join(" · ", preset.Tags)</div>
+                        <div class="obs-layout-preview-title">@preset.Name</div>
+                        <div class="obs-layout-preview-subtitle">@preset.Tagline</div>
+                    </div>
+                    <CardBody class="d-flex flex-column">
+                        <CardTitle>
+                            <div class="d-flex justify-content-between align-items-center gap-2">
+                                <h4 class="mb-0">@preset.Name</h4>
+                                @if (preset.Key == activeLayoutKey)
+                                {
+                                    <Badge Color="Color.Success">已啟用</Badge>
+                                }
+                            </div>
+                        </CardTitle>
+                        <CardText class="flex-grow-1">
+                            <p>@preset.Description</p>
+                            <div class="d-flex flex-wrap gap-2 mb-3">
+                                @foreach (var tag in preset.Tags)
+                                {
+                                    <span class="obs-layout-tag">@tag</span>
+                                }
+                            </div>
+                        </CardText>
+                        <Button Color="@(preset.Key == activeLayoutKey ? Color.Secondary : Color.Primary)"
+                                Clicked="@(() => ApplyPresetAsync(preset.Key))"
+                                Disabled="@(preset.Key == activeLayoutKey)">
+                            @(preset.Key == activeLayoutKey ? "目前使用" : "套用版型")
+                        </Button>
+                    </CardBody>
+                </Card>
+            </div>
+        }
+    </div>
+}
+
+<style>
+    .obs-layout-page-hero {
+        border-radius: 28px;
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        background:
+            radial-gradient(circle at top left, rgba(255, 255, 255, 0.12), transparent 28%),
+            linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(30, 41, 59, 0.92));
+        color: #fff;
+    }
+
+    .obs-layout-page-eyebrow {
+        letter-spacing: 0.28em;
+        text-transform: uppercase;
+        font-size: 0.78rem;
+        font-weight: 800;
+        color: rgba(255, 255, 255, 0.7);
+    }
+
+    .obs-layout-page-description {
+        max-width: 60ch;
+        color: rgba(255, 255, 255, 0.86);
+    }
+
+    .obs-layout-card {
+        overflow: hidden;
+        border-radius: 24px;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        background: #fff;
+        box-shadow: 0 18px 48px rgba(15, 23, 42, 0.1);
+    }
+
+    .obs-layout-card.is-active {
+        border-color: rgba(34, 197, 94, 0.45);
+        box-shadow: 0 20px 52px rgba(34, 197, 94, 0.12);
+    }
+
+    .obs-layout-preview {
+        min-height: 180px;
+        padding: 18px;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+        background:
+            linear-gradient(180deg, rgba(2, 6, 23, 0.04), rgba(2, 6, 23, 0.76)),
+            var(--obs-preview-accent);
+        color: #fff;
+    }
+
+    .obs-layout-preview-badge {
+        display: inline-flex;
+        align-self: flex-start;
+        padding: 6px 10px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.14);
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        font-size: 0.78rem;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        margin-bottom: 14px;
+    }
+
+    .obs-layout-preview-title {
+        font-size: 1.6rem;
+        font-weight: 900;
+        line-height: 1.1;
+    }
+
+    .obs-layout-preview-subtitle {
+        margin-top: 6px;
+        opacity: 0.88;
+    }
+
+    .obs-layout-tag {
+        display: inline-flex;
+        align-items: center;
+        padding: 6px 10px;
+        border-radius: 999px;
+        background: rgba(15, 23, 42, 0.06);
+        color: #0f172a;
+        font-size: 0.82rem;
+        font-weight: 700;
+    }
+</style>
+
+@code {
+    private IReadOnlyList<ObsLayoutPreset> presets = Array.Empty<ObsLayoutPreset>();
+    private string activeLayoutKey = ObsLayoutCatalog.DefaultLayoutKey;
+    private ObsLayoutPreset? activePreset;
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        presets = ObsLayoutService.Presets;
+        activeLayoutKey = await ObsLayoutService.GetActiveLayoutKeyAsync();
+        activePreset = ObsLayoutService.GetPreset(activeLayoutKey);
+        isLoading = false;
+    }
+
+    private async Task ApplyPresetAsync(string layoutKey)
+    {
+        activePreset = await ObsLayoutService.SetActiveLayoutAsync(layoutKey);
+        activeLayoutKey = activePreset.Key;
+        await MessageService.Success($"已切換為「{activePreset.Name}」。");
+    }
+
+    private string GetCardClass(ObsLayoutPreset preset)
+    {
+        var classes = new List<string> { "obs-layout-card", "h-100" };
+        if (preset.Key == activeLayoutKey)
+        {
+            classes.Add("is-active");
+        }
+
+        return string.Join(" ", classes);
+    }
+}

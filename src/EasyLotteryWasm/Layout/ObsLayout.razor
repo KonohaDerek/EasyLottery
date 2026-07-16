@@ -1,5 +1,18 @@
+@inject EasyLotteryWasm.Services.ObsLayoutService ObsLayoutService
 @inherits LayoutComponentBase
 
-<div class="obs-layout">
+<div class="obs-layout @layoutClass" style="@layoutStyle">
     @Body
 </div>
+
+@code {
+    private string layoutClass = string.Empty;
+    private string layoutStyle = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var preset = ObsLayoutService.GetPreset(await ObsLayoutService.GetActiveLayoutKeyAsync());
+        layoutClass = preset.StageClassName;
+        layoutStyle = $"--obs-accent-gradient:{preset.AccentGradient};";
+    }
+}
