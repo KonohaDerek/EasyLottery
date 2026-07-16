@@ -60,7 +60,7 @@ namespace EasyLotteryDomain.Services
         public async Task<bool> HasConfiguredCredentialsAsync()
         {
             var settings = await GetEffectiveYouTubeSettingsAsync();
-            return !string.IsNullOrWhiteSpace(settings.CredentialsBase64);
+            return !string.IsNullOrWhiteSpace(settings.ApiKey);
         }
 
         public async Task<bool> HasRefreshTokenAsync()
@@ -289,53 +289,57 @@ namespace EasyLotteryDomain.Services
 
         public async Task<IEnumerable<Google.Apis.YouTube.v3.Data.LiveChatMessage>> ListLiveChatMessageAsync(string chatID)
         {
-              if (string.IsNullOrWhiteSpace(accessToken))
-                {
-                    throw new InvalidOperationException("OAuth access token is required. Please authorize via YouTube OAuth first.");
-                }
-              using var httpClient = new HttpClient();
-                httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
-               
-                var response = await httpClient.GetAsync($"https://www.googleapis.com/youtube/v3/liveChat/messages?liveChatId={chatID}&part=snippet,authorDetails");
+            var apiKey = await GetConfiguredApiKeyAsync();
+            if (string.IsNullOrWhiteSpace(apiKey))
+            {
+                throw new InvalidOperationException("YouTube API key is required. Please configure the API key first.");
+            }
 
-                if (response.IsSuccessStatusCode)
+            using var httpClient = new HttpClient();
+
+            var response = await httpClient.GetAsync($"https://www.googleapis.com/youtube/v3/liveChat/messages?liveChatId={Uri.EscapeDataString(chatID)}&part=snippet,authorDetails&key={Uri.EscapeDataString(apiKey)}");
+
+            if (response.IsSuccessStatusCode)
+            {
+                var info = await response.Content.ReadFromJsonAsync<Google.Apis.YouTube.v3.Data.LiveChatMessageListResponse>();
+                if (info == null)
                 {
-                    var info = await response.Content.ReadFromJsonAsync<Google.Apis.YouTube.v3.Data.LiveChatMessageListResponse>();
-                    if (info == null)
-                    {
-                         return [];
-                    }
-                    return info.Items;
-                }
-                else
-                {
-                    logger.LogInformation($"Error: {response.StatusCode}");
                     return [];
                 }
+
+                return info.Items;
+            }
+
+            logger.LogInformation($"Error: {response.StatusCode}");
+            return [];
         }
 
 
         public async Task<Google.Apis.YouTube.v3.Data.VideoLiveStreamingDetails?> GetYoutubeLiveInfoAsync(string liveID)
         {
-                if (string.IsNullOrWhiteSpace(accessToken))
-                {
-                    throw new InvalidOperationException("OAuth access token is required. Please authorize via YouTube OAuth first.");
-                }
-                using var httpClient = new HttpClient();
-                httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
-                var response = await httpClient.GetAsync($"https://www.googleapis.com/youtube/v3/videos?part=liveStreamingDetails&id={liveID}");
+            var apiKey = await GetConfiguredApiKeyAsync();
+            if (string.IsNullOrWhiteSpace(apiKey))
+            {
+                throw new InvalidOperationException("YouTube API key is required. Please configure the API key first.");
+            }
 
-                if (response.IsSuccessStatusCode)
-                {
-                    var info = await response.Content.ReadFromJsonAsync<Google.Apis.YouTube.v3.Data.VideoListResponse>();
-                    return info?.Items.FirstOrDefault(o=>o.LiveStreamingDetails != null)?.LiveStreamingDetails;
-                    
-                }
-                else
-                {
-                    logger.LogInformation($"Error: {response.StatusCode}");
-                    return null;
-                }
+            using var httpClient = new HttpClient();
+            var response = await httpClient.GetAsync($"https://www.googleapis.com/youtube/v3/videos?part=liveStreamingDetails&id={Uri.EscapeDataString(liveID)}&key={Uri.EscapeDataString(apiKey)}");
+
+            if (response.IsSuccessStatusCode)
+            {
+                var info = await response.Content.ReadFromJsonAsync<Google.Apis.YouTube.v3.Data.VideoListResponse>();
+                return info?.Items.FirstOrDefault(o => o.LiveStreamingDetails != null)?.LiveStreamingDetails;
+            }
+
+            logger.LogInformation($"Error: {response.StatusCode}");
+            return null;
+        }
+
+        private async Task<string> GetConfiguredApiKeyAsync()
+        {
+            var settings = await GetEffectiveYouTubeSettingsAsync();
+            return settings.ApiKey ?? string.Empty;
         }
 
         public static string GetYouTubeLiveID(string url)

@@ -65,7 +65,7 @@ namespace EasyLotteryDomainTests.Services
             var exception = await Assert.ThrowsExactlyAsync<InvalidOperationException>(
                 () => svc.GetYoutubeLiveInfoAsync("zrSJ7p5m0Bk"));
 
-            Assert.AreEqual("OAuth access token is required. Please authorize via YouTube OAuth first.", exception.Message);
+            Assert.AreEqual("YouTube API key is required. Please configure the API key first.", exception.Message);
         }
 
         [TestMethod]
@@ -84,7 +84,7 @@ namespace EasyLotteryDomainTests.Services
             var exception = await Assert.ThrowsExactlyAsync<InvalidOperationException>(
                 () => svc.ListLiveChatMessageAsync("Cg0KCy1MOWNCZjNvQU8wKicKGFVDa0VMTU1CZHk0Z1BqNm9vUXdZSi15ZxILLUw5Y0JmM29BTzA"));
 
-            Assert.AreEqual("OAuth access token is required. Please authorize via YouTube OAuth first.", exception.Message);
+            Assert.AreEqual("YouTube API key is required. Please configure the API key first.", exception.Message);
         }
 
         [TestMethod]

@@ -1,5 +1,4 @@
-﻿@using System.Web
-@inject NavigationManager NavigationManager
+﻿@inject NavigationManager NavigationManager
 @inject EasyLotteryWasm.Services.VisualStyleService VisualStyleService
 
 <Router AppAssembly="@typeof(App).Assembly">
@@ -24,24 +23,5 @@
         }
 
         await VisualStyleService.InitializeAsync();
-        TryForwardYoutubeOAuthCallback();
-    }
-
-    private void TryForwardYoutubeOAuthCallback()
-    {
-        var currentUri = NavigationManager.ToAbsoluteUri(NavigationManager.Uri);
-        var queryParams = HttpUtility.ParseQueryString(currentUri.Query);
-        if (string.IsNullOrWhiteSpace(queryParams["code"]) && string.IsNullOrWhiteSpace(queryParams["error"]))
-        {
-            return;
-        }
-
-        var currentPath = currentUri.AbsolutePath.TrimEnd('/');
-        if (string.Equals(currentPath, "/system/youtube-login", StringComparison.OrdinalIgnoreCase))
-        {
-            return;
-        }
-
-        NavigationManager.NavigateTo($"/system/youtube-login{currentUri.Query}", replace: true);
     }
 }

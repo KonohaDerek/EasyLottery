@@ -65,7 +65,7 @@
             </div>
             <div class="nav-item px-3 nav-sub-item">
                 <NavLink class="nav-link" href="system/youtube-login">
-                    YouTube 登入
+                    YouTube API Key
                 </NavLink>
             </div>
             <div class="nav-item px-3 nav-sub-item">
@@ -80,15 +80,15 @@
 
 <div class="nav-login-status px-3">
     <div class="status-indicator">
-        @if(youTubeServiceHelper.IsAuthorized)
+        @if(hasYoutubeApiKey)
         {
             <span class="status-dot status-online"></span>
-            <span class="status-text">YT 已登入</span>
+            <span class="status-text">YT API Key 已設定</span>
         }
         else
         {
             <span class="status-dot status-offline"></span>
-            <span class="status-text">YT 未登入</span>
+            <span class="status-text">YT API Key 未設定</span>
         }
     </div>
 </div>
@@ -97,12 +97,14 @@
     private bool collapseNavMenu = false;
     private bool activityGroupExpanded = false;
     private bool systemGroupExpanded = false;
+    private bool hasYoutubeApiKey = false;
 
     private string? NavMenuCssClass => collapseNavMenu ? "collapse" : null;
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
         youTubeServiceHelper.AuthStateChanged += OnAuthStateChanged;
+        hasYoutubeApiKey = await youTubeServiceHelper.HasConfiguredCredentialsAsync();
     }
 
     private void OnAuthStateChanged()

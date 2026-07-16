@@ -191,7 +191,7 @@
                         <CardBody>
                             <Alert Color="@(settings.YouTube.HasConfiguration ? Color.Success : Color.Warning)" Visible>
                                 <AlertMessage>@(settings.YouTube.HasConfiguration ? "已具備 YouTube 配置" : "尚未完成 YouTube 配置")</AlertMessage>
-                                <AlertDescription>SuperChat 是否可啟用，會依照 YouTube OAuth / API 設定判斷。若沒有可用配置，這個來源會被自動停用。</AlertDescription>
+                                <AlertDescription>SuperChat 是否可啟用，會依照 YouTube API Key 設定判斷。若沒有可用配置，這個來源會被自動停用。</AlertDescription>
                             </Alert>
                             <Field>
                                 <FieldLabel>啟用</FieldLabel>
