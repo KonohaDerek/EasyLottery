@@ -10,16 +10,8 @@
     <PackageReference Include="Google.Apis.YouTube.v3" Version="1.75.0.4176" />
     <PackageReference Include="Google.Protobuf" Version="3.35.1" />
     <PackageReference Include="Grpc.Net.Client" Version="2.80.0" />
-    <PackageReference Include="Grpc.Tools" Version="2.81.1">
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-      <PrivateAssets>all</PrivateAssets>
-    </PackageReference>
     <PackageReference Include="Microsoft.Extensions.Caching.Abstractions" Version="10.0.9" />
     <PackageReference Include="Microsoft.Extensions.Configuration" Version="10.0.9" />
   </ItemGroup>
-
-<ItemGroup>
-  <Protobuf Include="Protos\stream_list.proto" GrpcServices="Client" />
-</ItemGroup>
 
 </Project>
