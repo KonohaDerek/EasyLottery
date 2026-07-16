@@ -8,84 +8,140 @@
 
 <PageTitle>戳戳樂 - 模板列表</PageTitle>
 
-<h3>戳戳樂（Poke Box）</h3>
+<div class="pokebox-page">
+    <section class="pokebox-hero">
+        <div class="pokebox-hero-copy">
+            <div class="pokebox-eyebrow">POKE BOX CONTROL CENTER</div>
+            <h3 class="pokebox-title">戳戳樂模板管理</h3>
+            <p class="pokebox-subtitle">把模板列表、預覽和匯入匯出整理成一個更清晰的工作台，方便快速切換活動設定。</p>
+        </div>
 
-<div class="mb-3 d-flex gap-2">
-    <Button Color="Color.Primary" Clicked="@NavigateToCreate">新增模板</Button>
-    <Button Color="Color.Secondary" Clicked="@SeedDefaults">載入預設模板</Button>
+        <div class="pokebox-hero-actions">
+            <Button Color="Color.Primary" Clicked="@NavigateToCreate">新增模板</Button>
+            <Button Color="Color.Secondary" Clicked="@SeedDefaults">載入預設模板</Button>
+        </div>
+    </section>
+
+    @if (templates == null)
+    {
+        <div class="pokebox-state-panel">載入中…</div>
+    }
+    else
+    {
+        <section class="pokebox-metric-grid">
+            <div class="pokebox-metric-card">
+                <div class="pokebox-metric-label">模板總數</div>
+                <div class="pokebox-metric-value">@templates.Count</div>
+            </div>
+            <div class="pokebox-metric-card">
+                <div class="pokebox-metric-label">草稿</div>
+                <div class="pokebox-metric-value">@templates.Count(t => t.PublicationStatus == TemplatePublicationStatus.Draft)</div>
+            </div>
+            <div class="pokebox-metric-card">
+                <div class="pokebox-metric-label">已發布</div>
+                <div class="pokebox-metric-value">@templates.Count(t => t.PublicationStatus == TemplatePublicationStatus.Published)</div>
+            </div>
+            <div class="pokebox-metric-card">
+                <div class="pokebox-metric-label">內建模板</div>
+                <div class="pokebox-metric-value">@templates.Count(t => t.IsBuiltIn)</div>
+            </div>
+        </section>
+
+        @if (!templates.Any())
+        {
+            <div class="pokebox-empty-state">
+                <div class="pokebox-empty-title">尚無模板</div>
+                <div class="pokebox-empty-description">先載入預設模板，或者直接建立第一個戳戳樂模板。</div>
+            </div>
+        }
+        else
+        {
+            <section class="pokebox-table-shell">
+                <Table FullWidth Striped Hoverable Bordered Responsive class="pokebox-table">
+                    <TableHeader>
+                        <TableRow>
+                            <TableHeaderCell>名稱</TableHeaderCell>
+                            <TableHeaderCell>說明</TableHeaderCell>
+                            <TableHeaderCell>狀態</TableHeaderCell>
+                            <TableHeaderCell>格數</TableHeaderCell>
+                            <TableHeaderCell>模式</TableHeaderCell>
+                            <TableHeaderCell>動畫</TableHeaderCell>
+                            <TableHeaderCell>操作</TableHeaderCell>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        @foreach (var t in templates)
+                        {
+                            <TableRow>
+                                <TableRowCell>
+                                    <div class="pokebox-template-name">
+                                        <span>@t.Name</span>
+                                        @if (t.IsBuiltIn)
+                                        {
+                                            <Badge Color="Color.Light">內建</Badge>
+                                        }
+                                    </div>
+                                </TableRowCell>
+                                <TableRowCell>@t.Description</TableRowCell>
+                                <TableRowCell>
+                                    <Badge Color="@(t.PublicationStatus == TemplatePublicationStatus.Draft ? Color.Warning : Color.Success)">
+                                        @(t.PublicationStatus == TemplatePublicationStatus.Draft ? "草稿" : "已發布")
+                                    </Badge>
+                                </TableRowCell>
+                                <TableRowCell>@t.GridRows × @t.GridColumns</TableRowCell>
+                                <TableRowCell>@(t.Mode == PokeMode.Random ? "隨機" : "手動")</TableRowCell>
+                                <TableRowCell>@t.Animation</TableRowCell>
+                                <TableRowCell>
+                                    <div class="pokebox-action-row">
+                                        <Button Size="Size.Small" Color="Color.Success" Clicked="@(() => NavigateToPreview(t.Id))">預覽</Button>
+                                        <Button Size="Size.Small" Color="Color.Warning" Clicked="@(() => NavigateToEditor(t.Id))">編輯</Button>
+                                        <Button Size="Size.Small" Color="@(t.PublicationStatus == TemplatePublicationStatus.Draft ? Color.Success : Color.Secondary)" Clicked="@(() => TogglePublicationStatus(t))">
+                                            @(t.PublicationStatus == TemplatePublicationStatus.Draft ? "發布" : "轉草稿")
+                                        </Button>
+                                        <Button Size="Size.Small" Color="Color.Primary" Clicked="@(() => DuplicateTemplate(t.Id))">複製</Button>
+                                        <Button Size="Size.Small" Color="Color.Info" Clicked="@(() => ExportTemplate(t.Id))">匯出</Button>
+                                        @if (!t.IsBuiltIn)
+                                        {
+                                            <Button Size="Size.Small" Color="Color.Danger" Clicked="@(() => DeleteTemplate(t.Id))">刪除</Button>
+                                        }
+                                    </div>
+                                </TableRowCell>
+                            </TableRow>
+                        }
+                    </TableBody>
+                </Table>
+            </section>
+        }
+
+        <section class="pokebox-import-grid">
+            <Card class="pokebox-import-card">
+                <CardHeader>
+                    <CardTitle>匯入模板（JSON）</CardTitle>
+                </CardHeader>
+                <CardBody>
+                    <MemoInput @bind-Value="@importJson" Rows="6" Placeholder="貼上 JSON 模板內容…" />
+                    <Button Color="Color.Primary" Clicked="@ImportTemplate" class="mt-3">匯入</Button>
+                </CardBody>
+            </Card>
+
+            <Card class="pokebox-import-card">
+                <CardHeader>
+                    <CardTitle>匯出結果</CardTitle>
+                </CardHeader>
+                <CardBody>
+                    @if (!string.IsNullOrEmpty(exportJson))
+                    {
+                        <MemoInput @bind-Value="@exportJson" Rows="10" ReadOnly />
+                    }
+                    else
+                    {
+                        <div class="pokebox-state-panel pokebox-state-panel-inline">選擇任一模板的「匯出」後，內容會顯示在這裡。</div>
+                    }
+                </CardBody>
+            </Card>
+        </section>
+    }
 </div>
-
-@if (templates == null)
-{
-    <p>載入中…</p>
-}
-else if (!templates.Any())
-{
-    <p>尚無模板，請新增或載入預設模板。</p>
-}
-else
-{
-    <Table FullWidth Striped Hoverable Bordered Responsive>
-        <TableHeader>
-            <TableRow>
-                <TableHeaderCell>名稱</TableHeaderCell>
-                <TableHeaderCell>說明</TableHeaderCell>
-                <TableHeaderCell>狀態</TableHeaderCell>
-                <TableHeaderCell>格數</TableHeaderCell>
-                <TableHeaderCell>模式</TableHeaderCell>
-                <TableHeaderCell>動畫</TableHeaderCell>
-                <TableHeaderCell>操作</TableHeaderCell>
-            </TableRow>
-        </TableHeader>
-        <TableBody>
-            @foreach (var t in templates)
-            {
-                <TableRow>
-                    <TableRowCell>@t.Name @(t.IsBuiltIn ? "🔒" : "")</TableRowCell>
-                    <TableRowCell>@t.Description</TableRowCell>
-                    <TableRowCell>
-                        <Badge Color="@(t.PublicationStatus == TemplatePublicationStatus.Draft ? Color.Warning : Color.Success)">
-                            @(t.PublicationStatus == TemplatePublicationStatus.Draft ? "草稿" : "已發布")
-                        </Badge>
-                    </TableRowCell>
-                    <TableRowCell>@t.GridRows × @t.GridColumns</TableRowCell>
-                    <TableRowCell>@(t.Mode == PokeMode.Random ? "隨機" : "手動")</TableRowCell>
-                    <TableRowCell>@t.Animation</TableRowCell>
-                    <TableRowCell>
-                        <div class="d-flex gap-1">
-                            <Button Size="Size.Small" Color="Color.Success" Clicked="@(() => NavigateToPreview(t.Id))">預覽</Button>
-                            <Button Size="Size.Small" Color="Color.Warning" Clicked="@(() => NavigateToEditor(t.Id))">編輯</Button>
-                            <Button Size="Size.Small" Color="@(t.PublicationStatus == TemplatePublicationStatus.Draft ? Color.Success : Color.Secondary)" Clicked="@(() => TogglePublicationStatus(t))">
-                                @(t.PublicationStatus == TemplatePublicationStatus.Draft ? "發布" : "轉草稿")
-                            </Button>
-                            <Button Size="Size.Small" Color="Color.Primary" Clicked="@(() => DuplicateTemplate(t.Id))">複製</Button>
-                            <Button Size="Size.Small" Color="Color.Info" Clicked="@(() => ExportTemplate(t.Id))">匯出</Button>
-                            @if (!t.IsBuiltIn)
-                            {
-                                <Button Size="Size.Small" Color="Color.Danger" Clicked="@(() => DeleteTemplate(t.Id))">刪除</Button>
-                            }
-                        </div>
-                    </TableRowCell>
-                </TableRow>
-            }
-        </TableBody>
-    </Table>
-}
-
-<Divider />
-
-<h5>匯入模板（JSON）</h5>
-<div class="mb-3">
-    <MemoInput @bind-Value="@importJson" Rows="6" Placeholder="貼上 JSON 模板內容…" />
-    <Button Color="Color.Primary" Clicked="@ImportTemplate" class="mt-2">匯入</Button>
-</div>
-
-@if (!string.IsNullOrEmpty(exportJson))
-{
-    <Divider />
-    <h5>匯出結果</h5>
-    <MemoInput @bind-Value="@exportJson" Rows="10" ReadOnly />
-}
 
 @code {
     private List<PokeTemplate>? templates;

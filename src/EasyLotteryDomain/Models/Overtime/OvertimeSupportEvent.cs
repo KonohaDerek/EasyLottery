@@ -31,6 +31,8 @@ namespace EasyLotteryDomain.Models.Overtime
 
         public DateTimeOffset OccurredAtUtc { get; set; } = DateTimeOffset.UtcNow;
 
+        public DateTimeOffset? SessionEndAtUtc { get; set; }
+
         public string? ExternalId { get; set; }
     }
 }

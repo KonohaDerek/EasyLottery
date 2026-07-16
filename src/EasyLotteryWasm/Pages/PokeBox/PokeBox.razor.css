@@ -1,0 +1,174 @@
+.pokebox-page {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    padding-bottom: 24px;
+}
+
+.pokebox-hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1.5fr) auto;
+    gap: 16px;
+    align-items: center;
+    padding: 24px;
+    border-radius: 24px;
+    background:
+        radial-gradient(circle at top left, rgba(37, 99, 235, 0.12), transparent 34%),
+        linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(244, 248, 253, 0.98));
+    border: 1px solid var(--el-border);
+    box-shadow: var(--el-shadow);
+}
+
+.pokebox-eyebrow {
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.18em;
+    color: var(--el-accent);
+}
+
+.pokebox-title {
+    margin: 8px 0 10px;
+    color: var(--el-text);
+}
+
+.pokebox-subtitle {
+    margin: 0;
+    color: var(--el-text-muted);
+    line-height: 1.7;
+    max-width: 58rem;
+}
+
+.pokebox-hero-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.pokebox-metric-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.pokebox-metric-card {
+    padding: 16px 18px;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.96);
+    border: 1px solid var(--el-border);
+    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
+}
+
+.pokebox-metric-label {
+    font-size: 0.78rem;
+    color: var(--el-text-muted);
+    margin-bottom: 6px;
+}
+
+.pokebox-metric-value {
+    font-size: 1.8rem;
+    font-weight: 900;
+    color: var(--el-text);
+}
+
+.pokebox-table-shell,
+.pokebox-import-card {
+    border-radius: 20px;
+    overflow: hidden;
+    border: 1px solid var(--el-border);
+    background: rgba(255, 255, 255, 0.96);
+    box-shadow: var(--el-shadow);
+}
+
+.pokebox-table {
+    margin-bottom: 0;
+}
+
+.pokebox-table ::deep thead th {
+    background: linear-gradient(180deg, rgba(248, 250, 253, 0.98), rgba(237, 242, 249, 0.98));
+    color: var(--el-text);
+    font-weight: 700;
+}
+
+.pokebox-table ::deep tbody tr:hover {
+    background: rgba(37, 99, 235, 0.035);
+}
+
+.pokebox-template-name {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 700;
+}
+
+.pokebox-action-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.pokebox-import-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+}
+
+.pokebox-state-panel {
+    padding: 22px;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.96);
+    border: 1px dashed rgba(37, 99, 235, 0.28);
+    color: var(--el-text-muted);
+    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.05);
+}
+
+.pokebox-state-panel-inline {
+    min-height: 160px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+
+.pokebox-empty-state {
+    padding: 32px;
+    border-radius: 20px;
+    text-align: center;
+    background:
+        radial-gradient(circle at top, rgba(37, 99, 235, 0.08), transparent 28%),
+        rgba(255, 255, 255, 0.96);
+    border: 1px solid var(--el-border);
+    box-shadow: var(--el-shadow);
+}
+
+.pokebox-empty-title {
+    font-size: 1.3rem;
+    font-weight: 800;
+    color: var(--el-text);
+}
+
+.pokebox-empty-description {
+    margin-top: 8px;
+    color: var(--el-text-muted);
+}
+
+@media (max-width: 991.98px) {
+    .pokebox-hero,
+    .pokebox-import-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .pokebox-hero-actions {
+        justify-content: flex-start;
+    }
+
+    .pokebox-metric-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 575.98px) {
+    .pokebox-metric-grid {
+        grid-template-columns: 1fr;
+    }
+}

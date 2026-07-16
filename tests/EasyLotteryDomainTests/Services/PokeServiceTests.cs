@@ -157,6 +157,31 @@ namespace EasyLotteryDomainTests.Services
             Assert.AreEqual(TemplatePublicationStatus.Draft, loaded.PublicationStatus);
         }
 
+        [TestMethod]
+        public async Task UpdateTemplate_PersistsModeChange()
+        {
+            var svc = new PokeService(new InMemoryEasyLotteryConfigStore());
+
+            var template = new PokeTemplate
+            {
+                Name = "Mode Test",
+                Mode = PokeMode.Random,
+                GridRows = 1,
+                GridColumns = 1,
+                Cells = new List<PokeCell> { new PokeCell { Index = 0 } }
+            };
+
+            var created = await svc.CreateTemplateAsync(template);
+            created.Mode = PokeMode.Manual;
+
+            await svc.UpdateTemplateAsync(created);
+
+            var loaded = await svc.LoadTemplateAsync(created.Id);
+
+            Assert.IsNotNull(loaded);
+            Assert.AreEqual(PokeMode.Manual, loaded.Mode);
+        }
+
         // ── Poke Logic ────────────────────────────────────────────────────────
 
         [TestMethod]

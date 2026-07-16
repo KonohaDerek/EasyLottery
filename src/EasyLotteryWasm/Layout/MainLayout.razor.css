@@ -7,13 +7,13 @@
 
 main {
     flex: 1;
-    background: transparent;
+    background: linear-gradient(180deg, rgba(248, 250, 253, 0.96) 0%, rgba(235, 241, 248, 0.98) 100%);
 }
 
 .sidebar {
     background: var(--el-sidebar-bg);
     border-right: 1px solid var(--el-border);
-    box-shadow: 12px 0 32px rgba(0, 0, 0, 0.14);
+    box-shadow: 12px 0 32px rgba(15, 23, 42, 0.18);
 }
 
 .top-row {
@@ -22,7 +22,7 @@ main {
     height: 4rem;
     display: flex;
     align-items: center;
-    background: var(--el-surface-strong);
+    background: rgba(255, 255, 255, 0.94);
     color: var(--el-text);
 }
 
@@ -48,7 +48,8 @@ main {
         white-space: nowrap;
         margin-left: 1.5rem;
         text-decoration: none;
-        color: var(--el-text);
+        color: var(--el-accent);
+        font-weight: 600;
     }
 
     .top-row ::deep a:hover, .top-row ::deep .btn-link:hover {

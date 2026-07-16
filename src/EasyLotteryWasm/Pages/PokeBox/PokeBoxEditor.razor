@@ -8,18 +8,43 @@
 
 <PageTitle>戳戳樂 - 編輯器</PageTitle>
 
-<h3>@(Id == 0 ? "新增模板" : "編輯模板")</h3>
+<div class="pokebox-editor-page">
+    <section class="pokebox-editor-hero">
+        <div class="pokebox-editor-copy">
+            <div class="pokebox-eyebrow">POKE BOX STUDIO</div>
+            <h3 class="pokebox-editor-title">@(Id == 0 ? "新增模板" : "編輯模板")</h3>
+            <p class="pokebox-subtitle">把模板設定和格子內容分成兩欄，調整時會更像在編輯一個正式的活動面板。</p>
+        </div>
 
-@if (template == null)
-{
-    <p>載入中…</p>
-}
-else
-{
-    <div class="row">
-        <!-- Global Settings Panel -->
-        <div class="col-md-4">
-            <Card>
+        <div class="pokebox-editor-actions">
+            <Badge Color="@(template == null ? Color.Secondary : (template.PublicationStatus == TemplatePublicationStatus.Draft ? Color.Warning : Color.Success))">
+                @if (template == null)
+                {
+                    <span>載入中</span>
+                }
+                else
+                {
+                    @(template.PublicationStatus == TemplatePublicationStatus.Draft ? "目前為草稿" : "目前已發布")
+                }
+            </Badge>
+            <Button Color="Color.Light" Clicked="@GoBack">返回</Button>
+        </div>
+    </section>
+
+    @if (template == null)
+    {
+        <div class="pokebox-state-panel">載入中…</div>
+    }
+    else
+    {
+        <section class="pokebox-editor-toolbar pokebox-editor-toolbar-top">
+            <Button Color="Color.Primary" Clicked="@SaveDraft">儲存草稿</Button>
+            <Button Color="Color.Success" Clicked="@Publish">發布</Button>
+            <Button Color="Color.Secondary" Clicked="@ApplyGrid">套用格數（重設格子）</Button>
+        </section>
+
+        <section class="pokebox-editor-grid">
+            <Card class="pokebox-editor-card">
                 <CardHeader><CardTitle>全域設定</CardTitle></CardHeader>
                 <CardBody>
                     <Field>
@@ -40,10 +65,10 @@ else
                     </Field>
                     <Field>
                         <FieldLabel>戳擊模式</FieldLabel>
-                        <Select TValue="PokeMode" @bind-SelectedValue="@template.Mode">
-                            <SelectItem Value="PokeMode.Random">隨機</SelectItem>
-                            <SelectItem Value="PokeMode.Manual">手動</SelectItem>
-                        </Select>
+                        <select class="form-select" @bind="@template.Mode">
+                            <option value="@PokeMode.Random">隨機</option>
+                            <option value="@PokeMode.Manual">手動</option>
+                        </select>
                     </Field>
                     <Field>
                         <FieldLabel>允許重複戳</FieldLabel>
@@ -55,13 +80,13 @@ else
                     </Field>
                     <Field>
                         <FieldLabel>動畫效果</FieldLabel>
-                        <Select TValue="PokeAnimation" @bind-SelectedValue="@template.Animation">
-                            <SelectItem Value="PokeAnimation.Burst">爆破</SelectItem>
-                            <SelectItem Value="PokeAnimation.Smoke">煙霧</SelectItem>
-                            <SelectItem Value="PokeAnimation.Flash">光芒</SelectItem>
-                            <SelectItem Value="PokeAnimation.Bounce">彈跳</SelectItem>
-                            <SelectItem Value="PokeAnimation.Flip">翻轉</SelectItem>
-                        </Select>
+                        <select class="form-select" @bind="@template.Animation">
+                            <option value="@PokeAnimation.Burst">爆破</option>
+                            <option value="@PokeAnimation.Smoke">煙霧</option>
+                            <option value="@PokeAnimation.Flash">光芒</option>
+                            <option value="@PokeAnimation.Bounce">彈跳</option>
+                            <option value="@PokeAnimation.Flip">翻轉</option>
+                        </select>
                     </Field>
                     <Field>
                         <FieldLabel>字體</FieldLabel>
@@ -86,25 +111,10 @@ else
                 </CardBody>
             </Card>
 
-            <div class="mt-3 d-flex gap-2">
-                <Button Color="Color.Primary" Clicked="@SaveDraft">儲存草稿</Button>
-                <Button Color="Color.Success" Clicked="@Publish">發布</Button>
-                <Button Color="Color.Secondary" Clicked="@ApplyGrid">套用格數（重設格子）</Button>
-                <Button Color="Color.Light" Clicked="@GoBack">返回</Button>
-            </div>
-            <div class="mt-2">
-                <Badge Color="@(template.PublicationStatus == TemplatePublicationStatus.Draft ? Color.Warning : Color.Success)">
-                    @(template.PublicationStatus == TemplatePublicationStatus.Draft ? "目前為草稿" : "目前已發布")
-                </Badge>
-            </div>
-        </div>
-
-        <!-- Cell Settings Panel -->
-        <div class="col-md-8">
-            <Card>
+            <Card class="pokebox-editor-card pokebox-editor-cells">
                 <CardHeader><CardTitle>格子設定（共 @template.Cells.Count 格）</CardTitle></CardHeader>
                 <CardBody>
-                    <div class="poke-grid" style="display:grid;grid-template-columns:repeat(@template.GridColumns,1fr);gap:8px;">
+                    <div class="poke-grid poke-grid-editor" style="grid-template-columns:repeat(@template.GridColumns, minmax(0, 1fr));">
                         @foreach (var cell in template.Cells.OrderBy(c => c.Index))
                         {
                             <div class="poke-cell-editor border rounded p-2" style="background:@(string.IsNullOrEmpty(cell.RevealedColor)?"#f0f0f0":cell.RevealedColor);">
@@ -130,9 +140,9 @@ else
                     </div>
                 </CardBody>
             </Card>
-        </div>
-    </div>
-}
+        </section>
+    }
+</div>
 
 @code {
     [Parameter] public int Id { get; set; }
@@ -231,7 +241,7 @@ else
         }
 
         await MessageService.Success("儲存成功！");
-        NavigationManager.NavigateTo("/pokebox");
+        NavigationManager.NavigateTo("/pokebox", forceLoad: true);
     }
 
     private void GoBack()

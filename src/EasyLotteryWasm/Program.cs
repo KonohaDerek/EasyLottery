@@ -33,6 +33,7 @@ var apiBaseUrl = builder.Configuration["Api:BaseUrl"] ?? "http://localhost:5297/
 builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(apiBaseUrl) });
 
 builder.Services.AddScoped<IEasyLotteryConfigStore, YamlEasyLotteryConfigStore>();
+builder.Services.AddScoped<IOvertimeFeedStore, BrowserOvertimeFeedStore>();
 builder.Services.AddScoped<SystemSettingsService>();
 builder.Services.AddScoped<ActivityResultService>();
 builder.Services.AddScoped<ResultNotificationService>();

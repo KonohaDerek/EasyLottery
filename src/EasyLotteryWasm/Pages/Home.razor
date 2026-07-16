@@ -55,14 +55,18 @@
 
 <Divider />
 
-<Card>
-    <CardBody>
-        <CardTitle>
-            <h2>名單與獎項匯入 / 匯出</h2>
-        </CardTitle>
+<details class="import-export-panel">
+    <summary class="import-export-summary">
+        <div>
+            <div class="import-export-eyebrow">DATA IMPORT / EXPORT</div>
+            <h2 class="import-export-title">名單與獎項匯入 / 匯出</h2>
+        </div>
+        <span class="import-export-hint">展開 / 收合</span>
+    </summary>
+    <div class="import-export-body">
         <Row>
             <Column ColumnSize="ColumnSize.Is6">
-                <Card>
+                <Card class="import-export-card">
                     <CardBody>
                         <CardTitle><h5>參加者</h5></CardTitle>
                         <Field>
@@ -84,7 +88,7 @@
                 </Card>
             </Column>
             <Column ColumnSize="ColumnSize.Is6">
-                <Card>
+                <Card class="import-export-card">
                     <CardBody>
                         <CardTitle><h5>獎項</h5></CardTitle>
                         <Field>
@@ -106,8 +110,8 @@
                 </Card>
             </Column>
         </Row>
-    </CardBody>
-</Card>
+    </div>
+</details>
 
 <Divider />
 
@@ -115,54 +119,69 @@
     <CardBody>
         <CardText>
             <Validations @ref="@validations" Mode="ValidationMode.Auto" Model="@chatRoomCatch">
-                <Field Horizontal>
-                    <FieldBody ColumnSize="ColumnSize.Is4">
-                        <Validation>
-                            <TextInput @bind-Value="@chatRoomCatch.YoutubeUrl" Placeholder="請輸入直播網址" Disabled="@catchChat" >
-                                <Feedback>
-                                    <ValidationError />
-                                </Feedback>
-                            </TextInput>
-                        </Validation>
-                        <Validation>
-                            <TextInput @bind-Value="@chatRoomCatch.KeyWord" Placeholder="請輸入通關密語，可用逗號或換行分隔多組" Disabled="@catchChat" >
-                                <Feedback>
-                                    <ValidationError />
-                                </Feedback>
-                            </TextInput>
-                        </Validation>
-                        <div class="mt-3">
-                            <div class="mb-1">白名單</div>
+                <div class="chat-settings-grid">
+                    <div class="chat-settings-panel">
+                        <div class="chat-settings-panel-header">
+                            <div class="chat-settings-panel-eyebrow">直播資訊</div>
+                            <h5 class="chat-settings-panel-title">網址與通關密語</h5>
+                        </div>
+                        <Field>
+                            <FieldLabel>直播網址</FieldLabel>
+                            <Validation>
+                                <TextInput @bind-Value="@chatRoomCatch.YoutubeUrl" Placeholder="請輸入直播網址" Disabled="@catchChat">
+                                    <Feedback>
+                                        <ValidationError />
+                                    </Feedback>
+                                </TextInput>
+                            </Validation>
+                        </Field>
+                        <Field>
+                            <FieldLabel>通關密語</FieldLabel>
+                            <Validation>
+                                <TextInput @bind-Value="@chatRoomCatch.KeyWord" Placeholder="請輸入通關密語，可用逗號或換行分隔多組" Disabled="@catchChat">
+                                    <Feedback>
+                                        <ValidationError />
+                                    </Feedback>
+                                </TextInput>
+                            </Validation>
+                        </Field>
+                    </div>
+                    <div class="chat-settings-panel chat-settings-panel-accent">
+                        <div class="chat-settings-panel-header">
+                            <div class="chat-settings-panel-eyebrow">參與條件</div>
+                            <h5 class="chat-settings-panel-title">白名單 / 黑名單 / 冷卻</h5>
+                        </div>
+                        <Field>
+                            <FieldLabel>白名單</FieldLabel>
                             <MemoInput @bind-Value="@chatRoomCatch.WhiteList" Rows="2" Placeholder="可輸入帳號名稱，逗號或換行分隔；留空表示全部允許" Disabled="@catchChat" />
-                        </div>
-                        <div class="mt-3">
-                            <div class="mb-1">黑名單</div>
+                        </Field>
+                        <Field>
+                            <FieldLabel>黑名單</FieldLabel>
                             <MemoInput @bind-Value="@chatRoomCatch.BlackList" Rows="2" Placeholder="可輸入帳號名稱，逗號或換行分隔" Disabled="@catchChat" />
-                        </div>
-                        <div class="mt-3">
-                            <div class="mb-1">同帳號冷卻秒數</div>
+                        </Field>
+                        <Field>
+                            <FieldLabel>同帳號冷卻秒數</FieldLabel>
                             <Validation>
                                 <NumericInput TValue="int" @bind-Value="@chatRoomCatch.CooldownSeconds" Min="0" Max="86400" Disabled="@catchChat" />
                                 <Feedback>
                                     <ValidationError />
                                 </Feedback>
                             </Validation>
+                        </Field>
+                        <div class="chat-settings-switch">
+                            <Switch TValue="bool" Value="@catchChat" ValueChanged="@OnCatchChatChanged">
+                                @if (catchChat)
+                                {
+                                    <span>擷取中</span>
+                                }
+                                else
+                                {
+                                    <span>已停止</span>
+                                }
+                            </Switch>
                         </div>
-                    </FieldBody>
-                    <FieldBody ColumnSize="ColumnSize.Is2">
-                        <Switch TValue="bool" Value="@catchChat" ValueChanged="@OnCatchChatChanged">
-                            @if (catchChat)
-                            {
-                                <span>擷取中</span>
-                            }
-                            else
-                            {
-                                <span>已停止</span>
-                            }
-                        </Switch>
-                    </FieldBody>
-                </Field>
-               
+                    </div>
+                </div>
             </Validations>
         </CardText>
     </CardBody>
@@ -171,246 +190,51 @@
 
 <Divider />
 
-<Card>
-    <CardBody>
-        <CardText>
-            <Field Horizontal>
-                <FieldLabel ColumnSize="ColumnSize.Is2">
-                    獎項名稱
-                </FieldLabel>
-                <FieldBody ColumnSize="ColumnSize.Is2">
-                    <TextInput @bind-Value="@Prize" Placeholder="請輸入獎項名稱" />
-                </FieldBody>
-                 <FieldBody ColumnSize="ColumnSize.Is2">
-                     <Button Color="Color.Primary" @onclick="AddPrize">新增獎項</Button>
-                </FieldBody>
-            </Field>
-            <Field Horizontal>
-                <FieldLabel ColumnSize="ColumnSize.Is2">
-                    參加者名稱
-                </FieldLabel>
-                <FieldBody ColumnSize="ColumnSize.Is2">
-                    <TextInput @bind-Value="@CustomParticipantName" Placeholder="請輸入參加者名稱" />
-                </FieldBody>
-            </Field>
-            <Field Horizontal>
-                <FieldLabel ColumnSize="ColumnSize.Is2">
-                    所屬群組
-                </FieldLabel>
-                <FieldBody ColumnSize="ColumnSize.Is2">
-                    <TextInput @bind-Value="@CustomParticipantGroup" Placeholder="例如：VIP、備用" />
-                </FieldBody>
-            </Field>
-            <Field Horizontal>
-                <FieldLabel ColumnSize="ColumnSize.Is2">
-                    標籤
-                </FieldLabel>
-                <FieldBody ColumnSize="ColumnSize.Is2">
-                    <TextInput @bind-Value="@CustomParticipantTags" Placeholder="例如：A區,高倍率" />
-                </FieldBody>
-                <FieldBody ColumnSize="ColumnSize.Is2">
-                    <Button Color="Color.Primary" @onclick="AddParticipant">新增參加者</Button>
-                </FieldBody>
-            </Field>
-        </CardText>
-    </CardBody>
-</Card>
-
-
-<Divider />
-
-<Card>
-    <CardBody>
-        <CardTitle>
-            <h2>抽獎規則模板</h2>
-        </CardTitle>
-        <Row>
-            <Column ColumnSize="ColumnSize.Is4">
-                <Field>
-                    <FieldLabel>模板名稱</FieldLabel>
-                    <TextInput @bind-Value="@rulePresetName" Placeholder="例如：VIP 兩倍、一般一倍" />
-                </Field>
-                <Field>
-                    <FieldLabel>說明</FieldLabel>
-                    <TextInput @bind-Value="@rulePresetDescription" Placeholder="規則說明" />
-                </Field>
-                <div class="d-flex gap-2 flex-wrap">
-                    <Button Color="Color.Primary" Clicked="@SaveCurrentRulePresetAsync">儲存目前規則</Button>
-                    <Button Color="Color.Success" Clicked="@ApplySelectedRulePresetAsync" Disabled="@string.IsNullOrWhiteSpace(selectedRulePresetName)">套用模板</Button>
-                </div>
-            </Column>
-            <Column ColumnSize="ColumnSize.Is8">
-                <Field>
-                    <FieldLabel>已儲存模板</FieldLabel>
-                    <Select TValue="string" @bind-SelectedValue="@selectedRulePresetName">
-                        @foreach (var preset in drawingRulePresets)
-                        {
-                            <SelectItem Value="@preset.Name">@preset.Name</SelectItem>
-                        }
-                    </Select>
-                </Field>
-                @if (drawingRulePresets.Any())
-                {
-                    <Table FullWidth Striped Hoverable Bordered Responsive>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHeaderCell>名稱</TableHeaderCell>
-                                <TableHeaderCell>說明</TableHeaderCell>
-                                <TableHeaderCell>倍率內容</TableHeaderCell>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            @foreach (var preset in drawingRulePresets)
-                            {
-                                <TableRow>
-                                    <TableRowCell>@preset.Name</TableRowCell>
-                                    <TableRowCell>@preset.Description</TableRowCell>
-                                    <TableRowCell>
-                                        @string.Join("、", preset.LevelRates.OrderBy(x => x.Key).Select(x => $"{x.Key}×{x.Value}"))
-                                    </TableRowCell>
-                                </TableRow>
-                            }
-                        </TableBody>
-                    </Table>
-                }
-                else
-                {
-                    <div class="text-muted">尚未建立任何規則模板。</div>
-                }
-            </Column>
-        </Row>
-    </CardBody>
-</Card>
-
-<Divider />
-
-<Card>
-    <CardBody>
-        <CardTitle>
-            <h2>倍率管理器</h2>
-        </CardTitle>
-        <Row>
-            <Column ColumnSize="ColumnSize.Is5">
-                <Field>
-                    <FieldLabel>新增等級</FieldLabel>
-                    <div class="d-flex gap-2 flex-wrap align-items-end">
-                        <div style="min-width: 180px; flex: 1 1 180px;">
-                            <TextInput @bind-Value="@newLevelName" Placeholder="例如：VIP" />
-                        </div>
-                        <div style="min-width: 120px;">
-                            <NumericInput TValue="int" @bind-Value="@newLevelRate" Min="1" />
-                        </div>
-                        <Button Color="Color.Primary" Clicked="@AddLevelRateRowAsync">新增等級</Button>
-                        <Button Color="Color.Success" Clicked="@SaveLevelRatesAsync">儲存倍率設定</Button>
+<div class="entry-split-grid">
+    <Card class="entry-card">
+        <CardHeader>
+            <CardTitle>新增獎項</CardTitle>
+        </CardHeader>
+        <CardBody>
+            <Field>
+                <FieldLabel>獎項名稱</FieldLabel>
+                <div class="d-flex gap-2 flex-wrap align-items-end">
+                    <div class="entry-input-wide">
+                        <TextInput @bind-Value="@Prize" Placeholder="請輸入獎項名稱" />
                     </div>
-                </Field>
-
-                <div class="mt-3">
-                    <FieldLabel>目前倍率</FieldLabel>
-                    @if (levelRateRows.Any())
-                    {
-                        <Table FullWidth Striped Hoverable Bordered Responsive>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHeaderCell>等級</TableHeaderCell>
-                                    <TableHeaderCell>倍率</TableHeaderCell>
-                                    <TableHeaderCell>操作</TableHeaderCell>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                @foreach (var row in levelRateRows)
-                                {
-                                    <TableRow>
-                                        <TableRowCell>
-                                            <TextInput @bind-Value="@row.Level" Placeholder="等級名稱" />
-                                        </TableRowCell>
-                                        <TableRowCell>
-                                            <NumericInput TValue="int" @bind-Value="@row.Rate" Min="1" />
-                                        </TableRowCell>
-                                        <TableRowCell>
-                                            <Button Size="Size.Small" Color="Color.Danger" Clicked="@(() => RemoveLevelRateRowAsync(row.Level))">
-                                                <Icon Name="IconName.Delete" /> 刪除
-                                            </Button>
-                                        </TableRowCell>
-                                    </TableRow>
-                                }
-                            </TableBody>
-                        </Table>
-                    }
-                    else
-                    {
-                        <div class="text-muted">尚未建立任何倍率，請先新增等級，或從會員名單匯入後自動帶入。</div>
-                    }
+                    <Button Color="Color.Primary" @onclick="AddPrize">新增獎項</Button>
                 </div>
-            </Column>
-            <Column ColumnSize="ColumnSize.Is7">
-                <Field>
-                    <FieldLabel>模板名稱</FieldLabel>
-                    <TextInput @bind-Value="@rulePresetName" Placeholder="例如：VIP 兩倍、一般一倍" />
-                </Field>
-                <Field>
-                    <FieldLabel>說明</FieldLabel>
-                    <TextInput @bind-Value="@rulePresetDescription" Placeholder="規則說明" />
-                </Field>
-                <div class="d-flex gap-2 flex-wrap">
-                    <Button Color="Color.Primary" Clicked="@SaveCurrentRulePresetAsync">儲存成模板</Button>
-                    <Button Color="Color.Success" Clicked="@ApplySelectedRulePresetAsync" Disabled="@string.IsNullOrWhiteSpace(selectedRulePresetName)">套用模板</Button>
-                </div>
+            </Field>
+        </CardBody>
+    </Card>
 
-                <Field class="mt-3">
-                    <FieldLabel>已儲存模板</FieldLabel>
-                    <Select TValue="string" @bind-SelectedValue="@selectedRulePresetName">
-                        @foreach (var preset in drawingRulePresets)
-                        {
-                            <SelectItem Value="@preset.Name">@preset.Name</SelectItem>
-                        }
-                    </Select>
-                </Field>
-                @if (drawingRulePresets.Any())
-                {
-                    <Table FullWidth Striped Hoverable Bordered Responsive>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHeaderCell>名稱</TableHeaderCell>
-                                <TableHeaderCell>說明</TableHeaderCell>
-                                <TableHeaderCell>倍率內容</TableHeaderCell>
-                                <TableHeaderCell>操作</TableHeaderCell>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            @foreach (var preset in drawingRulePresets)
-                            {
-                                <TableRow>
-                                    <TableRowCell>@preset.Name</TableRowCell>
-                                    <TableRowCell>@preset.Description</TableRowCell>
-                                    <TableRowCell>
-                                        @if (preset.LevelRates.Any())
-                                        {
-                                            @string.Join("、", preset.LevelRates.OrderBy(x => x.Key).Select(x => $"{x.Key}×{x.Value}"))
-                                        }
-                                        else
-                                        {
-                                            <span class="text-muted">尚未設定倍率</span>
-                                        }
-                                    </TableRowCell>
-                                    <TableRowCell>
-                                        <Button Size="Size.Small" Color="Color.Danger" Clicked="@(() => RemoveRulePresetAsync(preset.Name))">
-                                            <Icon Name="IconName.Delete" /> 刪除
-                                        </Button>
-                                    </TableRowCell>
-                                </TableRow>
-                            }
-                        </TableBody>
-                    </Table>
-                }
-                else
-                {
-                    <div class="text-muted">尚未建立任何規則模板。</div>
-                }
-            </Column>
-        </Row>
-    </CardBody>
-</Card>
+    <Card class="entry-card">
+        <CardHeader>
+            <CardTitle>新增參加者</CardTitle>
+        </CardHeader>
+        <CardBody>
+            <Field>
+                <FieldLabel>參加者名稱</FieldLabel>
+                <TextInput @bind-Value="@CustomParticipantName" Placeholder="請輸入參加者名稱" />
+            </Field>
+            <Field>
+                <FieldLabel>所屬群組</FieldLabel>
+                <TextInput @bind-Value="@CustomParticipantGroup" Placeholder="例如：VIP、備用" />
+            </Field>
+            <Field>
+                <FieldLabel>標籤</FieldLabel>
+                <div class="d-flex gap-2 flex-wrap align-items-end">
+                    <div class="entry-input-wide">
+                        <TextInput @bind-Value="@CustomParticipantTags" Placeholder="例如：A區,高倍率" />
+                    </div>
+                    <Button Color="Color.Primary" @onclick="AddParticipant">新增參加者</Button>
+                </div>
+            </Field>
+        </CardBody>
+    </Card>
+</div>
+
+<Divider />
 
 <Button Size="Size.Small" Color="Color.Primary" Clicked="@OnDrawPrize">抽獎</Button>
 <Table FullWidth Striped Hoverable Bordered Responsive>
@@ -531,7 +355,6 @@
         }
 
         await LoadDrawingRuleStateAsync();
-        await LoadRulePresetsAsync();
     }
 
     private async void OnAuthStateChanged()

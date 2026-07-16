@@ -1,40 +1,46 @@
-using System.Net.Http.Json;
 using EasyLotteryDomain.Models.Overtime;
+using EasyLotteryDomain.Services;
 
 namespace EasyLotteryWasm.Services
 {
     public sealed class OvertimeFeedClient
     {
-        private readonly HttpClient _httpClient;
+        private readonly IOvertimeFeedStore _store;
 
-        public OvertimeFeedClient(HttpClient httpClient)
+        public OvertimeFeedClient(IOvertimeFeedStore store)
         {
-            _httpClient = httpClient;
+            _store = store;
         }
 
-        public async Task<IReadOnlyList<OvertimeSupportEvent>> GetEventsAsync(CancellationToken cancellationToken = default)
+        public Task<IReadOnlyList<OvertimeSupportEvent>> GetEventsAsync(CancellationToken cancellationToken = default)
         {
-            var events = await _httpClient.GetFromJsonAsync<List<OvertimeSupportEvent>>("api/overtime/events", cancellationToken);
-            return events ?? [];
+            return _store.SnapshotAsync();
         }
 
         public async Task<OvertimeSupportEvent?> PostSuperChatAsync(OvertimeSupportEvent eventItem, CancellationToken cancellationToken = default)
         {
-            var response = await _httpClient.PostAsJsonAsync("api/overtime/superchat", eventItem, cancellationToken);
-            response.EnsureSuccessStatusCode();
-            return await response.Content.ReadFromJsonAsync<OvertimeSupportEvent>(cancellationToken);
+            eventItem.Source = OvertimeSupportSource.SuperChat;
+            eventItem.SourceLabel = string.IsNullOrWhiteSpace(eventItem.SourceLabel) ? "YouTube SuperChat" : eventItem.SourceLabel;
+            return await _store.AddAsync(eventItem);
         }
 
         public async Task<OvertimeSupportEvent?> PostEcpayDonateAsync(OvertimeSupportEvent eventItem, CancellationToken cancellationToken = default)
         {
-            var response = await _httpClient.PostAsJsonAsync("api/overtime/ecpay", eventItem, cancellationToken);
-            response.EnsureSuccessStatusCode();
-            return await response.Content.ReadFromJsonAsync<OvertimeSupportEvent>(cancellationToken);
+            eventItem.Source = OvertimeSupportSource.EcpayDonate;
+            eventItem.SourceLabel = string.IsNullOrWhiteSpace(eventItem.SourceLabel) ? "ECPay Donate" : eventItem.SourceLabel;
+            return await _store.AddAsync(eventItem);
         }
 
-        public async Task ClearAsync(CancellationToken cancellationToken = default)
+        public async Task<OvertimeSupportEvent?> PostManualAsync(OvertimeSupportEvent eventItem, CancellationToken cancellationToken = default)
         {
-            await _httpClient.DeleteAsync("api/overtime/events", cancellationToken);
+            eventItem.Source = OvertimeSupportSource.Manual;
+            eventItem.SourceLabel = string.IsNullOrWhiteSpace(eventItem.SourceLabel) ? "加班開始" : eventItem.SourceLabel;
+            return await _store.AddAsync(eventItem);
+        }
+
+        public Task ClearAsync(CancellationToken cancellationToken = default)
+        {
+            return _store.ClearAsync();
         }
     }
 }

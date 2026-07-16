@@ -1,6 +1,6 @@
 # EasyLottery
 
-EasyLottery 是一套以 **Blazor WebAssembly + ASP.NET Core API + Domain Service** 組成的直播活動抽獎工具，主要用來支援 YouTube 直播互動、戳戳樂、轉盤抽獎、活動結果記錄與系統設定。
+EasyLottery 是一套以 **Blazor WebAssembly + Domain Service** 組成的直播活動抽獎工具，主要用來支援 YouTube 直播互動、戳戳樂、轉盤抽獎、活動結果記錄與系統設定。
 
 ## 系統目標
 
@@ -75,16 +75,14 @@ EasyLottery 是一套以 **Blazor WebAssembly + ASP.NET Core API + Domain Servic
 
 ## 系統架構
 
-專案分成三個主要層級：
+專案分成兩個主要層級：
 
-- `EasyLotteryAPI`：ASP.NET Core API，提供後端 API 與 YouTube 會員相關服務
 - `EasyLotteryDomain`：核心商業邏輯、資料模型與服務
 - `EasyLotteryWasm`：Blazor WebAssembly 前端，提供操作介面
 
-另外有兩個測試專案：
+另外有一個測試專案：
 
 - `EasyLotteryDomainTests`
-- `EasyLotteryAPITests`
 
 ## 資料與儲存方式
 
@@ -105,7 +103,6 @@ EasyLottery 是一套以 **Blazor WebAssembly + ASP.NET Core API + Domain Servic
 ## 技術堆疊
 
 - .NET 8
-- ASP.NET Core
 - Blazor WebAssembly
 - Blazorise
 - Serilog
@@ -119,12 +116,6 @@ EasyLottery 是一套以 **Blazor WebAssembly + ASP.NET Core API + Domain Servic
 
 - .NET SDK 8.0
 - 支援 Blazor WebAssembly 的瀏覽器
-
-### 執行 API
-
-```bash
-dotnet run --project src/EasyLotteryAPI/EasyLotteryAPI.csproj --launch-profile EasyLotteryAPI
-```
 
 ### 執行前端
 
@@ -149,7 +140,6 @@ dotnet test EasyLottery.generated.sln
 ## 測試專案
 
 - `tests/EasyLotteryDomainTests`：驗證抽獎、戳戳樂與輔助服務的核心邏輯
-- `tests/EasyLotteryAPITests`：驗證 API 控制器與相關服務
 
 ## 功能摘要
 

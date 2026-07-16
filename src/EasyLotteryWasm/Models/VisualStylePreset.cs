@@ -15,10 +15,18 @@ namespace EasyLotteryWasm.Models
 
     public static class VisualStyleCatalog
     {
-        public const string DefaultThemeKey = "arcade-neon";
+        public const string DefaultThemeKey = "dashboard-console";
 
         private static readonly IReadOnlyList<VisualStylePreset> Presets = new[]
         {
+            new VisualStylePreset
+            {
+                Key = "dashboard-console",
+                Name = "控制台藍白",
+                Description = "清爽的藍白作業台風格，適合抽獎首頁、管理頁與一般操作畫面。",
+                Tagline = "Dashboard / Clean / Studio",
+                Tags = new[] { "預設", "清爽", "管理介面" }
+            },
             new VisualStylePreset
             {
                 Key = "arcade-neon",
@@ -58,6 +66,14 @@ namespace EasyLotteryWasm.Models
                 ?? Presets[0];
         }
 
-        public static string NormalizeKey(string? key) => GetByKey(key).Key;
+        public static string NormalizeKey(string? key)
+        {
+            if (string.Equals(key, "arcade-neon", StringComparison.OrdinalIgnoreCase))
+            {
+                return DefaultThemeKey;
+            }
+
+            return GetByKey(key).Key;
+        }
     }
 }
