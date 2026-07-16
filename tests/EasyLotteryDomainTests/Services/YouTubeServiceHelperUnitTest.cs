@@ -295,6 +295,20 @@ namespace EasyLotteryDomainTests.Services
             Assert.IsTrue(configured);
         }
 
+        [TestMethod]
+        public async Task HasConfiguredCredentialsAsync_RequiresApiKey()
+        {
+            var svc = CreateService(extraConfig: new Dictionary<string, string>
+            {
+                { "YouTubeApi:ApiKey", "" },
+                { "YouTubeApi:CredentialsBase64", TestCredentialsBase64 }
+            });
+
+            var configured = await svc.HasConfiguredCredentialsAsync();
+
+            Assert.IsFalse(configured);
+        }
+
         #endregion
     }
 }

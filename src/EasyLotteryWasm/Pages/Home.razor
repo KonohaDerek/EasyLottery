@@ -40,13 +40,13 @@
                 </Field>
             </Column>
             <Column ColumnSize="ColumnSize.IsAuto">
-                @if(youTubeServiceHelper.IsAuthorized)
+                @if(hasYoutubeApiKey)
                 {
-                    <Badge Color="Color.Success"><Icon Name="IconName.CheckCircle" /> YT 已授權</Badge>
+                    <Badge Color="Color.Success"><Icon Name="IconName.CheckCircle" /> YT API Key 已設定</Badge>
                 }
                 else
                 {
-                    <Badge Color="Color.Secondary">YT 未授權</Badge>
+                    <Badge Color="Color.Secondary">YT API Key 未設定</Badge>
                 }
             </Column>
         </Row>
@@ -326,7 +326,7 @@
 
 <Toaster>
     <Toast @bind-Visible="@toastVisible">
-        
+
         <ToastBody>
            @toastMessage
         </ToastBody>
@@ -338,6 +338,7 @@
     private ChatRoomCatch chatRoomCatch = new ChatRoomCatch();
     private bool catchChat = false;
     private Dictionary<string, DateTimeOffset> lastAcceptedMessageTimes = new(StringComparer.OrdinalIgnoreCase);
+    private bool hasYoutubeApiKey = false;
 
     private string toastMessage = "";
 
@@ -350,9 +351,7 @@
     {
         youTubeServiceHelper.AuthStateChanged += OnAuthStateChanged;
 
-        if (await youTubeServiceHelper.HasRefreshTokenAsync()) {
-            await youTubeServiceHelper.RefreshTokenAsync();
-        }
+        hasYoutubeApiKey = await youTubeServiceHelper.HasConfiguredCredentialsAsync();
 
         await LoadDrawingRuleStateAsync();
     }

@@ -52,10 +52,7 @@ namespace EasyLotteryDomain.Models.Config
         public string RefreshToken { get; set; } = "";
 
         public bool HasConfiguration =>
-            !string.IsNullOrWhiteSpace(ApiKey) ||
-            !string.IsNullOrWhiteSpace(CredentialsBase64) ||
-            !string.IsNullOrWhiteSpace(RedirectUri) ||
-            !string.IsNullOrWhiteSpace(RefreshToken);
+            !string.IsNullOrWhiteSpace(ApiKey);
     }
 
     public sealed class DonationIntegrationSettings
