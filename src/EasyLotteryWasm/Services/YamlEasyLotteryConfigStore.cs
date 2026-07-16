@@ -150,6 +150,8 @@ namespace EasyLotteryWasm.Services
             document.OvertimeOverlay.ThemeKey = string.IsNullOrWhiteSpace(document.OvertimeOverlay.ThemeKey)
                 ? "festival-stage"
                 : document.OvertimeOverlay.ThemeKey.Trim();
+            document.OvertimeOverlay.MessageTemplateKey = OvertimeMessageTemplatePreset.NormalizeKey(document.OvertimeOverlay.MessageTemplateKey);
+            document.OvertimeOverlay.TextAnimationKey = OvertimeTextAnimationPreset.NormalizeKey(document.OvertimeOverlay.TextAnimationKey);
             document.OvertimeOverlay.MaxVisibleItems = Math.Max(1, document.OvertimeOverlay.MaxVisibleItems);
             document.SystemSettings.ResultNotificationEmail = document.SystemSettings.ResultNotificationEmail.Trim();
             document.SystemSettings.DonationIntegration.Ecpay.Name = string.IsNullOrWhiteSpace(document.SystemSettings.DonationIntegration.Ecpay.Name) ? "綠界" : document.SystemSettings.DonationIntegration.Ecpay.Name.Trim();

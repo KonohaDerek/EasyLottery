@@ -20,6 +20,10 @@ namespace EasyLotteryDomain.Models.Config
 
         public decimal DemoEcpayAmount { get; set; } = 2000m;
 
+        public string MessageTemplateKey { get; set; } = "default";
+
+        public string TextAnimationKey { get; set; } = "slide-in";
+
         public DateTimeOffset? StreamStartedAtUtc { get; set; }
 
         public DateTimeOffset? PlannedEndAtUtc { get; set; }
