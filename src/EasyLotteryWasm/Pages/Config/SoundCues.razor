@@ -1,0 +1,142 @@
+@page "/system/sound-cues"
+@using EasyLotteryWasm.Models
+
+@inject EasyLotteryWasm.Services.SoundCueService SoundCueService
+@inject IMessageService MessageService
+
+<PageTitle>音效模板</PageTitle>
+
+<Card class="sound-cue-page-hero mb-4">
+    <CardBody>
+        <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3">
+            <div>
+                <div class="sound-cue-page-eyebrow">SOUND CUE PRESETS</div>
+                <h2 class="mb-2">選擇直播用的音效模板</h2>
+                <p class="mb-0 sound-cue-page-description">
+                    這些模板會把倒數、轉動、戳擊、揭曉與結果音效統一在同一套風格裡，讓整個流程更像舞台事件。
+                </p>
+            </div>
+            <Badge Color="Color.Info" class="align-self-start align-self-lg-center">
+                目前使用：@activePreset?.Name
+            </Badge>
+        </div>
+    </CardBody>
+</Card>
+
+@if (isLoading)
+{
+    <p>載入中…</p>
+}
+else
+{
+    <div class="row g-4">
+        @foreach (var preset in presets)
+        {
+            <div class="col-12 col-lg-4">
+                <Card class="@(GetCardClass(preset))">
+                    <CardBody class="d-flex flex-column">
+                        <CardTitle>
+                            <div class="d-flex justify-content-between align-items-center gap-2">
+                                <h4 class="mb-0">@preset.Name</h4>
+                                @if (preset.Key == activePresetKey)
+                                {
+                                    <Badge Color="Color.Success">已啟用</Badge>
+                                }
+                            </div>
+                        </CardTitle>
+                        <CardText class="flex-grow-1">
+                            <p>@preset.Description</p>
+                            <ul class="sound-cue-list">
+                                <li>倒數：@preset.CountdownCue</li>
+                                <li>轉動：@preset.SpinCue</li>
+                                <li>戳擊：@preset.PokeCue</li>
+                                <li>揭曉：@preset.RevealCue</li>
+                                <li>結果：@preset.ResultCue</li>
+                            </ul>
+                        </CardText>
+                        <Button Color="@(preset.Key == activePresetKey ? Color.Secondary : Color.Primary)"
+                                Clicked="@(() => ApplyPresetAsync(preset.Key))"
+                                Disabled="@(preset.Key == activePresetKey)">
+                            @(preset.Key == activePresetKey ? "目前使用" : "套用模板")
+                        </Button>
+                    </CardBody>
+                </Card>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private IReadOnlyList<SoundCuePreset> presets = Array.Empty<SoundCuePreset>();
+    private string activePresetKey = SoundCuePreset.Catalog[0].Key;
+    private SoundCuePreset? activePreset;
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        presets = SoundCueService.Presets;
+        activePresetKey = await SoundCueService.GetActivePresetKeyAsync();
+        activePreset = SoundCueService.GetPreset(activePresetKey);
+        isLoading = false;
+    }
+
+    private async Task ApplyPresetAsync(string presetKey)
+    {
+        activePreset = await SoundCueService.SetActivePresetAsync(presetKey);
+        activePresetKey = activePreset.Key;
+        await MessageService.Success($"已切換為「{activePreset.Name}」。");
+    }
+
+    private string GetCardClass(SoundCuePreset preset)
+    {
+        var classes = new List<string> { "sound-cue-card", "h-100" };
+        if (preset.Key == activePresetKey)
+        {
+            classes.Add("is-active");
+        }
+
+        return string.Join(" ", classes);
+    }
+}
+
+<style>
+    .sound-cue-page-hero {
+        border-radius: 28px;
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        background:
+            radial-gradient(circle at top left, rgba(255, 255, 255, 0.12), transparent 28%),
+            linear-gradient(135deg, rgba(17, 24, 39, 0.96), rgba(55, 65, 81, 0.92));
+        color: #fff;
+    }
+
+    .sound-cue-page-eyebrow {
+        letter-spacing: 0.28em;
+        text-transform: uppercase;
+        font-size: 0.78rem;
+        font-weight: 800;
+        color: rgba(255, 255, 255, 0.7);
+    }
+
+    .sound-cue-page-description {
+        max-width: 60ch;
+        color: rgba(255, 255, 255, 0.86);
+    }
+
+    .sound-cue-card {
+        overflow: hidden;
+        border-radius: 24px;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        background: #fff;
+        box-shadow: 0 18px 48px rgba(15, 23, 42, 0.1);
+    }
+
+    .sound-cue-card.is-active {
+        border-color: rgba(59, 130, 246, 0.45);
+        box-shadow: 0 20px 52px rgba(59, 130, 246, 0.12);
+    }
+
+    .sound-cue-list {
+        margin: 12px 0 0;
+        padding-left: 18px;
+    }
+</style>

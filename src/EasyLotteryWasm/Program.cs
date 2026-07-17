@@ -36,6 +36,7 @@ builder.Services.AddScoped<IEasyLotteryConfigStore, YamlEasyLotteryConfigStore>(
 builder.Services.AddScoped<IOvertimeFeedStore, BrowserOvertimeFeedStore>();
 builder.Services.AddScoped<SystemSettingsService>();
 builder.Services.AddScoped<ObsLayoutService>();
+builder.Services.AddScoped<SoundCueService>();
 builder.Services.AddScoped<ActivityResultService>();
 builder.Services.AddScoped<ResultNotificationService>();
 builder.Services.AddScoped<VisualStyleService>();

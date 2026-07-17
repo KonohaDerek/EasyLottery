@@ -1,6 +1,7 @@
 @page "/pokebox/preview/{Id:int}"
 @using EasyLotteryDomain.Models.Entities
 @using EasyLotteryDomain.Services
+@using EasyLotteryWasm.Models
 
 @inject ActivityResultService ActivityResultService
 @inject ResultNotificationService ResultNotificationService
@@ -45,6 +46,12 @@ else
         }
 
         <section class="poke-preview-stage" style="@PreviewWrapperStyle">
+            <LiveDrawFlowGuide Title="戳戳樂流程"
+                               Subtitle="@template.Name"
+                               Phase="@flowPhase"
+                               CountdownRemaining="@countdownRemaining"
+                               DetailText="@FlowDetailText" />
+
             <div class="poke-preview-counter">
                 已戳：@RevealedCount / @template.Cells.Count
                 @if (template.MaxPokeCount > 0)
@@ -345,14 +352,29 @@ else
 
     private PokeTemplate? template;
     private int? lastPokedIndex;
+    private LiveDrawPhase flowPhase = LiveDrawPhase.Ready;
+    private int? countdownRemaining;
     private bool isRecording;
     private string? lastRecordedSignature;
 
     // Longest CSS animation is 600ms (smoke); wait slightly longer before clearing the class
     private const int AnimationDurationMs = 650;
+    private const int RevealCountdownSeconds = 2;
+    private const int RevealHoldMs = 450;
 
     private int RevealedCount => template?.Cells.Count(c => c.IsRevealed) ?? 0;
     private bool CanRecordCurrentActivity => template != null && RevealedCount > 0 && BuildRecordSignature() != lastRecordedSignature;
+    private bool IsBusy => countdownRemaining.HasValue || flowPhase == LiveDrawPhase.CountingDown || flowPhase == LiveDrawPhase.Spinning;
+
+    private string FlowDetailText => flowPhase switch
+    {
+        LiveDrawPhase.Ready => "按下戳選後會先進入倒數，再揭露結果。",
+        LiveDrawPhase.CountingDown => "倒數中，請準備看揭露動畫。",
+        LiveDrawPhase.Spinning => "畫面正在展示戳戳樂過場。",
+        LiveDrawPhase.ShowingResult when RevealedCount >= (template?.Cells.Count ?? 0) => "本次戳戳樂已全部完成。",
+        LiveDrawPhase.ShowingResult => "目前結果已顯示，可繼續戳下一格。",
+        _ => "戳戳樂流程已就緒。"
+    };
 
     private string PreviewWrapperStyle =>
         string.IsNullOrEmpty(template?.BackgroundImageUrl)
@@ -403,35 +425,28 @@ else
         if (template.Mode != PokeMode.Manual) return;
         if (cell.IsRevealed && !template.AllowRePoking) return;
 
-        var poked = await PokeService.PokeCellByIndexAsync(template.Id, cell.Index);
-        if (poked != null)
+        await RunRevealSequenceAsync(() => PokeService.PokeCellByIndexAsync(template.Id, cell.Index), poked =>
         {
             cell.IsRevealed = true;
             cell.RevealedAt = poked.RevealedAt;
             lastPokedIndex = cell.Index;
-            StateHasChanged();
-            await ClearAnimationAfterDelay();
-        }
+        });
     }
 
     private async Task PokeRandom()
     {
         if (template == null) return;
-        var poked = await PokeService.PokeRandomCellAsync(template.Id);
-        if (poked == null)
+
+        await RunRevealSequenceAsync(() => PokeService.PokeRandomCellAsync(template.Id), poked =>
         {
-            await MessageService.Info("所有格子已全部開啟！");
-            return;
-        }
-        var cell = template.Cells.FirstOrDefault(c => c.Index == poked.Index);
-        if (cell != null)
-        {
-            cell.IsRevealed = true;
-            cell.RevealedAt = poked.RevealedAt;
-            lastPokedIndex = cell.Index;
-            StateHasChanged();
-            await ClearAnimationAfterDelay();
-        }
+            var cell = template.Cells.FirstOrDefault(c => c.Index == poked.Index);
+            if (cell != null)
+            {
+                cell.IsRevealed = true;
+                cell.RevealedAt = poked.RevealedAt;
+                lastPokedIndex = cell.Index;
+            }
+        });
     }
 
     private async Task ResetTemplate()
@@ -445,7 +460,7 @@ else
 
     private async Task EndActivityAndRecord()
     {
-        if (template == null || !CanRecordCurrentActivity || isRecording) return;
+        if (template == null || !CanRecordCurrentActivity || isRecording || IsBusy) return;
 
         isRecording = true;
         try
@@ -469,6 +484,49 @@ else
     {
         await Task.Delay(AnimationDurationMs);
         lastPokedIndex = null;
+        StateHasChanged();
+    }
+
+    private async Task RunRevealSequenceAsync(Func<Task<PokeCell?>> revealAsync, Action<PokeCell> applyReveal)
+    {
+        if (template == null || IsBusy)
+        {
+            return;
+        }
+
+        flowPhase = LiveDrawPhase.CountingDown;
+        countdownRemaining = RevealCountdownSeconds;
+        await MessageService.Info("倒數開始，準備揭露戳戳樂。");
+        StateHasChanged();
+
+        while (countdownRemaining > 0)
+        {
+            await Task.Delay(1000);
+            countdownRemaining--;
+            StateHasChanged();
+        }
+
+        flowPhase = LiveDrawPhase.Spinning;
+        countdownRemaining = null;
+        StateHasChanged();
+
+        await Task.Delay(220);
+        var poked = await revealAsync();
+        if (poked == null)
+        {
+            flowPhase = LiveDrawPhase.Ready;
+            await MessageService.Info("所有格子已全部開啟！");
+            StateHasChanged();
+            return;
+        }
+
+        applyReveal(poked);
+        flowPhase = LiveDrawPhase.ShowingResult;
+        StateHasChanged();
+
+        await Task.Delay(RevealHoldMs);
+        await ClearAnimationAfterDelay();
+        flowPhase = LiveDrawPhase.Ready;
         StateHasChanged();
     }
 

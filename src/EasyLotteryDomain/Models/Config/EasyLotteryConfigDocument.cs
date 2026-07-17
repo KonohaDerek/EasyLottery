@@ -21,6 +21,7 @@ namespace EasyLotteryDomain.Models.Config
         public DrawingRuleSettings DrawingRules { get; set; } = new();
         public VisualStyleSettings VisualStyle { get; set; } = new();
         public ObsLayoutSettings ObsLayout { get; set; } = new();
+        public SoundCueSettings SoundCue { get; set; } = new();
         public OvertimeOverlaySettings OvertimeOverlay { get; set; } = new();
         public List<ChangeAuditRecord> AuditRecords { get; set; } = new();
     }
@@ -59,6 +60,11 @@ namespace EasyLotteryDomain.Models.Config
     public sealed class ObsLayoutSettings
     {
         public string ActiveLayoutKey { get; set; } = "stage-spotlight";
+    }
+
+    public sealed class SoundCueSettings
+    {
+        public string ActivePresetKey { get; set; } = "arcade-stage";
     }
 
     public sealed class DonationIntegrationSettings
