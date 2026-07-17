@@ -7,6 +7,7 @@
 @inject ActivityResultService ActivityResultService
 @inject ResultNotificationService ResultNotificationService
 @inject RouletteService RouletteService
+@inject EasyLotteryWasm.Services.SoundCueService SoundCueService
 
 <PageTitle>轉盤 - OBS</PageTitle>
 
@@ -439,6 +440,8 @@ else
         {
             flowPhase = LiveDrawPhase.CountingDown;
             countdownRemaining = SpinCountdownSeconds;
+            var activeCuePreset = SoundCueService.GetPreset(await SoundCueService.GetActivePresetKeyAsync());
+            await SoundCueService.PlayCueAsync(activeCuePreset.CountdownCue);
             StateHasChanged();
 
             while (countdownRemaining > 0)
@@ -452,6 +455,8 @@ else
         flowPhase = LiveDrawPhase.Spinning;
         isSpinning = true;
         countdownRemaining = null;
+        var cuePreset = SoundCueService.GetPreset(await SoundCueService.GetActivePresetKeyAsync());
+        await SoundCueService.PlayCueAsync(cuePreset.SpinCue);
 
         var result = RouletteService.Spin(template, forced, currentRotation);
 
@@ -464,6 +469,7 @@ else
         isSpinning = false;
         lastResult = result;
         flowPhase = LiveDrawPhase.ShowingResult;
+        await SoundCueService.PlayCueAsync(cuePreset.ResultCue);
         StateHasChanged();
     }
 
