@@ -127,6 +127,11 @@ else
                                         </Field>
                                     </Column>
                                 </Row>
+                                <Field>
+                                    <FieldLabel>自訂煙火 GIF 網址</FieldLabel>
+                                    <TextInput @bind-Value="settings.CompletionFireworksGifUrl" Placeholder="https://example.com/fireworks.gif" Disabled="@(!settings.EnableCompletionFireworks)" />
+                                    <div class="text-muted mt-1">選填。設定後會優先顯示 GIF，並在播放秒數內循環重新播放。</div>
+                                </Field>
                             </div>
 
                             <div class="overtime-rules-card">

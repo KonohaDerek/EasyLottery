@@ -183,6 +183,7 @@ namespace EasyLotteryWasm.Services
                 ? "pixel"
                 : "classic";
             document.OvertimeOverlay.CompletionFireworksDurationSeconds = Math.Clamp(document.OvertimeOverlay.CompletionFireworksDurationSeconds, 2, 15);
+            document.OvertimeOverlay.CompletionFireworksGifUrl = document.OvertimeOverlay.CompletionFireworksGifUrl?.Trim() ?? "";
             if (document.OvertimeOverlay.SessionState != OvertimeSessionStates.Paused)
             {
                 document.OvertimeOverlay.PausedAtUtc = null;

@@ -40,6 +40,8 @@ namespace EasyLotteryDomain.Models.Config
 
         public int CompletionFireworksDurationSeconds { get; set; } = 6;
 
+        public string CompletionFireworksGifUrl { get; set; } = "";
+
         public int SupportMessageVisibleSeconds { get; set; } = 8;
 
         public List<OvertimeRewardRule> RewardRules { get; set; } = new()
