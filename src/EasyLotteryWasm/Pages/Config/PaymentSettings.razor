@@ -33,6 +33,46 @@
             <Row Margin="Margin.Is3.FromTop">
                 <Column ColumnSize="ColumnSize.Is12">
                     <Card>
+                        <CardHeader><CardTitle>公開回呼入口（Notify URL）</CardTitle></CardHeader>
+                        <CardBody>
+                            <Alert Color="Color.Info" Visible>
+                                <AlertMessage>金流服務商必須能透過 HTTPS 連線至此系統。</AlertMessage>
+                                <AlertDescription>已設定自訂網域時會優先使用；未設定時可選擇 Cloudflare Quick Tunnel 或 Microsoft Dev Tunnels。</AlertDescription>
+                            </Alert>
+                            <Field>
+                                <FieldLabel>自訂 HTTPS Domain</FieldLabel>
+                                <TextInput @bind-Value="settings.PublicCallback.CustomDomain" Placeholder="https://easy-lottery.example.com" />
+                                <div class="text-muted mt-1">正式環境建議使用固定 HTTPS 網域；填入後會覆蓋下方 Tunnel 選擇。</div>
+                            </Field>
+                            <Field>
+                                <FieldLabel>未設定網域時使用</FieldLabel>
+                                <Select TValue="string" @bind-SelectedValue="settings.PublicCallback.TunnelProvider" Disabled="@HasCustomDomain">
+                                    <SelectItem Value="@PublicCallbackTunnelProviders.CloudflareQuick">Cloudflare Quick Tunnel</SelectItem>
+                                    <SelectItem Value="@PublicCallbackTunnelProviders.DevTunnels">Microsoft Dev Tunnels</SelectItem>
+                                </Select>
+                            </Field>
+                            <Field>
+                                <FieldLabel>目前公開網址</FieldLabel>
+                                <TextInput Value="@settings.PublicCallback.GetConfiguredBaseUrl()" Disabled />
+                                <div class="text-muted mt-1">Tunnel 啟動後會自動更新；暫時 Tunnel 重啟後網址可能變更，需重新貼回金流後台。</div>
+                            </Field>
+                            <div class="mb-3">
+                                <div><strong>綠界 Notify URL：</strong>@BuildNotifyUrl("ecpay")</div>
+                                <div><strong>藍新 Notify URL：</strong>@BuildNotifyUrl("newebpay")</div>
+                            </div>
+                            <div class="d-flex flex-wrap gap-2">
+                                <a class="btn btn-outline-secondary btn-sm" href="https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/do-more-with-tunnels/trycloudflare/" target="_blank" rel="noopener noreferrer">Cloudflare Quick Tunnel 文件</a>
+                                <a class="btn btn-outline-secondary btn-sm" href="https://developers.cloudflare.com/tunnel/setup/" target="_blank" rel="noopener noreferrer">Cloudflare Named Tunnel 文件</a>
+                                <a class="btn btn-outline-secondary btn-sm" href="https://learn.microsoft.com/azure/developer/dev-tunnels/get-started" target="_blank" rel="noopener noreferrer">Microsoft Dev Tunnels 文件</a>
+                            </div>
+                        </CardBody>
+                    </Card>
+                </Column>
+            </Row>
+
+            <Row Margin="Margin.Is3.FromTop">
+                <Column ColumnSize="ColumnSize.Is12">
+                    <Card>
                         <CardHeader><CardTitle>SMTP 寄信設定</CardTitle></CardHeader>
                         <CardBody>
                             <Alert Color="@(settings.MailDelivery.HasConfiguration ? Color.Success : Color.Warning)" Visible>
@@ -209,6 +249,16 @@
 
 @code {
     private LotterySystemSettings? settings;
+
+    private bool HasCustomDomain => !string.IsNullOrWhiteSpace(settings?.PublicCallback.CustomDomain);
+
+    private string BuildNotifyUrl(string provider)
+    {
+        var baseUrl = settings?.PublicCallback.GetConfiguredBaseUrl();
+        return string.IsNullOrWhiteSpace(baseUrl)
+            ? "尚未取得公開網址"
+            : $"{baseUrl.TrimEnd('/')}/api/payments/{provider}/notify";
+    }
 
     protected override async Task OnInitializedAsync()
     {
