@@ -7,6 +7,8 @@
 @using EasyLotteryWasm.Models
 @inject IEasyLotteryConfigStore ConfigStore
 @inject OvertimeFeedClient OvertimeFeedClient
+@inject IJSRuntime JSRuntime
+@implements IAsyncDisposable
 
 <PageTitle>加班台 - OBS</PageTitle>
 
@@ -155,8 +157,9 @@ else
 }
 
 <style>
-    html, body, #app, .obs-layout {
-        background: transparent !important;
+    html, body, #app, .obs-layout, .overtime-overlay, .overtime-shell {
+        background-color: transparent !important;
+        background-image: none !important;
         margin: 0;
         padding: 0;
     }
@@ -980,12 +983,12 @@ else
 
     private bool isLoading = true;
     private System.Timers.Timer? refreshTimer;
-    private System.Timers.Timer? displayTimer;
     private bool isRefreshing;
     private bool shouldPlayCompletionFireworks;
     private DateTimeOffset? fireworksStartedAtUtc;
     private int fireworksGifCycle;
     private DateTimeOffset displayClockUtc = DateTimeOffset.UtcNow;
+    private DotNetObjectReference<OvertimeOverlay>? clockReference;
     private string previousSessionState = OvertimeSessionStates.Idle;
     private EasyLotteryConfigDocument document = new();
     private OvertimeOverlaySettings settings = new();
@@ -1023,10 +1026,17 @@ else
         refreshTimer.AutoReset = true;
         refreshTimer.Start();
 
-        displayTimer = new System.Timers.Timer(50);
-        displayTimer.Elapsed += OnDisplayTimerElapsed;
-        displayTimer.AutoReset = true;
-        displayTimer.Start();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+        {
+            return;
+        }
+
+        clockReference = DotNetObjectReference.Create(this);
+        await JSRuntime.InvokeVoidAsync("easyLotteryObs.startOverlayClock", clockReference);
     }
 
     private async void OnTimerElapsed(object? sender, System.Timers.ElapsedEventArgs e)
@@ -1051,18 +1061,16 @@ else
         }
     }
 
-    private async void OnDisplayTimerElapsed(object? sender, System.Timers.ElapsedEventArgs e)
+    [JSInvokable]
+    public Task UpdateOverlayClock(long unixTimeMilliseconds)
     {
-        await InvokeAsync(() =>
+        displayClockUtc = DateTimeOffset.FromUnixTimeMilliseconds(unixTimeMilliseconds);
+        if (fireworksStartedAtUtc.HasValue)
         {
-            displayClockUtc = DateTimeOffset.UtcNow;
-            if (fireworksStartedAtUtc.HasValue)
-            {
-                fireworksGifCycle = (int)((DateTimeOffset.UtcNow - fireworksStartedAtUtc.Value).TotalSeconds / 2d);
-            }
+            fireworksGifCycle = (int)((displayClockUtc - fireworksStartedAtUtc.Value).TotalSeconds / 2d);
+        }
 
-            StateHasChanged();
-        });
+        return InvokeAsync(StateHasChanged);
     }
 
     private async Task ReloadOverlayAsync()
@@ -1300,7 +1308,7 @@ else
         return plannedEndAtUtc.Value.ToLocalTime().ToString("yyyy/MM/dd HH:mm");
     }
 
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
         if (refreshTimer != null)
         {
@@ -1308,10 +1316,17 @@ else
             refreshTimer.Dispose();
         }
 
-        if (displayTimer != null)
+        if (clockReference != null)
         {
-            displayTimer.Elapsed -= OnDisplayTimerElapsed;
-            displayTimer.Dispose();
+            try
+            {
+                await JSRuntime.InvokeVoidAsync("easyLotteryObs.stopOverlayClock");
+            }
+            catch (JSDisconnectedException)
+            {
+            }
+
+            clockReference.Dispose();
         }
     }
 }

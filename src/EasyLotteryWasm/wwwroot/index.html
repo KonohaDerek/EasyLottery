@@ -32,6 +32,40 @@
 
     <script src="js/configStorage.js"></script>
     <script>
+        (() => {
+            let overlayClockFrame = 0;
+            let overlayClockLastTick = 0;
+
+            function makeTransparent() {
+                for (const element of [document.documentElement, document.body, document.getElementById("app")]) {
+                    if (!element) continue;
+                    element.style.setProperty("background", "transparent", "important");
+                    element.style.setProperty("background-color", "transparent", "important");
+                    element.style.setProperty("background-image", "none", "important");
+                }
+            }
+
+            window.easyLotteryObs = {
+                startOverlayClock: (dotNetReference) => {
+                    cancelAnimationFrame(overlayClockFrame);
+                    overlayClockLastTick = 0;
+                    makeTransparent();
+
+                    const tick = (now) => {
+                        if (now - overlayClockLastTick >= 50) {
+                            overlayClockLastTick = now;
+                            dotNetReference.invokeMethodAsync("UpdateOverlayClock", Date.now());
+                        }
+                        overlayClockFrame = requestAnimationFrame(tick);
+                    };
+
+                    overlayClockFrame = requestAnimationFrame(tick);
+                },
+                stopOverlayClock: () => cancelAnimationFrame(overlayClockFrame)
+            };
+        })();
+    </script>
+    <script>
         window.easyLotteryMail = {
             send: async (request) => {
                 const response = await fetch("/api/result-notification", {
