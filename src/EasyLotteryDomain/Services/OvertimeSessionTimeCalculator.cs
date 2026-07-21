@@ -81,6 +81,26 @@ namespace EasyLotteryDomain.Services
             return baseline + addition;
         }
 
+        public static DateTimeOffset? ExtendForPause(
+            DateTimeOffset? plannedEndAtUtc,
+            DateTimeOffset? pausedAtUtc,
+            DateTimeOffset resumedAtUtc)
+        {
+            if (!IsValidUtcDateTime(plannedEndAtUtc) || !IsValidUtcDateTime(pausedAtUtc))
+            {
+                return plannedEndAtUtc;
+            }
+
+            var pauseStartedAtUtc = pausedAtUtc!.Value.ToUniversalTime();
+            var resumedAtUtcValue = resumedAtUtc.ToUniversalTime();
+            if (resumedAtUtcValue <= pauseStartedAtUtc)
+            {
+                return plannedEndAtUtc;
+            }
+
+            return plannedEndAtUtc!.Value.ToUniversalTime() + (resumedAtUtcValue - pauseStartedAtUtc);
+        }
+
         public static double? CalculateProgressPercent(
             DateTimeOffset? startedAtUtc,
             DateTimeOffset? plannedEndAtUtc,

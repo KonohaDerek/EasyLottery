@@ -102,6 +102,31 @@ else
                                         </Field>
                                     </Column>
                                 </Row>
+                                <Row Margin="Margin.Is2.FromTop">
+                                    <Column ColumnSize="ColumnSize.Is4">
+                                        <Field>
+                                            <FieldLabel>達標煙火</FieldLabel>
+                                            <Switch TValue="bool" @bind-Value="settings.EnableCompletionFireworks">
+                                                @(settings.EnableCompletionFireworks ? "啟用" : "停用")
+                                            </Switch>
+                                        </Field>
+                                    </Column>
+                                    <Column ColumnSize="ColumnSize.Is4">
+                                        <Field>
+                                            <FieldLabel>煙火風格</FieldLabel>
+                                            <select class="form-select" @bind="settings.CompletionFireworksStyle" disabled="@(!settings.EnableCompletionFireworks)">
+                                                <option value="classic">經典煙火</option>
+                                                <option value="pixel">像素煙火</option>
+                                            </select>
+                                        </Field>
+                                    </Column>
+                                    <Column ColumnSize="ColumnSize.Is4">
+                                        <Field>
+                                            <FieldLabel>播放秒數</FieldLabel>
+                                            <NumericInput TValue="int" @bind-Value="settings.CompletionFireworksDurationSeconds" Min="2" Max="15" Disabled="@(!settings.EnableCompletionFireworks)" />
+                                        </Field>
+                                    </Column>
+                                </Row>
                             </div>
 
                             <div class="overtime-rules-card">
@@ -751,8 +776,6 @@ else
 
 @code {
     private const string PlannedEndMarkerLabel = "預計關台時間";
-    private const string SessionStartMarkerLabel = "加班開始";
-    private const string SessionStopMarkerLabel = "加班停止";
 
     private bool isLoading = true;
     private EasyLotteryConfigDocument document = new();
@@ -844,6 +867,19 @@ else
         PlannedEndAtInput = await JSRuntime.InvokeAsync<string>("easyLotteryDom.getValue", ".overtime-datetime-input");
         selectedTextAnimationKey = await JSRuntime.InvokeAsync<string>("easyLotteryDom.getValue", ".overtime-animation-select");
         settings.PlannedEndAtUtc = ParseDateTimeLocal(PlannedEndAtInput);
+        var latestDocument = await ConfigStore.LoadAsync();
+        var latestSession = latestDocument.OvertimeOverlay;
+        if (latestSession is not null)
+        {
+            // The OBS page owns the live session controls.  Preserve its state when
+            // a settings page that was opened earlier saves visual configuration.
+            settings.SessionState = latestSession.SessionState;
+            settings.StreamStartedAtUtc = latestSession.StreamStartedAtUtc;
+            settings.PausedAtUtc = latestSession.PausedAtUtc;
+            settings.CompletedAtUtc = latestSession.CompletedAtUtc;
+        }
+
+        document = latestDocument;
         document.OvertimeOverlay = settings;
         document.OvertimeOverlay.ThemeKey = selectedThemeKey;
         document.OvertimeOverlay.MessageTemplateKey = selectedMessageTemplateKey;
@@ -950,19 +986,14 @@ else
 
     private async Task<bool> IsSessionStartedAsync()
     {
-        var events = await OvertimeFeedClient.GetEventsAsync();
-        var marker = events.FirstOrDefault(item =>
-            item.Source == OvertimeSupportSource.Manual &&
-            (string.Equals(item.SourceLabel, SessionStartMarkerLabel, StringComparison.OrdinalIgnoreCase) ||
-             string.Equals(item.SourceLabel, SessionStopMarkerLabel, StringComparison.OrdinalIgnoreCase)));
-
-        return marker != null && string.Equals(marker.SourceLabel, SessionStartMarkerLabel, StringComparison.OrdinalIgnoreCase);
+        var latestDocument = await ConfigStore.LoadAsync();
+        return latestDocument.OvertimeOverlay?.SessionState == OvertimeSessionStates.Running;
     }
 
     private async Task<DateTimeOffset?> GetCurrentSessionEndAtAsync()
     {
-        var events = await OvertimeFeedClient.GetEventsAsync();
-        return events.FirstOrDefault(item => item.SessionEndAtUtc.HasValue)?.SessionEndAtUtc ?? settings.PlannedEndAtUtc;
+        var latestDocument = await ConfigStore.LoadAsync();
+        return latestDocument.OvertimeOverlay?.PlannedEndAtUtc ?? settings.PlannedEndAtUtc;
     }
 
     private async Task PublishPlannedEndMarkerAsync(DateTimeOffset? plannedEndAtUtc)

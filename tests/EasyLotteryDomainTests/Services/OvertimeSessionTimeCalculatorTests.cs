@@ -78,6 +78,18 @@ namespace EasyLotteryDomainTests.Services
         }
 
         [TestMethod]
+        public void ExtendForPause_AddsPausedDurationToPlannedEnd()
+        {
+            var plannedEnd = new DateTimeOffset(2026, 3, 28, 13, 0, 0, TimeSpan.Zero);
+            var pausedAt = new DateTimeOffset(2026, 3, 28, 12, 15, 0, TimeSpan.Zero);
+            var resumedAt = new DateTimeOffset(2026, 3, 28, 12, 45, 0, TimeSpan.Zero);
+
+            var result = OvertimeSessionTimeCalculator.ExtendForPause(plannedEnd, pausedAt, resumedAt);
+
+            Assert.AreEqual(new DateTimeOffset(2026, 3, 28, 13, 30, 0, TimeSpan.Zero), result);
+        }
+
+        [TestMethod]
         public void IsEventVisible_RespectsConfiguredSeconds()
         {
             var occurredAt = new DateTimeOffset(2026, 3, 28, 12, 0, 0, TimeSpan.Zero);

@@ -20,7 +20,7 @@ else
 {
     <div class="overtime-overlay obs-layout-surface" style="@ThemeStyle">
         <div class="overtime-shell">
-            @if (!HasSessionStarted)
+            @if (IsIdle)
             {
                 <div class="overtime-standby-panel">
                     <div class="overtime-countdown-label">預計關台時間</div>
@@ -30,13 +30,35 @@ else
                     </div>
                 </div>
             }
+            else if (IsEnded)
+            {
+                <div class="overtime-standby-panel">
+                    <div class="overtime-countdown-label">加班台已結束</div>
+                    <div class="overtime-countdown-line">感謝大家的支持</div>
+                    <div class="overtime-standby-actions">
+                        <Button Color="Color.Primary" Clicked="@StartCountdownAsync">開始新一輪加班</Button>
+                    </div>
+                </div>
+            }
             else
             {
                 <div class="overtime-minimal-overlay">
                     <div class="overtime-progress-wrap">
                         <div class="overtime-countdown-line">@CountdownText</div>
+                        <div class="overtime-progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="@ProgressPercent">
+                            <div class="overtime-progress-fill" style="@ProgressStyle"></div>
+                        </div>
+                        <div class="overtime-progress-caption">已完成 @ProgressPercent.ToString("0.0")%</div>
                         <div class="overtime-standby-actions">
-                            <Button Color="Color.Secondary" Clicked="@StopCountdownAsync">停止加班</Button>
+                            @if (IsRunning)
+                            {
+                                <Button Color="Color.Warning" Clicked="@PauseCountdownAsync">暫停加班</Button>
+                            }
+                            else if (IsPaused)
+                            {
+                                <Button Color="Color.Primary" Clicked="@ResumeCountdownAsync">繼續加班</Button>
+                            }
+                            <Button Color="Color.Secondary" Clicked="@StopCountdownAsync">結束加班</Button>
                         </div>
                     </div>
 
@@ -101,6 +123,21 @@ else
                                 }
                             </div>
                         }
+                    }
+                </div>
+            }
+
+            @if (shouldPlayCompletionFireworks)
+            {
+                <div class="overtime-fireworks @settings.CompletionFireworksStyle" style="--fireworks-duration: @(settings.CompletionFireworksDurationSeconds)s;" aria-hidden="true">
+                    @for (var burst = 0; burst < 4; burst++)
+                    {
+                        <div class="overtime-firework-burst burst-@burst">
+                            @for (var particle = 0; particle < 12; particle++)
+                            {
+                                <span class="particle particle-@particle" style="@GetParticleStyle(particle)"></span>
+                            }
+                        </div>
                     }
                 </div>
             }
@@ -187,8 +224,33 @@ else
     .overtime-progress-wrap {
         display: flex;
         flex-direction: column;
-        gap: 0;
+        gap: 10px;
         align-items: center;
+    }
+
+    .overtime-progress-track {
+        width: min(88vw, 840px);
+        height: 18px;
+        overflow: hidden;
+        border: 2px solid rgba(255, 255, 255, 0.8);
+        border-radius: 999px;
+        background: rgba(15, 23, 42, 0.35);
+        box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.24);
+    }
+
+    .overtime-progress-fill {
+        height: 100%;
+        border-radius: inherit;
+        background: linear-gradient(90deg, #fff0a8, var(--overtime-accent), #ff8f3d);
+        box-shadow: 0 0 18px var(--overtime-glow);
+        transition: width 0.8s linear;
+    }
+
+    .overtime-progress-caption {
+        color: rgba(255, 255, 255, 0.88);
+        font-size: 0.95rem;
+        font-weight: 800;
+        font-variant-numeric: tabular-nums;
     }
 
     .overtime-countdown-line {
@@ -206,6 +268,71 @@ else
         justify-content: center;
         gap: 10px;
         flex-wrap: wrap;
+    }
+
+    .overtime-fireworks {
+        position: absolute;
+        inset: 0;
+        z-index: 5;
+        overflow: hidden;
+        pointer-events: none;
+    }
+
+    .overtime-firework-burst {
+        position: absolute;
+        width: 12px;
+        height: 12px;
+        animation: overtime-firework-flash var(--fireworks-duration) ease-out forwards;
+    }
+
+    .overtime-firework-burst.burst-0 { left: 19%; top: 28%; }
+    .overtime-firework-burst.burst-1 { left: 76%; top: 23%; animation-delay: 0.25s; }
+    .overtime-firework-burst.burst-2 { left: 34%; top: 56%; animation-delay: 0.55s; }
+    .overtime-firework-burst.burst-3 { left: 68%; top: 61%; animation-delay: 0.8s; }
+
+    .overtime-firework-burst .particle {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: hsl(calc(var(--particle-index) * 30), 100%, 70%);
+        box-shadow: 0 0 10px currentColor;
+        animation: overtime-firework-particle var(--fireworks-duration) cubic-bezier(.16,.84,.32,1) forwards;
+    }
+
+    .overtime-fireworks.pixel .particle {
+        width: 9px;
+        height: 9px;
+        border-radius: 0;
+        image-rendering: pixelated;
+        box-shadow: 3px 3px 0 rgba(15, 23, 42, 0.55);
+    }
+
+    .particle-0 { --particle-index: 0; }
+    .particle-1 { --particle-index: 1; }
+    .particle-2 { --particle-index: 2; }
+    .particle-3 { --particle-index: 3; }
+    .particle-4 { --particle-index: 4; }
+    .particle-5 { --particle-index: 5; }
+    .particle-6 { --particle-index: 6; }
+    .particle-7 { --particle-index: 7; }
+    .particle-8 { --particle-index: 8; }
+    .particle-9 { --particle-index: 9; }
+    .particle-10 { --particle-index: 10; }
+    .particle-11 { --particle-index: 11; }
+
+    @@keyframes overtime-firework-flash {
+        0%, 12% { opacity: 1; transform: scale(0.2); }
+        22%, 100% { opacity: 0; transform: scale(1); }
+    }
+
+    @@keyframes overtime-firework-particle {
+        0% { opacity: 0; transform: translate(-50%, -50%) scale(0.2); }
+        8% { opacity: 1; }
+        68% { opacity: 1; transform: translate(calc(-50% + var(--travel-x)), calc(-50% + var(--travel-y))) scale(1); }
+        100% { opacity: 0; transform: translate(calc(-50% + var(--fall-x)), calc(-50% + var(--fall-y))) scale(0.2); }
     }
 
     .overtime-live-line {
@@ -810,11 +937,14 @@ else
 @code {
     private const string PlannedEndMarkerLabel = "預計關台時間";
     private const string SessionStartMarkerLabel = "加班開始";
-    private const string SessionStopMarkerLabel = "加班停止";
+    private const string SessionStopMarkerLabel = "加班結束";
 
     private bool isLoading = true;
     private System.Timers.Timer? refreshTimer;
     private bool isRefreshing;
+    private bool shouldPlayCompletionFireworks;
+    private DateTimeOffset? fireworksStartedAtUtc;
+    private string previousSessionState = OvertimeSessionStates.Idle;
     private EasyLotteryConfigDocument document = new();
     private OvertimeOverlaySettings settings = new();
     private IReadOnlyList<OvertimeSupportEvent> events = [];
@@ -825,15 +955,18 @@ else
     private OvertimeSupportEvent? PlannedEndMarker => events.FirstOrDefault(item =>
         item.Source == OvertimeSupportSource.Manual &&
         string.Equals(item.SourceLabel, PlannedEndMarkerLabel, StringComparison.OrdinalIgnoreCase));
-    private OvertimeSupportEvent? SessionStateMarker => events.FirstOrDefault(item =>
-        item.Source == OvertimeSupportSource.Manual &&
-        (string.Equals(item.SourceLabel, SessionStartMarkerLabel, StringComparison.OrdinalIgnoreCase) ||
-         string.Equals(item.SourceLabel, SessionStopMarkerLabel, StringComparison.OrdinalIgnoreCase)));
-    private bool HasSessionStarted => string.Equals(SessionStateMarker?.SourceLabel, SessionStartMarkerLabel, StringComparison.OrdinalIgnoreCase);
     private OvertimeSupportEvent? VisibleEvent => events.FirstOrDefault(item => item.Source != OvertimeSupportSource.Manual && OvertimeSessionTimeCalculator.IsEventVisible(item.OccurredAtUtc, DateTimeOffset.UtcNow, settings.SupportMessageVisibleSeconds));
-    private DateTimeOffset? SessionEndAtUtc => events.FirstOrDefault(item => item.SessionEndAtUtc.HasValue)?.SessionEndAtUtc ?? PlannedEndMarker?.SessionEndAtUtc ?? settings.PlannedEndAtUtc;
+    private DateTimeOffset? SessionEndAtUtc => settings.PlannedEndAtUtc ?? events.FirstOrDefault(item => item.SessionEndAtUtc.HasValue)?.SessionEndAtUtc ?? PlannedEndMarker?.SessionEndAtUtc;
+    private DateTimeOffset SessionClockUtc => IsPaused && settings.PausedAtUtc.HasValue ? settings.PausedAtUtc.Value : DateTimeOffset.UtcNow;
+    private bool IsIdle => settings.SessionState == OvertimeSessionStates.Idle;
+    private bool IsRunning => settings.SessionState == OvertimeSessionStates.Running;
+    private bool IsPaused => settings.SessionState == OvertimeSessionStates.Paused;
+    private bool IsCompleted => settings.SessionState == OvertimeSessionStates.Completed;
+    private bool IsEnded => settings.SessionState == OvertimeSessionStates.Ended;
     private string PlannedCloseText => BuildPlannedCloseText(PlannedEndMarker?.SessionEndAtUtc ?? settings.PlannedEndAtUtc);
-    private string CountdownText => BuildCountdownText(SessionEndAtUtc);
+    private string CountdownText => IsCompleted ? "目標已達成！" : BuildCountdownText(SessionEndAtUtc, SessionClockUtc);
+    private double ProgressPercent => OvertimeSessionTimeCalculator.CalculateProgressPercent(settings.StreamStartedAtUtc, SessionEndAtUtc, SessionClockUtc) ?? 0d;
+    private string ProgressStyle => $"width: {ProgressPercent.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture)}%;";
     private string LiveEventAnimationClass => OvertimeTextAnimationPreset.NormalizeKey(settings.TextAnimationKey) switch
     {
         "fade-in" => "animation-fade-in",
@@ -888,6 +1021,26 @@ else
         settings.ThemeKey = string.IsNullOrWhiteSpace(settings.ThemeKey) ? OvertimeThemePreset.Catalog[0].Key : settings.ThemeKey;
         settings.TextAnimationKey = OvertimeTextAnimationPreset.NormalizeKey(settings.TextAnimationKey);
         await ReloadEventsAsync();
+
+        if (IsRunning && SessionEndAtUtc.HasValue && SessionEndAtUtc.Value <= DateTimeOffset.UtcNow)
+        {
+            settings.SessionState = OvertimeSessionStates.Completed;
+            settings.CompletedAtUtc = DateTimeOffset.UtcNow;
+            document.OvertimeOverlay = settings;
+            await ConfigStore.SaveAsync(document);
+        }
+
+        if (previousSessionState == OvertimeSessionStates.Running &&
+            settings.SessionState == OvertimeSessionStates.Completed &&
+            settings.EnableCompletionFireworks)
+        {
+            fireworksStartedAtUtc = DateTimeOffset.UtcNow;
+        }
+
+        shouldPlayCompletionFireworks = fireworksStartedAtUtc.HasValue &&
+            settings.EnableCompletionFireworks &&
+            DateTimeOffset.UtcNow - fireworksStartedAtUtc.Value < TimeSpan.FromSeconds(settings.CompletionFireworksDurationSeconds);
+        previousSessionState = settings.SessionState;
     }
 
     private async Task ReloadEventsAsync()
@@ -910,6 +1063,16 @@ else
             return;
         }
 
+        var nowUtc = DateTimeOffset.UtcNow;
+        settings.StreamStartedAtUtc = nowUtc;
+        settings.PlannedEndAtUtc = plannedEndAtUtc;
+        settings.PausedAtUtc = null;
+        settings.CompletedAtUtc = null;
+        settings.SessionState = OvertimeSessionStates.Running;
+        fireworksStartedAtUtc = null;
+        document.OvertimeOverlay = settings;
+        await ConfigStore.SaveAsync(document);
+
         await OvertimeFeedClient.PostManualAsync(new OvertimeSupportEvent
         {
             Source = OvertimeSupportSource.Manual,
@@ -922,7 +1085,7 @@ else
             AvatarUrl = "",
             Color = "#8bd3ff",
             ExternalId = Guid.NewGuid().ToString("N"),
-            OccurredAtUtc = DateTimeOffset.UtcNow,
+            OccurredAtUtc = nowUtc,
             SessionEndAtUtc = plannedEndAtUtc
         });
 
@@ -930,8 +1093,49 @@ else
         StateHasChanged();
     }
 
+    private async Task PauseCountdownAsync()
+    {
+        if (!IsRunning)
+        {
+            return;
+        }
+
+        settings.PausedAtUtc = DateTimeOffset.UtcNow;
+        settings.SessionState = OvertimeSessionStates.Paused;
+        document.OvertimeOverlay = settings;
+        await ConfigStore.SaveAsync(document);
+        await ReloadEventsAsync();
+        StateHasChanged();
+    }
+
+    private async Task ResumeCountdownAsync()
+    {
+        if (!IsPaused)
+        {
+            return;
+        }
+
+        var nowUtc = DateTimeOffset.UtcNow;
+        settings.PlannedEndAtUtc = OvertimeSessionTimeCalculator.ExtendForPause(
+            SessionEndAtUtc,
+            settings.PausedAtUtc,
+            nowUtc);
+        settings.PausedAtUtc = null;
+        settings.SessionState = OvertimeSessionStates.Running;
+        document.OvertimeOverlay = settings;
+        await ConfigStore.SaveAsync(document);
+        await ReloadEventsAsync();
+        StateHasChanged();
+    }
+
     private async Task StopCountdownAsync()
     {
+        settings.PausedAtUtc = null;
+        settings.SessionState = OvertimeSessionStates.Ended;
+        fireworksStartedAtUtc = null;
+        document.OvertimeOverlay = settings;
+        await ConfigStore.SaveAsync(document);
+
         await OvertimeFeedClient.PostManualAsync(new OvertimeSupportEvent
         {
             Source = OvertimeSupportSource.Manual,
@@ -950,6 +1154,21 @@ else
 
         await ReloadEventsAsync();
         StateHasChanged();
+    }
+
+    private static string GetParticleStyle(int particle)
+    {
+        var angleRadians = particle * 30d * Math.PI / 180d;
+        var travelX = Math.Cos(angleRadians) * 160d;
+        var travelY = Math.Sin(angleRadians) * 160d;
+        var fallX = Math.Cos(angleRadians) * 200d;
+        var fallY = Math.Sin(angleRadians) * 200d + 45d;
+        var culture = System.Globalization.CultureInfo.InvariantCulture;
+
+        return $"--travel-x: {travelX.ToString("0.##", culture)}px; " +
+               $"--travel-y: {travelY.ToString("0.##", culture)}px; " +
+               $"--fall-x: {fallX.ToString("0.##", culture)}px; " +
+               $"--fall-y: {fallY.ToString("0.##", culture)}px;";
     }
 
     private bool TryGetRewardSummary(OvertimeSupportEvent item, out string summary)
@@ -992,14 +1211,14 @@ else
         };
     }
 
-    private static string BuildCountdownText(DateTimeOffset? plannedEndAtUtc)
+    private static string BuildCountdownText(DateTimeOffset? plannedEndAtUtc, DateTimeOffset nowUtc)
     {
         if (!plannedEndAtUtc.HasValue || plannedEndAtUtc.Value.Year < 2000)
         {
             return "尚未設定預計關台時間";
         }
 
-        return OvertimeSessionTimeCalculator.DescribeRemaining(plannedEndAtUtc, DateTimeOffset.UtcNow);
+        return OvertimeSessionTimeCalculator.DescribeRemaining(plannedEndAtUtc, nowUtc);
     }
 
     private static string BuildPlannedCloseText(DateTimeOffset? plannedEndAtUtc)
