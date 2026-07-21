@@ -46,15 +46,20 @@ else
             {
                 <div class="overtime-minimal-overlay">
                     <div class="overtime-progress-wrap">
-                        <div class="overtime-progress-panel">
+                        <div id="overtime-progress-panel"
+                             class="overtime-progress-panel"
+                             data-start-ms="@ToUnixMilliseconds(settings.StreamStartedAtUtc)"
+                             data-end-ms="@ToUnixMilliseconds(SessionEndAtUtc)"
+                             data-paused-at-ms="@ToUnixMilliseconds(settings.PausedAtUtc)"
+                             data-is-paused="@IsPaused.ToString().ToLowerInvariant()">
                             <div class="overtime-progress-header">
                                 <div class="overtime-progress-label">加班<br />時間</div>
-                                <div class="overtime-remaining-time">@RemainingTimeText</div>
+                                <div id="overtime-remaining-time" class="overtime-remaining-time">@RemainingTimeText</div>
                             </div>
                             <div class="overtime-progress-title">加班進度</div>
                             <div class="overtime-progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="@ProgressPercent">
-                                <div class="overtime-progress-fill" style="@ProgressStyle"></div>
-                                <div class="overtime-progress-value">@ProgressPercent.ToString("0.00")%</div>
+                                <div id="overtime-progress-fill" class="overtime-progress-fill" style="@ProgressStyle"></div>
+                                <div id="overtime-progress-value" class="overtime-progress-value">@ProgressPercent.ToString("0.00")%</div>
                             </div>
                         </div>
                         <div class="overtime-standby-actions overtime-obs-controls">
@@ -274,7 +279,6 @@ else
         border-radius: 0;
         background: linear-gradient(180deg, #73ef81, #32c94e);
         box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.5);
-        transition: width 0.05s linear;
     }
 
     .overtime-progress-title {
@@ -1018,7 +1022,6 @@ else
     private DateTimeOffset? fireworksStartedAtUtc;
     private int fireworksGifCycle;
     private DateTimeOffset displayClockUtc = DateTimeOffset.UtcNow;
-    private DotNetObjectReference<OvertimeOverlay>? clockReference;
     private string previousSessionState = OvertimeSessionStates.Idle;
     private EasyLotteryConfigDocument document = new();
     private OvertimeOverlaySettings settings = new();
@@ -1065,8 +1068,7 @@ else
             return;
         }
 
-        clockReference = DotNetObjectReference.Create(this);
-        await JSRuntime.InvokeVoidAsync("easyLotteryObs.startOverlayClock", clockReference);
+        await JSRuntime.InvokeVoidAsync("easyLotteryObs.startOverlayClock");
     }
 
     private async void OnTimerElapsed(object? sender, System.Timers.ElapsedEventArgs e)
@@ -1089,18 +1091,6 @@ else
         {
             isRefreshing = false;
         }
-    }
-
-    [JSInvokable]
-    public Task UpdateOverlayClock(long unixTimeMilliseconds)
-    {
-        displayClockUtc = DateTimeOffset.FromUnixTimeMilliseconds(unixTimeMilliseconds);
-        if (fireworksStartedAtUtc.HasValue)
-        {
-            fireworksGifCycle = (int)((displayClockUtc - fireworksStartedAtUtc.Value).TotalSeconds / 2d);
-        }
-
-        return InvokeAsync(StateHasChanged);
     }
 
     private async Task ReloadOverlayAsync()
@@ -1328,6 +1318,9 @@ else
         return $"{totalHours:00}:{remaining.Minutes:00}:{remaining.Seconds:00}";
     }
 
+    private static long ToUnixMilliseconds(DateTimeOffset? value) =>
+        value.HasValue ? value.Value.ToUnixTimeMilliseconds() : 0;
+
     private static string BuildPlannedCloseText(DateTimeOffset? plannedEndAtUtc)
     {
         if (!plannedEndAtUtc.HasValue || plannedEndAtUtc.Value.Year < 2000)
@@ -1346,17 +1339,12 @@ else
             refreshTimer.Dispose();
         }
 
-        if (clockReference != null)
+        try
         {
-            try
-            {
-                await JSRuntime.InvokeVoidAsync("easyLotteryObs.stopOverlayClock");
-            }
-            catch (JSDisconnectedException)
-            {
-            }
-
-            clockReference.Dispose();
+            await JSRuntime.InvokeVoidAsync("easyLotteryObs.stopOverlayClock");
+        }
+        catch (JSDisconnectedException)
+        {
         }
     }
 }
