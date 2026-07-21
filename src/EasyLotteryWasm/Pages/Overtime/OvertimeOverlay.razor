@@ -1294,8 +1294,8 @@ else
             remaining = TimeSpan.Zero;
         }
 
-        var centiseconds = remaining.Milliseconds / 10;
-        return $"{remaining.Days:00}D{remaining.Hours:00}H{remaining.Minutes:00}M{remaining.Seconds:00}.{centiseconds:00}S";
+        var totalHours = (int)Math.Floor(remaining.TotalHours);
+        return $"{totalHours:00}:{remaining.Minutes:00}:{remaining.Seconds:00}";
     }
 
     private static string BuildPlannedCloseText(DateTimeOffset? plannedEndAtUtc)
