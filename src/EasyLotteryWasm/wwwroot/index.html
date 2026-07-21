@@ -30,115 +30,21 @@
         <a class="dismiss">🗙</a>
     </div>
 
+    <script src="js/configStorage.js"></script>
     <script>
-        (() => {
-            if (window.easyLotteryConfig) {
-                return;
-            }
+        window.easyLotteryMail = {
+            send: async (request) => {
+                const response = await fetch("/api/result-notification", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json; charset=utf-8" },
+                    body: JSON.stringify(request)
+                });
 
-            const storageKey = "easy-lottery.config.yaml";
-            const remoteConfigUrl = "http://localhost:18930/easy-lottery-config.yaml";
-            let memoryFallback = "";
-
-            function getSafeContent(content) {
-                return content == null ? "" : content;
-            }
-
-            function getTauriInvoker() {
-                if (window.__TAURI__ && typeof window.__TAURI__.invoke === "function") {
-                    return window.__TAURI__.invoke.bind(window.__TAURI__);
+                if (!response.ok) {
+                    throw new Error(`Unable to send result notification (${response.status}).`);
                 }
-
-                return null;
             }
-
-            window.easyLotteryConfig = {
-                read: async () => {
-                    const tauriInvoke = getTauriInvoker();
-                    if (tauriInvoke) {
-                        const content = await tauriInvoke("read_config_yaml");
-                        memoryFallback = getSafeContent(content);
-                        return memoryFallback;
-                    }
-
-                    try {
-                        const content = window.localStorage.getItem(storageKey);
-                        memoryFallback = getSafeContent(content);
-                    } catch {
-                    }
-
-                    if (memoryFallback) {
-                        return memoryFallback;
-                    }
-
-                    try {
-                        const response = await fetch(remoteConfigUrl, { cache: "no-store", mode: "cors" });
-                        if (response.ok) {
-                            const content = await response.text();
-                            memoryFallback = getSafeContent(content);
-                            return memoryFallback;
-                        }
-                    } catch {
-                    }
-
-                    return memoryFallback;
-                },
-                write: async (content) => {
-                    const safeContent = getSafeContent(content);
-                    memoryFallback = safeContent;
-
-                    try {
-                        window.localStorage.setItem(storageKey, safeContent);
-                    } catch {
-                    }
-
-                    const tauriInvoke = getTauriInvoker();
-                    if (tauriInvoke) {
-                        await tauriInvoke("write_config_yaml", { content: safeContent });
-                        return;
-                    }
-
-                    try {
-                        await fetch(remoteConfigUrl, {
-                            method: "PUT",
-                            cache: "no-store",
-                            mode: "cors",
-                            headers: {
-                                "Content-Type": "text/yaml; charset=utf-8"
-                            },
-                            body: safeContent
-                        });
-                    } catch {
-                    }
-                }
-            };
-        })();
-    </script>
-    <script>
-        (() => {
-            if (window.easyLotteryMail) {
-                return;
-            }
-
-            function getTauriInvoker() {
-                if (window.__TAURI__ && typeof window.__TAURI__.invoke === "function") {
-                    return window.__TAURI__.invoke.bind(window.__TAURI__);
-                }
-
-                return null;
-            }
-
-            window.easyLotteryMail = {
-                send: async (request) => {
-                    const tauriInvoke = getTauriInvoker();
-                    if (!tauriInvoke) {
-                        return;
-                    }
-
-                    await tauriInvoke("send_result_notification_email", { request });
-                }
-            };
-        })();
+        };
     </script>
     <script>
         (() => {
@@ -234,18 +140,10 @@
             }
 
             const storageKey = "easy-lottery.overtime-feed";
-            const remoteFeedUrl = "http://localhost:18930/easy-lottery-overtime-feed.json";
+            const remoteFeedUrl = "/easy-lottery-overtime-feed.json";
 
             function getSafeContent(content) {
                 return content == null ? "[]" : String(content);
-            }
-
-            function getTauriInvoker() {
-                if (window.__TAURI__ && typeof window.__TAURI__.invoke === "function") {
-                    return window.__TAURI__.invoke.bind(window.__TAURI__);
-                }
-
-                return null;
             }
 
             async function readRemoteFeed() {
@@ -292,54 +190,22 @@
 
             window.easyLotteryOvertimeFeed = {
                 read: async () => {
-                    const tauriInvoke = getTauriInvoker();
-                    if (tauriInvoke) {
-                        try {
-                            const content = await tauriInvoke("read_overtime_feed_json");
-                            return getSafeContent(content);
-                        } catch {
-                        }
-                    }
-
-                    const local = readLocalStorage();
-                    if (local && local !== "[]") {
-                        return local;
-                    }
-
                     const remote = await readRemoteFeed();
                     if (remote) {
                         writeLocalStorage(remote);
                         return remote;
                     }
 
-                    return local;
+                    return readLocalStorage();
                 },
                 write: async (content) => {
                     const safeContent = getSafeContent(content);
                     writeLocalStorage(safeContent);
 
-                    const tauriInvoke = getTauriInvoker();
-                    if (tauriInvoke) {
-                        try {
-                            await tauriInvoke("write_overtime_feed_json", { content: safeContent });
-                            return;
-                        } catch {
-                        }
-                    }
-
                     await writeRemoteFeed(safeContent);
                 },
                 clear: async () => {
                     writeLocalStorage("[]");
-
-                    const tauriInvoke = getTauriInvoker();
-                    if (tauriInvoke) {
-                        try {
-                            await tauriInvoke("clear_overtime_feed_json");
-                            return;
-                        } catch {
-                        }
-                    }
 
                     try {
                         await fetch(remoteFeedUrl, {

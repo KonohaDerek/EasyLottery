@@ -18,11 +18,12 @@ context: |
   專案結構：
   - `src/EasyLotteryDomain`：核心商業邏輯、模型與服務
   - `src/EasyLotteryWasm`：Blazor WebAssembly 前端
+  - `src/EasyLotteryWeb`：ASP.NET Core Web Host，提供前端靜態檔與同源 API
   - `tests/EasyLotteryDomainTests`：Domain 層測試
 
   常用指令：
   - `dotnet test EasyLottery.generated.sln`
-  - `dotnet run --project src/EasyLotteryWasm/EasyLotteryWasm.csproj --launch-profile EasyLotteryWasm`
+  - `dotnet run --project src/EasyLotteryWeb/EasyLotteryWeb.csproj --launch-profile EasyLotteryWeb`
 
   開發原則：
   - 優先維持現有中文說明與命名風格

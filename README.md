@@ -80,14 +80,15 @@ EasyLottery 是一套以 **Blazor WebAssembly + Domain Service** 組成的直播
 - `EasyLotteryDomain`：核心商業邏輯、資料模型與服務
 - `EasyLotteryWasm`：Blazor WebAssembly 前端，提供操作介面
 
-另外有一個測試專案：
+另外有一個 Web Host 與測試專案：
 
+- `EasyLotteryWeb`：ASP.NET Core Web Host，提供前端靜態檔、YAML 設定與加班事件 API
 - `EasyLotteryDomainTests`
 
 ## 資料與儲存方式
 
-- 系統主要使用 YAML 作為前端可讀寫的設定資料來源
-- `EasyLotteryWasm` 透過瀏覽器橋接讀寫設定內容
+- 系統主要使用 YAML 作為設定資料來源，儲存於 Web Host 的 `App_Data/easy-lottery.yaml`
+- `EasyLotteryWeb` 提供同源 API，所有瀏覽器與 OBS 讀寫同一份 YAML
 - Domain 層負責模板、活動結果與抽獎邏輯
 - 模板與活動資料會在本地設定中持續保存
 
@@ -117,11 +118,19 @@ EasyLottery 是一套以 **Blazor WebAssembly + Domain Service** 組成的直播
 - .NET SDK 8.0
 - 支援 Blazor WebAssembly 的瀏覽器
 
-### 執行前端
+### 執行 Web Host
 
 ```bash
-dotnet run --project src/EasyLotteryWasm/EasyLotteryWasm.csproj --launch-profile EasyLotteryWasm
+dotnet run --project src/EasyLotteryWeb/EasyLotteryWeb.csproj --launch-profile EasyLotteryWeb
 ```
+
+### 以 Docker 執行
+
+```bash
+docker compose up --build
+```
+
+設定資料會保存於 Docker volume `easy_lottery_data`。
 
 ### 執行測試
 
