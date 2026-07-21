@@ -33,7 +33,7 @@ else
             </div>
 
             <Row>
-                <Column ColumnSize="ColumnSize.Is7">
+                <Column ColumnSize="ColumnSize.Is12">
                     <Card class="overtime-config-card">
                         <CardBody>
                             <Row>
@@ -199,16 +199,6 @@ else
                             </div>
 
                             <Field>
-                                <FieldLabel>目前選用風格</FieldLabel>
-                                <Select TValue="string" @bind-SelectedValue="@selectedThemeKey">
-                                    @foreach (var preset in presets)
-                                    {
-                                        <SelectItem Value="@preset.Key">@preset.Name</SelectItem>
-                                    }
-                                </Select>
-                            </Field>
-
-                            <Field>
                                 <FieldLabel>單行文字動畫</FieldLabel>
                                 <select class="overtime-animation-select" value="@selectedTextAnimationKey" @onchange="OnTextAnimationChanged">
                                     @foreach (var preset in textAnimationPresets)
@@ -217,17 +207,6 @@ else
                                     }
                                 </select>
                                 <div class="text-muted mt-1">@SelectedTextAnimation.Description</div>
-                            </Field>
-
-                            <Field>
-                                <FieldLabel>聊天室樣板配置</FieldLabel>
-                                <select class="overtime-template-select" value="@selectedMessageTemplateKey" @onchange="OnMessageTemplateChanged">
-                                    @foreach (var preset in messageTemplatePresets)
-                                    {
-                                        <option value="@preset.Key">@preset.Name</option>
-                                    }
-                                </select>
-                                <div class="text-muted mt-1">@SelectedMessageTemplate.Description</div>
                             </Field>
 
                             <Row>
@@ -255,69 +234,7 @@ else
                     </Card>
                 </Column>
 
-                <Column ColumnSize="ColumnSize.Is5">
-                    <Card class="overtime-preview-card" style="@CurrentTheme.BuildPreviewStyle()">
-                        <CardBody>
-                            <div class="overtime-preview-eyebrow">PREVIEW</div>
-                            <div class="overtime-preview-title">@settings.Title</div>
-                            <div class="overtime-preview-subtitle">@settings.Subtitle</div>
-                            <div class="overtime-preview-badges">
-                                <span class="overtime-preview-badge">@CurrentTheme.Emoji @CurrentTheme.Name</span>
-                                <span class="overtime-preview-badge">最大 @settings.MaxVisibleItems 筆</span>
-                            </div>
-                            <div class="overtime-preview-sample">
-                                <div class="overtime-preview-sample-header">
-                                    <span class="sample-avatar">VT</span>
-                                    <div>
-                                        <div class="sample-name">示範觀眾</div>
-                                        <div class="sample-source">YouTube SuperChat</div>
-                                    </div>
-                                </div>
-                                <div class="sample-message">祝直播順利，這裡是示範訊息。</div>
-                                <div class="sample-amount">NT$ 300</div>
-                            </div>
-                            @if (settings.RewardRules.Count > 0)
-                            {
-                                <div class="overtime-preview-rules">
-                                    @foreach (var rule in settings.RewardRules.Where(rule => rule.IsEnabled).Take(3))
-                                    {
-                                        <span class="overtime-preview-rule">@OvertimeRewardRuleCalculator.DescribeRule(rule)</span>
-                                    }
-                                </div>
-                            }
-                        </CardBody>
-                    </Card>
-                </Column>
             </Row>
-
-            <div class="mt-4">
-                <h5 class="mb-3">風格模板</h5>
-                <Row>
-                    @foreach (var preset in presets)
-                    {
-                        <Column ColumnSize="ColumnSize.Is4">
-                            <Card class="@ThemeCardClass(preset.Key)"
-                                  style="@preset.BuildPreviewStyle()"
-                                  @onclick="@(() => SelectTheme(preset.Key))">
-                                <CardBody>
-                                    <div class="theme-card-header">
-                                        <div class="theme-card-emoji">@preset.Emoji</div>
-                                        <div class="theme-card-title">@preset.Name</div>
-                                    </div>
-                                    <div class="theme-card-ribbon" style="@ThemeRibbonStyle(preset)"></div>
-                                    <div class="theme-card-desc">@preset.Description</div>
-                                    <div class="theme-card-swatches">
-                                        <span class="theme-card-swatch" style="@SwatchStyle(preset.BackgroundStart)"></span>
-                                        <span class="theme-card-swatch" style="@SwatchStyle(preset.AccentColor)"></span>
-                                        <span class="theme-card-swatch" style="@SwatchStyle(preset.AccentSoftColor)"></span>
-                                    </div>
-                                    <div class="theme-card-key">@preset.Key</div>
-                                </CardBody>
-                            </Card>
-                        </Column>
-                    }
-                </Row>
-            </div>
 
             <div class="overtime-links-panel mt-4">
                 <div class="overtime-links-header">
@@ -785,18 +702,12 @@ else
     private bool isLoading = true;
     private EasyLotteryConfigDocument document = new();
     private OvertimeOverlaySettings settings = new();
-    private IReadOnlyList<OvertimeThemePreset> presets = OvertimeThemePreset.Catalog;
     private IReadOnlyList<OvertimeTextAnimationPreset> textAnimationPresets = OvertimeTextAnimationPreset.Catalog;
-    private IReadOnlyList<OvertimeMessageTemplatePreset> messageTemplatePresets = OvertimeMessageTemplatePreset.Catalog;
-    private string selectedThemeKey = OvertimeThemePreset.Catalog[0].Key;
     private string selectedTextAnimationKey = OvertimeTextAnimationPreset.Catalog[0].Key;
-    private string selectedMessageTemplateKey = OvertimeMessageTemplatePreset.Catalog[0].Key;
     private string OverlayUrl => NavigationManager.ToAbsoluteUri("/obs/overtime").ToString();
     private string PlannedEndAtInput { get; set; } = "";
 
-    private OvertimeThemePreset CurrentTheme => OvertimeThemePreset.GetByKey(selectedThemeKey);
     private OvertimeTextAnimationPreset SelectedTextAnimation => OvertimeTextAnimationPreset.GetByKey(selectedTextAnimationKey);
-    private OvertimeMessageTemplatePreset SelectedMessageTemplate => OvertimeMessageTemplatePreset.GetByKey(selectedMessageTemplateKey);
 
     protected override async Task OnInitializedAsync()
     {
@@ -805,9 +716,7 @@ else
         settings.RewardRules ??= new List<OvertimeRewardRule>();
         settings.DemoSuperChatAmount = Math.Max(0, settings.DemoSuperChatAmount);
         settings.DemoEcpayAmount = Math.Max(0, settings.DemoEcpayAmount);
-        selectedThemeKey = string.IsNullOrWhiteSpace(settings.ThemeKey) ? OvertimeThemePreset.Catalog[0].Key : settings.ThemeKey;
         selectedTextAnimationKey = string.IsNullOrWhiteSpace(settings.TextAnimationKey) ? OvertimeTextAnimationPreset.Catalog[0].Key : settings.TextAnimationKey;
-        selectedMessageTemplateKey = string.IsNullOrWhiteSpace(settings.MessageTemplateKey) ? OvertimeMessageTemplatePreset.Catalog[0].Key : settings.MessageTemplateKey;
         PlannedEndAtInput = FormatDateTimeLocal(settings.PlannedEndAtUtc);
         isLoading = false;
     }
@@ -823,16 +732,6 @@ else
         selectedTextAnimationKey = args.Value?.ToString() ?? OvertimeTextAnimationPreset.Catalog[0].Key;
     }
 
-    private void OnMessageTemplateChanged(ChangeEventArgs args)
-    {
-        selectedMessageTemplateKey = args.Value?.ToString() ?? OvertimeMessageTemplatePreset.Catalog[0].Key;
-    }
-
-    private void SelectTheme(string key)
-    {
-        selectedThemeKey = key;
-        settings.ThemeKey = key;
-    }
 
     private void AddRewardRule()
     {
@@ -886,8 +785,6 @@ else
 
         document = latestDocument;
         document.OvertimeOverlay = settings;
-        document.OvertimeOverlay.ThemeKey = selectedThemeKey;
-        document.OvertimeOverlay.MessageTemplateKey = selectedMessageTemplateKey;
         document.OvertimeOverlay.TextAnimationKey = selectedTextAnimationKey;
         await ConfigStore.SaveAsync(document);
 
@@ -1026,23 +923,6 @@ else
     {
         await OvertimeFeedClient.ClearAsync();
         await MessageService.Success("已清除加班台訊息。");
-    }
-
-    private string ThemeCardClass(string key)
-    {
-        var keyClass = key.ToLowerInvariant().Replace('_', '-');
-        var selectedClass = string.Equals(selectedThemeKey, key, StringComparison.OrdinalIgnoreCase) ? " selected" : "";
-        return $"theme-card theme-card-{keyClass}{selectedClass}";
-    }
-
-    private static string ThemeRibbonStyle(OvertimeThemePreset preset)
-    {
-        return $"background: linear-gradient(90deg, {preset.AccentColor}, {preset.AccentSoftColor});";
-    }
-
-    private static string SwatchStyle(string color)
-    {
-        return $"background: {color};";
     }
 
     private static string FormatAmountDisplay(decimal amount)
