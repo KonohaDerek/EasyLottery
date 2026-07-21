@@ -829,10 +829,8 @@ else
 
         if (entry != null && isStarted)
         {
-            settings.PlannedEndAtUtc = entry.SessionEndAtUtc;
-            document.OvertimeOverlay = settings;
-            await ConfigStore.SaveAsync(document);
-            await PublishPlannedEndMarkerAsync(settings.PlannedEndAtUtc);
+            await UpdateCurrentSessionEndAsync(entry.SessionEndAtUtc);
+            await PublishPlannedEndMarkerAsync(entry.SessionEndAtUtc);
             await MessageService.Success("已送出示範 SuperChat。");
         }
     }
@@ -864,10 +862,8 @@ else
 
         if (entry != null && isStarted)
         {
-            settings.PlannedEndAtUtc = entry.SessionEndAtUtc;
-            document.OvertimeOverlay = settings;
-            await ConfigStore.SaveAsync(document);
-            await PublishPlannedEndMarkerAsync(settings.PlannedEndAtUtc);
+            await UpdateCurrentSessionEndAsync(entry.SessionEndAtUtc);
+            await PublishPlannedEndMarkerAsync(entry.SessionEndAtUtc);
             await MessageService.Success("已送出示範綠界 Donate。");
         }
     }
@@ -896,6 +892,20 @@ else
     {
         var latestDocument = await ConfigStore.LoadAsync();
         return latestDocument.OvertimeOverlay?.PlannedEndAtUtc ?? settings.PlannedEndAtUtc;
+    }
+
+    private async Task UpdateCurrentSessionEndAsync(DateTimeOffset? plannedEndAtUtc)
+    {
+        // Settings pages can remain open while OBS controls a session in another
+        // browser. Only update the end time on the current document so a demo
+        // donation cannot reset StreamStartedAtUtc or SessionState.
+        var latestDocument = await ConfigStore.LoadAsync();
+        latestDocument.OvertimeOverlay ??= new OvertimeOverlaySettings();
+        latestDocument.OvertimeOverlay.PlannedEndAtUtc = plannedEndAtUtc;
+        await ConfigStore.SaveAsync(latestDocument);
+
+        document = latestDocument;
+        settings = latestDocument.OvertimeOverlay;
     }
 
     private async Task PublishPlannedEndMarkerAsync(DateTimeOffset? plannedEndAtUtc)
