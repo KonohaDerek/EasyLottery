@@ -141,19 +141,28 @@
 
             const storageKey = "easy-lottery.overtime-feed";
             const remoteFeedUrl = "/easy-lottery-overtime-feed.json";
+            let nextRemoteAttemptAt = 0;
 
             function getSafeContent(content) {
                 return content == null ? "[]" : String(content);
             }
 
             async function readRemoteFeed() {
+                const now = Date.now();
+                if (now < nextRemoteAttemptAt) {
+                    return "";
+                }
+
                 try {
                     const response = await fetch(remoteFeedUrl, { cache: "no-store", mode: "cors" });
                     if (response.ok) {
+                        nextRemoteAttemptAt = 0;
                         return getSafeContent(await response.text());
                     }
                 } catch {
                 }
+
+                nextRemoteAttemptAt = now + 30_000;
 
                 return "";
             }
