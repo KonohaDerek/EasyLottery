@@ -50,7 +50,7 @@ else
                             </div>
                             <div class="overtime-remaining-time">@RemainingTimeText</div>
                         </div>
-                        <div class="overtime-progress-caption">已完成 @ProgressPercent.ToString("0.0")%</div>
+                        <div class="overtime-progress-caption">已完成 @ProgressPercent.ToString("0.00")%</div>
                         <div class="overtime-standby-actions">
                             @if (IsRunning)
                             {
@@ -989,6 +989,7 @@ else
     private bool shouldPlayCompletionFireworks;
     private DateTimeOffset? fireworksStartedAtUtc;
     private int fireworksGifCycle;
+    private DateTimeOffset displayClockUtc = DateTimeOffset.UtcNow;
     private string previousSessionState = OvertimeSessionStates.Idle;
     private EasyLotteryConfigDocument document = new();
     private OvertimeOverlaySettings settings = new();
@@ -1002,7 +1003,7 @@ else
         string.Equals(item.SourceLabel, PlannedEndMarkerLabel, StringComparison.OrdinalIgnoreCase));
     private OvertimeSupportEvent? VisibleEvent => events.FirstOrDefault(item => item.Source != OvertimeSupportSource.Manual && OvertimeSessionTimeCalculator.IsEventVisible(item.OccurredAtUtc, DateTimeOffset.UtcNow, settings.SupportMessageVisibleSeconds));
     private DateTimeOffset? SessionEndAtUtc => settings.PlannedEndAtUtc ?? events.FirstOrDefault(item => item.SessionEndAtUtc.HasValue)?.SessionEndAtUtc ?? PlannedEndMarker?.SessionEndAtUtc;
-    private DateTimeOffset SessionClockUtc => IsPaused && settings.PausedAtUtc.HasValue ? settings.PausedAtUtc.Value : DateTimeOffset.UtcNow;
+    private DateTimeOffset SessionClockUtc => IsPaused && settings.PausedAtUtc.HasValue ? settings.PausedAtUtc.Value : displayClockUtc;
     private bool IsIdle => settings.SessionState == OvertimeSessionStates.Idle;
     private bool IsRunning => settings.SessionState == OvertimeSessionStates.Running;
     private bool IsPaused => settings.SessionState == OvertimeSessionStates.Paused;
@@ -1061,6 +1062,7 @@ else
     {
         await InvokeAsync(() =>
         {
+            displayClockUtc = DateTimeOffset.UtcNow;
             if (fireworksStartedAtUtc.HasValue)
             {
                 fireworksGifCycle = (int)((DateTimeOffset.UtcNow - fireworksStartedAtUtc.Value).TotalSeconds / 2d);
@@ -1079,6 +1081,7 @@ else
 
     private async Task ReloadOverlayStateAsync()
     {
+        displayClockUtc = DateTimeOffset.UtcNow;
         document = await ConfigStore.LoadAsync();
         settings = document.OvertimeOverlay ?? new OvertimeOverlaySettings();
         settings.ThemeKey = string.IsNullOrWhiteSpace(settings.ThemeKey) ? OvertimeThemePreset.Catalog[0].Key : settings.ThemeKey;
@@ -1290,8 +1293,8 @@ else
             remaining = TimeSpan.Zero;
         }
 
-        var fraction = (remaining.Ticks % TimeSpan.TicksPerSecond) / (TimeSpan.TicksPerSecond / 10_000);
-        return $"{remaining.Days:000}{remaining.Hours:00}{remaining.Minutes:00}{remaining.Seconds:00}{fraction:0000}";
+        var centiseconds = remaining.Milliseconds / 10;
+        return $"{remaining.Days:00}D{remaining.Hours:00}H{remaining.Minutes:00}M{remaining.Seconds:00}.{centiseconds:00}S";
     }
 
     private static string BuildPlannedCloseText(DateTimeOffset? plannedEndAtUtc)

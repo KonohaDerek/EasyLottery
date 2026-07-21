@@ -6,6 +6,7 @@
     const storageKey = "easy-lottery.config.yaml";
     const remoteConfigUrl = "/easy-lottery-config.yaml";
     let memoryFallback = "";
+    let nextRemoteAttemptAt = 0;
 
     function getSafeContent(content) {
         return content == null ? "" : content;
@@ -23,14 +24,23 @@
     }
 
     async function read() {
+        const now = Date.now();
         try {
             // The web host owns the YAML file. Do not let a stale per-browser
             // localStorage value override shared settings.
-            const response = await fetch(remoteConfigUrl, { cache: "no-store" });
-            if (response.ok) {
-                return cacheFallback(await response.text());
+            if (now >= nextRemoteAttemptAt) {
+                const response = await fetch(remoteConfigUrl, { cache: "no-store" });
+                if (response.ok) {
+                    nextRemoteAttemptAt = 0;
+                    return cacheFallback(await response.text());
+                }
+
+                // The standalone WASM dev server has no YAML API. Avoid generating
+                // a 404 every overlay refresh while retaining the local fallback.
+                nextRemoteAttemptAt = now + 30_000;
             }
         } catch {
+            nextRemoteAttemptAt = now + 30_000;
         }
 
         try {
