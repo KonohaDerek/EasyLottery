@@ -7,6 +7,7 @@
 @using EasyLotteryWasm.Models
 @inject IEasyLotteryConfigStore ConfigStore
 @inject OvertimeFeedClient OvertimeFeedClient
+@inject OvertimeRealtimeClient OvertimeRealtimeClient
 @inject IJSRuntime JSRuntime
 @implements IAsyncDisposable
 
@@ -1054,6 +1055,18 @@ else
     {
         await ReloadOverlayAsync();
 
+        OvertimeRealtimeClient.StateChanged += HandleRealtimeUpdateAsync;
+        OvertimeRealtimeClient.FeedChanged += HandleRealtimeUpdateAsync;
+        try
+        {
+            await OvertimeRealtimeClient.StartAsync();
+        }
+        catch
+        {
+            // The standalone WASM dev server has no SignalR host. The page retains
+            // its local fallback while the Web Host provides live synchronization.
+        }
+
         refreshTimer = new System.Timers.Timer(1000);
         refreshTimer.Elapsed += OnTimerElapsed;
         refreshTimer.AutoReset = true;
@@ -1092,6 +1105,12 @@ else
             isRefreshing = false;
         }
     }
+
+    private Task HandleRealtimeUpdateAsync() => InvokeAsync(async () =>
+    {
+        await ReloadOverlayStateAsync();
+        StateHasChanged();
+    });
 
     private async Task ReloadOverlayAsync()
     {
@@ -1346,5 +1365,9 @@ else
         catch (JSDisconnectedException)
         {
         }
+
+        OvertimeRealtimeClient.StateChanged -= HandleRealtimeUpdateAsync;
+        OvertimeRealtimeClient.FeedChanged -= HandleRealtimeUpdateAsync;
+        await OvertimeRealtimeClient.DisposeAsync();
     }
 }

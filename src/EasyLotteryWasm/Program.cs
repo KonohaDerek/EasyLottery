@@ -41,6 +41,7 @@ builder.Services.AddScoped<ActivityResultService>();
 builder.Services.AddScoped<ResultNotificationService>();
 builder.Services.AddScoped<VisualStyleService>();
 builder.Services.AddScoped<OvertimeFeedClient>();
+builder.Services.AddScoped<OvertimeRealtimeClient>();
 builder.Services.AddScoped<EasyLotteryAuditService>();
 
 // 添加服務
