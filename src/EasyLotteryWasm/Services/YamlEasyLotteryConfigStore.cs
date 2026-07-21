@@ -176,6 +176,17 @@ namespace EasyLotteryWasm.Services
             document.OvertimeOverlay.SupportMessageVisibleSeconds = Math.Clamp(document.OvertimeOverlay.SupportMessageVisibleSeconds, 1, 60);
             document.OvertimeOverlay.StreamStartedAtUtc = NormalizeDateTimeOffset(document.OvertimeOverlay.StreamStartedAtUtc);
             document.OvertimeOverlay.PlannedEndAtUtc = NormalizeDateTimeOffset(document.OvertimeOverlay.PlannedEndAtUtc);
+            document.OvertimeOverlay.SessionState = OvertimeSessionStates.Normalize(document.OvertimeOverlay.SessionState);
+            document.OvertimeOverlay.PausedAtUtc = NormalizeDateTimeOffset(document.OvertimeOverlay.PausedAtUtc);
+            document.OvertimeOverlay.CompletedAtUtc = NormalizeDateTimeOffset(document.OvertimeOverlay.CompletedAtUtc);
+            document.OvertimeOverlay.CompletionFireworksStyle = document.OvertimeOverlay.CompletionFireworksStyle?.Trim().ToLowerInvariant() == "pixel"
+                ? "pixel"
+                : "classic";
+            document.OvertimeOverlay.CompletionFireworksDurationSeconds = Math.Clamp(document.OvertimeOverlay.CompletionFireworksDurationSeconds, 2, 15);
+            if (document.OvertimeOverlay.SessionState != OvertimeSessionStates.Paused)
+            {
+                document.OvertimeOverlay.PausedAtUtc = null;
+            }
             document.OvertimeOverlay.RewardRules ??= new List<OvertimeRewardRule>();
             NormalizeOvertimeRewardRules(document.OvertimeOverlay.RewardRules);
             document.AuditRecords ??= new List<ChangeAuditRecord>();
