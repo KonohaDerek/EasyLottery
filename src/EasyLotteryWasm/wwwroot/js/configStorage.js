@@ -4,48 +4,37 @@
     }
 
     const storageKey = "easy-lottery.config.yaml";
-    const remoteConfigUrl = "http://localhost:18930/easy-lottery-config.yaml";
+    const remoteConfigUrl = "/easy-lottery-config.yaml";
     let memoryFallback = "";
 
     function getSafeContent(content) {
         return content == null ? "" : content;
     }
 
-    function getTauriInvoker() {
-        if (window.__TAURI__ && typeof window.__TAURI__.invoke === "function") {
-            return window.__TAURI__.invoke.bind(window.__TAURI__);
+    function cacheFallback(content) {
+        memoryFallback = getSafeContent(content);
+
+        try {
+            window.localStorage.setItem(storageKey, memoryFallback);
+        } catch {
         }
 
-        return null;
+        return memoryFallback;
     }
 
     async function read() {
-        const tauriInvoke = getTauriInvoker();
-        if (tauriInvoke) {
-            try {
-                const content = await tauriInvoke("read_config_yaml");
-                memoryFallback = getSafeContent(content);
-                return memoryFallback;
-            } catch {
-            }
-        }
-
         try {
-            const content = window.localStorage.getItem(storageKey);
-            memoryFallback = getSafeContent(content);
-            if (memoryFallback) {
-                return memoryFallback;
+            // The web host owns the YAML file. Do not let a stale per-browser
+            // localStorage value override shared settings.
+            const response = await fetch(remoteConfigUrl, { cache: "no-store" });
+            if (response.ok) {
+                return cacheFallback(await response.text());
             }
         } catch {
         }
 
         try {
-            const response = await fetch(remoteConfigUrl, { cache: "no-store", mode: "cors" });
-            if (response.ok) {
-                const content = await response.text();
-                memoryFallback = getSafeContent(content);
-                return memoryFallback;
-            }
+            return cacheFallback(window.localStorage.getItem(storageKey));
         } catch {
         }
 
@@ -54,30 +43,25 @@
 
     async function write(content) {
         const safeContent = getSafeContent(content);
-        memoryFallback = safeContent;
+
+        // Keep an offline copy in case the web host is temporarily unavailable.
+        cacheFallback(safeContent);
 
         try {
-            window.localStorage.setItem(storageKey, safeContent);
-        } catch {
-        }
-
-        const tauriInvoke = getTauriInvoker();
-        if (tauriInvoke) {
-            await tauriInvoke("write_config_yaml", { content: safeContent });
-            return;
-        }
-
-        try {
-            await fetch(remoteConfigUrl, {
+            const response = await fetch(remoteConfigUrl, {
                 method: "PUT",
                 cache: "no-store",
-                mode: "cors",
                 headers: {
                     "Content-Type": "text/yaml; charset=utf-8"
                 },
                 body: safeContent
             });
+
+            if (!response.ok) {
+                throw new Error(`Unable to save shared YAML configuration (${response.status}).`);
+            }
         } catch {
+            // The browser cache above is the offline fallback.
         }
     }
 

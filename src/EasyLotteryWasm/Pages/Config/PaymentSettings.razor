@@ -69,7 +69,7 @@
                                 <Column ColumnSize="ColumnSize.Is6">
                                     <Field>
                                         <FieldLabel>SMTP 密碼</FieldLabel>
-                                        <TextInput @bind-Value="settings.MailDelivery.SmtpPassword" />
+                                        <input class="form-control" type="password" @bind="settings.MailDelivery.SmtpPassword" autocomplete="new-password" />
                                     </Field>
                                 </Column>
                             </Row>
@@ -105,11 +105,11 @@
                             </Field>
                             <Field>
                                 <FieldLabel>API Key</FieldLabel>
-                                <TextInput @bind-Value="settings.DonationIntegration.Ecpay.ApiKey" />
+                                <input class="form-control" type="password" @bind="settings.DonationIntegration.Ecpay.ApiKey" autocomplete="new-password" />
                             </Field>
                             <Field>
                                 <FieldLabel>Secret Key</FieldLabel>
-                                <TextInput @bind-Value="settings.DonationIntegration.Ecpay.SecretKey" />
+                                <input class="form-control" type="password" @bind="settings.DonationIntegration.Ecpay.SecretKey" autocomplete="new-password" />
                             </Field>
                             <Field>
                                 <FieldLabel>啟用</FieldLabel>
@@ -128,11 +128,11 @@
                             </Field>
                             <Field>
                                 <FieldLabel>API Key</FieldLabel>
-                                <TextInput @bind-Value="settings.DonationIntegration.NewebPay.ApiKey" />
+                                <input class="form-control" type="password" @bind="settings.DonationIntegration.NewebPay.ApiKey" autocomplete="new-password" />
                             </Field>
                             <Field>
                                 <FieldLabel>Secret Key</FieldLabel>
-                                <TextInput @bind-Value="settings.DonationIntegration.NewebPay.SecretKey" />
+                                <input class="form-control" type="password" @bind="settings.DonationIntegration.NewebPay.SecretKey" autocomplete="new-password" />
                             </Field>
                             <Field>
                                 <FieldLabel>啟用</FieldLabel>
@@ -154,7 +154,7 @@
                             </Field>
                             <Field>
                                 <FieldLabel>Access Token</FieldLabel>
-                                <TextInput @bind-Value="settings.DonationIntegration.OenTw.AccessToken" />
+                                <input class="form-control" type="password" @bind="settings.DonationIntegration.OenTw.AccessToken" autocomplete="new-password" />
                             </Field>
                             <Field>
                                 <FieldLabel>啟用</FieldLabel>
@@ -173,7 +173,7 @@
                             </Field>
                             <Field>
                                 <FieldLabel>Access Token</FieldLabel>
-                                <TextInput @bind-Value="settings.DonationIntegration.TwitchBits.AccessToken" />
+                                <input class="form-control" type="password" @bind="settings.DonationIntegration.TwitchBits.AccessToken" autocomplete="new-password" />
                             </Field>
                             <Field>
                                 <FieldLabel>啟用</FieldLabel>
