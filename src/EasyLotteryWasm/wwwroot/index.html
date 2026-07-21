@@ -32,6 +32,68 @@
 
     <script src="js/configStorage.js"></script>
     <script>
+        (() => {
+            let overlayClockFrame = 0;
+            let overlayClockLastTick = 0;
+
+            function makeTransparent() {
+                for (const element of [document.documentElement, document.body, document.getElementById("app")]) {
+                    if (!element) continue;
+                    element.style.setProperty("background", "transparent", "important");
+                    element.style.setProperty("background-color", "transparent", "important");
+                    element.style.setProperty("background-image", "none", "important");
+                }
+            }
+
+            function syncOvertimeProgress() {
+                const panel = document.getElementById("overtime-progress-panel");
+                if (!panel) return;
+
+                const start = Number(panel.dataset.startMs || 0);
+                const end = Number(panel.dataset.endMs || 0);
+                if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return;
+
+                const paused = panel.dataset.isPaused === "true";
+                const pausedAt = Number(panel.dataset.pausedAtMs || 0);
+                const now = paused && pausedAt > 0 ? pausedAt : Date.now();
+                const progress = Math.max(0, Math.min(100, ((now - start) / (end - start)) * 100));
+                const remainingMs = Math.max(0, end - now);
+                const remainingSeconds = Math.floor(remainingMs / 1000);
+                const hours = Math.floor(remainingSeconds / 3600);
+                const minutes = Math.floor((remainingSeconds % 3600) / 60);
+                const seconds = remainingSeconds % 60;
+
+                const fill = document.getElementById("overtime-progress-fill");
+                const value = document.getElementById("overtime-progress-value");
+                const remaining = document.getElementById("overtime-remaining-time");
+                if (fill) fill.style.width = `${progress.toFixed(4)}%`;
+                if (value) value.textContent = `${progress.toFixed(2)}%`;
+                if (remaining) {
+                    remaining.textContent = `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+                }
+            }
+
+            window.easyLotteryObs = {
+                startOverlayClock: () => {
+                    cancelAnimationFrame(overlayClockFrame);
+                    overlayClockLastTick = 0;
+                    makeTransparent();
+
+                    const tick = (now) => {
+                        if (now - overlayClockLastTick >= 50) {
+                            overlayClockLastTick = now;
+                            syncOvertimeProgress();
+                        }
+                        overlayClockFrame = requestAnimationFrame(tick);
+                    };
+
+                    overlayClockFrame = requestAnimationFrame(tick);
+                },
+                stopOverlayClock: () => cancelAnimationFrame(overlayClockFrame)
+            };
+        })();
+    </script>
+    <script>
         window.easyLotteryMail = {
             send: async (request) => {
                 const response = await fetch("/api/result-notification", {

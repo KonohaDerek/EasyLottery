@@ -1,8 +1,10 @@
 using System.Text;
 using System.Net;
 using System.Net.Mail;
+using Microsoft.AspNetCore.SignalR;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddSignalR();
 
 var storageDirectory = builder.Configuration["Storage:Directory"]
     ?? Path.Combine(builder.Environment.ContentRootPath, "App_Data");
@@ -23,10 +25,11 @@ app.MapGet("/easy-lottery-config.yaml", async (HttpContext context) =>
     return Results.Text(content, "text/yaml", Encoding.UTF8);
 });
 
-app.MapPut("/easy-lottery-config.yaml", async (HttpContext context) =>
+app.MapPut("/easy-lottery-config.yaml", async (HttpContext context, IHubContext<OvertimeHub> hub) =>
 {
     var content = await ReadRequestBodyAsync(context.Request, context.RequestAborted);
     await WriteFileAsync(configPath, content, storageGate, context.RequestAborted);
+    await hub.Clients.All.SendAsync("OvertimeStateChanged", context.RequestAborted);
     return Results.NoContent();
 });
 
@@ -36,16 +39,18 @@ app.MapGet("/easy-lottery-overtime-feed.json", async (HttpContext context) =>
     return Results.Text(content, "application/json", Encoding.UTF8);
 });
 
-app.MapPut("/easy-lottery-overtime-feed.json", async (HttpContext context) =>
+app.MapPut("/easy-lottery-overtime-feed.json", async (HttpContext context, IHubContext<OvertimeHub> hub) =>
 {
     var content = await ReadRequestBodyAsync(context.Request, context.RequestAborted);
     await WriteFileAsync(overtimeFeedPath, content, storageGate, context.RequestAborted);
+    await hub.Clients.All.SendAsync("OvertimeFeedChanged", context.RequestAborted);
     return Results.NoContent();
 });
 
-app.MapDelete("/easy-lottery-overtime-feed.json", async (HttpContext context) =>
+app.MapDelete("/easy-lottery-overtime-feed.json", async (HttpContext context, IHubContext<OvertimeHub> hub) =>
 {
     await WriteFileAsync(overtimeFeedPath, "[]", storageGate, context.RequestAborted);
+    await hub.Clients.All.SendAsync("OvertimeFeedChanged", context.RequestAborted);
     return Results.NoContent();
 });
 
@@ -75,6 +80,8 @@ app.MapPost("/api/result-notification", async (ResultNotificationRequest request
     await client.SendMailAsync(message);
     return Results.NoContent();
 });
+
+app.MapHub<OvertimeHub>("/hubs/overtime");
 
 app.MapFallbackToFile("index.html");
 
