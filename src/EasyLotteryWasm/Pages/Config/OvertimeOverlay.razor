@@ -89,6 +89,7 @@ else
                                             <FieldLabel>預計結束時間</FieldLabel>
                                               <input class="overtime-datetime-input"
                                                   type="datetime-local"
+                                                  step="1"
                                                   value="@PlannedEndAtInput"
                                                   @oninput="OnPlannedEndAtInputChanged" />
                                         </Field>
@@ -953,7 +954,7 @@ else
             return "";
         }
 
-        return utcValue.ToLocalTime().DateTime.ToString("yyyy-MM-ddTHH:mm", CultureInfo.InvariantCulture);
+        return utcValue.ToLocalTime().DateTime.ToString("yyyy-MM-ddTHH:mm:ss", CultureInfo.InvariantCulture);
     }
 
     private static DateTimeOffset? ParseDateTimeLocal(string? value)

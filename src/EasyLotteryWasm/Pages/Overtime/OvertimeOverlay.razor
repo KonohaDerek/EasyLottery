@@ -1165,12 +1165,12 @@ else
     private async Task StartCountdownAsync()
     {
         var plannedEndAtUtc = PlannedEndMarker?.SessionEndAtUtc ?? settings.PlannedEndAtUtc;
-        if (!plannedEndAtUtc.HasValue || plannedEndAtUtc.Value.Year < 2000)
+        var nowUtc = DateTimeOffset.UtcNow;
+        if (!plannedEndAtUtc.HasValue || plannedEndAtUtc.Value.Year < 2000 || plannedEndAtUtc.Value <= nowUtc)
         {
             return;
         }
 
-        var nowUtc = DateTimeOffset.UtcNow;
         settings.StreamStartedAtUtc = nowUtc;
         settings.PlannedEndAtUtc = plannedEndAtUtc;
         settings.PausedAtUtc = null;
