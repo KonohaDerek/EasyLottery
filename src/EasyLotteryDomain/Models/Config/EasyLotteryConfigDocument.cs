@@ -32,6 +32,8 @@ namespace EasyLotteryDomain.Models.Config
 
         public DonationIntegrationSettings DonationIntegration { get; set; } = new();
 
+        public PublicCallbackSettings PublicCallback { get; set; } = new();
+
         public MailDeliverySettings MailDelivery { get; set; } = new();
 
         public bool EnableYouTubeSuperChat { get; set; }
@@ -87,6 +89,34 @@ namespace EasyLotteryDomain.Models.Config
         public DonationProviderSettings TwitchBits { get; set; } = new()
         {
             Name = "Twitch 小奇點"
+        };
+    }
+
+    public sealed class PublicCallbackSettings
+    {
+        public string CustomDomain { get; set; } = "";
+
+        public string TunnelProvider { get; set; } = PublicCallbackTunnelProviders.CloudflareQuick;
+
+        public string ActivePublicBaseUrl { get; set; } = "";
+
+        public string GetConfiguredBaseUrl()
+        {
+            return string.IsNullOrWhiteSpace(CustomDomain)
+                ? ActivePublicBaseUrl.Trim()
+                : CustomDomain.Trim();
+        }
+    }
+
+    public static class PublicCallbackTunnelProviders
+    {
+        public const string CloudflareQuick = "cloudflare-quick";
+        public const string DevTunnels = "dev-tunnels";
+
+        public static string Normalize(string? value) => value?.Trim().ToLowerInvariant() switch
+        {
+            DevTunnels => DevTunnels,
+            _ => CloudflareQuick
         };
     }
 

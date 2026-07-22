@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.SignalR;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddSignalR();
+builder.Services.AddSingleton<TunnelRuntimeService>();
 
 var storageDirectory = builder.Configuration["Storage:Directory"]
     ?? Path.Combine(builder.Environment.ContentRootPath, "App_Data");
@@ -82,6 +83,15 @@ app.MapPost("/api/result-notification", async (ResultNotificationRequest request
 });
 
 app.MapHub<OvertimeHub>("/hubs/overtime");
+
+app.MapGet("/api/tunnel", (TunnelRuntimeService tunnelRuntime) => Results.Ok(tunnelRuntime.GetStatus()));
+app.MapPost("/api/tunnel/start", async (TunnelStartRequest request, TunnelRuntimeService tunnelRuntime, CancellationToken cancellationToken) =>
+    Results.Ok(await tunnelRuntime.StartAsync(request.Provider, cancellationToken)));
+app.MapDelete("/api/tunnel", async (TunnelRuntimeService tunnelRuntime, CancellationToken cancellationToken) =>
+{
+    await tunnelRuntime.StopAsync(cancellationToken);
+    return Results.NoContent();
+});
 
 app.MapFallbackToFile("index.html");
 

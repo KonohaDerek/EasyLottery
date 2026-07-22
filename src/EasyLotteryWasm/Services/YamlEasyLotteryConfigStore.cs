@@ -128,6 +128,7 @@ namespace EasyLotteryWasm.Services
             document.SystemSettings ??= new LotterySystemSettings();
             document.SystemSettings.YouTube ??= new YouTubeApiSettings();
             document.SystemSettings.DonationIntegration ??= new DonationIntegrationSettings();
+            document.SystemSettings.PublicCallback ??= new PublicCallbackSettings();
             document.SystemSettings.MailDelivery ??= new MailDeliverySettings();
             document.SystemSettings.DonationIntegration.Ecpay ??= new DonationProviderSettings { Name = "綠界" };
             document.SystemSettings.DonationIntegration.NewebPay ??= new DonationProviderSettings { Name = "藍新" };
@@ -156,6 +157,9 @@ namespace EasyLotteryWasm.Services
             document.OvertimeOverlay.TextAnimationKey = OvertimeTextAnimationPreset.NormalizeKey(document.OvertimeOverlay.TextAnimationKey);
             document.OvertimeOverlay.MaxVisibleItems = Math.Max(1, document.OvertimeOverlay.MaxVisibleItems);
             document.SystemSettings.ResultNotificationEmail = document.SystemSettings.ResultNotificationEmail.Trim();
+            document.SystemSettings.PublicCallback.CustomDomain = NormalizePublicHttpsUrl(document.SystemSettings.PublicCallback.CustomDomain);
+            document.SystemSettings.PublicCallback.ActivePublicBaseUrl = NormalizePublicHttpsUrl(document.SystemSettings.PublicCallback.ActivePublicBaseUrl);
+            document.SystemSettings.PublicCallback.TunnelProvider = PublicCallbackTunnelProviders.Normalize(document.SystemSettings.PublicCallback.TunnelProvider);
             document.SystemSettings.DonationIntegration.Ecpay.Name = string.IsNullOrWhiteSpace(document.SystemSettings.DonationIntegration.Ecpay.Name) ? "綠界" : document.SystemSettings.DonationIntegration.Ecpay.Name.Trim();
             document.SystemSettings.DonationIntegration.NewebPay.Name = string.IsNullOrWhiteSpace(document.SystemSettings.DonationIntegration.NewebPay.Name) ? "藍新" : document.SystemSettings.DonationIntegration.NewebPay.Name.Trim();
             document.SystemSettings.DonationIntegration.OenTw.Name = string.IsNullOrWhiteSpace(document.SystemSettings.DonationIntegration.OenTw.Name) ? "oen.tw" : document.SystemSettings.DonationIntegration.OenTw.Name.Trim();
@@ -229,6 +233,23 @@ namespace EasyLotteryWasm.Services
             document.SystemSettings.ResultNotificationEmail = document.SystemSettings.ResultNotificationEmail.Trim();
 
             return document;
+        }
+
+        private static string NormalizePublicHttpsUrl(string? value)
+        {
+            var trimmed = value?.Trim() ?? "";
+            if (string.IsNullOrWhiteSpace(trimmed))
+            {
+                return "";
+            }
+
+            if (!Uri.TryCreate(trimmed, UriKind.Absolute, out var uri) ||
+                !string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+            {
+                return "";
+            }
+
+            return uri.GetLeftPart(UriPartial.Authority).TrimEnd('/');
         }
 
         private static EasyLotteryConfigDocument CloneDocument(EasyLotteryConfigDocument document)

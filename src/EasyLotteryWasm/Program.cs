@@ -29,7 +29,7 @@ builder.RootComponents.Add<HeadOutlet>("head::after");
 
 builder.Services.AddDistributedMemoryCache();
 
-var apiBaseUrl = builder.Configuration["Api:BaseUrl"] ?? "http://localhost:5297/";
+var apiBaseUrl = builder.Configuration["Api:BaseUrl"] ?? builder.HostEnvironment.BaseAddress;
 builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(apiBaseUrl) });
 
 builder.Services.AddScoped<IEasyLotteryConfigStore, YamlEasyLotteryConfigStore>();
@@ -42,6 +42,7 @@ builder.Services.AddScoped<ResultNotificationService>();
 builder.Services.AddScoped<VisualStyleService>();
 builder.Services.AddScoped<OvertimeFeedClient>();
 builder.Services.AddScoped<OvertimeRealtimeClient>();
+builder.Services.AddScoped<TunnelRuntimeClient>();
 builder.Services.AddScoped<EasyLotteryAuditService>();
 
 // 添加服務

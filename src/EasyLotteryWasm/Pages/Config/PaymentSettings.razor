@@ -3,6 +3,7 @@
 
 @inject SystemSettingsService SystemSettingsService
 @inject IMessageService MessageService
+@inject TunnelRuntimeClient TunnelRuntimeClient
 
 <PageTitle>支付配置</PageTitle>
 
@@ -27,6 +28,57 @@
                         <FieldLabel>結果通知信箱</FieldLabel>
                         <TextInput @bind-Value="settings.ResultNotificationEmail" Placeholder="result@example.com" />
                     </Field>
+                </Column>
+            </Row>
+
+            <Row Margin="Margin.Is3.FromTop">
+                <Column ColumnSize="ColumnSize.Is12">
+                    <Card>
+                        <CardHeader><CardTitle>公開回呼入口（Notify URL）</CardTitle></CardHeader>
+                        <CardBody>
+                            <Alert Color="Color.Info" Visible>
+                                <AlertMessage>金流服務商必須能透過 HTTPS 連線至此系統。</AlertMessage>
+                                <AlertDescription>已設定自訂網域時會優先使用；未設定時可選擇 Cloudflare Quick Tunnel 或 Microsoft Dev Tunnels。</AlertDescription>
+                            </Alert>
+                            <Field>
+                                <FieldLabel>自訂 HTTPS Domain</FieldLabel>
+                                <TextInput @bind-Value="settings.PublicCallback.CustomDomain" Placeholder="https://easy-lottery.example.com" />
+                                <div class="text-muted mt-1">正式環境建議使用固定 HTTPS 網域；填入後會覆蓋下方 Tunnel 選擇。</div>
+                            </Field>
+                            <Field>
+                                <FieldLabel>未設定網域時使用</FieldLabel>
+                                <Select TValue="string" @bind-SelectedValue="settings.PublicCallback.TunnelProvider" Disabled="@HasCustomDomain">
+                                    <SelectItem Value="@PublicCallbackTunnelProviders.CloudflareQuick">Cloudflare Quick Tunnel</SelectItem>
+                                    <SelectItem Value="@PublicCallbackTunnelProviders.DevTunnels">Microsoft Dev Tunnels</SelectItem>
+                                </Select>
+                            </Field>
+                            <Field>
+                                <FieldLabel>目前公開網址</FieldLabel>
+                                <TextInput Value="@settings.PublicCallback.GetConfiguredBaseUrl()" Disabled />
+                                <div class="text-muted mt-1">Tunnel 啟動後會自動更新；暫時 Tunnel 重啟後網址可能變更，需重新貼回金流後台。</div>
+                            </Field>
+                            @if (!HasCustomDomain)
+                            {
+                                <Alert Color="@(tunnelStatus.State == "running" ? Color.Success : Color.Warning)" Visible>
+                                    <AlertMessage>@TunnelStatusMessage</AlertMessage>
+                                    <AlertDescription>Cloudflare Quick Tunnel 與 Dev Tunnels 都是暫時入口；停止或重啟後請重新確認 Notify URL。</AlertDescription>
+                                </Alert>
+                                <div class="d-flex flex-wrap gap-2 mb-3">
+                                    <Button Color="Color.Primary" Clicked="@StartTunnelAsync" Disabled="@isStartingTunnel">@(isStartingTunnel ? "建立 Tunnel 中…" : "啟動 Tunnel")</Button>
+                                    <Button Color="Color.Secondary" Clicked="@StopTunnelAsync" Disabled="@(isStartingTunnel || tunnelStatus.State != "running")">停止 Tunnel</Button>
+                                </div>
+                            }
+                            <div class="mb-3">
+                                <div><strong>綠界 Notify URL：</strong>@BuildNotifyUrl("ecpay")</div>
+                                <div><strong>藍新 Notify URL：</strong>@BuildNotifyUrl("newebpay")</div>
+                            </div>
+                            <div class="d-flex flex-wrap gap-2">
+                                <a class="btn btn-outline-secondary btn-sm" href="https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/do-more-with-tunnels/trycloudflare/" target="_blank" rel="noopener noreferrer">Cloudflare Quick Tunnel 文件</a>
+                                <a class="btn btn-outline-secondary btn-sm" href="https://developers.cloudflare.com/tunnel/setup/" target="_blank" rel="noopener noreferrer">Cloudflare Named Tunnel 文件</a>
+                                <a class="btn btn-outline-secondary btn-sm" href="https://learn.microsoft.com/azure/developer/dev-tunnels/get-started" target="_blank" rel="noopener noreferrer">Microsoft Dev Tunnels 文件</a>
+                            </div>
+                        </CardBody>
+                    </Card>
                 </Column>
             </Row>
 
@@ -209,10 +261,38 @@
 
 @code {
     private LotterySystemSettings? settings;
+    private TunnelRuntimeStatus tunnelStatus = new();
+    private bool isStartingTunnel;
+
+    private bool HasCustomDomain => !string.IsNullOrWhiteSpace(settings?.PublicCallback.CustomDomain);
+
+    private string BuildNotifyUrl(string provider)
+    {
+        var baseUrl = settings?.PublicCallback.GetConfiguredBaseUrl();
+        return string.IsNullOrWhiteSpace(baseUrl)
+            ? "尚未取得公開網址"
+            : $"{baseUrl.TrimEnd('/')}/api/payments/{provider}/notify";
+    }
+
+    private string TunnelStatusMessage => tunnelStatus.State switch
+    {
+        "running" => $"{tunnelStatus.Provider} 已啟動。",
+        "starting" => "Tunnel 啟動中，等待公開網址。",
+        "failed" => string.IsNullOrWhiteSpace(tunnelStatus.Error) ? "Tunnel 啟動失敗。" : tunnelStatus.Error,
+        _ => "尚未啟動 Tunnel。"
+    };
 
     protected override async Task OnInitializedAsync()
     {
         settings = await SystemSettingsService.GetSettingsAsync();
+        try
+        {
+            tunnelStatus = await TunnelRuntimeClient.GetStatusAsync();
+        }
+        catch
+        {
+            tunnelStatus = new TunnelRuntimeStatus { State = "unavailable", Error = "目前不是由 EasyLotteryWeb Host 提供服務。" };
+        }
     }
 
     private async Task SaveAsync()
@@ -225,5 +305,56 @@
         await SystemSettingsService.SaveSettingsAsync(settings);
         settings = await SystemSettingsService.GetSettingsAsync();
         await MessageService.Success("已儲存支付配置。");
+    }
+
+    private async Task StartTunnelAsync()
+    {
+        if (settings is null || HasCustomDomain)
+        {
+            return;
+        }
+
+        isStartingTunnel = true;
+        try
+        {
+            tunnelStatus = await TunnelRuntimeClient.StartAsync(settings.PublicCallback.TunnelProvider);
+            if (tunnelStatus.State == "running" && !string.IsNullOrWhiteSpace(tunnelStatus.PublicBaseUrl))
+            {
+                settings.PublicCallback.ActivePublicBaseUrl = tunnelStatus.PublicBaseUrl;
+                await SystemSettingsService.SaveSettingsAsync(settings);
+                await MessageService.Success("Tunnel 已啟動，Notify URL 已更新。");
+            }
+            else
+            {
+                await MessageService.Error(TunnelStatusMessage);
+            }
+        }
+        catch (Exception ex)
+        {
+            await MessageService.Error($"無法啟動 Tunnel：{ex.Message}");
+        }
+        finally
+        {
+            isStartingTunnel = false;
+        }
+    }
+
+    private async Task StopTunnelAsync()
+    {
+        try
+        {
+            await TunnelRuntimeClient.StopAsync();
+            tunnelStatus = new TunnelRuntimeStatus();
+            if (settings is not null)
+            {
+                settings.PublicCallback.ActivePublicBaseUrl = "";
+                await SystemSettingsService.SaveSettingsAsync(settings);
+            }
+            await MessageService.Success("Tunnel 已停止，公開網址已清除。");
+        }
+        catch (Exception ex)
+        {
+            await MessageService.Error($"無法停止 Tunnel：{ex.Message}");
+        }
     }
 }
