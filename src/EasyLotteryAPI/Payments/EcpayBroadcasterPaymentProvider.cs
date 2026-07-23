@@ -28,9 +28,10 @@ public sealed class EcpayBroadcasterPaymentProvider : IPaymentProvider
             var result = payload.RootElement;
             var orderInfo = result.TryGetProperty("OrderInfo", out var order) ? order : result;
             var externalId = GetString(orderInfo, "TradeNo");
+            var merchantOrderNo = GetString(orderInfo, "MerchantTradeNo");
             if (string.IsNullOrWhiteSpace(externalId))
             {
-                externalId = GetString(orderInfo, "MerchantTradeNo");
+                externalId = merchantOrderNo;
             }
 
             var resultMerchantId = GetString(result, "MerchantID");
@@ -43,11 +44,13 @@ public sealed class EcpayBroadcasterPaymentProvider : IPaymentProvider
             return Task.FromResult(new PaymentNotification
             {
                 ExternalId = externalId,
+                MerchantOrderNo = merchantOrderNo,
                 SignatureIsValid = signatureIsValid && merchantMatches,
                 IsSuccessful = rtnCode == 1 && tradeStatus == 1,
                 Amount = GetDecimal(orderInfo, "TradeAmt"),
                 DisplayName = GetString(result, "PatronName"),
-                Message = GetString(result, "PatronNote"),
+                // Audience-visible text must originate from a locally registered order.
+                Message = "",
                 OccurredAtUtc = ParseOccurredAt(GetString(orderInfo, "PaymentDate")),
                 FailureReason = signatureIsValid ? (merchantMatches ? "" : "Merchant ID does not match the configured provider.") : "Invalid ECPay CheckMacValue."
             });

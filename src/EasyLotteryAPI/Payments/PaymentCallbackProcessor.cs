@@ -18,6 +18,7 @@ public sealed class PaymentCallbackProcessor
     private readonly string _configPath;
     private readonly string _legacyConfigPath;
     private readonly string _paymentEventsPath;
+    private readonly string _paymentOrdersPath;
     private readonly string _overtimeFeedPath;
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly IDeserializer _yaml = new DeserializerBuilder()
@@ -44,6 +45,7 @@ public sealed class PaymentCallbackProcessor
         _configPath = Path.Combine(storageDirectory, "settings.yaml");
         _legacyConfigPath = Path.Combine(storageDirectory, "easy-lottery.yaml");
         _paymentEventsPath = Path.Combine(storageDirectory, "easy-lottery-payment-events.json");
+        _paymentOrdersPath = Path.Combine(storageDirectory, "easy-lottery-payment-orders.json");
         _overtimeFeedPath = Path.Combine(storageDirectory, "easy-lottery-overtime-feed.json");
     }
 
@@ -78,12 +80,27 @@ public sealed class PaymentCallbackProcessor
                 return PaymentCallbackProcessResult.Duplicate();
             }
 
+            var orders = await ReadJsonAsync<List<RegisteredPaymentOrder>>(_paymentOrdersPath, cancellationToken) ?? [];
+            var order = orders.FirstOrDefault(item => string.Equals(item.ProviderId, providerId, StringComparison.OrdinalIgnoreCase) &&
+                                                      string.Equals(item.MerchantOrderNo, notification.MerchantOrderNo, StringComparison.Ordinal));
+            if (order is not null)
+            {
+                order.Status = "paid";
+                order.PaidAtUtc = notification.OccurredAtUtc;
+                await WriteJsonAsync(_paymentOrdersPath, orders, cancellationToken);
+            }
+
             paymentEvents.Add(new ProcessedPaymentEvent
             {
                 ProviderId = providerId,
                 ExternalId = notification.ExternalId,
+                MerchantOrderNo = notification.MerchantOrderNo,
                 Amount = notification.Amount,
                 Currency = notification.Currency,
+                Status = "paid",
+                DisplayName = order?.DisplayName ?? notification.DisplayName,
+                Message = order?.Message ?? "",
+                PaidAtUtc = notification.OccurredAtUtc,
                 ProcessedAtUtc = DateTimeOffset.UtcNow
             });
             await WriteJsonAsync(_paymentEventsPath, paymentEvents, cancellationToken);
@@ -94,8 +111,8 @@ public sealed class PaymentCallbackProcessor
             {
                 Source = OvertimeSupportSource.ThirdPartyPayment,
                 SourceLabel = provider.Descriptor.DisplayName,
-                DisplayName = notification.DisplayName,
-                Message = notification.Message,
+                DisplayName = order?.DisplayName ?? notification.DisplayName,
+                Message = order?.Message ?? "",
                 Amount = notification.Amount,
                 AmountDisplay = $"NT${notification.Amount:N0}",
                 Currency = notification.Currency,
@@ -129,6 +146,38 @@ public sealed class PaymentCallbackProcessor
 
         await _hub.Clients.All.SendAsync("OvertimeFeedChanged", cancellationToken);
         return PaymentCallbackProcessResult.Success();
+    }
+
+    public async Task<RegisteredPaymentOrder> RegisterOrderAsync(PaymentOrderRegistrationRequest request, CancellationToken cancellationToken)
+    {
+        var providerId = NormalizeProviderId(request.ProviderId);
+        if (!_factory.TryGet(providerId, out _) || string.IsNullOrWhiteSpace(request.MerchantOrderNo))
+        {
+            throw new ArgumentException("請提供支援的金流商與商店訂單編號。");
+        }
+
+        await _gate.WaitAsync(cancellationToken);
+        try
+        {
+            var orders = await ReadJsonAsync<List<RegisteredPaymentOrder>>(_paymentOrdersPath, cancellationToken) ?? [];
+            if (orders.Any(order => string.Equals(order.ProviderId, providerId, StringComparison.OrdinalIgnoreCase) && string.Equals(order.MerchantOrderNo, request.MerchantOrderNo.Trim(), StringComparison.Ordinal)))
+            {
+                throw new InvalidOperationException("此商店訂單編號已登記。");
+            }
+            var order = new RegisteredPaymentOrder
+            {
+                ProviderId = providerId,
+                MerchantOrderNo = request.MerchantOrderNo.Trim(),
+                DisplayName = request.DisplayName?.Trim() ?? "匿名贊助者",
+                Message = request.Message?.Trim() ?? "",
+                CreatedAtUtc = DateTimeOffset.UtcNow,
+                Status = "pending"
+            };
+            orders.Add(order);
+            await WriteJsonAsync(_paymentOrdersPath, orders, cancellationToken);
+            return order;
+        }
+        finally { _gate.Release(); }
     }
 
     private async Task<IReadOnlyList<DonateLotteryDrawRecord>> ProcessDonateLotteryAsync(PaymentNotification notification, CancellationToken cancellationToken)
@@ -229,9 +278,33 @@ public sealed class ProcessedPaymentEvent
 {
     public string ProviderId { get; set; } = "";
     public string ExternalId { get; set; } = "";
+    public string MerchantOrderNo { get; set; } = "";
     public decimal Amount { get; set; }
     public string Currency { get; set; } = "TWD";
+    public string Status { get; set; } = "paid";
+    public string DisplayName { get; set; } = "";
+    public string Message { get; set; } = "";
+    public DateTimeOffset PaidAtUtc { get; set; }
     public DateTimeOffset ProcessedAtUtc { get; set; }
+}
+
+public sealed class PaymentOrderRegistrationRequest
+{
+    public string ProviderId { get; set; } = "";
+    public string MerchantOrderNo { get; set; } = "";
+    public string DisplayName { get; set; } = "";
+    public string Message { get; set; } = "";
+}
+
+public sealed class RegisteredPaymentOrder
+{
+    public string ProviderId { get; set; } = "";
+    public string MerchantOrderNo { get; set; } = "";
+    public string DisplayName { get; set; } = "";
+    public string Message { get; set; } = "";
+    public string Status { get; set; } = "pending";
+    public DateTimeOffset CreatedAtUtc { get; set; }
+    public DateTimeOffset? PaidAtUtc { get; set; }
 }
 
 public sealed record PaymentCallbackProcessResult(bool Accepted, bool IsDuplicate, string Error)
