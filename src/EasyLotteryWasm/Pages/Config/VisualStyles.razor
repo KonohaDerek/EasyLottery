@@ -23,6 +23,49 @@
     </CardBody>
 </Card>
 
+<Card class="mb-4">
+    <CardHeader><CardTitle>版面圖片</CardTitle></CardHeader>
+    <CardBody>
+        <CardText>
+            背景與 Banner 會套用至所有一般系統頁面。僅接受 HTTPS 圖片網址；圖片無法載入時會自動保留系統預設樣式。
+        </CardText>
+        <div class="row g-4">
+            <div class="col-12 col-lg-6">
+                <Field>
+                    <FieldLabel>背景圖片 URL</FieldLabel>
+                    <TextInput @bind-Value="backgroundImageUrl" Placeholder="https://example.com/background.jpg" />
+                </Field>
+                @if (!string.IsNullOrWhiteSpace(backgroundImageUrl))
+                {
+                    <img class="visual-image-preview" src="@backgroundImageUrl" alt="背景圖片預覽" @onerror="() => backgroundPreviewFailed = true" />
+                    @if (backgroundPreviewFailed)
+                    {
+                        <small class="text-warning">此圖片無法載入；儲存後會使用預設背景。</small>
+                    }
+                }
+            </div>
+            <div class="col-12 col-lg-6">
+                <Field>
+                    <FieldLabel>Banner 圖片 URL</FieldLabel>
+                    <TextInput @bind-Value="bannerImageUrl" Placeholder="https://example.com/banner.jpg" />
+                </Field>
+                @if (!string.IsNullOrWhiteSpace(bannerImageUrl))
+                {
+                    <img class="visual-image-preview visual-banner-preview" src="@bannerImageUrl" alt="Banner 圖片預覽" @onerror="() => bannerPreviewFailed = true" />
+                    @if (bannerPreviewFailed)
+                    {
+                        <small class="text-warning">此圖片無法載入；儲存後會使用預設 Banner。</small>
+                    }
+                }
+            </div>
+        </div>
+        <div class="d-flex flex-wrap gap-2 mt-4">
+            <Button Color="Color.Primary" Clicked="SaveImagesAsync">儲存圖片設定</Button>
+            <Button Color="Color.Secondary" Clicked="ClearImagesAsync">清除並還原預設值</Button>
+        </div>
+    </CardBody>
+</Card>
+
 @if (isLoading)
 {
     <p>載入中…</p>
@@ -75,13 +118,40 @@ else
     private string activeThemeKey = VisualStyleCatalog.DefaultThemeKey;
     private VisualStylePreset? activePreset;
     private bool isLoading = true;
+    private string backgroundImageUrl = "";
+    private string bannerImageUrl = "";
+    private bool backgroundPreviewFailed;
+    private bool bannerPreviewFailed;
 
     protected override async Task OnInitializedAsync()
     {
         presets = VisualStyleService.Presets;
         activeThemeKey = await VisualStyleService.GetActiveThemeKeyAsync();
         activePreset = VisualStyleService.GetPreset(activeThemeKey);
+        var settings = await VisualStyleService.GetSettingsAsync();
+        backgroundImageUrl = settings.BackgroundImageUrl;
+        bannerImageUrl = settings.BannerImageUrl;
         isLoading = false;
+    }
+
+    private async Task SaveImagesAsync()
+    {
+        backgroundPreviewFailed = false;
+        bannerPreviewFailed = false;
+        var settings = await VisualStyleService.SaveImagesAsync(backgroundImageUrl, bannerImageUrl);
+        backgroundImageUrl = settings.BackgroundImageUrl;
+        bannerImageUrl = settings.BannerImageUrl;
+        await MessageService.Success("版面圖片設定已儲存。");
+    }
+
+    private async Task ClearImagesAsync()
+    {
+        backgroundPreviewFailed = false;
+        bannerPreviewFailed = false;
+        var settings = await VisualStyleService.SaveImagesAsync("", "");
+        backgroundImageUrl = settings.BackgroundImageUrl;
+        bannerImageUrl = settings.BannerImageUrl;
+        await MessageService.Success("已還原預設背景與 Banner。");
     }
 
     private async Task ApplyPresetAsync(string themeKey)

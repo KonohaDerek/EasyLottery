@@ -35,7 +35,7 @@ namespace EasyLotteryWasm.Services
             var document = await _configStore.LoadAsync(cancellationToken);
             var preset = VisualStyleCatalog.GetByKey(document.VisualStyle?.ActiveThemeKey);
             _activeThemeKey = preset.Key;
-            await ApplyThemeAsync(preset.Key, cancellationToken);
+            await ApplyThemeAsync(preset.Key, document.VisualStyle, cancellationToken);
             _initialized = true;
         }
 
@@ -61,15 +61,40 @@ namespace EasyLotteryWasm.Services
             document.VisualStyle.ActiveThemeKey = normalized;
             await _configStore.SaveAsync(document, cancellationToken);
             _activeThemeKey = normalized;
-            await ApplyThemeAsync(normalized, cancellationToken);
+            await ApplyThemeAsync(normalized, document.VisualStyle, cancellationToken);
             return VisualStyleCatalog.GetByKey(normalized);
         }
 
-        private async Task ApplyThemeAsync(string key, CancellationToken cancellationToken)
+        public async Task<VisualStyleSettings> GetSettingsAsync(CancellationToken cancellationToken = default)
+        {
+            var document = await _configStore.LoadAsync(cancellationToken);
+            return document.VisualStyle ?? new VisualStyleSettings();
+        }
+
+        public async Task<VisualStyleSettings> SaveImagesAsync(
+            string? backgroundImageUrl,
+            string? bannerImageUrl,
+            CancellationToken cancellationToken = default)
+        {
+            var document = await _configStore.LoadAsync(cancellationToken);
+            document.VisualStyle ??= new VisualStyleSettings();
+            document.VisualStyle.BackgroundImageUrl = backgroundImageUrl ?? "";
+            document.VisualStyle.BannerImageUrl = bannerImageUrl ?? "";
+            await _configStore.SaveAsync(document, cancellationToken);
+            await ApplyThemeAsync(document.VisualStyle.ActiveThemeKey, document.VisualStyle, cancellationToken);
+            return document.VisualStyle;
+        }
+
+        private async Task ApplyThemeAsync(string key, VisualStyleSettings? settings, CancellationToken cancellationToken)
         {
             try
             {
                 await _jsRuntime.InvokeVoidAsync("easyLotteryTheme.apply", cancellationToken, key);
+                await _jsRuntime.InvokeVoidAsync(
+                    "easyLotteryTheme.applyImages",
+                    cancellationToken,
+                    settings?.BackgroundImageUrl ?? "",
+                    settings?.BannerImageUrl ?? "");
             }
             catch (JSException ex)
             {

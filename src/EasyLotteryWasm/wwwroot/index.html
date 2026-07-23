@@ -328,6 +328,26 @@
                 }
             }
 
+            function isHttpsUrl(value) {
+                try {
+                    return new URL(value).protocol === "https:";
+                } catch {
+                    return false;
+                }
+            }
+
+            function applyImage(variableName, value) {
+                root.style.removeProperty(variableName);
+                if (!isHttpsUrl(value)) {
+                    return;
+                }
+
+                const image = new Image();
+                image.onload = () => root.style.setProperty(variableName, `url("${value.replaceAll('"', '%22')}")`);
+                image.onerror = () => root.style.removeProperty(variableName);
+                image.src = value;
+            }
+
             let storedKey = "dashboard-console";
             try {
                 storedKey = window.localStorage.getItem(storageKey) || storedKey;
@@ -342,6 +362,10 @@
 
             window.easyLotteryTheme = {
                 apply: (key) => applyThemeKey(key),
+                applyImages: (backgroundImageUrl, bannerImageUrl) => {
+                    applyImage("--el-custom-page-image", backgroundImageUrl);
+                    applyImage("--el-custom-banner-image", bannerImageUrl);
+                },
                 getStoredKey: () => {
                     try {
                         return window.localStorage.getItem(storageKey) || "";
