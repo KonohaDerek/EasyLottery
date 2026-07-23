@@ -1,7 +1,10 @@
 bin/
 obj/
 TestResults/
-.vscode
+.vscode/*
+!.vscode/
+!.vscode/launch.json
+!.vscode/tasks.json
 .vs
 src/EasyLottery/.pnpm-store
 src/EasyLottery/node_modules
