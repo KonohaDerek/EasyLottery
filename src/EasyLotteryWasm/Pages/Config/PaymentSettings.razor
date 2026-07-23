@@ -13,7 +13,7 @@
     </CardHeader>
     <CardBody>
         <CardText>
-            <p>在這裡設定斗內來源是否可用，以及結果通知要寄送到哪個信箱。</p>
+            <p>在這裡設定斗內來源是否可用，以及結果通知要寄送到哪個信箱。已保存的支付密鑰只會以遮罩顯示；不修改欄位即可保留原值。</p>
         </CardText>
 
         @if (settings == null)
@@ -152,28 +152,42 @@
                         <CardHeader><CardTitle>綠界</CardTitle></CardHeader>
                         <CardBody>
                             <Field>
-                                <FieldLabel>Merchant ID</FieldLabel>
-                                <TextInput @bind-Value="settings.DonationIntegration.Ecpay.MerchantId" />
-                            </Field>
-                            <Field>
-                                <FieldLabel>API Key</FieldLabel>
-                                <input class="form-control" type="password" @bind="settings.DonationIntegration.Ecpay.ApiKey" autocomplete="new-password" />
-                            </Field>
-                            <Field>
-                                <FieldLabel>Secret Key</FieldLabel>
-                                <input class="form-control" type="password" @bind="settings.DonationIntegration.Ecpay.SecretKey" autocomplete="new-password" />
-                            </Field>
-                            <Field>
                                 <FieldLabel>環境</FieldLabel>
                                 <Select TValue="string" @bind-SelectedValue="settings.DonationIntegration.Ecpay.Environment">
                                     <SelectItem Value="@PaymentProviderEnvironments.Testing">測試環境</SelectItem>
                                     <SelectItem Value="@PaymentProviderEnvironments.Production">正式環境</SelectItem>
                                 </Select>
                             </Field>
+                            <div @key="settings.DonationIntegration.Ecpay.Environment">
+                            <Field>
+                                <FieldLabel>Merchant ID</FieldLabel>
+                                <TextInput @bind-Value="Active(settings.DonationIntegration.Ecpay).MerchantId" />
+                            </Field>
+                            <Field>
+                                <FieldLabel>HashKey</FieldLabel>
+                                <input class="form-control" type="password" @bind="Active(settings.DonationIntegration.Ecpay).ApiKey" autocomplete="new-password" />
+                            </Field>
+                            <Field>
+                                <FieldLabel>HashIV</FieldLabel>
+                                <input class="form-control" type="password" @bind="Active(settings.DonationIntegration.Ecpay).SecretKey" autocomplete="new-password" />
+                            </Field>
+                            <Field>
+                                <FieldLabel>目前環境斗內頁 URL</FieldLabel>
+                                <TextInput @bind-Value="Active(settings.DonationIntegration.Ecpay).DonationPageUrl" Placeholder="由綠界測試後台建立的斗內頁網址" />
+                            </Field>
+                            @if (HasTestingDonationUrl(settings.DonationIntegration.Ecpay))
+                            {
+                                <a class="btn btn-outline-primary btn-sm mb-3" href="@settings.DonationIntegration.Ecpay.Testing.DonationPageUrl" target="_blank" rel="noopener noreferrer">開啟綠界測試斗內頁</a>
+                            }
+                            else
+                            {
+                                <Button Color="Color.Secondary" Size="Size.Small" Disabled class="mb-3">請先設定綠界測試斗內頁 URL</Button>
+                            }
                             <Field>
                                 <FieldLabel>啟用</FieldLabel>
-                                <Switch TValue="bool" @bind-Value="settings.DonationIntegration.Ecpay.IsEnabled" Disabled="@(!settings.DonationIntegration.Ecpay.HasConfiguration)" />
+                                <Switch TValue="bool" @bind-Value="Active(settings.DonationIntegration.Ecpay).IsEnabled" Disabled="@(!Active(settings.DonationIntegration.Ecpay).HasConfiguration)" />
                             </Field>
+                            </div>
                         </CardBody>
                     </Card>
                 </Column>
@@ -182,28 +196,42 @@
                         <CardHeader><CardTitle>藍新</CardTitle></CardHeader>
                         <CardBody>
                             <Field>
-                                <FieldLabel>Merchant ID</FieldLabel>
-                                <TextInput @bind-Value="settings.DonationIntegration.NewebPay.MerchantId" />
-                            </Field>
-                            <Field>
-                                <FieldLabel>API Key</FieldLabel>
-                                <input class="form-control" type="password" @bind="settings.DonationIntegration.NewebPay.ApiKey" autocomplete="new-password" />
-                            </Field>
-                            <Field>
-                                <FieldLabel>Secret Key</FieldLabel>
-                                <input class="form-control" type="password" @bind="settings.DonationIntegration.NewebPay.SecretKey" autocomplete="new-password" />
-                            </Field>
-                            <Field>
                                 <FieldLabel>環境</FieldLabel>
                                 <Select TValue="string" @bind-SelectedValue="settings.DonationIntegration.NewebPay.Environment">
                                     <SelectItem Value="@PaymentProviderEnvironments.Testing">測試環境</SelectItem>
                                     <SelectItem Value="@PaymentProviderEnvironments.Production">正式環境</SelectItem>
                                 </Select>
                             </Field>
+                            <div @key="settings.DonationIntegration.NewebPay.Environment">
+                            <Field>
+                                <FieldLabel>Merchant ID</FieldLabel>
+                                <TextInput @bind-Value="Active(settings.DonationIntegration.NewebPay).MerchantId" />
+                            </Field>
+                            <Field>
+                                <FieldLabel>HashKey</FieldLabel>
+                                <input class="form-control" type="password" @bind="Active(settings.DonationIntegration.NewebPay).ApiKey" autocomplete="new-password" />
+                            </Field>
+                            <Field>
+                                <FieldLabel>HashIV</FieldLabel>
+                                <input class="form-control" type="password" @bind="Active(settings.DonationIntegration.NewebPay).SecretKey" autocomplete="new-password" />
+                            </Field>
+                            <Field>
+                                <FieldLabel>目前環境斗內頁 URL</FieldLabel>
+                                <TextInput @bind-Value="Active(settings.DonationIntegration.NewebPay).DonationPageUrl" Placeholder="https://cdonate.newebpay.com/短網址/連結名稱" />
+                            </Field>
+                            @if (HasTestingDonationUrl(settings.DonationIntegration.NewebPay))
+                            {
+                                <a class="btn btn-outline-primary btn-sm mb-3" href="@settings.DonationIntegration.NewebPay.Testing.DonationPageUrl" target="_blank" rel="noopener noreferrer">開啟藍新測試斗內頁</a>
+                            }
+                            else
+                            {
+                                <Button Color="Color.Secondary" Size="Size.Small" Disabled class="mb-3">請先設定藍新測試斗內頁 URL</Button>
+                            }
                             <Field>
                                 <FieldLabel>啟用</FieldLabel>
-                                <Switch TValue="bool" @bind-Value="settings.DonationIntegration.NewebPay.IsEnabled" Disabled="@(!settings.DonationIntegration.NewebPay.HasConfiguration)" />
+                                <Switch TValue="bool" @bind-Value="Active(settings.DonationIntegration.NewebPay).IsEnabled" Disabled="@(!Active(settings.DonationIntegration.NewebPay).HasConfiguration)" />
                             </Field>
+                            </div>
                         </CardBody>
                     </Card>
                 </Column>
@@ -215,24 +243,38 @@
                         <CardHeader><CardTitle>oen.tw</CardTitle></CardHeader>
                         <CardBody>
                             <Field>
-                                <FieldLabel>Creator ID</FieldLabel>
-                                <TextInput @bind-Value="settings.DonationIntegration.OenTw.CreatorId" />
-                            </Field>
-                            <Field>
-                                <FieldLabel>Access Token</FieldLabel>
-                                <input class="form-control" type="password" @bind="settings.DonationIntegration.OenTw.AccessToken" autocomplete="new-password" />
-                            </Field>
-                            <Field>
                                 <FieldLabel>環境</FieldLabel>
                                 <Select TValue="string" @bind-SelectedValue="settings.DonationIntegration.OenTw.Environment">
                                     <SelectItem Value="@PaymentProviderEnvironments.Testing">測試環境</SelectItem>
                                     <SelectItem Value="@PaymentProviderEnvironments.Production">正式環境</SelectItem>
                                 </Select>
                             </Field>
+                            <div @key="settings.DonationIntegration.OenTw.Environment">
+                            <Field>
+                                <FieldLabel>Creator ID</FieldLabel>
+                                <TextInput @bind-Value="Active(settings.DonationIntegration.OenTw).CreatorId" />
+                            </Field>
+                            <Field>
+                                <FieldLabel>Access Token</FieldLabel>
+                                <input class="form-control" type="password" @bind="Active(settings.DonationIntegration.OenTw).AccessToken" autocomplete="new-password" />
+                            </Field>
+                            <Field>
+                                <FieldLabel>目前環境斗內頁 URL</FieldLabel>
+                                <TextInput @bind-Value="Active(settings.DonationIntegration.OenTw).DonationPageUrl" Placeholder="由 OEN 測試後台建立的斗內頁網址" />
+                            </Field>
+                            @if (HasTestingDonationUrl(settings.DonationIntegration.OenTw))
+                            {
+                                <a class="btn btn-outline-primary btn-sm mb-3" href="@settings.DonationIntegration.OenTw.Testing.DonationPageUrl" target="_blank" rel="noopener noreferrer">開啟 OEN 測試斗內頁</a>
+                            }
+                            else
+                            {
+                                <Button Color="Color.Secondary" Size="Size.Small" Disabled class="mb-3">請先設定 OEN 測試斗內頁 URL</Button>
+                            }
                             <Field>
                                 <FieldLabel>啟用</FieldLabel>
-                                <Switch TValue="bool" @bind-Value="settings.DonationIntegration.OenTw.IsEnabled" Disabled="@(!settings.DonationIntegration.OenTw.HasConfiguration)" />
+                                <Switch TValue="bool" @bind-Value="Active(settings.DonationIntegration.OenTw).IsEnabled" Disabled="@(!Active(settings.DonationIntegration.OenTw).HasConfiguration)" />
                             </Field>
+                            </div>
                         </CardBody>
                     </Card>
                 </Column>
@@ -287,6 +329,12 @@
 
     private bool HasCustomDomain => !string.IsNullOrWhiteSpace(settings?.PublicCallback.CustomDomain);
 
+    private static bool HasTestingDonationUrl(DonationProviderSettings provider) =>
+        Uri.TryCreate(provider.Testing.DonationPageUrl, UriKind.Absolute, out var uri) &&
+        string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase);
+
+    private static DonationProviderConnectionSettings Active(DonationProviderSettings provider) => provider.GetActiveConnection();
+
     private string BuildNotifyUrl(string provider)
     {
         var baseUrl = settings?.PublicCallback.GetConfiguredBaseUrl();
@@ -306,14 +354,29 @@
     protected override async Task OnInitializedAsync()
     {
         settings = await SystemSettingsService.GetSettingsAsync();
+
+        // Tunnel detection may wait for a local tunnel process. It is optional
+        // metadata and must never prevent the payment settings from rendering.
+        _ = RefreshTunnelStatusAsync();
+    }
+
+    private async Task RefreshTunnelStatusAsync()
+    {
         try
         {
-            tunnelStatus = await TunnelRuntimeClient.GetStatusAsync();
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+            tunnelStatus = await TunnelRuntimeClient.GetStatusAsync(timeout.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            tunnelStatus = new TunnelRuntimeStatus { State = "unavailable", Error = "Tunnel 狀態查詢逾時。" };
         }
         catch
         {
             tunnelStatus = new TunnelRuntimeStatus { State = "unavailable", Error = "目前不是由 EasyLotteryApi Host 提供服務。" };
         }
+
+        await InvokeAsync(StateHasChanged);
     }
 
     private async Task SaveAsync()

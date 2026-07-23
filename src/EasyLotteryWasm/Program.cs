@@ -27,8 +27,7 @@ Log.Logger = new LoggerConfiguration()
 builder.RootComponents.Add<App>("#app");
 builder.RootComponents.Add<HeadOutlet>("head::after");
 
-var apiBaseUrl = builder.Configuration["Api:BaseUrl"] ?? builder.HostEnvironment.BaseAddress;
-builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(apiBaseUrl) });
+builder.Services.AddScoped(_ => new HttpClient { BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) });
 
 builder.Services.AddScoped<IEasyLotteryConfigStore, YamlEasyLotteryConfigStore>();
 builder.Services.AddScoped<IOvertimeFeedStore, BrowserOvertimeFeedStore>();

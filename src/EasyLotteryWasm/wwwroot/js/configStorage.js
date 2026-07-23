@@ -4,7 +4,7 @@
     }
 
     const storageKey = "easy-lottery.config.yaml";
-    const remoteConfigUrl = "/easy-lottery-config.yaml";
+    const remoteConfigUrl = "/settings";
     let memoryFallback = "";
     let nextRemoteAttemptAt = 0;
 

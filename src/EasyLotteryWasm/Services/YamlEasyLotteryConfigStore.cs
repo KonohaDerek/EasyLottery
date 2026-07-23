@@ -38,7 +38,7 @@ namespace EasyLotteryWasm.Services
                 .Build();
             _serializer = new SerializerBuilder()
                 .WithNamingConvention(CamelCaseNamingConvention.Instance)
-                .ConfigureDefaultValuesHandling(DefaultValuesHandling.OmitNull)
+                .ConfigureDefaultValuesHandling(DefaultValuesHandling.OmitNull | DefaultValuesHandling.OmitDefaults)
                 .Build();
         }
 
@@ -111,10 +111,7 @@ namespace EasyLotteryWasm.Services
             {
                 SystemSettings = new LotterySystemSettings
                 {
-                    YouTube = new YouTubeApiSettings
-                    {
-                        RefreshToken = _configuration["YouTubeApi:RefreshToken"] ?? ""
-                    },
+                    YouTube = new YouTubeApiSettings(),
                     OpenAIKey = _configuration["OpenAI:ApiKey"] ?? _configuration["OpenAIKey"] ?? ""
                 }
             };
@@ -167,6 +164,16 @@ namespace EasyLotteryWasm.Services
             document.SystemSettings.DonationIntegration.Ecpay.Environment = PaymentProviderEnvironments.Normalize(document.SystemSettings.DonationIntegration.Ecpay.Environment);
             document.SystemSettings.DonationIntegration.NewebPay.Environment = PaymentProviderEnvironments.Normalize(document.SystemSettings.DonationIntegration.NewebPay.Environment);
             document.SystemSettings.DonationIntegration.OenTw.Environment = PaymentProviderEnvironments.Normalize(document.SystemSettings.DonationIntegration.OenTw.Environment);
+            document.SystemSettings.DonationIntegration.Ecpay.MigrateLegacyConfiguration();
+            document.SystemSettings.DonationIntegration.NewebPay.MigrateLegacyConfiguration();
+            document.SystemSettings.DonationIntegration.OenTw.MigrateLegacyConfiguration();
+            document.SystemSettings.DonationIntegration.TwitchBits.MigrateLegacyConfiguration();
+            document.SystemSettings.DonationIntegration.Ecpay.Testing.DonationPageUrl = NormalizeExternalHttpsUrl(document.SystemSettings.DonationIntegration.Ecpay.Testing.DonationPageUrl);
+            document.SystemSettings.DonationIntegration.Ecpay.Production.DonationPageUrl = NormalizeExternalHttpsUrl(document.SystemSettings.DonationIntegration.Ecpay.Production.DonationPageUrl);
+            document.SystemSettings.DonationIntegration.NewebPay.Testing.DonationPageUrl = NormalizeExternalHttpsUrl(document.SystemSettings.DonationIntegration.NewebPay.Testing.DonationPageUrl);
+            document.SystemSettings.DonationIntegration.NewebPay.Production.DonationPageUrl = NormalizeExternalHttpsUrl(document.SystemSettings.DonationIntegration.NewebPay.Production.DonationPageUrl);
+            document.SystemSettings.DonationIntegration.OenTw.Testing.DonationPageUrl = NormalizeExternalHttpsUrl(document.SystemSettings.DonationIntegration.OenTw.Testing.DonationPageUrl);
+            document.SystemSettings.DonationIntegration.OenTw.Production.DonationPageUrl = NormalizeExternalHttpsUrl(document.SystemSettings.DonationIntegration.OenTw.Production.DonationPageUrl);
             document.SystemSettings.MailDelivery.SmtpHost = document.SystemSettings.MailDelivery.SmtpHost.Trim();
             document.SystemSettings.MailDelivery.SmtpPort = Math.Max(0, document.SystemSettings.MailDelivery.SmtpPort);
             document.SystemSettings.MailDelivery.SmtpUsername = document.SystemSettings.MailDelivery.SmtpUsername.Trim();
@@ -174,10 +181,10 @@ namespace EasyLotteryWasm.Services
             document.SystemSettings.MailDelivery.FromAddress = document.SystemSettings.MailDelivery.FromAddress.Trim();
             document.SystemSettings.MailDelivery.FromName = string.IsNullOrWhiteSpace(document.SystemSettings.MailDelivery.FromName) ? "EasyLottery" : document.SystemSettings.MailDelivery.FromName.Trim();
             document.SystemSettings.EnableYouTubeSuperChat &= document.SystemSettings.YouTube.HasConfiguration;
-            document.SystemSettings.DonationIntegration.Ecpay.IsEnabled &= document.SystemSettings.DonationIntegration.Ecpay.HasConfiguration;
-            document.SystemSettings.DonationIntegration.NewebPay.IsEnabled &= document.SystemSettings.DonationIntegration.NewebPay.HasConfiguration;
-            document.SystemSettings.DonationIntegration.OenTw.IsEnabled &= document.SystemSettings.DonationIntegration.OenTw.HasConfiguration;
-            document.SystemSettings.DonationIntegration.TwitchBits.IsEnabled &= document.SystemSettings.DonationIntegration.TwitchBits.HasConfiguration;
+            document.SystemSettings.DonationIntegration.Ecpay.GetActiveConnection().IsEnabled &= document.SystemSettings.DonationIntegration.Ecpay.GetActiveConnection().HasConfiguration;
+            document.SystemSettings.DonationIntegration.NewebPay.GetActiveConnection().IsEnabled &= document.SystemSettings.DonationIntegration.NewebPay.GetActiveConnection().HasConfiguration;
+            document.SystemSettings.DonationIntegration.OenTw.GetActiveConnection().IsEnabled &= document.SystemSettings.DonationIntegration.OenTw.GetActiveConnection().HasConfiguration;
+            document.SystemSettings.DonationIntegration.TwitchBits.GetActiveConnection().IsEnabled &= document.SystemSettings.DonationIntegration.TwitchBits.GetActiveConnection().HasConfiguration;
             document.OvertimeOverlay.DemoSuperChatAmount = Math.Max(0, document.OvertimeOverlay.DemoSuperChatAmount);
             document.OvertimeOverlay.DemoEcpayAmount = Math.Max(0, document.OvertimeOverlay.DemoEcpayAmount);
             document.OvertimeOverlay.SupportMessageVisibleSeconds = Math.Clamp(document.OvertimeOverlay.SupportMessageVisibleSeconds, 1, 60);
@@ -253,6 +260,18 @@ namespace EasyLotteryWasm.Services
             }
 
             return uri.GetLeftPart(UriPartial.Authority).TrimEnd('/');
+        }
+
+        private static string NormalizeExternalHttpsUrl(string? value)
+        {
+            var trimmed = value?.Trim() ?? "";
+            if (!Uri.TryCreate(trimmed, UriKind.Absolute, out var uri) ||
+                !string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+            {
+                return "";
+            }
+
+            return uri.AbsoluteUri.TrimEnd('/');
         }
 
         private static EasyLotteryConfigDocument CloneDocument(EasyLotteryConfigDocument document)

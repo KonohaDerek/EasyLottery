@@ -17,7 +17,7 @@ public sealed class PaymentProviderCatalogTests
         Assert.IsTrue(providers.All(provider => provider.MarketPackageId.StartsWith("payment.", StringComparison.Ordinal)));
     }
 
-    [DataTestMethod]
+    [TestMethod]
     [DataRow(null, PaymentProviderEnvironments.Testing)]
     [DataRow("testing", PaymentProviderEnvironments.Testing)]
     [DataRow("PRODUCTION", PaymentProviderEnvironments.Production)]

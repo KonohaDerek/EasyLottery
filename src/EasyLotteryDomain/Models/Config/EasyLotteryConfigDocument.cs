@@ -1,4 +1,5 @@
 using EasyLotteryDomain.Models.Entities;
+using YamlDotNet.Serialization;
 
 namespace EasyLotteryDomain.Models.Config
 {
@@ -49,12 +50,7 @@ namespace EasyLotteryDomain.Models.Config
     {
         public string ApiKey { get; set; } = "";
 
-        public string CredentialsBase64 { get; set; } = "";
-
-        public string RedirectUri { get; set; } = "";
-
-        public string RefreshToken { get; set; } = "";
-
+        [YamlIgnore]
         public bool HasConfiguration =>
             !string.IsNullOrWhiteSpace(ApiKey);
     }
@@ -176,13 +172,83 @@ namespace EasyLotteryDomain.Models.Config
 
         public string CreatorId { get; set; } = "";
 
-        public bool HasConfiguration =>
+        /// <summary>
+        /// The provider-specific donation page for a sandbox transaction. It is
+        /// configurable because providers issue the final page path per merchant.
+        /// </summary>
+        public string TestingDonationUrl { get; set; } = "";
+
+        // Environment-specific settings. The original top-level fields are kept
+        // for migration from existing YAML files and act as the active runtime view.
+        public DonationProviderConnectionSettings Testing { get; set; } = new();
+        public DonationProviderConnectionSettings Production { get; set; } = new();
+
+        private bool HasLegacyConfiguration =>
             !string.IsNullOrWhiteSpace(MerchantId) ||
             !string.IsNullOrWhiteSpace(ApiKey) ||
             !string.IsNullOrWhiteSpace(SecretKey) ||
             !string.IsNullOrWhiteSpace(ChannelId) ||
             !string.IsNullOrWhiteSpace(AccessToken) ||
             !string.IsNullOrWhiteSpace(CreatorId);
+
+        [YamlIgnore]
+        public bool HasConfiguration => GetActiveConnection().HasConfiguration;
+
+        public DonationProviderConnectionSettings GetActiveConnection() =>
+            PaymentProviderEnvironments.Normalize(Environment) == PaymentProviderEnvironments.Production ? Production : Testing;
+
+        public void ApplyActiveConnection()
+        {
+            var source = GetActiveConnection();
+            IsEnabled = source.IsEnabled;
+            MerchantId = source.MerchantId;
+            ApiKey = source.ApiKey;
+            SecretKey = source.SecretKey;
+            ChannelId = source.ChannelId;
+            AccessToken = source.AccessToken;
+            CreatorId = source.CreatorId;
+            TestingDonationUrl = source.DonationPageUrl;
+        }
+
+        public void MigrateLegacyConfiguration()
+        {
+            Testing ??= new DonationProviderConnectionSettings();
+            Production ??= new DonationProviderConnectionSettings();
+            if (ReferenceEquals(Testing, Production))
+            {
+                Production = new DonationProviderConnectionSettings();
+            }
+            if (!Testing.HasConfiguration && !Production.HasConfiguration && HasLegacyConfiguration)
+            {
+                var target = GetActiveConnection();
+                target.IsEnabled = IsEnabled;
+                target.MerchantId = MerchantId;
+                target.ApiKey = ApiKey;
+                target.SecretKey = SecretKey;
+                target.ChannelId = ChannelId;
+                target.AccessToken = AccessToken;
+                target.CreatorId = CreatorId;
+                target.DonationPageUrl = TestingDonationUrl;
+            }
+
+            // Do not persist duplicate active credentials at the top level.
+            IsEnabled = false;
+            MerchantId = ApiKey = SecretKey = ChannelId = AccessToken = CreatorId = TestingDonationUrl = null!;
+        }
+    }
+
+    public sealed class DonationProviderConnectionSettings
+    {
+        public bool IsEnabled { get; set; }
+        public string MerchantId { get; set; } = "";
+        public string ApiKey { get; set; } = "";
+        public string SecretKey { get; set; } = "";
+        public string ChannelId { get; set; } = "";
+        public string AccessToken { get; set; } = "";
+        public string CreatorId { get; set; } = "";
+        public string DonationPageUrl { get; set; } = "";
+        [YamlIgnore]
+        public bool HasConfiguration => !string.IsNullOrWhiteSpace(MerchantId) || !string.IsNullOrWhiteSpace(ApiKey) || !string.IsNullOrWhiteSpace(SecretKey) || !string.IsNullOrWhiteSpace(ChannelId) || !string.IsNullOrWhiteSpace(AccessToken) || !string.IsNullOrWhiteSpace(CreatorId);
     }
 
     public sealed class MailDeliverySettings
@@ -201,6 +267,7 @@ namespace EasyLotteryDomain.Models.Config
 
         public bool EnableSsl { get; set; } = true;
 
+        [YamlIgnore]
         public bool HasConfiguration =>
             !string.IsNullOrWhiteSpace(SmtpHost) &&
             SmtpPort > 0 &&

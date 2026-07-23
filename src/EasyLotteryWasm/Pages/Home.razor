@@ -21,7 +21,6 @@
 @inject IEasyLotteryConfigStore ConfigStore
 @inject EasyLotteryAuditService AuditService
 @inject ILogger<YouTubeServiceHelper> Logger
-@implements IDisposable
 
 
 <PageTitle>抽獎</PageTitle>
@@ -163,9 +162,7 @@
                             <FieldLabel>同帳號冷卻秒數</FieldLabel>
                             <Validation>
                                 <NumericInput TValue="int" @bind-Value="@chatRoomCatch.CooldownSeconds" Min="0" Max="86400" Disabled="@catchChat" />
-                                <Feedback>
-                                    <ValidationError />
-                                </Feedback>
+                                <ValidationError />
                             </Validation>
                         </Field>
                         <div class="chat-settings-switch">
@@ -349,21 +346,9 @@
 
     protected override async Task OnInitializedAsync()
     {
-        youTubeServiceHelper.AuthStateChanged += OnAuthStateChanged;
-
         hasYoutubeApiKey = await youTubeServiceHelper.HasConfiguredCredentialsAsync();
 
         await LoadDrawingRuleStateAsync();
-    }
-
-    private async void OnAuthStateChanged()
-    {
-        await InvokeAsync(StateHasChanged);
-    }
-
-    public void Dispose()
-    {
-        youTubeServiceHelper.AuthStateChanged -= OnAuthStateChanged;
     }
 
     // 得獎人
@@ -730,8 +715,8 @@
             Log.Information("DisplayMessage");
             var chatMessages = await youTubeServiceHelper.ListLiveChatMessageAsync(chatRoomCatch.ID);
             var messages = chatMessages
-                .Where(x => (x.Snippet.PublishedAtDateTimeOffset ?? DateTimeOffset.MinValue) > chatRoomCatch.LastMessageTime)
-                .OrderBy(x => x.Snippet.PublishedAtDateTimeOffset ?? DateTimeOffset.MinValue)
+                .Where(x => (x.Snippet?.PublishedAtDateTimeOffset ?? DateTimeOffset.MinValue) > chatRoomCatch.LastMessageTime)
+                .OrderBy(x => x.Snippet?.PublishedAtDateTimeOffset ?? DateTimeOffset.MinValue)
                 .ToList();
 
             if(!messages.Any())
@@ -747,7 +732,7 @@
 
             foreach (var message in messages)
             {
-                var publishedAt = message.Snippet.PublishedAtDateTimeOffset ?? latestSeenTime;
+                var publishedAt = message.Snippet?.PublishedAtDateTimeOffset ?? latestSeenTime;
                 if (publishedAt > latestSeenTime)
                 {
                     latestSeenTime = publishedAt;

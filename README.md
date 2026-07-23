@@ -16,7 +16,7 @@ EasyLottery 是一套以 **Blazor WebAssembly + Domain Service** 組成的直播
 
 ### 1. YouTube 會員與授權
 
-- 支援 YouTube OAuth 授權登入
+- 支援以 YouTube API Key 讀取公開直播資料
 - 可檢查目前是否已完成授權
 - 可匯入 YouTube 會員名單
 - API 端提供會員資料查詢能力
@@ -70,8 +70,8 @@ EasyLottery 是一套以 **Blazor WebAssembly + Domain Service** 組成的直播
 
 系統目前提供部分設定入口，例如：
 
-- YouTube 登入設定
-- 支付設定頁面（目前仍在開發中）
+- YouTube API Key 設定
+- 支付設定頁面
 
 ## 系統架構
 
@@ -83,11 +83,11 @@ EasyLottery 是一套以 **Blazor WebAssembly + Domain Service** 組成的直播
 另外有一個 Web Host 與測試專案：
 
 - `EasyLotteryAPI`：ASP.NET Core API Host，提供前端靜態檔、YAML 設定與加班事件 API
-- `EasyLotteryDomainTests`
+- `EasyLotteryDomainTests`、`EasyLotteryApiTests`
 
 ## 資料與儲存方式
 
-- 系統主要使用 YAML 作為設定資料來源，儲存於 Web Host 的 `App_Data/easy-lottery.yaml`
+- 系統主要使用 YAML 作為設定資料來源，儲存於 Web Host 的 `App_Data/settings.yaml`
 - `EasyLotteryAPI` 提供同源 API，所有瀏覽器與 OBS 讀寫同一份 YAML
 - Domain 層負責模板、活動結果與抽獎邏輯
 - 模板與活動資料會在本地設定中持續保存
@@ -98,12 +98,12 @@ EasyLottery 是一套以 **Blazor WebAssembly + Domain Service** 組成的直播
 - `/activity-results`：活動結果
 - `/pokebox`：戳戳樂模板列表
 - `/roulette`：轉盤模板列表
-- `/system/youtube-login`：YouTube OAuth 授權
-- `/system/payment`：支付設定（開發中）
+- `/system/youtube-login`：YouTube API Key
+- `/system/payment`：支付設定
 
 ## 技術堆疊
 
-- .NET 8
+- .NET 10
 - Blazor WebAssembly
 - Blazorise
 - Serilog
@@ -115,7 +115,7 @@ EasyLottery 是一套以 **Blazor WebAssembly + Domain Service** 組成的直播
 
 ### 前置需求
 
-- .NET SDK 8.0
+- .NET SDK 10.0
 - 支援 Blazor WebAssembly 的瀏覽器
 
 ### 執行 Web Host
