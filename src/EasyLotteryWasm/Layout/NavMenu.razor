@@ -37,11 +37,7 @@
                     轉盤
                 </NavLink>
             </div>
-            <div class="nav-item px-3 nav-sub-item">
-                <NavLink class="nav-link" href="activity-results">
-                    活動結果
-                </NavLink>
-            </div>
+            <div class="nav-item px-3 nav-sub-item"><NavLink class="nav-link" href="market">活動市集</NavLink></div>
             <div class="nav-item px-3 nav-sub-item">
                 <NavLink class="nav-link" href="activity/overtime">
                     加班台
@@ -52,6 +48,15 @@
                     Donate 活動
                 </NavLink>
             </div>
+        }
+
+        <div class="nav-group-header px-3" @onclick="ToggleReportGroup">
+            <span class="bi bi-bar-chart-fill" aria-hidden="true"></span><span class="nav-group-title">Report</span>
+            <span class="nav-group-chevron @(reportGroupExpanded ? "expanded" : "")">&#9656;</span>
+        </div>
+        @if (reportGroupExpanded)
+        {
+            <div class="nav-item px-3 nav-sub-item"><NavLink class="nav-link" href="activity-results">活動與 Donate 結果</NavLink></div>
         }
 
         @* === 3. 系統配置 === *@
@@ -116,6 +121,7 @@
     private bool collapseNavMenu = false;
     private bool activityGroupExpanded = false;
     private bool systemGroupExpanded = false;
+    private bool reportGroupExpanded = false;
     private bool hasYoutubeApiKey = false;
 
     private string? NavMenuCssClass => collapseNavMenu ? "collapse" : null;
@@ -139,5 +145,6 @@
     {
         systemGroupExpanded = !systemGroupExpanded;
     }
+    private void ToggleReportGroup() => reportGroupExpanded = !reportGroupExpanded;
 
 }
