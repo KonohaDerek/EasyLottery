@@ -187,10 +187,14 @@ html {
 body {
     font-family: 'Inter', 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif;
     color: var(--el-text);
-    background:
+    background-image:
+        var(--el-custom-page-image, none),
         radial-gradient(circle at top left, rgba(37, 99, 235, 0.08), transparent 30%),
         radial-gradient(circle at bottom right, rgba(124, 58, 237, 0.07), transparent 24%),
         linear-gradient(180deg, var(--el-page-bg) 0%, var(--el-page-bg-alt) 100%);
+    background-position: center, center, center, center;
+    background-size: cover, auto, auto, auto;
+    background-attachment: fixed;
     position: relative;
     overflow-x: hidden;
 }
@@ -263,7 +267,7 @@ a, .btn-link {
 
 .app-top-banner {
     min-height: 8.5rem;
-    background-image: var(--el-topbar-overlay), var(--el-topbar-image);
+    background-image: var(--el-topbar-overlay), var(--el-custom-banner-image, var(--el-topbar-image));
     background-position: center;
     background-size: cover;
     border-bottom: 1px solid var(--el-border);
@@ -324,6 +328,23 @@ a, .btn-link {
     overflow: hidden;
     border-radius: 1.25rem;
     transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
+}
+
+.visual-image-preview {
+    display: block;
+    width: 100%;
+    min-height: 9rem;
+    max-height: 14rem;
+    margin-top: 0.75rem;
+    border: 1px solid var(--el-border);
+    border-radius: 0.75rem;
+    background: var(--el-surface-soft);
+    object-fit: cover;
+    object-position: center;
+}
+
+.visual-banner-preview {
+    aspect-ratio: 3 / 1;
 }
 
 .visual-style-card:hover,

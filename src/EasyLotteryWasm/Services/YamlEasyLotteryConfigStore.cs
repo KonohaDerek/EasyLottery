@@ -142,6 +142,8 @@ namespace EasyLotteryWasm.Services
             document.DrawingRules ??= new DrawingRuleSettings();
             document.VisualStyle ??= new VisualStyleSettings();
             document.VisualStyle.ActiveThemeKey = VisualStyleCatalog.NormalizeKey(document.VisualStyle.ActiveThemeKey);
+            document.VisualStyle.BackgroundImageUrl = NormalizeExternalHttpsUrl(document.VisualStyle.BackgroundImageUrl);
+            document.VisualStyle.BannerImageUrl = NormalizeExternalHttpsUrl(document.VisualStyle.BannerImageUrl);
             document.SoundCue ??= new SoundCueSettings();
             document.SoundCue.ActivePresetKey = SoundCuePreset.NormalizeKey(document.SoundCue.ActivePresetKey);
             document.OvertimeOverlay ??= new OvertimeOverlaySettings();
