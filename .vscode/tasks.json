@@ -1,0 +1,77 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "dotnet: restore",
+      "type": "shell",
+      "command": "dotnet",
+      "args": [
+        "restore",
+        "EasyLottery.generated.sln"
+      ],
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "dotnet: build solution",
+      "type": "shell",
+      "command": "dotnet",
+      "args": [
+        "build",
+        "EasyLottery.generated.sln",
+        "-c",
+        "Debug"
+      ],
+      "group": "build",
+      "dependsOn": "dotnet: restore",
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "dotnet: run api",
+      "type": "shell",
+      "command": "dotnet",
+      "args": [
+        "run",
+        "--project",
+        "src/EasyLotteryAPI/EasyLotteryApi.csproj",
+        "--launch-profile",
+        "EasyLotteryAPI"
+      ],
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "dotnet: stop api port",
+      "type": "shell",
+      "command": "bash",
+      "args": [
+        "-lc",
+        "pids=$(lsof -tiTCP:5297 -sTCP:LISTEN); if [ -n \"$pids\" ]; then kill $pids; fi"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "compose: up api",
+      "type": "shell",
+      "command": "docker",
+      "args": [
+        "compose",
+        "up",
+        "-d",
+        "--build",
+        "api"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "compose: down api",
+      "type": "shell",
+      "command": "docker",
+      "args": [
+        "compose",
+        "down",
+        "--remove-orphans"
+      ],
+      "problemMatcher": []
+    }
+  ]
+}

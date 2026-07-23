@@ -1,0 +1,26 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "EasyLottery API + WASM (Local Debug)",
+      "type": "blazorwasm",
+      "request": "launch",
+      "hosted": true,
+      "preLaunchTask": "dotnet: build solution",
+      "program": "${workspaceFolder}/src/EasyLotteryAPI/bin/Debug/net10.0/EasyLotteryApi.dll",
+      "cwd": "${workspaceFolder}/src/EasyLotteryAPI",
+      "url": "http://localhost:18930",
+      "browser": "chrome"
+    },
+    {
+      "name": "EasyLottery Docker Compose (Browser Preview)",
+      "type": "pwa-chrome",
+      "request": "launch",
+      "url": "http://localhost:18930",
+      "webRoot": "${workspaceFolder}/src/EasyLotteryWasm",
+      "preLaunchTask": "compose: up api",
+      "postDebugTask": "compose: down api"
+    }
+  ],
+  "compounds": []
+}
