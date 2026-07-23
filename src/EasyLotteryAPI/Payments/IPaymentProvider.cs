@@ -26,6 +26,7 @@ public sealed class PaymentNotificationRequest
 public sealed class PaymentNotification
 {
     public required string ExternalId { get; init; }
+    public string MerchantOrderNo { get; init; } = "";
     public required bool IsSuccessful { get; init; }
     public required bool SignatureIsValid { get; init; }
     public decimal Amount { get; init; }

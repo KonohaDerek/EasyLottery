@@ -176,6 +176,17 @@ app.MapPost("/api/payments/{providerId}/notify", async (string providerId, HttpC
     return Results.Text(acknowledgement, "text/plain", Encoding.UTF8);
 });
 
+app.MapPost("/api/payments/orders", async (PaymentOrderRegistrationRequest request, HttpContext context, PaymentCallbackProcessor callbacks) =>
+{
+    if (context.Connection.RemoteIpAddress is null || !IPAddress.IsLoopback(context.Connection.RemoteIpAddress))
+    {
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+    try { return Results.Created($"/api/payments/orders/{request.MerchantOrderNo}", await callbacks.RegisterOrderAsync(request, context.RequestAborted)); }
+    catch (ArgumentException exception) { return Results.BadRequest(new { error = exception.Message }); }
+    catch (InvalidOperationException exception) { return Results.Conflict(new { error = exception.Message }); }
+});
+
 app.MapFallbackToFile("index.html");
 
 await app.RunAsync();

@@ -47,6 +47,7 @@ public sealed class NewebPayDonationPaymentProvider : IPaymentProvider
             return Task.FromResult(new PaymentNotification
             {
                 ExternalId = tradeNo,
+                MerchantOrderNo = merchantOrderNo,
                 SignatureIsValid = signatureIsValid && merchantMatches,
                 IsSuccessful = isSuccessful,
                 Amount = amount,
