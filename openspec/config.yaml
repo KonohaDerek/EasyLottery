@@ -8,7 +8,7 @@ context: |
   產品定位：直播與活動抽獎工具，支援 YouTube 互動、戳戳樂、轉盤抽獎、活動結果與系統設定。
 
   技術堆疊：
-  - .NET 8
+  - .NET 10
   - Blazor WebAssembly
   - Domain Service
   - MSTest

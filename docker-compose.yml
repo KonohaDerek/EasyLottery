@@ -6,7 +6,7 @@ services:
     working_dir: /workspace
     environment:
       ASPNETCORE_ENVIRONMENT: Development
-      ASPNETCORE_URLS: http://0.0.0.0:18930
+      ASPNETCORE_URLS: http://+:18930
       DOTNET_USE_POLLING_FILE_WATCHER: "1"
       Storage__Directory: /data
     ports:
@@ -15,7 +15,7 @@ services:
       - .:/workspace:cached
       - easy_lottery_data:/data
     command: >
-      dotnet watch --non-interactive run --project src/EasyLotteryAPI/EasyLotteryApi.csproj --launch-profile EasyLotteryAPI
+      dotnet watch --non-interactive run --project src/EasyLotteryAPI/EasyLotteryApi.csproj --no-launch-profile
 
 volumes:
   easy_lottery_data:

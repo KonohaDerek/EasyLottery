@@ -13,6 +13,7 @@ public sealed class PaymentCallbackProcessor
     private readonly IHubContext<OvertimeHub> _hub;
     private readonly ILogger<PaymentCallbackProcessor> _logger;
     private readonly string _configPath;
+    private readonly string _legacyConfigPath;
     private readonly string _paymentEventsPath;
     private readonly string _overtimeFeedPath;
     private readonly SemaphoreSlim _gate = new(1, 1);
@@ -33,7 +34,8 @@ public sealed class PaymentCallbackProcessor
         _logger = logger;
         var storageDirectory = configuration["Storage:Directory"] ?? Path.Combine(environment.ContentRootPath, "App_Data");
         Directory.CreateDirectory(storageDirectory);
-        _configPath = Path.Combine(storageDirectory, "easy-lottery.yaml");
+        _configPath = Path.Combine(storageDirectory, "settings.yaml");
+        _legacyConfigPath = Path.Combine(storageDirectory, "easy-lottery.yaml");
         _paymentEventsPath = Path.Combine(storageDirectory, "easy-lottery-payment-events.json");
         _overtimeFeedPath = Path.Combine(storageDirectory, "easy-lottery-overtime-feed.json");
     }
@@ -105,20 +107,24 @@ public sealed class PaymentCallbackProcessor
 
     private async Task<DonationProviderSettings?> LoadSettingsAsync(string providerId, CancellationToken cancellationToken)
     {
-        if (!File.Exists(_configPath))
+        var configPath = File.Exists(_configPath) ? _configPath : _legacyConfigPath;
+        if (!File.Exists(configPath))
         {
             return null;
         }
 
-        var document = _yaml.Deserialize<EasyLotteryConfigDocument>(await File.ReadAllTextAsync(_configPath, cancellationToken));
+        var document = _yaml.Deserialize<EasyLotteryConfigDocument>(await File.ReadAllTextAsync(configPath, cancellationToken));
         var providers = document?.SystemSettings?.DonationIntegration;
-        return providerId switch
+        var provider = providerId switch
         {
             PaymentProviderIds.EcpayBroadcaster => providers?.Ecpay,
             PaymentProviderIds.NewebPayDonation => providers?.NewebPay,
             PaymentProviderIds.Oen => providers?.OenTw,
             _ => null
         };
+        provider?.MigrateLegacyConfiguration();
+        provider?.ApplyActiveConnection();
+        return provider;
     }
 
     private static string NormalizeProviderId(string providerId) => providerId.Trim().ToLowerInvariant() switch

@@ -2,12 +2,14 @@ using System.Text;
 using System.Net;
 using System.Net.Mail;
 using Microsoft.AspNetCore.SignalR;
+using EasyLotteryApi;
 using EasyLotteryApi.Payments;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddSignalR();
 builder.Services.AddSingleton<TunnelRuntimeService>();
 builder.Services.AddSingleton<IPaymentProvider, EcpayBroadcasterPaymentProvider>();
+builder.Services.AddSingleton<IPaymentProvider, NewebPayDonationPaymentProvider>();
 builder.Services.AddSingleton<PaymentProviderFactory>();
 builder.Services.AddSingleton<PaymentCallbackProcessor>();
 
@@ -15,28 +17,81 @@ var storageDirectory = builder.Configuration["Storage:Directory"]
     ?? Path.Combine(builder.Environment.ContentRootPath, "App_Data");
 Directory.CreateDirectory(storageDirectory);
 
-var configPath = Path.Combine(storageDirectory, "easy-lottery.yaml");
+var configPath = Path.Combine(storageDirectory, "settings.yaml");
+var legacyConfigPath = Path.Combine(storageDirectory, "easy-lottery.yaml");
 var overtimeFeedPath = Path.Combine(storageDirectory, "easy-lottery-overtime-feed.json");
 var storageGate = new SemaphoreSlim(1, 1);
+var configSecrets = new ConfigSecretRedactor();
+
+// Preserve existing installations while making settings.yaml the single
+// canonical configuration file from now on.
+if (!File.Exists(configPath) && File.Exists(legacyConfigPath))
+{
+    File.Move(legacyConfigPath, configPath);
+}
+
+if (File.Exists(configPath))
+{
+    var currentSettings = await File.ReadAllTextAsync(configPath);
+    var normalizedSettings = configSecrets.NormalizeForPersistence(currentSettings);
+    if (!string.Equals(currentSettings, normalizedSettings, StringComparison.Ordinal))
+    {
+        await WriteFileAsync(configPath, normalizedSettings, storageGate, CancellationToken.None);
+    }
+}
 
 var app = builder.Build();
+
+if (app.Environment.IsDevelopment())
+{
+    // Debug builds generate hash-named WASM assets. Prevent a browser that was
+    // left open across a rebuild from mixing an old boot manifest with new files.
+    app.Use(async (context, next) =>
+    {
+        if (context.Request.Path.StartsWithSegments("/_framework"))
+        {
+            context.Response.OnStarting(() =>
+            {
+                context.Response.Headers.CacheControl = "no-store";
+                return Task.CompletedTask;
+            });
+        }
+
+        await next();
+    });
+}
 
 app.UseBlazorFrameworkFiles();
 app.UseStaticFiles();
 
-app.MapGet("/easy-lottery-config.yaml", async (HttpContext context) =>
+Func<HttpContext, Task<IResult>> readSettings = async context =>
 {
     var content = await ReadFileAsync(configPath, string.Empty, context.RequestAborted);
-    return Results.Text(content, "text/yaml", Encoding.UTF8);
-});
+    return Results.Text(configSecrets.RedactForBrowser(content), "text/yaml", Encoding.UTF8);
+};
+app.MapGet("/settings", readSettings);
+// Compatibility endpoint for browsers still serving a cached pre-settings.yaml build.
+app.MapGet("/easy-lottery-config.yaml", readSettings);
 
-app.MapPut("/easy-lottery-config.yaml", async (HttpContext context, IHubContext<OvertimeHub> hub) =>
+Func<HttpContext, IHubContext<OvertimeHub>, Task<IResult>> writeSettings = async (context, hub) =>
 {
+    // Public callback tunnels must never also provide a public settings write API.
+    // Remote administration can be explicitly enabled only by the host operator.
+    var allowRemoteSettingsWrite = builder.Configuration.GetValue<bool>("Settings:AllowRemoteWrite");
+    if (!allowRemoteSettingsWrite && (context.Connection.RemoteIpAddress is null || !IPAddress.IsLoopback(context.Connection.RemoteIpAddress)))
+    {
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
     var content = await ReadRequestBodyAsync(context.Request, context.RequestAborted);
-    await WriteFileAsync(configPath, content, storageGate, context.RequestAborted);
+    var existingContent = await ReadFileAsync(configPath, string.Empty, context.RequestAborted);
+    var mergedContent = configSecrets.MergeBrowserUpdate(existingContent, content);
+    await WriteFileAsync(configPath, mergedContent, storageGate, context.RequestAborted);
     await hub.Clients.All.SendAsync("OvertimeStateChanged", context.RequestAborted);
     return Results.NoContent();
-});
+};
+app.MapPut("/settings", writeSettings);
+app.MapPut("/easy-lottery-config.yaml", writeSettings);
 
 app.MapGet("/easy-lottery-overtime-feed.json", async (HttpContext context) =>
 {
@@ -108,10 +163,17 @@ app.MapPost("/api/payments/{providerId}/notify", async (string providerId, HttpC
         Headers = headers
     }, context.RequestAborted);
 
+    if (!result.Accepted)
+    {
+        return Results.BadRequest();
+    }
+
     // ECPay broadcaster requires this exact acknowledgement after the callback is received.
-    return result.Accepted
-        ? Results.Text("1|OK", "text/plain", Encoding.UTF8)
-        : Results.BadRequest();
+    // NewebPay only requires a successful HTTP response for its Form POST notification.
+    var acknowledgement = providerId.Trim().Equals("ecpay", StringComparison.OrdinalIgnoreCase)
+        ? "1|OK"
+        : "OK";
+    return Results.Text(acknowledgement, "text/plain", Encoding.UTF8);
 });
 
 app.MapFallbackToFile("index.html");
