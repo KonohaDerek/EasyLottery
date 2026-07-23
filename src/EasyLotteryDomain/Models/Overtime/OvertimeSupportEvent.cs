@@ -4,7 +4,8 @@ namespace EasyLotteryDomain.Models.Overtime
     {
         SuperChat = 1,
         EcpayDonate = 2,
-        Manual = 3
+        Manual = 3,
+        ThirdPartyPayment = 4
     }
 
     public sealed class OvertimeSupportEvent

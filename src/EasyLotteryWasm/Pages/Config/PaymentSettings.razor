@@ -164,6 +164,13 @@
                                 <input class="form-control" type="password" @bind="settings.DonationIntegration.Ecpay.SecretKey" autocomplete="new-password" />
                             </Field>
                             <Field>
+                                <FieldLabel>環境</FieldLabel>
+                                <Select TValue="string" @bind-SelectedValue="settings.DonationIntegration.Ecpay.Environment">
+                                    <SelectItem Value="@PaymentProviderEnvironments.Testing">測試環境</SelectItem>
+                                    <SelectItem Value="@PaymentProviderEnvironments.Production">正式環境</SelectItem>
+                                </Select>
+                            </Field>
+                            <Field>
                                 <FieldLabel>啟用</FieldLabel>
                                 <Switch TValue="bool" @bind-Value="settings.DonationIntegration.Ecpay.IsEnabled" Disabled="@(!settings.DonationIntegration.Ecpay.HasConfiguration)" />
                             </Field>
@@ -187,6 +194,13 @@
                                 <input class="form-control" type="password" @bind="settings.DonationIntegration.NewebPay.SecretKey" autocomplete="new-password" />
                             </Field>
                             <Field>
+                                <FieldLabel>環境</FieldLabel>
+                                <Select TValue="string" @bind-SelectedValue="settings.DonationIntegration.NewebPay.Environment">
+                                    <SelectItem Value="@PaymentProviderEnvironments.Testing">測試環境</SelectItem>
+                                    <SelectItem Value="@PaymentProviderEnvironments.Production">正式環境</SelectItem>
+                                </Select>
+                            </Field>
+                            <Field>
                                 <FieldLabel>啟用</FieldLabel>
                                 <Switch TValue="bool" @bind-Value="settings.DonationIntegration.NewebPay.IsEnabled" Disabled="@(!settings.DonationIntegration.NewebPay.HasConfiguration)" />
                             </Field>
@@ -207,6 +221,13 @@
                             <Field>
                                 <FieldLabel>Access Token</FieldLabel>
                                 <input class="form-control" type="password" @bind="settings.DonationIntegration.OenTw.AccessToken" autocomplete="new-password" />
+                            </Field>
+                            <Field>
+                                <FieldLabel>環境</FieldLabel>
+                                <Select TValue="string" @bind-SelectedValue="settings.DonationIntegration.OenTw.Environment">
+                                    <SelectItem Value="@PaymentProviderEnvironments.Testing">測試環境</SelectItem>
+                                    <SelectItem Value="@PaymentProviderEnvironments.Production">正式環境</SelectItem>
+                                </Select>
                             </Field>
                             <Field>
                                 <FieldLabel>啟用</FieldLabel>
@@ -291,7 +312,7 @@
         }
         catch
         {
-            tunnelStatus = new TunnelRuntimeStatus { State = "unavailable", Error = "目前不是由 EasyLotteryWeb Host 提供服務。" };
+            tunnelStatus = new TunnelRuntimeStatus { State = "unavailable", Error = "目前不是由 EasyLotteryApi Host 提供服務。" };
         }
     }
 

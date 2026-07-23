@@ -2,10 +2,14 @@ using System.Text;
 using System.Net;
 using System.Net.Mail;
 using Microsoft.AspNetCore.SignalR;
+using EasyLotteryApi.Payments;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddSignalR();
 builder.Services.AddSingleton<TunnelRuntimeService>();
+builder.Services.AddSingleton<IPaymentProvider, EcpayBroadcasterPaymentProvider>();
+builder.Services.AddSingleton<PaymentProviderFactory>();
+builder.Services.AddSingleton<PaymentCallbackProcessor>();
 
 var storageDirectory = builder.Configuration["Storage:Directory"]
     ?? Path.Combine(builder.Environment.ContentRootPath, "App_Data");
@@ -91,6 +95,23 @@ app.MapDelete("/api/tunnel", async (TunnelRuntimeService tunnelRuntime, Cancella
 {
     await tunnelRuntime.StopAsync(cancellationToken);
     return Results.NoContent();
+});
+
+app.MapPost("/api/payments/{providerId}/notify", async (string providerId, HttpContext context, PaymentCallbackProcessor callbacks) =>
+{
+    var body = await ReadRequestBodyAsync(context.Request, context.RequestAborted);
+    var headers = context.Request.Headers.ToDictionary(header => header.Key, header => header.Value.ToString(), StringComparer.OrdinalIgnoreCase);
+    var result = await callbacks.ProcessAsync(providerId, new PaymentNotificationRequest
+    {
+        ContentType = context.Request.ContentType ?? "",
+        Body = body,
+        Headers = headers
+    }, context.RequestAborted);
+
+    // ECPay broadcaster requires this exact acknowledgement after the callback is received.
+    return result.Accepted
+        ? Results.Text("1|OK", "text/plain", Encoding.UTF8)
+        : Results.BadRequest();
 });
 
 app.MapFallbackToFile("index.html");

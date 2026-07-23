@@ -1,6 +1,6 @@
 {
   "profiles": {
-    "EasyLotteryWeb": {
+    "EasyLotteryAPI": {
       "commandName": "Project",
       "launchBrowser": true,
       "applicationUrl": "http://localhost:18930",
