@@ -2,7 +2,7 @@ services:
   web:
     build:
       context: .
-      dockerfile: src/EasyLotteryWeb/Dockerfile
+      dockerfile: src/EasyLotteryAPI/Dockerfile
     working_dir: /workspace
     environment:
       ASPNETCORE_ENVIRONMENT: Development
@@ -15,7 +15,7 @@ services:
       - .:/workspace:cached
       - easy_lottery_data:/data
     command: >
-      dotnet watch --non-interactive run --project src/EasyLotteryWeb/EasyLotteryWeb.csproj --launch-profile EasyLotteryWeb
+      dotnet watch --non-interactive run --project src/EasyLotteryAPI/EasyLotteryApi.csproj --launch-profile EasyLotteryAPI
 
 volumes:
   easy_lottery_data:

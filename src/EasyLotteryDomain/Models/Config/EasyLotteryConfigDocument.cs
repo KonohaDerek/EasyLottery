@@ -92,6 +92,42 @@ namespace EasyLotteryDomain.Models.Config
         };
     }
 
+    public static class PaymentProviderIds
+    {
+        public const string EcpayBroadcaster = "ecpay-broadcaster";
+        public const string NewebPayDonation = "newebpay-donation";
+        public const string Oen = "oen";
+    }
+
+    public static class PaymentProviderEnvironments
+    {
+        public const string Testing = "testing";
+        public const string Production = "production";
+
+        public static string Normalize(string? value) => value?.Trim().ToLowerInvariant() switch
+        {
+            Production => Production,
+            _ => Testing
+        };
+    }
+
+    public sealed record PaymentProviderDescriptor(
+        string Id,
+        string DisplayName,
+        string CallbackPath,
+        string DocumentationUrl,
+        string MarketPackageId);
+
+    public static class PaymentProviderCatalog
+    {
+        public static IReadOnlyList<PaymentProviderDescriptor> BuiltIns { get; } =
+        [
+            new(PaymentProviderIds.EcpayBroadcaster, "綠界直播主收款", "/api/payments/ecpay/notify", "https://developers.ecpay.com.tw/?p=41030", "payment.ecpay-broadcaster"),
+            new(PaymentProviderIds.NewebPayDonation, "藍新捐款平台", "/api/payments/newebpay/notify", "https://donation.newebpay.com/doc/newebpay_DONATE_1_0_2.pdf", "payment.newebpay-donation"),
+            new(PaymentProviderIds.Oen, "oen.tw 應援金流", "/api/payments/oen/notify", "https://github.com/OEN-Tech/oen-payment-skill", "payment.oen")
+        ];
+    }
+
     public sealed class PublicCallbackSettings
     {
         public string CustomDomain { get; set; } = "";
@@ -125,6 +161,8 @@ namespace EasyLotteryDomain.Models.Config
         public string Name { get; set; } = "";
 
         public bool IsEnabled { get; set; }
+
+        public string Environment { get; set; } = PaymentProviderEnvironments.Testing;
 
         public string MerchantId { get; set; } = "";
 

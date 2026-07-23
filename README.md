@@ -82,13 +82,13 @@ EasyLottery 是一套以 **Blazor WebAssembly + Domain Service** 組成的直播
 
 另外有一個 Web Host 與測試專案：
 
-- `EasyLotteryWeb`：ASP.NET Core Web Host，提供前端靜態檔、YAML 設定與加班事件 API
+- `EasyLotteryAPI`：ASP.NET Core API Host，提供前端靜態檔、YAML 設定與加班事件 API
 - `EasyLotteryDomainTests`
 
 ## 資料與儲存方式
 
 - 系統主要使用 YAML 作為設定資料來源，儲存於 Web Host 的 `App_Data/easy-lottery.yaml`
-- `EasyLotteryWeb` 提供同源 API，所有瀏覽器與 OBS 讀寫同一份 YAML
+- `EasyLotteryAPI` 提供同源 API，所有瀏覽器與 OBS 讀寫同一份 YAML
 - Domain 層負責模板、活動結果與抽獎邏輯
 - 模板與活動資料會在本地設定中持續保存
 
@@ -121,7 +121,7 @@ EasyLottery 是一套以 **Blazor WebAssembly + Domain Service** 組成的直播
 ### 執行 Web Host
 
 ```bash
-dotnet run --project src/EasyLotteryWeb/EasyLotteryWeb.csproj --launch-profile EasyLotteryWeb
+dotnet run --project src/EasyLotteryAPI/EasyLotteryApi.csproj --launch-profile EasyLotteryAPI
 ```
 
 ### 以 Docker 執行

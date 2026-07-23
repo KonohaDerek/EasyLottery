@@ -9,7 +9,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EasyLotteryDomain", "src\Ea
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EasyLotteryWasm", "src\EasyLotteryWasm\EasyLotteryWasm.csproj", "{3C3C373D-3DDE-4914-B4E1-C5B3EC2B1D57}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EasyLotteryWeb", "src\EasyLotteryWeb\EasyLotteryWeb.csproj", "{F3A8390B-0226-41E1-8EF6-EC39D465A8D0}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EasyLotteryAPI", "src\EasyLotteryAPI\EasyLotteryApi.csproj", "{F3A8390B-0226-41E1-8EF6-EC39D465A8D0}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{2C3055C2-5246-4CA2-959E-56B0B304F385}"
 EndProject

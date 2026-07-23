@@ -164,6 +164,9 @@ namespace EasyLotteryWasm.Services
             document.SystemSettings.DonationIntegration.NewebPay.Name = string.IsNullOrWhiteSpace(document.SystemSettings.DonationIntegration.NewebPay.Name) ? "藍新" : document.SystemSettings.DonationIntegration.NewebPay.Name.Trim();
             document.SystemSettings.DonationIntegration.OenTw.Name = string.IsNullOrWhiteSpace(document.SystemSettings.DonationIntegration.OenTw.Name) ? "oen.tw" : document.SystemSettings.DonationIntegration.OenTw.Name.Trim();
             document.SystemSettings.DonationIntegration.TwitchBits.Name = string.IsNullOrWhiteSpace(document.SystemSettings.DonationIntegration.TwitchBits.Name) ? "Twitch 小奇點" : document.SystemSettings.DonationIntegration.TwitchBits.Name.Trim();
+            document.SystemSettings.DonationIntegration.Ecpay.Environment = PaymentProviderEnvironments.Normalize(document.SystemSettings.DonationIntegration.Ecpay.Environment);
+            document.SystemSettings.DonationIntegration.NewebPay.Environment = PaymentProviderEnvironments.Normalize(document.SystemSettings.DonationIntegration.NewebPay.Environment);
+            document.SystemSettings.DonationIntegration.OenTw.Environment = PaymentProviderEnvironments.Normalize(document.SystemSettings.DonationIntegration.OenTw.Environment);
             document.SystemSettings.MailDelivery.SmtpHost = document.SystemSettings.MailDelivery.SmtpHost.Trim();
             document.SystemSettings.MailDelivery.SmtpPort = Math.Max(0, document.SystemSettings.MailDelivery.SmtpPort);
             document.SystemSettings.MailDelivery.SmtpUsername = document.SystemSettings.MailDelivery.SmtpUsername.Trim();
