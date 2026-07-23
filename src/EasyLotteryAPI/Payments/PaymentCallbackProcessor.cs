@@ -1,5 +1,8 @@
 using System.Text.Json;
+using System.Net;
+using System.Net.Mail;
 using EasyLotteryDomain.Models.Config;
+using EasyLotteryDomain.Services;
 using EasyLotteryDomain.Models.Overtime;
 using Microsoft.AspNetCore.SignalR;
 using YamlDotNet.Serialization;
@@ -20,6 +23,10 @@ public sealed class PaymentCallbackProcessor
     private readonly IDeserializer _yaml = new DeserializerBuilder()
         .WithNamingConvention(CamelCaseNamingConvention.Instance)
         .IgnoreUnmatchedProperties()
+        .Build();
+    private readonly ISerializer _yamlSerializer = new SerializerBuilder()
+        .WithNamingConvention(CamelCaseNamingConvention.Instance)
+        .ConfigureDefaultValuesHandling(DefaultValuesHandling.OmitNull | DefaultValuesHandling.OmitDefaults)
         .Build();
 
     public PaymentCallbackProcessor(
@@ -81,6 +88,7 @@ public sealed class PaymentCallbackProcessor
             });
             await WriteJsonAsync(_paymentEventsPath, paymentEvents, cancellationToken);
 
+            var donateWins = await ProcessDonateLotteryAsync(notification, cancellationToken);
             var feed = await ReadJsonAsync<List<OvertimeSupportEvent>>(_overtimeFeedPath, cancellationToken) ?? [];
             feed.Add(new OvertimeSupportEvent
             {
@@ -94,7 +102,25 @@ public sealed class PaymentCallbackProcessor
                 OccurredAtUtc = notification.OccurredAtUtc,
                 ExternalId = notification.ExternalId
             });
+            foreach (var win in donateWins)
+            {
+                feed.Add(new OvertimeSupportEvent
+                {
+                    Source = OvertimeSupportSource.ThirdPartyPayment,
+                    SourceLabel = "Donate 抽獎中獎",
+                    DisplayName = win.DonorName,
+                    Message = $"抽中 {win.PrizeName}",
+                    Amount = win.Amount,
+                    AmountDisplay = $"NT${win.Amount:N0}",
+                    Currency = notification.Currency,
+                    AvatarUrl = win.PrizeImageUrl,
+                    Color = "#ffd166",
+                    OccurredAtUtc = win.DrawnAtUtc,
+                    ExternalId = $"{win.PaymentExternalId}:{win.Id}"
+                });
+            }
             await WriteJsonAsync(_overtimeFeedPath, feed, cancellationToken);
+            await SendResultNotificationAsync(donateWins, cancellationToken);
         }
         finally
         {
@@ -103,6 +129,49 @@ public sealed class PaymentCallbackProcessor
 
         await _hub.Clients.All.SendAsync("OvertimeFeedChanged", cancellationToken);
         return PaymentCallbackProcessResult.Success();
+    }
+
+    private async Task<IReadOnlyList<DonateLotteryDrawRecord>> ProcessDonateLotteryAsync(PaymentNotification notification, CancellationToken cancellationToken)
+    {
+        var path = File.Exists(_configPath) ? _configPath : _legacyConfigPath;
+        if (!File.Exists(path)) return [];
+
+        var document = _yaml.Deserialize<EasyLotteryConfigDocument>(await File.ReadAllTextAsync(path, cancellationToken)) ?? new();
+        var result = DonateLotteryEngine.Process(document, notification.ExternalId, notification.DisplayName, notification.Amount, notification.OccurredAtUtc);
+        if (!result.Processed) return [];
+
+        var temporaryPath = $"{_configPath}.{Guid.NewGuid():N}.tmp";
+        await File.WriteAllTextAsync(temporaryPath, _yamlSerializer.Serialize(document), cancellationToken);
+        File.Move(temporaryPath, _configPath, overwrite: true);
+        return result.Wins;
+    }
+
+    private async Task SendResultNotificationAsync(IReadOnlyList<DonateLotteryDrawRecord> wins, CancellationToken cancellationToken)
+    {
+        if (wins.Count == 0) return;
+        try
+        {
+            var path = File.Exists(_configPath) ? _configPath : _legacyConfigPath;
+            if (!File.Exists(path)) return;
+            var document = _yaml.Deserialize<EasyLotteryConfigDocument>(await File.ReadAllTextAsync(path, cancellationToken));
+            var settings = document?.SystemSettings;
+            if (settings is null || string.IsNullOrWhiteSpace(settings.ResultNotificationEmail) || !settings.MailDelivery.HasConfiguration) return;
+            using var message = new MailMessage(new MailAddress(settings.MailDelivery.FromAddress, settings.MailDelivery.FromName), new MailAddress(settings.ResultNotificationEmail))
+            {
+                Subject = "EasyLottery Donate 抽獎結果",
+                Body = string.Join(Environment.NewLine, wins.Select(win => $"{win.DonorName} 贊助 NT${win.Amount:N0}，抽中：{win.PrizeName}"))
+            };
+            using var client = new SmtpClient(settings.MailDelivery.SmtpHost, settings.MailDelivery.SmtpPort)
+            {
+                EnableSsl = settings.MailDelivery.EnableSsl,
+                Credentials = new NetworkCredential(settings.MailDelivery.SmtpUsername, settings.MailDelivery.SmtpPassword)
+            };
+            await client.SendMailAsync(message, cancellationToken);
+        }
+        catch (Exception exception)
+        {
+            _logger.LogWarning(exception, "Unable to send Donate lottery result notification.");
+        }
     }
 
     private async Task<DonationProviderSettings?> LoadSettingsAsync(string providerId, CancellationToken cancellationToken)

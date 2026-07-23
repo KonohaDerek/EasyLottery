@@ -1,0 +1,78 @@
+@page "/obs/donate/{ActivityId:int}"
+@using EasyLotteryDomain.Models.Config
+@inject IEasyLotteryConfigStore ConfigStore
+@implements IAsyncDisposable
+
+<PageTitle>Donate 抽獎 OBS</PageTitle>
+
+<div class="donate-obs-shell">
+    @if (activity is null)
+    {
+        <div class="donate-obs-empty">找不到 Donate 活動</div>
+    }
+    else if (latestWin is null)
+    {
+        <div class="donate-obs-empty">@activity.Name<br /><small>等待中獎結果…</small></div>
+    }
+    else
+    {
+        <div class="donate-reveal" @key="latestWin.Id">
+            <div class="donate-reveal-label">DONATE WINNER</div>
+            @if (!string.IsNullOrWhiteSpace(latestWin.PrizeImageUrl) && !prizeImageFailed)
+            {
+                <img class="donate-reveal-image" src="@latestWin.PrizeImageUrl" alt="@latestWin.PrizeName" @onerror="() => prizeImageFailed = true" />
+            }
+            else { <div class="donate-reveal-fallback">@latestWin.PrizeName</div> }
+            <div class="donate-reveal-prize">@latestWin.PrizeName</div>
+            <div class="donate-reveal-donor">@latestWin.DonorName · NT$@latestWin.Amount:N0</div>
+        </div>
+    }
+</div>
+
+<style>
+    .donate-obs-shell { min-height: 100vh; display:grid; place-items:center; background:transparent; color:white; font-family:system-ui,sans-serif; }
+    .donate-obs-empty { text-align:center; padding:2rem 3rem; border-radius:1.5rem; background:rgba(8,10,26,.72); font-size:2rem; }
+    .donate-reveal { text-align:center; padding:2rem; animation:donate-reveal .65s cubic-bezier(.16,1,.3,1); text-shadow:0 3px 18px #000; }
+    .donate-reveal-label { color:#ffd166; font-weight:900; letter-spacing:.22em; margin-bottom:1rem; }
+    .donate-reveal-image { max-width:min(68vw,640px); max-height:62vh; object-fit:contain; border:6px solid #ffd166; border-radius:1.25rem; box-shadow:0 0 45px rgba(255,209,102,.8); }
+    .donate-reveal-fallback { width:min(68vw,640px); aspect-ratio:1; display:grid; place-items:center; border:6px solid #ffd166; border-radius:1.25rem; background:linear-gradient(135deg,#6d28d9,#f59e0b); font-size:clamp(2rem,7vw,5rem); font-weight:900; }
+    .donate-reveal-prize { font-size:clamp(2rem,6vw,4.5rem); font-weight:900; margin-top:1rem; }
+    .donate-reveal-donor { font-size:clamp(1.15rem,3vw,2rem); }
+    @@keyframes donate-reveal { from { opacity:0; transform:scale(.45) rotate(-4deg); } to { opacity:1; transform:scale(1) rotate(0); } }
+</style>
+
+@code {
+    [Parameter] public int ActivityId { get; set; }
+    private DonateLotteryActivity? activity;
+    private DonateLotteryDrawRecord? latestWin;
+    private int? displayedWinId;
+    private bool prizeImageFailed;
+    private readonly CancellationTokenSource cancellation = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await RefreshAsync();
+        _ = PollAsync();
+    }
+
+    private async Task PollAsync()
+    {
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(2));
+        try { while (await timer.WaitForNextTickAsync(cancellation.Token)) { await RefreshAsync(); await InvokeAsync(StateHasChanged); } }
+        catch (OperationCanceledException) { }
+    }
+
+    private async Task RefreshAsync()
+    {
+        var document = await ConfigStore.LoadAsync(cancellation.Token);
+        activity = document.DonateLotteryActivities.FirstOrDefault(item => item.Id == ActivityId);
+        latestWin = document.DonateLotteryDrawRecords.Where(item => item.ActivityId == ActivityId).OrderByDescending(item => item.Id).FirstOrDefault();
+        if (displayedWinId != latestWin?.Id)
+        {
+            displayedWinId = latestWin?.Id;
+            prizeImageFailed = false;
+        }
+    }
+
+    public ValueTask DisposeAsync() { cancellation.Cancel(); cancellation.Dispose(); return ValueTask.CompletedTask; }
+}

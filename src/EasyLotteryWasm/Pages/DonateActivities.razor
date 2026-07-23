@@ -50,7 +50,7 @@
     <tbody>
     @foreach (var activity in activities)
     {
-        <tr><td>@activity.Name <small class="text-muted">@activity.Type</small></td><td>@activity.StartsAtUtc.LocalDateTime:g — @activity.EndsAtUtc.LocalDateTime:g</td><td>NT$@activity.MinimumDonationAmount</td><td>@activity.Prizes.Sum(prize => prize.RemainingQuantity) / @activity.Prizes.Sum(prize => prize.Quantity)</td><td>@(activity.IsEnabled ? "啟用" : "停用")</td><td><Button Color="Color.Secondary" Size="Size.Small" Clicked="() => Edit(activity)">編輯</Button></td></tr>
+        <tr><td>@activity.Name <small class="text-muted">@activity.Type</small></td><td>@activity.StartsAtUtc.LocalDateTime:g — @activity.EndsAtUtc.LocalDateTime:g</td><td>NT$@activity.MinimumDonationAmount</td><td>@activity.Prizes.Sum(prize => prize.RemainingQuantity) / @activity.Prizes.Sum(prize => prize.Quantity)</td><td>@(activity.IsEnabled ? "啟用" : "停用")</td><td class="d-flex gap-2"><Button Color="Color.Secondary" Size="Size.Small" Clicked="() => Edit(activity)">編輯</Button>@if (activity.IsEnabled) { <a class="btn btn-outline-primary btn-sm" href="@($"/obs/donate/{activity.Id}")" target="_blank" rel="noopener noreferrer">開啟 OBS URL</a> } else { <Button Color="Color.Secondary" Size="Size.Small" Disabled>開啟 OBS URL</Button> }</td></tr>
     }
     </tbody>
 </table>
