@@ -30,6 +30,7 @@ public sealed class ConfigSecretRedactor
 
         var document = Deserialize(yaml);
         Redact(document.SystemSettings?.DonationIntegration);
+        RedactSystemSecrets(document.SystemSettings);
         return _serializer.Serialize(document);
     }
 
@@ -57,6 +58,7 @@ public sealed class ConfigSecretRedactor
         MigrateLegacySettings(existing.SystemSettings?.DonationIntegration);
         MigrateLegacySettings(submitted.SystemSettings?.DonationIntegration);
         MergeSecrets(existing.SystemSettings?.DonationIntegration, submitted.SystemSettings?.DonationIntegration);
+        MergeSystemSecrets(existing.SystemSettings, submitted.SystemSettings);
         return _serializer.Serialize(submitted);
     }
 
@@ -74,6 +76,22 @@ public sealed class ConfigSecretRedactor
         Redact(settings.NewebPay);
         Redact(settings.OenTw);
         Redact(settings.TwitchBits);
+    }
+
+    private static void RedactSystemSecrets(LotterySystemSettings? settings)
+    {
+        if (settings is null) return;
+        settings.YouTube.ApiKey = ToMask(settings.YouTube.ApiKey);
+        settings.OpenAIKey = ToMask(settings.OpenAIKey);
+        settings.MailDelivery.SmtpPassword = ToMask(settings.MailDelivery.SmtpPassword);
+    }
+
+    private static void MergeSystemSecrets(LotterySystemSettings? existing, LotterySystemSettings? submitted)
+    {
+        if (existing is null || submitted is null) return;
+        submitted.YouTube.ApiKey = PreserveIfMasked(submitted.YouTube.ApiKey, existing.YouTube.ApiKey);
+        submitted.OpenAIKey = PreserveIfMasked(submitted.OpenAIKey, existing.OpenAIKey);
+        submitted.MailDelivery.SmtpPassword = PreserveIfMasked(submitted.MailDelivery.SmtpPassword, existing.MailDelivery.SmtpPassword);
     }
 
     private static void MigrateLegacySettings(DonationIntegrationSettings? settings)

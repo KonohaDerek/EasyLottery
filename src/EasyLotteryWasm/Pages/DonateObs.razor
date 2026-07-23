@@ -1,6 +1,8 @@
 @page "/obs/donate/{ActivityId:int}"
 @using EasyLotteryDomain.Models.Config
+@using EasyLotteryDomain.Services
 @inject IEasyLotteryConfigStore ConfigStore
+@inject NavigationManager Navigation
 @implements IAsyncDisposable
 
 <PageTitle>Donate 抽獎 OBS</PageTitle>
@@ -29,6 +31,18 @@
     }
 </div>
 
+@if (testMode)
+{
+    <details class="donate-test-panel" open>
+        <summary>Donate 測試模式</summary>
+        <p>只會建立測試抽獎紀錄，不會送出金流請求。</p>
+        <input @bind="testDonorName" placeholder="贊助者名稱" aria-label="測試贊助者名稱" />
+        <input type="number" min="1" @bind="testAmount" aria-label="測試贊助金額" />
+        <button @onclick="RunTestAsync">模擬 Donate 並抽獎</button>
+        @if (!string.IsNullOrWhiteSpace(testResult)) { <div role="status">@testResult</div> }
+    </details>
+}
+
 <style>
     .donate-obs-shell { min-height: 100vh; display:grid; place-items:center; background:transparent; color:white; font-family:system-ui,sans-serif; }
     .donate-obs-empty { text-align:center; padding:2rem 3rem; border-radius:1.5rem; background:rgba(8,10,26,.72); font-size:2rem; }
@@ -38,6 +52,9 @@
     .donate-reveal-fallback { width:min(68vw,640px); aspect-ratio:1; display:grid; place-items:center; border:6px solid #ffd166; border-radius:1.25rem; background:linear-gradient(135deg,#6d28d9,#f59e0b); font-size:clamp(2rem,7vw,5rem); font-weight:900; }
     .donate-reveal-prize { font-size:clamp(2rem,6vw,4.5rem); font-weight:900; margin-top:1rem; }
     .donate-reveal-donor { font-size:clamp(1.15rem,3vw,2rem); }
+    .donate-test-panel { position:fixed; right:1rem; bottom:1rem; z-index:10; max-width:24rem; padding:1rem; border-radius:.75rem; background:#fff; color:#172033; box-shadow:0 8px 30px rgba(0,0,0,.35); }
+    .donate-test-panel input { display:block; width:100%; margin:.5rem 0; padding:.45rem; }
+    .donate-test-panel button { padding:.45rem .75rem; border:0; border-radius:.35rem; background:#2563eb; color:#fff; }
     @@keyframes donate-reveal { from { opacity:0; transform:scale(.45) rotate(-4deg); } to { opacity:1; transform:scale(1) rotate(0); } }
 </style>
 
@@ -47,12 +64,27 @@
     private DonateLotteryDrawRecord? latestWin;
     private int? displayedWinId;
     private bool prizeImageFailed;
+    private bool testMode;
+    private string testDonorName = "測試贊助者";
+    private decimal testAmount = 100m;
+    private string testResult = "";
     private readonly CancellationTokenSource cancellation = new();
 
     protected override async Task OnInitializedAsync()
     {
+        testMode = Navigation.Uri.Contains("test=true", StringComparison.OrdinalIgnoreCase);
         await RefreshAsync();
         _ = PollAsync();
+    }
+
+    private async Task RunTestAsync()
+    {
+        var document = await ConfigStore.LoadAsync(cancellation.Token);
+        var testId = $"obs-test:{ActivityId}:{Guid.NewGuid():N}";
+        var result = DonateLotteryEngine.Process(document, testId, testDonorName, testAmount, DateTimeOffset.UtcNow);
+        await ConfigStore.SaveAsync(document, cancellation.Token);
+        testResult = result.Wins.Count == 0 ? "測試完成：未中獎（請確認活動是否啟用、期間、門檻與庫存）。" : $"測試完成：抽中 {string.Join("、", result.Wins.Select(win => win.PrizeName))}";
+        await RefreshAsync();
     }
 
     private async Task PollAsync()
