@@ -20,6 +20,9 @@ namespace EasyLotteryDomain.Models.Config
         public List<DrawingRulePreset> DrawingRulePresets { get; set; } = new();
 
         public DrawingRuleSettings DrawingRules { get; set; } = new();
+        public List<DonateLotteryActivity> DonateLotteryActivities { get; set; } = [];
+        public List<DonateLotteryDrawRecord> DonateLotteryDrawRecords { get; set; } = [];
+        public List<string> ProcessedDonatePaymentIds { get; set; } = [];
         public VisualStyleSettings VisualStyle { get; set; } = new();
         public ObsLayoutSettings ObsLayout { get; set; } = new();
         public SoundCueSettings SoundCue { get; set; } = new();
@@ -287,6 +290,10 @@ namespace EasyLotteryDomain.Models.Config
         public int NextActivityResultId { get; set; } = 1;
 
         public int NextAuditRecordId { get; set; } = 1;
+
+        public int NextDonateLotteryActivityId { get; set; } = 1;
+        public int NextDonateLotteryPrizeId { get; set; } = 1;
+        public int NextDonateLotteryDrawRecordId { get; set; } = 1;
     }
 
     public sealed class DrawingRuleSettings

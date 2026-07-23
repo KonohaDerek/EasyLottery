@@ -140,6 +140,9 @@ namespace EasyLotteryWasm.Services
             document.ActivityResults ??= new List<ActivityResultRecord>();
             document.DrawingRulePresets ??= new List<DrawingRulePreset>();
             document.DrawingRules ??= new DrawingRuleSettings();
+            document.DonateLotteryActivities ??= new List<DonateLotteryActivity>();
+            document.DonateLotteryDrawRecords ??= new List<DonateLotteryDrawRecord>();
+            document.ProcessedDonatePaymentIds ??= new List<string>();
             document.VisualStyle ??= new VisualStyleSettings();
             document.VisualStyle.ActiveThemeKey = VisualStyleCatalog.NormalizeKey(document.VisualStyle.ActiveThemeKey);
             document.VisualStyle.BackgroundImageUrl = NormalizeExternalHttpsUrl(document.VisualStyle.BackgroundImageUrl);
@@ -241,6 +244,9 @@ namespace EasyLotteryWasm.Services
             document.IdSequence.NextRouletteSegmentId = Math.Max(document.IdSequence.NextRouletteSegmentId, document.RouletteTemplates.SelectMany(t => t.Segments).Select(s => s.Id).DefaultIfEmpty(0).Max() + 1);
             document.IdSequence.NextActivityResultId = Math.Max(document.IdSequence.NextActivityResultId, document.ActivityResults.Select(result => result.Id).DefaultIfEmpty(0).Max() + 1);
             document.IdSequence.NextAuditRecordId = Math.Max(document.IdSequence.NextAuditRecordId, document.AuditRecords.Select(record => record.Id).DefaultIfEmpty(0).Max() + 1);
+            document.IdSequence.NextDonateLotteryActivityId = Math.Max(document.IdSequence.NextDonateLotteryActivityId, document.DonateLotteryActivities.Select(activity => activity.Id).DefaultIfEmpty(0).Max() + 1);
+            document.IdSequence.NextDonateLotteryPrizeId = Math.Max(document.IdSequence.NextDonateLotteryPrizeId, document.DonateLotteryActivities.SelectMany(activity => activity.Prizes ?? []).Select(prize => prize.Id).DefaultIfEmpty(0).Max() + 1);
+            document.IdSequence.NextDonateLotteryDrawRecordId = Math.Max(document.IdSequence.NextDonateLotteryDrawRecordId, document.DonateLotteryDrawRecords.Select(record => record.Id).DefaultIfEmpty(0).Max() + 1);
             document.SystemSettings.Audit.ActorName = string.IsNullOrWhiteSpace(document.SystemSettings.Audit.ActorName) ? "本機操作" : document.SystemSettings.Audit.ActorName.Trim();
             document.SystemSettings.ResultNotificationEmail = document.SystemSettings.ResultNotificationEmail.Trim();
 

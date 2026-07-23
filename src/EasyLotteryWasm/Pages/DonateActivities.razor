@@ -1,0 +1,74 @@
+@page "/donate-activities"
+@using EasyLotteryDomain.Models.Config
+@using EasyLotteryDomain.Services
+
+@inject DonateLotteryActivityService DonateLotteryActivityService
+@inject IMessageService MessageService
+
+<PageTitle>Donate 活動</PageTitle>
+
+<Card class="mb-4">
+    <CardHeader><CardTitle>Donate 抽獎活動</CardTitle></CardHeader>
+    <CardBody>
+        <CardText>贊助金額每達到最低門檻即可獲得一次抽獎機會。獎項用盡後不會重複抽出。</CardText>
+        <Button Color="Color.Primary" Clicked="CreateAsync">新增活動</Button>
+    </CardBody>
+</Card>
+
+@if (editing is not null)
+{
+    <Card class="mb-4">
+        <CardHeader><CardTitle>@(editing.Id == 0 ? "新增" : "編輯") Donate 活動</CardTitle></CardHeader>
+        <CardBody>
+            <div class="row g-3">
+                <div class="col-md-6"><Field><FieldLabel>活動名稱</FieldLabel><TextInput @bind-Value="editing.Name" /></Field></div>
+                <div class="col-md-3"><Field><FieldLabel>類型</FieldLabel><Select TValue="DonateLotteryActivityType" @bind-SelectedValue="editing.Type"><SelectItem Value="DonateLotteryActivityType.Postcard">明信片</SelectItem><SelectItem Value="DonateLotteryActivityType.Polaroid">拍立得</SelectItem></Select></Field></div>
+                <div class="col-md-3"><Field><FieldLabel>最低贊助金額</FieldLabel><NumericInput TValue="decimal" @bind-Value="editing.MinimumDonationAmount" Min="1" /></Field></div>
+                <div class="col-md-4"><Field><FieldLabel>開始時間（本地時區）</FieldLabel><input class="form-control" type="datetime-local" value="@StartDateText" @onchange="OnStartDateChanged" /></Field></div>
+                <div class="col-md-4"><Field><FieldLabel>結束時間（本地時區）</FieldLabel><input class="form-control" type="datetime-local" value="@EndDateText" @onchange="OnEndDateChanged" /></Field></div>
+                <div class="col-md-2"><Field><FieldLabel>中獎機率</FieldLabel><NumericInput TValue="decimal" @bind-Value="editing.WinProbability" /></Field></div>
+                <div class="col-md-2"><Field><FieldLabel>啟用</FieldLabel><Switch TValue="bool" @bind-Value="editing.IsEnabled" /></Field></div>
+            </div>
+            <h5 class="mt-4">獎項</h5>
+            @foreach (var prize in editing.Prizes)
+            {
+                <div class="row g-2 mb-2" @key="prize">
+                    <div class="col-md-4"><TextInput @bind-Value="prize.Name" Placeholder="獎項名稱" /></div>
+                    <div class="col-md-4"><TextInput @bind-Value="prize.ImageUrl" Placeholder="圖片 URL" /></div>
+                    <div class="col-md-2"><NumericInput TValue="int" @bind-Value="prize.Quantity" Min="0" /></div>
+                    <div class="col-md-2"><Button Color="Color.Danger" Size="Size.Small" Clicked="() => editing.Prizes.Remove(prize)">移除</Button></div>
+                </div>
+            }
+            <Button Color="Color.Secondary" Size="Size.Small" Clicked="AddPrize">新增獎項</Button>
+            <div class="d-flex gap-2 mt-4"><Button Color="Color.Primary" Clicked="SaveAsync">儲存</Button><Button Color="Color.Secondary" Clicked="() => editing = null">取消</Button></div>
+        </CardBody>
+    </Card>
+}
+
+<table class="table align-middle">
+    <thead><tr><th>活動</th><th>期間</th><th>最低贊助</th><th>獎項庫存</th><th>狀態</th><th></th></tr></thead>
+    <tbody>
+    @foreach (var activity in activities)
+    {
+        <tr><td>@activity.Name <small class="text-muted">@activity.Type</small></td><td>@activity.StartsAtUtc.LocalDateTime:g — @activity.EndsAtUtc.LocalDateTime:g</td><td>NT$@activity.MinimumDonationAmount</td><td>@activity.Prizes.Sum(prize => prize.RemainingQuantity) / @activity.Prizes.Sum(prize => prize.Quantity)</td><td>@(activity.IsEnabled ? "啟用" : "停用")</td><td class="d-flex gap-2"><Button Color="Color.Secondary" Size="Size.Small" Clicked="() => Edit(activity)">編輯</Button>@if (activity.IsEnabled) { <a class="btn btn-outline-primary btn-sm" href="@($"/obs/donate/{activity.Id}")" target="_blank" rel="noopener noreferrer">開啟 OBS URL</a> } else { <Button Color="Color.Secondary" Size="Size.Small" Disabled>開啟 OBS URL</Button> }</td></tr>
+    }
+    </tbody>
+</table>
+
+@code {
+    private IReadOnlyList<DonateLotteryActivity> activities = [];
+    private DonateLotteryActivity? editing;
+    private string StartDateText => editing?.StartsAtUtc.LocalDateTime.ToString("yyyy-MM-ddTHH:mm") ?? "";
+    private string EndDateText => editing?.EndsAtUtc.LocalDateTime.ToString("yyyy-MM-ddTHH:mm") ?? "";
+
+    protected override async Task OnInitializedAsync() => await ReloadAsync();
+
+    private async Task ReloadAsync() => activities = await DonateLotteryActivityService.ListAsync();
+    private Task CreateAsync() { editing = new DonateLotteryActivity { StartsAtUtc = DateTimeOffset.UtcNow, EndsAtUtc = DateTimeOffset.UtcNow.AddDays(7), WinProbability = 1m, Prizes = [new()] }; return Task.CompletedTask; }
+    private void Edit(DonateLotteryActivity activity) => editing = new DonateLotteryActivity { Id = activity.Id, Name = activity.Name, Type = activity.Type, MinimumDonationAmount = activity.MinimumDonationAmount, StartsAtUtc = activity.StartsAtUtc, EndsAtUtc = activity.EndsAtUtc, WinProbability = activity.WinProbability, IsEnabled = activity.IsEnabled, Prizes = activity.Prizes.Select(prize => new DonateLotteryPrize { Id = prize.Id, Name = prize.Name, ImageUrl = prize.ImageUrl, Quantity = prize.Quantity, RemainingQuantity = prize.RemainingQuantity }).ToList() };
+    private void AddPrize() => editing?.Prizes.Add(new DonateLotteryPrize());
+    private async Task SaveAsync() { if (editing is null) return; try { await DonateLotteryActivityService.SaveAsync(editing); editing = null; await ReloadAsync(); await MessageService.Success("Donate 活動已儲存。"); } catch (Exception exception) { await MessageService.Error(exception.Message); } }
+    private void OnStartDateChanged(ChangeEventArgs args) => SetDate(args.Value?.ToString(), isStart: true);
+    private void OnEndDateChanged(ChangeEventArgs args) => SetDate(args.Value?.ToString(), isStart: false);
+    private void SetDate(string? value, bool isStart) { if (editing is null || !DateTime.TryParse(value, out var date)) return; var instant = new DateTimeOffset(DateTime.SpecifyKind(date, DateTimeKind.Local)).ToUniversalTime(); if (isStart) editing.StartsAtUtc = instant; else editing.EndsAtUtc = instant; }
+}
