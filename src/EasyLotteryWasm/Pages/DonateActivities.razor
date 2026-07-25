@@ -40,6 +40,14 @@
             </div>
             <h5 class="mt-4">獎項</h5>
             <p class="text-muted">每個獎項設定 0–100% 的中獎率；未配置的剩餘機率固定為「銘謝惠顧」。合計不可超過 100%。</p>
+            <div class="row g-2 mb-1 d-none d-md-flex small fw-bold text-muted" aria-hidden="true">
+                <div class="col-md-3">獎項名稱</div>
+                <div class="col-md-2">中獎機率 (%)</div>
+                <div class="col-md-2">圖片 URL</div>
+                <div class="col-md-1">數量</div>
+                <div class="col-md-2">最大獎</div>
+                <div class="col-md-2">操作</div>
+            </div>
             @foreach (var prize in editing.Prizes)
             {
                 <div class="row g-2 mb-2" @key="prize">
