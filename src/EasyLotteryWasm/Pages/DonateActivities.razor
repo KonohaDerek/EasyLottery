@@ -71,7 +71,7 @@
     <tbody>
     @foreach (var activity in activities)
     {
-        <tr><td>@activity.Name <small class="text-muted">@activity.Type</small></td><td>@activity.StartsAtUtc.LocalDateTime:g — @activity.EndsAtUtc.LocalDateTime:g</td><td>NT$@activity.MinimumDonationAmount</td><td>@activity.Prizes.Sum(prize => prize.RemainingQuantity) / @activity.Prizes.Sum(prize => prize.Quantity)</td><td>@(activity.IsEnabled ? "啟用" : "停用")</td><td class="d-flex gap-2"><Button Color="Color.Secondary" Size="Size.Small" Clicked="() => Edit(activity)">編輯</Button>@if (activity.IsEnabled) { <a class="btn btn-outline-primary btn-sm" href="@($"/obs/donate/{activity.Id}")" target="_blank" rel="noopener noreferrer">開啟 OBS URL</a> } else { <Button Color="Color.Secondary" Size="Size.Small" Disabled>開啟 OBS URL</Button> }</td></tr>
+        <tr><td>@activity.Name <small class="text-muted">@activity.Type</small></td><td>@activity.StartsAtUtc.LocalDateTime:g — @activity.EndsAtUtc.LocalDateTime:g</td><td>NT$@activity.MinimumDonationAmount</td><td>@activity.Prizes.Sum(prize => prize.RemainingQuantity) / @activity.Prizes.Sum(prize => prize.Quantity)</td><td>@(activity.IsEnabled ? "啟用" : "停用")</td><td class="d-flex gap-2"><Button Color="Color.Secondary" Size="Size.Small" Clicked="() => Edit(activity)">編輯</Button>@if (activity.IsEnabled) { <a class="btn btn-outline-primary btn-sm" href="@($"/obs/donate/{activity.Id}")" target="_blank" rel="noopener noreferrer">開啟 OBS URL</a> } else { <Button Color="Color.Secondary" Size="Size.Small" Disabled>開啟 OBS URL</Button> }<Button Color="Color.Danger" Size="Size.Small" Clicked="() => DeleteAsync(activity)">刪除</Button></td></tr>
     }
     </tbody>
 </table>
@@ -98,6 +98,19 @@
     private void Edit(DonateLotteryActivity activity) => editing = new DonateLotteryActivity { Id = activity.Id, Name = activity.Name, Type = activity.Type, Animation = activity.Animation, MinimumDonationAmount = activity.MinimumDonationAmount, StartsAtUtc = activity.StartsAtUtc, EndsAtUtc = activity.EndsAtUtc, IsEnabled = activity.IsEnabled, Prizes = activity.Prizes.Select(prize => new DonateLotteryPrize { Id = prize.Id, Name = prize.Name, ImageUrl = prize.ImageUrl, Quantity = prize.Quantity, RemainingQuantity = prize.RemainingQuantity, Probability = prize.Probability, IsGrandPrize = prize.IsGrandPrize }).ToList() };
     private void AddPrize() => editing?.Prizes.Add(new DonateLotteryPrize());
     private async Task SaveAsync() { if (editing is null) return; try { await DonateLotteryActivityService.SaveAsync(editing); editing = null; await ReloadAsync(); await MessageService.Success("Donate 活動已儲存。"); } catch (Exception exception) { await MessageService.Error(exception.Message); } }
+    private async Task DeleteAsync(DonateLotteryActivity activity)
+    {
+        var confirmed = await JSRuntime.InvokeAsync<bool>("confirm", $"確定要刪除「{activity.Name}」嗎？活動設定與獎項會被移除，但既有抽獎紀錄會保留。");
+        if (!confirmed) return;
+        try
+        {
+            await DonateLotteryActivityService.DeleteAsync(activity.Id);
+            if (editing?.Id == activity.Id) editing = null;
+            await ReloadAsync();
+            await MessageService.Success("Donate 活動已刪除，既有抽獎紀錄已保留。");
+        }
+        catch (Exception exception) { await MessageService.Error(exception.Message); }
+    }
     private void OnStartDateChanged(ChangeEventArgs args) => SetDate(args.Value?.ToString(), isStart: true);
     private void OnEndDateChanged(ChangeEventArgs args) => SetDate(args.Value?.ToString(), isStart: false);
     private void SetDate(string? value, bool isStart) { if (editing is null || !DateTime.TryParse(value, out var date)) return; var instant = new DateTimeOffset(DateTime.SpecifyKind(date, DateTimeKind.Local)).ToUniversalTime(); if (isStart) editing.StartsAtUtc = instant; else editing.EndsAtUtc = instant; }

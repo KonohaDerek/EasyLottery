@@ -50,4 +50,15 @@ public sealed class DonateLotteryActivityService
         await _configStore.SaveAsync(document, cancellationToken);
         return activity;
     }
+
+    public async Task DeleteAsync(int activityId, CancellationToken cancellationToken = default)
+    {
+        var document = await _configStore.LoadAsync(cancellationToken);
+        var removed = document.DonateLotteryActivities.RemoveAll(activity => activity.Id == activityId);
+        if (removed == 0) throw new InvalidOperationException("找不到 Donate 活動。");
+
+        // Keep historical draw records for reports and audit trails. They retain
+        // the activity ID even after the editable activity definition is gone.
+        await _configStore.SaveAsync(document, cancellationToken);
+    }
 }
