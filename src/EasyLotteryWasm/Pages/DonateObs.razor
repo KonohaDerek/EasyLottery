@@ -3,7 +3,6 @@
 @using EasyLotteryDomain.Models.Config
 @using EasyLotteryDomain.Services
 @inject IEasyLotteryConfigStore ConfigStore
-@inject NavigationManager Navigation
 @implements IAsyncDisposable
 
 <PageTitle>Donate 抽獎 OBS</PageTitle>
@@ -45,10 +44,10 @@
     }
 </div>
 
-@if (testMode)
+@if (testPanelOpen)
 {
-    <details class="donate-test-panel" open>
-        <summary>Donate 測試模式</summary>
+    <section class="donate-test-panel" aria-label="Donate 測試面板">
+        <div class="donate-test-panel-header"><strong>Donate 測試模式</strong><button class="donate-test-close" @onclick="() => testPanelOpen = false" aria-label="關閉 Donate 測試面板">×</button></div>
         <p>會以正式 Donate 相同的抽獎與 OBS 通知資料流建立測試紀錄，不會送出金流請求。</p>
         <input @bind="testDonorName" placeholder="贊助者名稱" aria-label="測試贊助者名稱" />
         <input type="number" min="1" @bind="testAmount" aria-label="測試贊助金額" />
@@ -56,7 +55,11 @@
         <input @bind="testPaymentMethod" placeholder="支付方式" aria-label="測試支付方式" />
         <button @onclick="RunTestAsync">送出測試 Donate</button>
         @if (!string.IsNullOrWhiteSpace(testResult)) { <div role="status">@testResult</div> }
-    </details>
+    </section>
+}
+else
+{
+    <button class="donate-test-launch" @onclick="() => testPanelOpen = true">測試 Donate</button>
 }
 
 <style>
@@ -80,8 +83,11 @@
     .donate-reveal-donor { font-size:clamp(1.15rem,3vw,2rem); }
     .donate-reveal-message { margin-top:.5rem; font-size:clamp(1rem,2.4vw,1.6rem); }
     .donate-test-panel { position:fixed; right:1rem; bottom:1rem; z-index:10; max-width:24rem; padding:1rem; border-radius:.75rem; background:#fff; color:#172033; box-shadow:0 8px 30px rgba(0,0,0,.35); }
+    .donate-test-panel-header { display:flex; justify-content:space-between; align-items:center; }
     .donate-test-panel input { display:block; width:100%; margin:.5rem 0; padding:.45rem; }
     .donate-test-panel button { padding:.45rem .75rem; border:0; border-radius:.35rem; background:#2563eb; color:#fff; }
+    .donate-test-close { font-size:1.25rem; line-height:1; }
+    .donate-test-launch { position:fixed; right:1rem; bottom:1rem; z-index:10; padding:.75rem 1rem; border:0; border-radius:.5rem; background:#2563eb; color:#fff; font-weight:800; box-shadow:0 6px 20px rgba(0,0,0,.35); }
     @@keyframes donate-reveal { from { opacity:0; transform:scale(.45) rotate(-4deg); } to { opacity:1; transform:scale(1) rotate(0); } }
     @@keyframes chibi-crank { to { transform:rotate(-16deg) translateY(5px); } }
     @@keyframes gacha-shake { 50% { transform:translateX(5px) rotate(4deg); } }
@@ -99,7 +105,7 @@
     private bool isLoading = true;
     private int? displayedWinId;
     private bool prizeImageFailed;
-    private bool testMode;
+    private bool testPanelOpen;
     private string testDonorName = "測試贊助者";
     private decimal testAmount = 100m;
     private string testMessage = "這是一則 OBS Donate 測試通知";
@@ -117,7 +123,6 @@
 
     protected override async Task OnInitializedAsync()
     {
-        testMode = Navigation.Uri.Contains("test=true", StringComparison.OrdinalIgnoreCase);
         await RefreshAsync();
         _ = PollAsync();
     }
