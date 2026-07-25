@@ -27,4 +27,21 @@ public sealed class DonateLotteryActivityServiceTests
 
         StringAssert.Contains(exception.Message, "不可超過 100%");
     }
+
+    [TestMethod]
+    public async Task DeleteAsync_RemovesActivityButPreservesDrawHistory()
+    {
+        var store = new InMemoryEasyLotteryConfigStore();
+        var document = await store.LoadAsync();
+        document.DonateLotteryActivities.Add(new DonateLotteryActivity { Id = 7, Name = "待刪除活動" });
+        document.DonateLotteryDrawRecords.Add(new DonateLotteryDrawRecord { Id = 3, ActivityId = 7, PrizeName = "歷史獎項" });
+        await store.SaveAsync(document);
+        var service = new DonateLotteryActivityService(store);
+
+        await service.DeleteAsync(7);
+
+        var saved = await store.LoadAsync();
+        Assert.IsFalse(saved.DonateLotteryActivities.Any(activity => activity.Id == 7));
+        Assert.IsTrue(saved.DonateLotteryDrawRecords.Any(record => record.ActivityId == 7));
+    }
 }
