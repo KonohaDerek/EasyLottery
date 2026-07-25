@@ -28,6 +28,9 @@ public sealed class ConfigSecretRedactorTests
         Assert.AreEqual(ConfigSecretRedactor.UnchangedSecretMask, browserDocument.SystemSettings.DonationIntegration.Ecpay.SecretKey);
         Assert.AreEqual(ConfigSecretRedactor.UnchangedSecretMask, browserDocument.SystemSettings.DonationIntegration.OenTw.AccessToken);
         Assert.AreEqual("merchant-id", browserDocument.SystemSettings.DonationIntegration.Ecpay.MerchantId);
+        Assert.AreEqual(ConfigSecretRedactor.UnchangedSecretMask, browserDocument.SystemSettings.YouTube.ApiKey);
+        Assert.AreEqual(ConfigSecretRedactor.UnchangedSecretMask, browserDocument.SystemSettings.OpenAIKey);
+        Assert.AreEqual(ConfigSecretRedactor.UnchangedSecretMask, browserDocument.SystemSettings.MailDelivery.SmtpPassword);
     }
 
     [TestMethod]
@@ -43,6 +46,9 @@ public sealed class ConfigSecretRedactorTests
         Assert.AreEqual("api-key", saved.SystemSettings.DonationIntegration.Ecpay.Testing.ApiKey);
         Assert.AreEqual("replacement-secret", saved.SystemSettings.DonationIntegration.Ecpay.Testing.SecretKey);
         Assert.AreEqual("access-token", saved.SystemSettings.DonationIntegration.OenTw.Testing.AccessToken);
+        Assert.AreEqual("youtube-key", saved.SystemSettings.YouTube.ApiKey);
+        Assert.AreEqual("openai-key", saved.SystemSettings.OpenAIKey);
+        Assert.AreEqual("smtp-password", saved.SystemSettings.MailDelivery.SmtpPassword);
     }
 
     private static EasyLotteryConfigDocument CreateDocument() => new()
@@ -53,7 +59,10 @@ public sealed class ConfigSecretRedactorTests
             {
                 Ecpay = new DonationProviderSettings { MerchantId = "merchant-id", ApiKey = "api-key", SecretKey = "secret-key" },
                 OenTw = new DonationProviderSettings { AccessToken = "access-token" }
-            }
+            },
+            YouTube = new YouTubeApiSettings { ApiKey = "youtube-key" },
+            OpenAIKey = "openai-key",
+            MailDelivery = new MailDeliverySettings { SmtpPassword = "smtp-password" }
         }
     };
 }
