@@ -1,0 +1,11 @@
+@page "/system/access"
+@inject IJSRuntime JSRuntime
+@inject IMessageService MessageService
+
+<PageTitle>管理存取</PageTitle>
+<Card><CardHeader><CardTitle>管理存取權杖</CardTitle></CardHeader><CardBody>
+    <CardText>輸入伺服器以 <code>Settings__AdminToken</code> 設定的權杖。權杖只保存於此瀏覽器工作階段。</CardText>
+    <Field><FieldLabel>管理權杖</FieldLabel><input class="form-control" type="password" @bind="token" autocomplete="current-password" /></Field>
+    <Button Color="Color.Primary" Clicked="SaveAsync">啟用管理存取</Button>
+</CardBody></Card>
+@code { private string token = ""; private async Task SaveAsync() { await JSRuntime.InvokeVoidAsync("easyLotteryConfig.setAdminToken", token); token = ""; await MessageService.Success("管理權杖已保存於此工作階段。"); } }

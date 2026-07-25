@@ -13,6 +13,7 @@ builder.Services.AddSingleton<IPaymentProvider, NewebPayDonationPaymentProvider>
 builder.Services.AddSingleton<PaymentProviderFactory>();
 builder.Services.AddSingleton<ConfigSecretRedactor>();
 builder.Services.AddSingleton<SettingsFileStore>();
+builder.Services.AddSingleton<AdminAccess>();
 builder.Services.AddSingleton<PaymentCallbackProcessor>();
 
 var storageDirectory = builder.Configuration["Storage:Directory"]
@@ -46,23 +47,18 @@ if (app.Environment.IsDevelopment())
 app.UseBlazorFrameworkFiles();
 app.UseStaticFiles();
 
-Func<HttpContext, SettingsFileStore, Task<IResult>> readSettings = async (context, settingsStore) =>
+Func<HttpContext, SettingsFileStore, AdminAccess, Task<IResult>> readSettings = async (context, settingsStore, adminAccess) =>
 {
+    if (!adminAccess.IsAuthorized(context.Request)) return Results.Unauthorized();
     return Results.Text(await settingsStore.ReadForBrowserAsync(context.RequestAborted), "text/yaml", Encoding.UTF8);
 };
 app.MapGet("/settings", readSettings);
 // Compatibility endpoint for browsers still serving a cached pre-settings.yaml build.
 app.MapGet("/easy-lottery-config.yaml", readSettings);
 
-Func<HttpContext, IHubContext<OvertimeHub>, SettingsFileStore, Task<IResult>> writeSettings = async (context, hub, settingsStore) =>
+Func<HttpContext, IHubContext<OvertimeHub>, SettingsFileStore, AdminAccess, Task<IResult>> writeSettings = async (context, hub, settingsStore, adminAccess) =>
 {
-    // Public callback tunnels must never also provide a public settings write API.
-    // Remote administration can be explicitly enabled only by the host operator.
-    var allowRemoteSettingsWrite = builder.Configuration.GetValue<bool>("Settings:AllowRemoteWrite");
-    if (!allowRemoteSettingsWrite && (context.Connection.RemoteIpAddress is null || !IPAddress.IsLoopback(context.Connection.RemoteIpAddress)))
-    {
-        return Results.StatusCode(StatusCodes.Status403Forbidden);
-    }
+    if (!adminAccess.IsAuthorized(context.Request)) return Results.Unauthorized();
 
     var content = await ReadRequestBodyAsync(context.Request, context.RequestAborted);
     await settingsStore.SaveBrowserUpdateAsync(content, context.RequestAborted);
@@ -155,12 +151,9 @@ app.MapPost("/api/payments/{providerId}/notify", async (string providerId, HttpC
     return Results.Text(acknowledgement, "text/plain", Encoding.UTF8);
 });
 
-app.MapPost("/api/payments/orders", async (PaymentOrderRegistrationRequest request, HttpContext context, PaymentCallbackProcessor callbacks) =>
+app.MapPost("/api/payments/orders", async (PaymentOrderRegistrationRequest request, HttpContext context, PaymentCallbackProcessor callbacks, AdminAccess adminAccess) =>
 {
-    if (context.Connection.RemoteIpAddress is null || !IPAddress.IsLoopback(context.Connection.RemoteIpAddress))
-    {
-        return Results.StatusCode(StatusCodes.Status403Forbidden);
-    }
+    if (!adminAccess.IsAuthorized(context.Request)) return Results.Unauthorized();
     try { return Results.Created($"/api/payments/orders/{request.MerchantOrderNo}", await callbacks.RegisterOrderAsync(request, context.RequestAborted)); }
     catch (ArgumentException exception) { return Results.BadRequest(new { error = exception.Message }); }
     catch (InvalidOperationException exception) { return Results.Conflict(new { error = exception.Message }); }
