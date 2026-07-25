@@ -9,7 +9,7 @@ services:
       ASPNETCORE_URLS: http://+:18930
       DOTNET_USE_POLLING_FILE_WATCHER: "1"
       Storage__Directory: /data
-      Settings__AdminToken: ${EASYLOTTERY_ADMIN_TOKEN:-change-this-before-production}
+      Settings__AdminToken: ${EASYLOTTERY_ADMIN_TOKEN:?Set EASYLOTTERY_ADMIN_TOKEN before starting EasyLottery}
     ports:
       - "18930:18930"
     volumes:
