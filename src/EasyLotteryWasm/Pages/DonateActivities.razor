@@ -4,6 +4,7 @@
 
 @inject DonateLotteryActivityService DonateLotteryActivityService
 @inject IMessageService MessageService
+@inject IJSRuntime JSRuntime
 
 <PageTitle>Donate 活動</PageTitle>
 
@@ -11,11 +12,19 @@
     <CardHeader><CardTitle>Donate 抽獎活動</CardTitle></CardHeader>
     <CardBody>
         <CardText>贊助金額每達到最低門檻即可獲得一次抽獎機會。獎項用盡後不會重複抽出。</CardText>
-        <Button Color="Color.Primary" Clicked="CreateAsync">新增活動</Button>
+        <Button Color="Color.Primary" Clicked="CreateAsync" Disabled="requiresAdminToken">新增活動</Button>
     </CardBody>
 </Card>
 
-@if (editing is not null)
+@if (requiresAdminToken)
+{
+    <div class="alert alert-warning" role="alert">
+        無法讀取共享活動設定：此瀏覽器尚未取得管理存取權杖。
+        請前往 <a href="system/access">管理存取</a> 輸入伺服器設定的 <code>Settings__AdminToken</code> 後重新整理。
+    </div>
+}
+
+@if (editing is not null && !requiresAdminToken)
 {
     <Card class="mb-4">
         <CardHeader><CardTitle>@(editing.Id == 0 ? "新增" : "編輯") Donate 活動</CardTitle></CardHeader>
@@ -55,6 +64,8 @@
     </Card>
 }
 
+@if (!requiresAdminToken)
+{
 <table class="table align-middle">
     <thead><tr><th>活動</th><th>期間</th><th>最低贊助</th><th>獎項庫存</th><th>狀態</th><th></th></tr></thead>
     <tbody>
@@ -64,14 +75,21 @@
     }
     </tbody>
 </table>
+}
 
 @code {
     private IReadOnlyList<DonateLotteryActivity> activities = [];
     private DonateLotteryActivity? editing;
+    private bool requiresAdminToken;
     private string StartDateText => editing?.StartsAtUtc.LocalDateTime.ToString("yyyy-MM-ddTHH:mm") ?? "";
     private string EndDateText => editing?.EndsAtUtc.LocalDateTime.ToString("yyyy-MM-ddTHH:mm") ?? "";
 
-    protected override async Task OnInitializedAsync() => await ReloadAsync();
+    protected override async Task OnInitializedAsync()
+    {
+        await ReloadAsync();
+        requiresAdminToken = await JSRuntime.InvokeAsync<bool>("easyLotteryConfig.requiresAdminToken");
+        if (requiresAdminToken) activities = [];
+    }
 
     private async Task ReloadAsync() => activities = await DonateLotteryActivityService.ListAsync();
     private decimal PrizeProbabilityTotal => editing?.Prizes.Sum(prize => prize.Probability) ?? 0m;
