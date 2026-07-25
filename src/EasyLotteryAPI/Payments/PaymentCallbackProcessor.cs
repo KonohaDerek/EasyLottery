@@ -95,7 +95,7 @@ public sealed class PaymentCallbackProcessor
             });
             await WriteJsonAsync(_paymentEventsPath, paymentEvents, cancellationToken);
 
-            var donateWins = await ProcessDonateLotteryAsync(notification, cancellationToken);
+            var donateWins = await ProcessDonateLotteryAsync(notification, provider.Descriptor.DisplayName, cancellationToken);
             var feed = await ReadJsonAsync<List<OvertimeSupportEvent>>(_overtimeFeedPath, cancellationToken) ?? [];
             feed.Add(new OvertimeSupportEvent
             {
@@ -177,9 +177,9 @@ public sealed class PaymentCallbackProcessor
         finally { _gate.Release(); }
     }
 
-    private async Task<IReadOnlyList<DonateLotteryDrawRecord>> ProcessDonateLotteryAsync(PaymentNotification notification, CancellationToken cancellationToken)
+    private async Task<IReadOnlyList<DonateLotteryDrawRecord>> ProcessDonateLotteryAsync(PaymentNotification notification, string paymentMethod, CancellationToken cancellationToken)
     {
-        var result = await _settingsStore.UpdateAsync(document => DonateLotteryEngine.Process(document, notification.ExternalId, notification.DisplayName, notification.Amount, notification.OccurredAtUtc), cancellationToken);
+        var result = await _settingsStore.UpdateAsync(document => DonateLotteryEngine.Process(document, notification.ExternalId, notification.DisplayName, notification.Amount, notification.OccurredAtUtc, donationMessage: notification.Message, paymentMethod: paymentMethod), cancellationToken);
         return result.Processed ? result.Wins : [];
     }
 

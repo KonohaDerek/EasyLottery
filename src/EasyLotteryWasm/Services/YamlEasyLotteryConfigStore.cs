@@ -226,6 +226,28 @@ namespace EasyLotteryWasm.Services
                 NormalizeActivityResult(activityResult);
             }
 
+            foreach (var activity in document.DonateLotteryActivities)
+            {
+                activity.Name ??= "";
+                activity.Prizes ??= [];
+                foreach (var prize in activity.Prizes)
+                {
+                    prize.Name ??= "";
+                    prize.ImageUrl ??= "";
+                    prize.Probability = Math.Clamp(prize.Probability, 0m, 100m);
+                }
+            }
+
+            foreach (var draw in document.DonateLotteryDrawRecords)
+            {
+                draw.PaymentExternalId ??= "";
+                draw.DonorName = string.IsNullOrWhiteSpace(draw.DonorName) ? "匿名贊助者" : draw.DonorName.Trim();
+                draw.PrizeName ??= "";
+                draw.PrizeImageUrl ??= "";
+                draw.DonationMessage ??= "";
+                draw.PaymentMethod ??= "";
+            }
+
             foreach (var preset in document.DrawingRulePresets)
             {
                 NormalizeDrawingRulePreset(preset);

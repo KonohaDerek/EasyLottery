@@ -21,8 +21,8 @@ public sealed class DonateLotteryActivityService
         if (string.IsNullOrWhiteSpace(activity.Name)) throw new InvalidOperationException("請輸入活動名稱。");
         if (activity.MinimumDonationAmount <= 0m) throw new InvalidOperationException("最低贊助金額必須大於 0。");
         if (activity.EndsAtUtc <= activity.StartsAtUtc) throw new InvalidOperationException("活動結束時間必須晚於開始時間。");
-        activity.WinProbability = Math.Clamp(activity.WinProbability, 0m, 1m);
         activity.Prizes ??= [];
+        var probabilityTotal = 0m;
         foreach (var prize in activity.Prizes)
         {
             prize.Id = prize.Id <= 0 ? document.IdSequence.NextDonateLotteryPrizeId++ : prize.Id;
@@ -30,7 +30,10 @@ public sealed class DonateLotteryActivityService
             prize.ImageUrl = prize.ImageUrl?.Trim() ?? "";
             prize.Quantity = Math.Max(0, prize.Quantity);
             prize.RemainingQuantity = Math.Clamp(prize.RemainingQuantity, 0, prize.Quantity);
+            prize.Probability = Math.Clamp(prize.Probability, 0m, 100m);
+            probabilityTotal += prize.Probability;
         }
+        if (probabilityTotal > 100m) throw new InvalidOperationException("獎項機率合計不可超過 100%。");
 
         if (activity.Id <= 0)
         {
