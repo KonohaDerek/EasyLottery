@@ -1,15 +1,21 @@
 using System.Diagnostics;
 using System.Text.RegularExpressions;
+using Microsoft.Extensions.Logging;
 
 public sealed class TunnelRuntimeService : IAsyncDisposable
 {
     private static readonly Regex PublicUrlPattern = new(@"https://[^\s""']+", RegexOptions.Compiled | RegexOptions.IgnoreCase);
     private readonly IConfiguration _configuration;
+    private readonly ILogger<TunnelRuntimeService> _logger;
     private readonly SemaphoreSlim _gate = new(1, 1);
     private Process? _process;
     private TunnelRuntimeStatus _status = new();
 
-    public TunnelRuntimeService(IConfiguration configuration) => _configuration = configuration;
+    public TunnelRuntimeService(IConfiguration configuration, ILogger<TunnelRuntimeService> logger)
+    {
+        _configuration = configuration;
+        _logger = logger;
+    }
 
     public TunnelRuntimeStatus GetStatus() => _status;
 
@@ -67,6 +73,7 @@ public sealed class TunnelRuntimeService : IAsyncDisposable
             }
             catch (OperationCanceledException)
             {
+                _logger.LogWarning("Tunnel provider {Provider} did not return a public URL before timeout/cancellation.", normalizedProvider);
                 _status = new TunnelRuntimeStatus
                 {
                     Provider = normalizedProvider,
@@ -79,6 +86,7 @@ public sealed class TunnelRuntimeService : IAsyncDisposable
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
+            _logger.LogError(ex, "Failed to start tunnel provider {Provider}.", provider);
             _status = new TunnelRuntimeStatus { Provider = provider ?? "", State = "failed", Error = ex.Message };
             return _status;
         }

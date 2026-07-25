@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using EasyLotteryDomain.Models.Config;
+using Serilog;
 using Microsoft.AspNetCore.WebUtilities;
 
 namespace EasyLotteryApi.Payments;
@@ -67,6 +68,7 @@ public sealed class NewebPayDonationPaymentProvider : IPaymentProvider
         }
         catch (Exception ex) when (ex is JsonException or FormatException or ArgumentException)
         {
+            Log.Warning(ex, "Unable to parse NewebPay donation notification payload.");
             return Task.FromResult(new PaymentNotification
             {
                 ExternalId = "",

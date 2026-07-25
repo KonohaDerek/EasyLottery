@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using EasyLotteryDomain.Models.Config;
+using Serilog;
 
 namespace EasyLotteryApi.Payments;
 
@@ -57,6 +58,7 @@ public sealed class EcpayBroadcasterPaymentProvider : IPaymentProvider
         }
         catch (Exception ex) when (ex is CryptographicException or FormatException or JsonException or ArgumentException)
         {
+            Log.Warning(ex, "Unable to parse ECPay broadcaster notification payload.");
             return Task.FromResult(new PaymentNotification
             {
                 ExternalId = "",

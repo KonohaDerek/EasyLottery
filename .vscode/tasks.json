@@ -27,6 +27,25 @@
       "problemMatcher": "$msCompile"
     },
     {
+      "label": "debug: cleanup api port",
+      "type": "shell",
+      "command": "bash",
+      "args": [
+        "-lc",
+        "set -euo pipefail; env_file=.env.local; if [ ! -f \"$env_file\" ] || ! grep -q '^EASYLOTTERY_ADMIN_TOKEN=' \"$env_file\"; then printf 'EASYLOTTERY_ADMIN_TOKEN=%s\\n' \"$(openssl rand -hex 32)\" > \"$env_file\"; fi; docker compose --env-file \"$env_file\" down --remove-orphans >/dev/null 2>&1 || true; pids=$(lsof -tiTCP:18930 -sTCP:LISTEN || true); if [ -n \"$pids\" ]; then kill $pids; fi"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "debug: prepare local full stack",
+      "dependsOn": [
+        "debug: cleanup api port",
+        "dotnet: build solution"
+      ],
+      "dependsOrder": "sequence",
+      "problemMatcher": []
+    },
+    {
       "label": "dotnet: run api",
       "type": "shell",
       "command": "dotnet",
@@ -45,7 +64,7 @@
       "command": "bash",
       "args": [
         "-lc",
-        "pids=$(lsof -tiTCP:5297 -sTCP:LISTEN); if [ -n \"$pids\" ]; then kill $pids; fi"
+        "pids=$(lsof -tiTCP:18930 -sTCP:LISTEN); if [ -n \"$pids\" ]; then kill $pids; fi"
       ],
       "problemMatcher": []
     },

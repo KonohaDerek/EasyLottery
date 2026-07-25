@@ -1,5 +1,6 @@
 @page "/system/payment"
 @using EasyLotteryDomain.Models.Config
+@using Serilog
 
 @inject SystemSettingsService SystemSettingsService
 @inject IMessageService MessageService
@@ -367,12 +368,14 @@
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(3));
             tunnelStatus = await TunnelRuntimeClient.GetStatusAsync(timeout.Token);
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException ex)
         {
+            Log.Warning(ex, "Timed out while querying tunnel runtime status.");
             tunnelStatus = new TunnelRuntimeStatus { State = "unavailable", Error = "Tunnel 狀態查詢逾時。" };
         }
-        catch
+        catch (Exception ex)
         {
+            Log.Warning(ex, "Failed to query tunnel runtime status.");
             tunnelStatus = new TunnelRuntimeStatus { State = "unavailable", Error = "目前不是由 EasyLotteryApi Host 提供服務。" };
         }
 
@@ -415,6 +418,7 @@
         }
         catch (Exception ex)
         {
+            Log.Error(ex, "Failed to start tunnel.");
             await MessageService.Error($"無法啟動 Tunnel：{ex.Message}");
         }
         finally
@@ -438,6 +442,7 @@
         }
         catch (Exception ex)
         {
+            Log.Error(ex, "Failed to stop tunnel.");
             await MessageService.Error($"無法停止 Tunnel：{ex.Message}");
         }
     }

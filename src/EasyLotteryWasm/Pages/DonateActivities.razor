@@ -1,6 +1,7 @@
 @page "/donate-activities"
 @using EasyLotteryDomain.Models.Config
 @using EasyLotteryDomain.Services
+@using Serilog
 
 @inject DonateLotteryActivityService DonateLotteryActivityService
 @inject IMessageService MessageService
@@ -105,7 +106,22 @@
     private Task CreateAsync() { editing = new DonateLotteryActivity { StartsAtUtc = DateTimeOffset.UtcNow, EndsAtUtc = DateTimeOffset.UtcNow.AddDays(7), Prizes = [new DonateLotteryPrize { Probability = 100m }] }; return Task.CompletedTask; }
     private void Edit(DonateLotteryActivity activity) => editing = new DonateLotteryActivity { Id = activity.Id, Name = activity.Name, Type = activity.Type, Animation = activity.Animation, MinimumDonationAmount = activity.MinimumDonationAmount, StartsAtUtc = activity.StartsAtUtc, EndsAtUtc = activity.EndsAtUtc, IsEnabled = activity.IsEnabled, Prizes = activity.Prizes.Select(prize => new DonateLotteryPrize { Id = prize.Id, Name = prize.Name, ImageUrl = prize.ImageUrl, Quantity = prize.Quantity, RemainingQuantity = prize.RemainingQuantity, Probability = prize.Probability, IsGrandPrize = prize.IsGrandPrize }).ToList() };
     private void AddPrize() => editing?.Prizes.Add(new DonateLotteryPrize());
-    private async Task SaveAsync() { if (editing is null) return; try { await DonateLotteryActivityService.SaveAsync(editing); editing = null; await ReloadAsync(); await MessageService.Success("Donate 活動已儲存。"); } catch (Exception exception) { await MessageService.Error(exception.Message); } }
+    private async Task SaveAsync()
+    {
+        if (editing is null) return;
+        try
+        {
+            await DonateLotteryActivityService.SaveAsync(editing);
+            editing = null;
+            await ReloadAsync();
+            await MessageService.Success("Donate 活動已儲存。");
+        }
+        catch (Exception exception)
+        {
+            Log.Error(exception, "Failed to save donate activity.");
+            await MessageService.Error(exception.Message);
+        }
+    }
     private async Task DeleteAsync(DonateLotteryActivity activity)
     {
         var confirmed = await JSRuntime.InvokeAsync<bool>("confirm", $"確定要刪除「{activity.Name}」嗎？活動設定與獎項會被移除，但既有抽獎紀錄會保留。");
@@ -115,7 +131,7 @@
             await DonateLotteryActivityService.DeleteAsync(activity.Id);
             if (editing?.Id == activity.Id) editing = null;
             await ReloadAsync();
-            await MessageService.Success("Donate 活動已刪除，既有抽獎紀錄已保留。");
+            await MessageService.Success("Donate 活動已刪除，既有抽獎紀錄會保留。");
         }
         catch (Exception exception) { await MessageService.Error(exception.Message); }
     }

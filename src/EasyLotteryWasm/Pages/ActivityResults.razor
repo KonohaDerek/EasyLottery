@@ -4,6 +4,7 @@
 @using System.Globalization
 @using System.Text.Json
 @using System.Net.Http.Json
+@using Serilog
 
 @inject ActivityResultService ActivityResultService
 @inject IMessageService MessageService
@@ -682,7 +683,11 @@
             var total = payments.GroupBy(item => item.ExternalId).Select(group => group.First().Amount).Sum();
             donateSummary = (paymentCount, total, paymentCount == 0 ? 0m : total / paymentCount, draws.Count);
         }
-        catch { donateSummary = (0, 0m, 0m, draws.Count); }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Failed to load payment summary events in ActivityResults.");
+            donateSummary = (0, 0m, 0m, draws.Count);
+        }
         isLoading = false;
     }
 

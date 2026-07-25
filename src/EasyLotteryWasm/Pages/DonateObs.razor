@@ -2,6 +2,7 @@
 @layout EasyLotteryWasm.Layout.ObsLayout
 @using EasyLotteryDomain.Models.Config
 @using EasyLotteryDomain.Services
+@using Serilog
 @inject IEasyLotteryConfigStore ConfigStore
 @implements IAsyncDisposable
 
@@ -141,7 +142,10 @@ else
     {
         using var timer = new PeriodicTimer(TimeSpan.FromSeconds(2));
         try { while (await timer.WaitForNextTickAsync(cancellation.Token)) { await RefreshAsync(); await InvokeAsync(StateHasChanged); } }
-        catch (OperationCanceledException) { }
+        catch (OperationCanceledException ex)
+        {
+            Log.Debug(ex, "Donate OBS polling loop cancelled.");
+        }
     }
 
     private async Task RefreshAsync()

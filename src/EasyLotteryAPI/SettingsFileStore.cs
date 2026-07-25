@@ -22,6 +22,14 @@ public sealed class SettingsFileStore
         ConfigPath = Path.Combine(directory, "settings.yaml");
         var legacyPath = Path.Combine(directory, "easy-lottery.yaml");
         if (!File.Exists(ConfigPath) && File.Exists(legacyPath)) File.Move(legacyPath, ConfigPath);
+
+        if (!File.Exists(ConfigPath))
+        {
+            // Always materialize the shared settings file on startup so operators
+            // can locate and manage it even before the first browser write.
+            File.WriteAllText(ConfigPath, string.Empty);
+        }
+
         if (File.Exists(ConfigPath))
         {
             var current = File.ReadAllText(ConfigPath);

@@ -160,8 +160,16 @@ app.MapPost("/api/payments/orders", async (PaymentOrderRegistrationRequest reque
 {
     if (!adminAccess.IsAuthorized(context.Request)) return Results.Unauthorized();
     try { return Results.Created($"/api/payments/orders/{request.MerchantOrderNo}", await callbacks.RegisterOrderAsync(request, context.RequestAborted)); }
-    catch (ArgumentException exception) { return Results.BadRequest(new { error = exception.Message }); }
-    catch (InvalidOperationException exception) { return Results.Conflict(new { error = exception.Message }); }
+    catch (ArgumentException exception)
+    {
+        app.Logger.LogWarning(exception, "Invalid payment order registration request for merchant order {MerchantOrderNo}.", request.MerchantOrderNo);
+        return Results.BadRequest(new { error = exception.Message });
+    }
+    catch (InvalidOperationException exception)
+    {
+        app.Logger.LogWarning(exception, "Payment order registration conflict for merchant order {MerchantOrderNo}.", request.MerchantOrderNo);
+        return Results.Conflict(new { error = exception.Message });
+    }
 });
 
 app.MapGet("/api/payments/events", async (HttpContext context, PaymentCallbackProcessor callbacks, AdminAccess adminAccess) =>

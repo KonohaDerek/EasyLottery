@@ -5,6 +5,7 @@ using EasyLotteryDomain.Models.Pages;
 using EasyLotteryWasm.Models;
 using MiniExcelLibs;
 using Microsoft.JSInterop;
+using Serilog;
 
 namespace EasyLotteryWasm.Pages;
 
@@ -88,6 +89,7 @@ public partial class Home
         }
         catch (Exception ex)
         {
+            Log.Error(ex, "Failed to import participants from {Format} format.", participantDataFormat);
             await MessageService.Error($"參加者匯入失敗：{ex.Message}");
         }
     }
@@ -109,6 +111,7 @@ public partial class Home
         }
         catch (Exception ex)
         {
+            Log.Error(ex, "Failed to import prizes from {Format} format.", prizeDataFormat);
             await MessageService.Error($"獎項匯入失敗：{ex.Message}");
         }
     }

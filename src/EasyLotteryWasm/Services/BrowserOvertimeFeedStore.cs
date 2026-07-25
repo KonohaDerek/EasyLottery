@@ -2,6 +2,7 @@ using System.Text.Json;
 using EasyLotteryDomain.Models.Overtime;
 using EasyLotteryDomain.Services;
 using Microsoft.JSInterop;
+using Serilog;
 
 namespace EasyLotteryWasm.Services
 {
@@ -48,8 +49,9 @@ namespace EasyLotteryWasm.Services
             {
                 return JsonSerializer.Deserialize<List<OvertimeSupportEvent>>(json) ?? [];
             }
-            catch
+            catch (Exception ex)
             {
+                Log.Error(ex, "Failed to deserialize overtime feed JSON.");
                 return [];
             }
         }

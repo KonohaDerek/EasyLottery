@@ -10,6 +10,30 @@
     let nextRemoteAttemptAt = 0;
     let authorizationRequired = false;
 
+    function logError(scope, error) {
+        try {
+            console.error(`[easyLotteryConfig] ${scope}`, error);
+        } catch (logErrorFailure) {
+            console.warn("[easyLotteryConfig] failed to emit console error", logErrorFailure);
+        }
+    }
+
+    function bootstrapAdminTokenFromQuery() {
+        try {
+            const url = new URL(window.location.href);
+            const token = (url.searchParams.get("adminToken") || "").trim();
+            if (!token) {
+                return;
+            }
+
+            window.sessionStorage.setItem(adminTokenKey, token);
+            url.searchParams.delete("adminToken");
+            window.history.replaceState({}, document.title, `${url.pathname}${url.search}${url.hash}`);
+        } catch (error) {
+            logError("bootstrapAdminTokenFromQuery", error);
+        }
+    }
+
     function getSafeContent(content) {
         return content == null ? "" : content;
     }
@@ -19,15 +43,24 @@
 
         try {
             window.localStorage.setItem(storageKey, memoryFallback);
-        } catch {
+        } catch (error) {
+            logError("cacheFallback.localStorage.setItem", error);
         }
 
         return memoryFallback;
     }
 
     function getAdminHeaders() {
-        try { const token = window.sessionStorage.getItem(adminTokenKey); return token ? { "X-EasyLottery-Admin-Token": token } : {}; } catch { return {}; }
+        try {
+            const token = window.sessionStorage.getItem(adminTokenKey);
+            return token ? { "X-EasyLottery-Admin-Token": token } : {};
+        } catch (error) {
+            logError("getAdminHeaders", error);
+            return {};
+        }
     }
+
+    bootstrapAdminTokenFromQuery();
 
     async function read() {
         const now = Date.now();
@@ -51,14 +84,16 @@
                 // a 404 every overlay refresh while retaining the local fallback.
                 nextRemoteAttemptAt = now + 30_000;
             }
-        } catch {
+        } catch (error) {
+            logError("read.fetch", error);
             authorizationRequired = false;
             nextRemoteAttemptAt = now + 30_000;
         }
 
         try {
             return cacheFallback(window.localStorage.getItem(storageKey));
-        } catch {
+        } catch (error) {
+            logError("read.localStorage.getItem", error);
         }
 
         return memoryFallback;
@@ -83,7 +118,8 @@
                 throw new Error(`Unable to save shared YAML configuration (${response.status}).`);
             }
             authorizationRequired = false;
-        } catch {
+        } catch (error) {
+            logError("write.fetch", error);
             // The browser cache above is the offline fallback.
         }
     }

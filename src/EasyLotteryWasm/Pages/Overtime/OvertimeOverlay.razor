@@ -5,6 +5,7 @@
 @using EasyLotteryDomain.Services
 @using EasyLotteryWasm.Layout
 @using EasyLotteryWasm.Models
+@using Serilog
 @inject IEasyLotteryConfigStore ConfigStore
 @inject OvertimeFeedClient OvertimeFeedClient
 @inject OvertimeRealtimeClient OvertimeRealtimeClient
@@ -1064,8 +1065,9 @@ else
         {
             await OvertimeRealtimeClient.StartAsync();
         }
-        catch
+        catch (Exception ex)
         {
+            Log.Warning(ex, "Failed to start overtime realtime client. Falling back to local polling.");
             // The standalone WASM dev server has no SignalR host. The page retains
             // its local fallback while the Web Host provides live synchronization.
         }
@@ -1159,8 +1161,9 @@ else
         {
             events = await OvertimeFeedClient.GetEventsAsync();
         }
-        catch
+        catch (Exception ex)
         {
+            Log.Warning(ex, "Failed to reload overtime events from API; using empty fallback.");
             events = [];
         }
     }
@@ -1381,8 +1384,9 @@ else
         {
             await JSRuntime.InvokeVoidAsync("easyLotteryObs.stopOverlayClock");
         }
-        catch (JSDisconnectedException)
+        catch (JSDisconnectedException ex)
         {
+            Log.Debug(ex, "Browser disconnected before stopping overlay clock.");
         }
 
         OvertimeRealtimeClient.StateChanged -= HandleRealtimeUpdateAsync;

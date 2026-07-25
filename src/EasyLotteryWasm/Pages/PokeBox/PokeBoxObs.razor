@@ -4,6 +4,7 @@
 @using EasyLotteryDomain.Services
 @using EasyLotteryWasm.Layout
 @using EasyLotteryWasm.Models
+@using Serilog
 
 @inject ActivityResultService ActivityResultService
 @inject ResultNotificationService ResultNotificationService
@@ -517,6 +518,7 @@ else
         }
         catch (Exception ex)
         {
+            Log.Error(ex, "Failed to record poke activity result in OBS view.");
             SetStatus(ex.Message, true);
         }
         finally

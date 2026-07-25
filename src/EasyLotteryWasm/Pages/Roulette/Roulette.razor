@@ -1,6 +1,7 @@
 @page "/roulette"
 @using EasyLotteryDomain.Models.Entities
 @using EasyLotteryDomain.Services
+@using Serilog
 
 @inject RouletteService RouletteService
 @inject NavigationManager NavigationManager
@@ -226,6 +227,7 @@
         }
         catch (Exception ex)
         {
+            Log.Error(ex, "Failed to import roulette template JSON.");
             await MessageService.Error($"匯入失敗：{ex.Message}");
         }
     }

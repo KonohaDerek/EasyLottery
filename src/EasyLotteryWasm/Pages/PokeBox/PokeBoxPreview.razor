@@ -2,6 +2,7 @@
 @using EasyLotteryDomain.Models.Entities
 @using EasyLotteryDomain.Services
 @using EasyLotteryWasm.Models
+@using Serilog
 
 @inject ActivityResultService ActivityResultService
 @inject ResultNotificationService ResultNotificationService
@@ -472,6 +473,7 @@ else
         }
         catch (Exception ex)
         {
+            Log.Error(ex, "Failed to record poke activity result in preview.");
             await MessageService.Error(ex.Message);
         }
         finally
