@@ -11,6 +11,7 @@ builder.Services.AddSingleton<TunnelRuntimeService>();
 builder.Services.AddSingleton<IPaymentProvider, EcpayBroadcasterPaymentProvider>();
 builder.Services.AddSingleton<IPaymentProvider, NewebPayDonationPaymentProvider>();
 builder.Services.AddSingleton<PaymentProviderFactory>();
+builder.Services.AddSingleton<AdminAccess>();
 builder.Services.AddSingleton<PaymentCallbackProcessor>();
 
 var storageDirectory = builder.Configuration["Storage:Directory"]
@@ -64,8 +65,9 @@ if (app.Environment.IsDevelopment())
 app.UseBlazorFrameworkFiles();
 app.UseStaticFiles();
 
-Func<HttpContext, Task<IResult>> readSettings = async context =>
+Func<HttpContext, AdminAccess, Task<IResult>> readSettings = async (context, adminAccess) =>
 {
+    if (!adminAccess.IsAuthorized(context.Request)) return Results.Unauthorized();
     var content = await ReadFileAsync(configPath, string.Empty, context.RequestAborted);
     return Results.Text(configSecrets.RedactForBrowser(content), "text/yaml", Encoding.UTF8);
 };
@@ -73,15 +75,9 @@ app.MapGet("/settings", readSettings);
 // Compatibility endpoint for browsers still serving a cached pre-settings.yaml build.
 app.MapGet("/easy-lottery-config.yaml", readSettings);
 
-Func<HttpContext, IHubContext<OvertimeHub>, Task<IResult>> writeSettings = async (context, hub) =>
+Func<HttpContext, IHubContext<OvertimeHub>, AdminAccess, Task<IResult>> writeSettings = async (context, hub, adminAccess) =>
 {
-    // Public callback tunnels must never also provide a public settings write API.
-    // Remote administration can be explicitly enabled only by the host operator.
-    var allowRemoteSettingsWrite = builder.Configuration.GetValue<bool>("Settings:AllowRemoteWrite");
-    if (!allowRemoteSettingsWrite && (context.Connection.RemoteIpAddress is null || !IPAddress.IsLoopback(context.Connection.RemoteIpAddress)))
-    {
-        return Results.StatusCode(StatusCodes.Status403Forbidden);
-    }
+    if (!adminAccess.IsAuthorized(context.Request)) return Results.Unauthorized();
 
     var content = await ReadRequestBodyAsync(context.Request, context.RequestAborted);
     var existingContent = await ReadFileAsync(configPath, string.Empty, context.RequestAborted);
@@ -176,12 +172,9 @@ app.MapPost("/api/payments/{providerId}/notify", async (string providerId, HttpC
     return Results.Text(acknowledgement, "text/plain", Encoding.UTF8);
 });
 
-app.MapPost("/api/payments/orders", async (PaymentOrderRegistrationRequest request, HttpContext context, PaymentCallbackProcessor callbacks) =>
+app.MapPost("/api/payments/orders", async (PaymentOrderRegistrationRequest request, HttpContext context, PaymentCallbackProcessor callbacks, AdminAccess adminAccess) =>
 {
-    if (context.Connection.RemoteIpAddress is null || !IPAddress.IsLoopback(context.Connection.RemoteIpAddress))
-    {
-        return Results.StatusCode(StatusCodes.Status403Forbidden);
-    }
+    if (!adminAccess.IsAuthorized(context.Request)) return Results.Unauthorized();
     try { return Results.Created($"/api/payments/orders/{request.MerchantOrderNo}", await callbacks.RegisterOrderAsync(request, context.RequestAborted)); }
     catch (ArgumentException exception) { return Results.BadRequest(new { error = exception.Message }); }
     catch (InvalidOperationException exception) { return Results.Conflict(new { error = exception.Message }); }

@@ -5,6 +5,7 @@
 
     const storageKey = "easy-lottery.config.yaml";
     const remoteConfigUrl = "/settings";
+    const adminTokenKey = "easy-lottery.admin-token";
     let memoryFallback = "";
     let nextRemoteAttemptAt = 0;
 
@@ -23,13 +24,17 @@
         return memoryFallback;
     }
 
+    function getAdminHeaders() {
+        try { const token = window.sessionStorage.getItem(adminTokenKey); return token ? { "X-EasyLottery-Admin-Token": token } : {}; } catch { return {}; }
+    }
+
     async function read() {
         const now = Date.now();
         try {
             // The web host owns the YAML file. Do not let a stale per-browser
             // localStorage value override shared settings.
             if (now >= nextRemoteAttemptAt) {
-                const response = await fetch(remoteConfigUrl, { cache: "no-store" });
+                const response = await fetch(remoteConfigUrl, { cache: "no-store", headers: getAdminHeaders() });
                 if (response.ok) {
                     nextRemoteAttemptAt = 0;
                     return cacheFallback(await response.text());
@@ -61,9 +66,7 @@
             const response = await fetch(remoteConfigUrl, {
                 method: "PUT",
                 cache: "no-store",
-                headers: {
-                    "Content-Type": "text/yaml; charset=utf-8"
-                },
+                headers: { "Content-Type": "text/yaml; charset=utf-8", ...getAdminHeaders() },
                 body: safeContent
             });
 
@@ -78,5 +81,6 @@
     window.easyLotteryConfig = {
         read,
         write,
+        setAdminToken: (token) => window.sessionStorage.setItem(adminTokenKey, token || ""),
     };
 })();
