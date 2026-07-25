@@ -82,5 +82,6 @@
         read,
         write,
         setAdminToken: (token) => window.sessionStorage.setItem(adminTokenKey, token || ""),
+        getAdminToken: () => window.sessionStorage.getItem(adminTokenKey) || "",
     };
 })();

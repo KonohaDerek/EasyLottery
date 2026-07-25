@@ -3,11 +3,13 @@
 @using EasyLotteryDomain.Services
 @using System.Globalization
 @using System.Text.Json
+@using System.Net.Http.Json
 
 @inject ActivityResultService ActivityResultService
 @inject IMessageService MessageService
 @inject IJSRuntime JSRuntime
 @inject IEasyLotteryConfigStore ConfigStore
+@inject HttpClient Http
 
 <PageTitle>活動結果</PageTitle>
 
@@ -669,9 +671,22 @@
         records = await ActivityResultService.ListActivityResultsAsync();
         var document = await ConfigStore.LoadAsync();
         var draws = document.DonateLotteryDrawRecords;
-        donateSummary = (draws.Select(item => item.PaymentExternalId).Distinct().Count(), draws.GroupBy(item => item.PaymentExternalId).Select(group => group.First().Amount).Sum(), draws.Select(item => item.PaymentExternalId).Distinct().Any() ? draws.GroupBy(item => item.PaymentExternalId).Select(group => group.First().Amount).Average() : 0m, draws.Count);
+        try
+        {
+            var token = await JSRuntime.InvokeAsync<string>("easyLotteryConfig.getAdminToken");
+            using var request = new HttpRequestMessage(HttpMethod.Get, "/api/payments/events");
+            request.Headers.Add("X-EasyLottery-Admin-Token", token);
+            var response = await Http.SendAsync(request);
+            var payments = response.IsSuccessStatusCode ? await response.Content.ReadFromJsonAsync<List<PaymentReportEvent>>() ?? [] : [];
+            var paymentCount = payments.Select(item => item.ExternalId).Distinct().Count();
+            var total = payments.GroupBy(item => item.ExternalId).Select(group => group.First().Amount).Sum();
+            donateSummary = (paymentCount, total, paymentCount == 0 ? 0m : total / paymentCount, draws.Count);
+        }
+        catch { donateSummary = (0, 0m, 0m, draws.Count); }
         isLoading = false;
     }
+
+    private sealed class PaymentReportEvent { public string ExternalId { get; set; } = ""; public decimal Amount { get; set; } }
 
     private static string GetTypeLabel(ActivityResultType type) => type switch
     {

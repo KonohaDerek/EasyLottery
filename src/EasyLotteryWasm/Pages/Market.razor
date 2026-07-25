@@ -3,13 +3,29 @@
 @using EasyLotteryDomain.Services
 @inject PokeService PokeService
 @inject RouletteService RouletteService
+@inject IMessageService MessageService
 @inject NavigationManager Navigation
 
 <PageTitle>活動市集</PageTitle>
-<Card class="mb-4"><CardBody><h2>活動市集</h2><p class="mb-0">瀏覽已安裝的內建活動模板；模板會保留在共用設定中，不會覆蓋任何歷史活動結果。</p></CardBody></Card>
-@if (loading) { <p>載入中…</p> } else { <div class="row g-3">@foreach (var item in items) { <div class="col-md-6 col-xl-4"><Card class="h-100"><CardBody><Badge Color="Color.Info">@item.Type</Badge><h4 class="mt-2">@item.Name</h4><p>@item.Description</p><small class="text-muted">版本 1.0 · @(item.IsInstalled ? "已安裝" : "尚未安裝")</small><div class="mt-3"><a class="btn btn-primary" href="@item.Link">@(item.IsInstalled ? "開啟並啟用" : "下載／安裝")</a></div></CardBody></Card></div> }</div> }
+<Card class="mb-4"><CardBody><h2>活動市集</h2><p class="mb-0">市集套件以複製方式安裝，既有活動與歷史結果不會被覆寫；重新安裝會建立新的可編輯版本。</p></CardBody></Card>
+@if (loading) { <p>載入中…</p> }
+else { <div class="row g-3">@foreach (var item in items) { <div class="col-md-6 col-xl-4"><Card class="h-100"><CardBody><Badge Color="Color.Info">@item.Type</Badge><h4 class="mt-2">@item.Name</h4><p>@item.Description</p><small class="text-muted">內建市集 · 版本 1.0 · @(item.IsInstalled ? "已安裝" : "尚未安裝")</small><div class="mt-3 d-flex gap-2"><Button Color="Color.Primary" Clicked="() => InstallAsync(item)">@(item.IsInstalled ? "重新安裝最新版本" : "下載／安裝")</Button>@if (item.InstalledId.HasValue) { <a class="btn btn-outline-secondary" href="@item.InstalledLink">開啟已安裝活動</a> }</div></CardBody></Card></div> }</div> }
+
 @code {
- private sealed record MarketItem(string Type,string Name,string Description,string Link,bool IsInstalled);
+ private sealed record MarketItem(string Type,string Name,string Description,int SourceId,bool IsInstalled,int? InstalledId,string InstalledLink);
  private List<MarketItem> items=[]; private bool loading=true;
- protected override async Task OnInitializedAsync(){ var pokes=await PokeService.ListTemplatesAsync(); var roulettes=await RouletteService.ListTemplatesAsync(); items=pokes.Where(x=>x.IsBuiltIn && x.PublicationStatus==TemplatePublicationStatus.Published).Select(x=>new MarketItem("戳戳樂",x.Name,x.Description,$"/pokebox/editor/{x.Id}",true)).Concat(roulettes.Where(x=>x.IsBuiltIn && x.PublicationStatus==TemplatePublicationStatus.Published).Select(x=>new MarketItem("轉盤",x.Name,x.Description,$"/roulette/editor/{x.Id}",true))).ToList(); loading=false; }
+ protected override async Task OnInitializedAsync() => await ReloadAsync();
+ private async Task ReloadAsync()
+ {
+     var pokes=await PokeService.ListTemplatesAsync(); var roulettes=await RouletteService.ListTemplatesAsync();
+     items=pokes.Where(x=>x.IsBuiltIn && x.PublicationStatus==TemplatePublicationStatus.Published).Select(source => { var installed=pokes.Where(x=>!x.IsBuiltIn && x.Name.StartsWith(source.Name, StringComparison.Ordinal)).OrderByDescending(x=>x.UpdatedAt).FirstOrDefault(); return new MarketItem("戳戳樂",source.Name,source.Description,source.Id,installed is not null,installed?.Id,installed is null ? "" : $"/pokebox/editor/{installed.Id}"); })
+         .Concat(roulettes.Where(x=>x.IsBuiltIn && x.PublicationStatus==TemplatePublicationStatus.Published).Select(source => { var installed=roulettes.Where(x=>!x.IsBuiltIn && x.Name.StartsWith(source.Name, StringComparison.Ordinal)).OrderByDescending(x=>x.UpdatedAt).FirstOrDefault(); return new MarketItem("轉盤",source.Name,source.Description,source.Id,installed is not null,installed?.Id,installed is null ? "" : $"/roulette/editor/{installed.Id}"); })).ToList();
+     loading=false;
+ }
+ private async Task InstallAsync(MarketItem item)
+ {
+     if (item.Type == "戳戳樂") { var installed=await PokeService.DuplicateTemplateAsync(item.SourceId); await PokeService.SetPublicationStatusAsync(installed.Id, TemplatePublicationStatus.Published); Navigation.NavigateTo($"/pokebox/editor/{installed.Id}"); }
+     else { var installed=await RouletteService.DuplicateTemplateAsync(item.SourceId); await RouletteService.SetPublicationStatusAsync(installed.Id, TemplatePublicationStatus.Published); Navigation.NavigateTo($"/roulette/editor/{installed.Id}"); }
+     await MessageService.Success("市集活動已安裝並啟用。");
+ }
 }
