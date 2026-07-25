@@ -13,7 +13,16 @@
       "browser": "chrome"
     },
     {
-      "name": "EasyLottery Docker Compose (Browser Preview)",
+      "name": "EasyLottery Docker Compose (Blazor WASM Debug)",
+      "type": "blazorwasm",
+      "request": "launch",
+      "url": "http://localhost:18930",
+      "browser": "chrome",
+      "preLaunchTask": "compose: up api",
+      "postDebugTask": "compose: down api"
+    },
+    {
+      "name": "EasyLottery Docker Compose (Chrome Debug Fallback)",
       "type": "pwa-chrome",
       "request": "launch",
       "url": "http://localhost:18930",

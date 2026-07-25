@@ -1,0 +1,11 @@
+**/bin/
+**/obj/
+.git/
+.github/
+.vscode/
+.devcontainer/
+.agent/
+openspec/
+temp/
+README.md
+LICENSE

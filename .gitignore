@@ -14,6 +14,7 @@ src/EasyLottery/dist
 appsettings.Development.json
 appsettings.*.json
 !appsettings.json
+.env.local
 .devcontainer/local/data/
 temp/
 src/EasyLotteryAPI/App_Data/

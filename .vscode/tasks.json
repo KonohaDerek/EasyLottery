@@ -52,24 +52,30 @@
     {
       "label": "compose: up api",
       "type": "shell",
-      "command": "docker",
+      "command": "bash",
       "args": [
-        "compose",
-        "up",
-        "-d",
-        "--build",
-        "api"
+        "-lc",
+        "set -euo pipefail; env_file=.env.local; if [ ! -f \"$env_file\" ] || ! grep -q '^EASYLOTTERY_ADMIN_TOKEN=' \"$env_file\"; then printf 'EASYLOTTERY_ADMIN_TOKEN=%s\\n' \"$(openssl rand -hex 32)\" > \"$env_file\"; fi; docker compose --env-file \"$env_file\" up -d --build api"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "compose: rebuild api (no cache)",
+      "type": "shell",
+      "command": "bash",
+      "args": [
+        "-lc",
+        "set -euo pipefail; env_file=.env.local; if [ ! -f \"$env_file\" ] || ! grep -q '^EASYLOTTERY_ADMIN_TOKEN=' \"$env_file\"; then printf 'EASYLOTTERY_ADMIN_TOKEN=%s\\n' \"$(openssl rand -hex 32)\" > \"$env_file\"; fi; docker compose --env-file \"$env_file\" build --no-cache api && docker compose --env-file \"$env_file\" up -d api"
       ],
       "problemMatcher": []
     },
     {
       "label": "compose: down api",
       "type": "shell",
-      "command": "docker",
+      "command": "bash",
       "args": [
-        "compose",
-        "down",
-        "--remove-orphans"
+        "-lc",
+        "set -euo pipefail; env_file=.env.local; if [ ! -f \"$env_file\" ] || ! grep -q '^EASYLOTTERY_ADMIN_TOKEN=' \"$env_file\"; then printf 'EASYLOTTERY_ADMIN_TOKEN=%s\\n' \"$(openssl rand -hex 32)\" > \"$env_file\"; fi; docker compose --env-file \"$env_file\" down --remove-orphans"
       ],
       "problemMatcher": []
     }
