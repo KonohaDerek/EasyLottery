@@ -159,6 +159,9 @@ app.MapPost("/api/payments/orders", async (PaymentOrderRegistrationRequest reque
     catch (InvalidOperationException exception) { return Results.Conflict(new { error = exception.Message }); }
 });
 
+app.MapGet("/api/payments/events", async (HttpContext context, PaymentCallbackProcessor callbacks, AdminAccess adminAccess) =>
+    !adminAccess.IsAuthorized(context.Request) ? Results.Unauthorized() : Results.Ok(await callbacks.ListProcessedEventsAsync(context.RequestAborted)));
+
 app.MapFallbackToFile("index.html");
 
 await app.RunAsync();

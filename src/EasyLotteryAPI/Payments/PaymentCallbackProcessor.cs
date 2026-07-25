@@ -170,6 +170,13 @@ public sealed class PaymentCallbackProcessor
         finally { _gate.Release(); }
     }
 
+    public async Task<IReadOnlyList<ProcessedPaymentEvent>> ListProcessedEventsAsync(CancellationToken cancellationToken)
+    {
+        await _gate.WaitAsync(cancellationToken);
+        try { return (await ReadJsonAsync<List<ProcessedPaymentEvent>>(_paymentEventsPath, cancellationToken) ?? []).OrderByDescending(item => item.PaidAtUtc).ToList(); }
+        finally { _gate.Release(); }
+    }
+
     private async Task<IReadOnlyList<DonateLotteryDrawRecord>> ProcessDonateLotteryAsync(PaymentNotification notification, CancellationToken cancellationToken)
     {
         var result = await _settingsStore.UpdateAsync(document => DonateLotteryEngine.Process(document, notification.ExternalId, notification.DisplayName, notification.Amount, notification.OccurredAtUtc), cancellationToken);
