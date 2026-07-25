@@ -1,12 +1,11 @@
 using System.Text.Json;
 using System.Net;
 using System.Net.Mail;
+using EasyLotteryApi;
 using EasyLotteryDomain.Models.Config;
 using EasyLotteryDomain.Services;
 using EasyLotteryDomain.Models.Overtime;
 using Microsoft.AspNetCore.SignalR;
-using YamlDotNet.Serialization;
-using YamlDotNet.Serialization.NamingConventions;
 
 namespace EasyLotteryApi.Payments;
 
@@ -15,35 +14,26 @@ public sealed class PaymentCallbackProcessor
     private readonly PaymentProviderFactory _factory;
     private readonly IHubContext<OvertimeHub> _hub;
     private readonly ILogger<PaymentCallbackProcessor> _logger;
-    private readonly string _configPath;
-    private readonly string _legacyConfigPath;
+    private readonly SettingsFileStore _settingsStore;
     private readonly string _paymentEventsPath;
     private readonly string _paymentOrdersPath;
     private readonly string _overtimeFeedPath;
     private readonly SemaphoreSlim _gate = new(1, 1);
-    private readonly IDeserializer _yaml = new DeserializerBuilder()
-        .WithNamingConvention(CamelCaseNamingConvention.Instance)
-        .IgnoreUnmatchedProperties()
-        .Build();
-    private readonly ISerializer _yamlSerializer = new SerializerBuilder()
-        .WithNamingConvention(CamelCaseNamingConvention.Instance)
-        .ConfigureDefaultValuesHandling(DefaultValuesHandling.OmitNull | DefaultValuesHandling.OmitDefaults)
-        .Build();
 
     public PaymentCallbackProcessor(
         PaymentProviderFactory factory,
         IHubContext<OvertimeHub> hub,
         ILogger<PaymentCallbackProcessor> logger,
         IConfiguration configuration,
-        IWebHostEnvironment environment)
+        IWebHostEnvironment environment,
+        SettingsFileStore settingsStore)
     {
         _factory = factory;
         _hub = hub;
         _logger = logger;
         var storageDirectory = configuration["Storage:Directory"] ?? Path.Combine(environment.ContentRootPath, "App_Data");
         Directory.CreateDirectory(storageDirectory);
-        _configPath = Path.Combine(storageDirectory, "settings.yaml");
-        _legacyConfigPath = Path.Combine(storageDirectory, "easy-lottery.yaml");
+        _settingsStore = settingsStore;
         _paymentEventsPath = Path.Combine(storageDirectory, "easy-lottery-payment-events.json");
         _paymentOrdersPath = Path.Combine(storageDirectory, "easy-lottery-payment-orders.json");
         _overtimeFeedPath = Path.Combine(storageDirectory, "easy-lottery-overtime-feed.json");
@@ -182,17 +172,8 @@ public sealed class PaymentCallbackProcessor
 
     private async Task<IReadOnlyList<DonateLotteryDrawRecord>> ProcessDonateLotteryAsync(PaymentNotification notification, CancellationToken cancellationToken)
     {
-        var path = File.Exists(_configPath) ? _configPath : _legacyConfigPath;
-        if (!File.Exists(path)) return [];
-
-        var document = _yaml.Deserialize<EasyLotteryConfigDocument>(await File.ReadAllTextAsync(path, cancellationToken)) ?? new();
-        var result = DonateLotteryEngine.Process(document, notification.ExternalId, notification.DisplayName, notification.Amount, notification.OccurredAtUtc);
-        if (!result.Processed) return [];
-
-        var temporaryPath = $"{_configPath}.{Guid.NewGuid():N}.tmp";
-        await File.WriteAllTextAsync(temporaryPath, _yamlSerializer.Serialize(document), cancellationToken);
-        File.Move(temporaryPath, _configPath, overwrite: true);
-        return result.Wins;
+        var result = await _settingsStore.UpdateAsync(document => DonateLotteryEngine.Process(document, notification.ExternalId, notification.DisplayName, notification.Amount, notification.OccurredAtUtc), cancellationToken);
+        return result.Processed ? result.Wins : [];
     }
 
     private async Task SendResultNotificationAsync(IReadOnlyList<DonateLotteryDrawRecord> wins, CancellationToken cancellationToken)
@@ -200,9 +181,7 @@ public sealed class PaymentCallbackProcessor
         if (wins.Count == 0) return;
         try
         {
-            var path = File.Exists(_configPath) ? _configPath : _legacyConfigPath;
-            if (!File.Exists(path)) return;
-            var document = _yaml.Deserialize<EasyLotteryConfigDocument>(await File.ReadAllTextAsync(path, cancellationToken));
+            var document = await _settingsStore.ReadAsync(cancellationToken);
             var settings = document?.SystemSettings;
             if (settings is null || string.IsNullOrWhiteSpace(settings.ResultNotificationEmail) || !settings.MailDelivery.HasConfiguration) return;
             using var message = new MailMessage(new MailAddress(settings.MailDelivery.FromAddress, settings.MailDelivery.FromName), new MailAddress(settings.ResultNotificationEmail))
@@ -225,13 +204,7 @@ public sealed class PaymentCallbackProcessor
 
     private async Task<DonationProviderSettings?> LoadSettingsAsync(string providerId, CancellationToken cancellationToken)
     {
-        var configPath = File.Exists(_configPath) ? _configPath : _legacyConfigPath;
-        if (!File.Exists(configPath))
-        {
-            return null;
-        }
-
-        var document = _yaml.Deserialize<EasyLotteryConfigDocument>(await File.ReadAllTextAsync(configPath, cancellationToken));
+        var document = await _settingsStore.ReadAsync(cancellationToken);
         var providers = document?.SystemSettings?.DonationIntegration;
         var provider = providerId switch
         {

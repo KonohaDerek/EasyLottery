@@ -11,34 +11,16 @@ builder.Services.AddSingleton<TunnelRuntimeService>();
 builder.Services.AddSingleton<IPaymentProvider, EcpayBroadcasterPaymentProvider>();
 builder.Services.AddSingleton<IPaymentProvider, NewebPayDonationPaymentProvider>();
 builder.Services.AddSingleton<PaymentProviderFactory>();
+builder.Services.AddSingleton<ConfigSecretRedactor>();
+builder.Services.AddSingleton<SettingsFileStore>();
 builder.Services.AddSingleton<PaymentCallbackProcessor>();
 
 var storageDirectory = builder.Configuration["Storage:Directory"]
     ?? Path.Combine(builder.Environment.ContentRootPath, "App_Data");
 Directory.CreateDirectory(storageDirectory);
 
-var configPath = Path.Combine(storageDirectory, "settings.yaml");
-var legacyConfigPath = Path.Combine(storageDirectory, "easy-lottery.yaml");
 var overtimeFeedPath = Path.Combine(storageDirectory, "easy-lottery-overtime-feed.json");
 var storageGate = new SemaphoreSlim(1, 1);
-var configSecrets = new ConfigSecretRedactor();
-
-// Preserve existing installations while making settings.yaml the single
-// canonical configuration file from now on.
-if (!File.Exists(configPath) && File.Exists(legacyConfigPath))
-{
-    File.Move(legacyConfigPath, configPath);
-}
-
-if (File.Exists(configPath))
-{
-    var currentSettings = await File.ReadAllTextAsync(configPath);
-    var normalizedSettings = configSecrets.NormalizeForPersistence(currentSettings);
-    if (!string.Equals(currentSettings, normalizedSettings, StringComparison.Ordinal))
-    {
-        await WriteFileAsync(configPath, normalizedSettings, storageGate, CancellationToken.None);
-    }
-}
 
 var app = builder.Build();
 
@@ -64,16 +46,15 @@ if (app.Environment.IsDevelopment())
 app.UseBlazorFrameworkFiles();
 app.UseStaticFiles();
 
-Func<HttpContext, Task<IResult>> readSettings = async context =>
+Func<HttpContext, SettingsFileStore, Task<IResult>> readSettings = async (context, settingsStore) =>
 {
-    var content = await ReadFileAsync(configPath, string.Empty, context.RequestAborted);
-    return Results.Text(configSecrets.RedactForBrowser(content), "text/yaml", Encoding.UTF8);
+    return Results.Text(await settingsStore.ReadForBrowserAsync(context.RequestAborted), "text/yaml", Encoding.UTF8);
 };
 app.MapGet("/settings", readSettings);
 // Compatibility endpoint for browsers still serving a cached pre-settings.yaml build.
 app.MapGet("/easy-lottery-config.yaml", readSettings);
 
-Func<HttpContext, IHubContext<OvertimeHub>, Task<IResult>> writeSettings = async (context, hub) =>
+Func<HttpContext, IHubContext<OvertimeHub>, SettingsFileStore, Task<IResult>> writeSettings = async (context, hub, settingsStore) =>
 {
     // Public callback tunnels must never also provide a public settings write API.
     // Remote administration can be explicitly enabled only by the host operator.
@@ -84,9 +65,7 @@ Func<HttpContext, IHubContext<OvertimeHub>, Task<IResult>> writeSettings = async
     }
 
     var content = await ReadRequestBodyAsync(context.Request, context.RequestAborted);
-    var existingContent = await ReadFileAsync(configPath, string.Empty, context.RequestAborted);
-    var mergedContent = configSecrets.MergeBrowserUpdate(existingContent, content);
-    await WriteFileAsync(configPath, mergedContent, storageGate, context.RequestAborted);
+    await settingsStore.SaveBrowserUpdateAsync(content, context.RequestAborted);
     await hub.Clients.All.SendAsync("OvertimeStateChanged", context.RequestAborted);
     return Results.NoContent();
 };
