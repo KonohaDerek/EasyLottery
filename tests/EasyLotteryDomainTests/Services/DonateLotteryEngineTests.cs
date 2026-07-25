@@ -84,8 +84,7 @@ public sealed class DonateLotteryEngineTests
                 StartsAtUtc = DateTimeOffset.UtcNow.AddHours(-1),
                 EndsAtUtc = DateTimeOffset.UtcNow.AddHours(1),
                 IsEnabled = true,
-                WinProbability = 1m,
-                Prizes = [new DonateLotteryPrize { Id = 1, Name = "獎項", RemainingQuantity = 2, Quantity = 2 }]
+                Prizes = [new DonateLotteryPrize { Id = 1, Name = "獎項", RemainingQuantity = 2, Quantity = 2, Probability = 100m }]
             }
         ]
     };

@@ -22,7 +22,6 @@ public sealed class DonateLotteryActivity
     public decimal MinimumDonationAmount { get; set; } = 100m;
     public DateTimeOffset StartsAtUtc { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset EndsAtUtc { get; set; } = DateTimeOffset.UtcNow.AddDays(1);
-    public decimal WinProbability { get; set; } = 1m;
     public DonateLotteryAnimation Animation { get; set; } = DonateLotteryAnimation.IchibanKuji;
     public bool IsEnabled { get; set; }
     public List<DonateLotteryPrize> Prizes { get; set; } = [];

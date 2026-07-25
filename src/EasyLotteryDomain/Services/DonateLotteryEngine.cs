@@ -61,14 +61,6 @@ public static class DonateLotteryEngine
     private static DonateLotteryPrize? SelectPrize(DonateLotteryActivity activity, Func<double> random)
     {
         var prizes = activity.Prizes.Where(item => item.RemainingQuantity > 0).ToList();
-        // Existing configurations predate per-prize probabilities. Keep them working until
-        // they are saved through the new editor, then use the explicit percentages below.
-        if (prizes.All(item => item.Probability <= 0m))
-        {
-            if (random() >= (double)Math.Clamp(activity.WinProbability, 0m, 1m)) return null;
-            return prizes.Count == 0 ? null : prizes[Math.Min((int)(random() * prizes.Count), prizes.Count - 1)];
-        }
-
         var roll = (decimal)random() * 100m;
         var cursor = 0m;
         foreach (var prize in prizes)
