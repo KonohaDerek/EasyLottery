@@ -8,6 +8,7 @@
     const adminTokenKey = "easy-lottery.admin-token";
     let memoryFallback = "";
     let nextRemoteAttemptAt = 0;
+    let authorizationRequired = false;
 
     function getSafeContent(content) {
         return content == null ? "" : content;
@@ -37,14 +38,21 @@
                 const response = await fetch(remoteConfigUrl, { cache: "no-store", headers: getAdminHeaders() });
                 if (response.ok) {
                     nextRemoteAttemptAt = 0;
+                    authorizationRequired = false;
                     return cacheFallback(await response.text());
                 }
+
+                // A reachable web host explicitly rejected the request. Preserve this
+                // distinction from an offline standalone WASM server so the UI can
+                // guide the user instead of displaying an empty fallback as settings.
+                authorizationRequired = response.status === 401;
 
                 // The standalone WASM dev server has no YAML API. Avoid generating
                 // a 404 every overlay refresh while retaining the local fallback.
                 nextRemoteAttemptAt = now + 30_000;
             }
         } catch {
+            authorizationRequired = false;
             nextRemoteAttemptAt = now + 30_000;
         }
 
@@ -71,8 +79,10 @@
             });
 
             if (!response.ok) {
+                authorizationRequired = response.status === 401;
                 throw new Error(`Unable to save shared YAML configuration (${response.status}).`);
             }
+            authorizationRequired = false;
         } catch {
             // The browser cache above is the offline fallback.
         }
@@ -83,5 +93,6 @@
         write,
         setAdminToken: (token) => window.sessionStorage.setItem(adminTokenKey, token || ""),
         getAdminToken: () => window.sessionStorage.getItem(adminTokenKey) || "",
+        requiresAdminToken: () => authorizationRequired,
     };
 })();
