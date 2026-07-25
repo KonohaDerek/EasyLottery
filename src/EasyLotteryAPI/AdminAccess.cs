@@ -10,6 +10,8 @@ public sealed class AdminAccess
 
     public AdminAccess(IConfiguration configuration) => _token = configuration["Settings:AdminToken"]?.Trim() ?? "";
 
+    public bool IsConfigured => !string.IsNullOrWhiteSpace(_token);
+
     public bool IsAuthorized(HttpRequest request)
     {
         if (string.IsNullOrWhiteSpace(_token)) return false;

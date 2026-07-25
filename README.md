@@ -120,6 +120,12 @@ EasyLottery 是一套以 **Blazor WebAssembly + Domain Service** 組成的直播
 
 ### 執行 Web Host
 
+Docker 部署前必須設定一組隨機管理權杖；它用於保護系統設定與付款訂單管理 API，請勿使用可預測值或提交至版本控制：
+
+```bash
+export EASYLOTTERY_ADMIN_TOKEN="$(openssl rand -hex 32)"
+```
+
 ```bash
 dotnet run --project src/EasyLotteryAPI/EasyLotteryApi.csproj --launch-profile EasyLotteryAPI
 ```

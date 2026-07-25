@@ -25,6 +25,11 @@ var storageGate = new SemaphoreSlim(1, 1);
 
 var app = builder.Build();
 
+if (!app.Services.GetRequiredService<AdminAccess>().IsConfigured)
+{
+    app.Logger.LogWarning("Settings administration is disabled because Settings:AdminToken is not configured.");
+}
+
 if (app.Environment.IsDevelopment())
 {
     // Debug builds generate hash-named WASM assets. Prevent a browser that was
