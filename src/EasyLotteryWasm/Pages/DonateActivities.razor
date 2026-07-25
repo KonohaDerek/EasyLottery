@@ -24,21 +24,26 @@
                 <div class="col-md-6"><Field><FieldLabel>活動名稱</FieldLabel><TextInput @bind-Value="editing.Name" /></Field></div>
                 <div class="col-md-3"><Field><FieldLabel>類型</FieldLabel><Select TValue="DonateLotteryActivityType" @bind-SelectedValue="editing.Type"><SelectItem Value="DonateLotteryActivityType.Postcard">明信片</SelectItem><SelectItem Value="DonateLotteryActivityType.Polaroid">拍立得</SelectItem></Select></Field></div>
                 <div class="col-md-3"><Field><FieldLabel>最低贊助金額</FieldLabel><NumericInput TValue="decimal" @bind-Value="editing.MinimumDonationAmount" Min="1" /></Field></div>
+                <div class="col-md-3"><Field><FieldLabel>抽獎動畫</FieldLabel><Select TValue="DonateLotteryAnimation" @bind-SelectedValue="editing.Animation"><SelectItem Value="DonateLotteryAnimation.IchibanKuji">一番賞</SelectItem><SelectItem Value="DonateLotteryAnimation.Gacha">扭蛋</SelectItem><SelectItem Value="DonateLotteryAnimation.Garagara">日式滾筒</SelectItem><SelectItem Value="DonateLotteryAnimation.MoneyBox">塞錢箱／詩籤</SelectItem></Select></Field></div>
                 <div class="col-md-4"><Field><FieldLabel>開始時間（本地時區）</FieldLabel><input class="form-control" type="datetime-local" value="@StartDateText" @onchange="OnStartDateChanged" /></Field></div>
                 <div class="col-md-4"><Field><FieldLabel>結束時間（本地時區）</FieldLabel><input class="form-control" type="datetime-local" value="@EndDateText" @onchange="OnEndDateChanged" /></Field></div>
                 <div class="col-md-2"><Field><FieldLabel>中獎機率</FieldLabel><NumericInput TValue="decimal" @bind-Value="editing.WinProbability" /></Field></div>
                 <div class="col-md-2"><Field><FieldLabel>啟用</FieldLabel><Switch TValue="bool" @bind-Value="editing.IsEnabled" /></Field></div>
             </div>
             <h5 class="mt-4">獎項</h5>
+            <p class="text-muted">每個獎項設定 0–100% 的中獎率；未配置的剩餘機率固定為「銘謝惠顧」。合計不可超過 100%。</p>
             @foreach (var prize in editing.Prizes)
             {
                 <div class="row g-2 mb-2" @key="prize">
-                    <div class="col-md-4"><TextInput @bind-Value="prize.Name" Placeholder="獎項名稱" /></div>
-                    <div class="col-md-4"><TextInput @bind-Value="prize.ImageUrl" Placeholder="圖片 URL" /></div>
-                    <div class="col-md-2"><NumericInput TValue="int" @bind-Value="prize.Quantity" Min="0" /></div>
+                    <div class="col-md-3"><TextInput @bind-Value="prize.Name" Placeholder="獎項名稱" /></div>
+                    <div class="col-md-2"><NumericInput TValue="decimal" @bind-Value="prize.Probability" Min="0" Max="100" Placeholder="機率 (%)" /></div>
+                    <div class="col-md-2"><TextInput @bind-Value="prize.ImageUrl" Placeholder="圖片 URL" /></div>
+                    <div class="col-md-1"><NumericInput TValue="int" @bind-Value="prize.Quantity" Min="0" /></div>
+                    <div class="col-md-2"><Switch TValue="bool" @bind-Value="prize.IsGrandPrize" /> <small>最大獎</small></div>
                     <div class="col-md-2"><Button Color="Color.Danger" Size="Size.Small" Clicked="() => editing.Prizes.Remove(prize)">移除</Button></div>
                 </div>
             }
+            <div class="small text-muted">目前合計：@PrizeProbabilityTotal.ToString("0.##")%　／　銘謝惠顧：@Math.Max(0m, 100m - PrizeProbabilityTotal).ToString("0.##")%</div>
             <Button Color="Color.Secondary" Size="Size.Small" Clicked="AddPrize">新增獎項</Button>
             <div class="d-flex gap-2 mt-4"><Button Color="Color.Primary" Clicked="SaveAsync">儲存</Button><Button Color="Color.Secondary" Clicked="() => editing = null">取消</Button></div>
         </CardBody>
@@ -64,8 +69,9 @@
     protected override async Task OnInitializedAsync() => await ReloadAsync();
 
     private async Task ReloadAsync() => activities = await DonateLotteryActivityService.ListAsync();
-    private Task CreateAsync() { editing = new DonateLotteryActivity { StartsAtUtc = DateTimeOffset.UtcNow, EndsAtUtc = DateTimeOffset.UtcNow.AddDays(7), WinProbability = 1m, Prizes = [new()] }; return Task.CompletedTask; }
-    private void Edit(DonateLotteryActivity activity) => editing = new DonateLotteryActivity { Id = activity.Id, Name = activity.Name, Type = activity.Type, MinimumDonationAmount = activity.MinimumDonationAmount, StartsAtUtc = activity.StartsAtUtc, EndsAtUtc = activity.EndsAtUtc, WinProbability = activity.WinProbability, IsEnabled = activity.IsEnabled, Prizes = activity.Prizes.Select(prize => new DonateLotteryPrize { Id = prize.Id, Name = prize.Name, ImageUrl = prize.ImageUrl, Quantity = prize.Quantity, RemainingQuantity = prize.RemainingQuantity }).ToList() };
+    private decimal PrizeProbabilityTotal => editing?.Prizes.Sum(prize => prize.Probability) ?? 0m;
+    private Task CreateAsync() { editing = new DonateLotteryActivity { StartsAtUtc = DateTimeOffset.UtcNow, EndsAtUtc = DateTimeOffset.UtcNow.AddDays(7), WinProbability = 1m, Prizes = [new DonateLotteryPrize { Probability = 100m }] }; return Task.CompletedTask; }
+    private void Edit(DonateLotteryActivity activity) => editing = new DonateLotteryActivity { Id = activity.Id, Name = activity.Name, Type = activity.Type, Animation = activity.Animation, MinimumDonationAmount = activity.MinimumDonationAmount, StartsAtUtc = activity.StartsAtUtc, EndsAtUtc = activity.EndsAtUtc, WinProbability = activity.WinProbability, IsEnabled = activity.IsEnabled, Prizes = activity.Prizes.Select(prize => new DonateLotteryPrize { Id = prize.Id, Name = prize.Name, ImageUrl = prize.ImageUrl, Quantity = prize.Quantity, RemainingQuantity = prize.RemainingQuantity, Probability = prize.Probability, IsGrandPrize = prize.IsGrandPrize }).ToList() };
     private void AddPrize() => editing?.Prizes.Add(new DonateLotteryPrize());
     private async Task SaveAsync() { if (editing is null) return; try { await DonateLotteryActivityService.SaveAsync(editing); editing = null; await ReloadAsync(); await MessageService.Success("Donate 活動已儲存。"); } catch (Exception exception) { await MessageService.Error(exception.Message); } }
     private void OnStartDateChanged(ChangeEventArgs args) => SetDate(args.Value?.ToString(), isStart: true);

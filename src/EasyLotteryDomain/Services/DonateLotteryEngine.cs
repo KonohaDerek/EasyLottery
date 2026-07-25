@@ -10,7 +10,9 @@ public static class DonateLotteryEngine
         string donorName,
         decimal amount,
         DateTimeOffset occurredAtUtc,
-        Func<double>? nextRandom = null)
+        Func<double>? nextRandom = null,
+        string? donationMessage = null,
+        string? paymentMethod = null)
     {
         if (string.IsNullOrWhiteSpace(paymentExternalId))
         {
@@ -31,19 +33,9 @@ public static class DonateLotteryEngine
             var drawCount = activity.MinimumDonationAmount <= 0m ? 0 : (int)(amount / activity.MinimumDonationAmount);
             for (var draw = 0; draw < drawCount; draw++)
             {
-                if (random() >= (double)Math.Clamp(activity.WinProbability, 0m, 1m))
-                {
-                    continue;
-                }
-
-                var available = activity.Prizes.Where(prize => prize.RemainingQuantity > 0).ToList();
-                if (available.Count == 0)
-                {
-                    break;
-                }
-
-                var prize = available[Math.Min((int)(random() * available.Count), available.Count - 1)];
-                prize.RemainingQuantity--;
+                var prize = SelectPrize(activity, random);
+                var isWinning = prize is not null;
+                if (prize is not null) prize.RemainingQuantity--;
                 var record = new DonateLotteryDrawRecord
                 {
                     Id = document.IdSequence.NextDonateLotteryDrawRecordId++,
@@ -52,16 +44,40 @@ public static class DonateLotteryEngine
                     DonorName = string.IsNullOrWhiteSpace(donorName) ? "匿名贊助者" : donorName.Trim(),
                     Amount = amount,
                     DrawCount = drawCount,
-                    PrizeName = prize.Name,
-                    PrizeImageUrl = prize.ImageUrl,
+                    PrizeName = prize?.Name ?? "銘謝惠顧",
+                    PrizeImageUrl = prize?.ImageUrl ?? "",
+                    IsWinning = isWinning,
+                    DonationMessage = donationMessage?.Trim() ?? "",
+                    PaymentMethod = paymentMethod?.Trim() ?? "",
                     DrawnAtUtc = occurredAtUtc
                 };
                 document.DonateLotteryDrawRecords.Add(record);
-                results.Add(record);
+                if (isWinning) results.Add(record);
             }
         }
 
         return new DonateLotteryProcessResult(true, "", results);
+    }
+    private static DonateLotteryPrize? SelectPrize(DonateLotteryActivity activity, Func<double> random)
+    {
+        var prizes = activity.Prizes.Where(item => item.RemainingQuantity > 0).ToList();
+        // Existing configurations predate per-prize probabilities. Keep them working until
+        // they are saved through the new editor, then use the explicit percentages below.
+        if (prizes.All(item => item.Probability <= 0m))
+        {
+            if (random() >= (double)Math.Clamp(activity.WinProbability, 0m, 1m)) return null;
+            return prizes.Count == 0 ? null : prizes[Math.Min((int)(random() * prizes.Count), prizes.Count - 1)];
+        }
+
+        var roll = (decimal)random() * 100m;
+        var cursor = 0m;
+        foreach (var prize in prizes)
+        {
+            cursor += Math.Clamp(prize.Probability, 0m, 100m);
+            if (roll < cursor) return prize;
+        }
+
+        return null;
     }
 }
 

@@ -6,6 +6,14 @@ public enum DonateLotteryActivityType
     Polaroid
 }
 
+public enum DonateLotteryAnimation
+{
+    IchibanKuji,
+    Gacha,
+    Garagara,
+    MoneyBox
+}
+
 public sealed class DonateLotteryActivity
 {
     public int Id { get; set; }
@@ -15,6 +23,7 @@ public sealed class DonateLotteryActivity
     public DateTimeOffset StartsAtUtc { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset EndsAtUtc { get; set; } = DateTimeOffset.UtcNow.AddDays(1);
     public decimal WinProbability { get; set; } = 1m;
+    public DonateLotteryAnimation Animation { get; set; } = DonateLotteryAnimation.IchibanKuji;
     public bool IsEnabled { get; set; }
     public List<DonateLotteryPrize> Prizes { get; set; } = [];
 }
@@ -26,6 +35,9 @@ public sealed class DonateLotteryPrize
     public string ImageUrl { get; set; } = "";
     public int Quantity { get; set; } = 1;
     public int RemainingQuantity { get; set; } = 1;
+    /// <summary>此獎項在單次抽獎中所佔百分比（0 至 100）。未配置的餘額為銘謝惠顧。</summary>
+    public decimal Probability { get; set; }
+    public bool IsGrandPrize { get; set; }
 }
 
 public sealed class DonateLotteryDrawRecord
@@ -38,5 +50,8 @@ public sealed class DonateLotteryDrawRecord
     public int DrawCount { get; set; }
     public string PrizeName { get; set; } = "";
     public string PrizeImageUrl { get; set; } = "";
+    public bool IsWinning { get; set; }
+    public string DonationMessage { get; set; } = "";
+    public string PaymentMethod { get; set; } = "";
     public DateTimeOffset DrawnAtUtc { get; set; } = DateTimeOffset.UtcNow;
 }

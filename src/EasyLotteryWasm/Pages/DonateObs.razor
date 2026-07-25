@@ -1,4 +1,5 @@
 @page "/obs/donate/{ActivityId:int}"
+@layout EasyLotteryWasm.Layout.ObsLayout
 @using EasyLotteryDomain.Models.Config
 @using EasyLotteryDomain.Services
 @inject IEasyLotteryConfigStore ConfigStore
@@ -8,7 +9,11 @@
 <PageTitle>Donate 抽獎 OBS</PageTitle>
 
 <div class="donate-obs-shell">
-    @if (activity is null)
+    @if (isLoading)
+    {
+        <div class="donate-obs-empty">載入 Donate 活動中…</div>
+    }
+    else if (activity is null)
     {
         <div class="donate-obs-empty">找不到 Donate 活動</div>
     }
@@ -18,15 +23,24 @@
     }
     else
     {
-        <div class="donate-reveal" @key="latestWin.Id">
-            <div class="donate-reveal-label">DONATE WINNER</div>
+        <div class="donate-reveal @AnimationClass @(IsGrandPrize ? "grand-prize" : "")" @key="latestWin.Id">
+            <div class="donate-reveal-label">@(latestWin.IsWinning ? "DONATE RESULT" : "DONATE THANK YOU")</div>
+            <div class="draw-prop" aria-hidden="true">
+                @if (activity.Animation == DonateLotteryAnimation.Gacha) { <span class="chibi">🧒</span><span class="gacha-machine">◉</span> }
+                else if (activity.Animation == DonateLotteryAnimation.Garagara) { <span class="chibi">🧒</span><span class="garagara-drum">✦</span> }
+                else if (activity.Animation == DonateLotteryAnimation.MoneyBox) { <span class="coin">●</span><span class="money-box">▣</span><span class="fortune-slip">@latestWin.PrizeName</span> }
+                else { <span class="ichiban-ticket">一番賞</span> }
+            </div>
             @if (!string.IsNullOrWhiteSpace(latestWin.PrizeImageUrl) && !prizeImageFailed)
             {
                 <img class="donate-reveal-image" src="@latestWin.PrizeImageUrl" alt="@latestWin.PrizeName" @onerror="() => prizeImageFailed = true" />
             }
             else { <div class="donate-reveal-fallback">@latestWin.PrizeName</div> }
             <div class="donate-reveal-prize">@latestWin.PrizeName</div>
+            @if (IsGrandPrize) { <div class="grand-prize-banner">★ 最大獎 ★</div> }
             <div class="donate-reveal-donor">@latestWin.DonorName · NT$@latestWin.Amount:N0</div>
+            @if (!string.IsNullOrWhiteSpace(latestWin.DonationMessage)) { <div class="donate-reveal-message">「@latestWin.DonationMessage」</div> }
+            @if (!string.IsNullOrWhiteSpace(latestWin.PaymentMethod)) { <small>@latestWin.PaymentMethod</small> }
         </div>
     }
 </div>
@@ -35,10 +49,12 @@
 {
     <details class="donate-test-panel" open>
         <summary>Donate 測試模式</summary>
-        <p>只會建立測試抽獎紀錄，不會送出金流請求。</p>
+        <p>會以正式 Donate 相同的抽獎與 OBS 通知資料流建立測試紀錄，不會送出金流請求。</p>
         <input @bind="testDonorName" placeholder="贊助者名稱" aria-label="測試贊助者名稱" />
         <input type="number" min="1" @bind="testAmount" aria-label="測試贊助金額" />
-        <button @onclick="RunTestAsync">模擬 Donate 並抽獎</button>
+        <input @bind="testMessage" placeholder="留言" aria-label="測試留言" />
+        <input @bind="testPaymentMethod" placeholder="支付方式" aria-label="測試支付方式" />
+        <button @onclick="RunTestAsync">送出測試 Donate</button>
         @if (!string.IsNullOrWhiteSpace(testResult)) { <div role="status">@testResult</div> }
     </details>
 }
@@ -47,27 +63,56 @@
     .donate-obs-shell { min-height: 100vh; display:grid; place-items:center; background:transparent; color:white; font-family:system-ui,sans-serif; }
     .donate-obs-empty { text-align:center; padding:2rem 3rem; border-radius:1.5rem; background:rgba(8,10,26,.72); font-size:2rem; }
     .donate-reveal { text-align:center; padding:2rem; animation:donate-reveal .65s cubic-bezier(.16,1,.3,1); text-shadow:0 3px 18px #000; }
+    .draw-prop { min-height:7rem; display:flex; align-items:center; justify-content:center; gap:1rem; font-size:5rem; }
+    .chibi { display:inline-block; animation:chibi-crank .7s ease-in-out infinite alternate; transform-origin:bottom center; }
+    .gacha-machine { width:5rem; height:5rem; display:grid; place-items:center; border:10px solid #ff6b9d; border-radius:50% 50% 28% 28%; background:#7c3aed; box-shadow:inset 0 0 0 12px #fef3c7,0 10px 0 #4c1d95; animation:gacha-shake .25s linear infinite; }
+    .garagara-drum { width:6rem; height:6rem; display:grid; place-items:center; border:12px solid #b7791f; border-radius:50%; background:repeating-conic-gradient(#f7d794 0 12deg,#d69e2e 12deg 24deg); box-shadow:0 9px 0 #78350f; animation:drum-turn .45s linear infinite; }
+    .ichiban-ticket { display:inline-grid; place-items:center; width:12rem; height:5rem; color:#fff7d6; background:linear-gradient(135deg,#d90429,#7f1d1d); border:5px solid #fbbf24; font-size:2rem; font-weight:900; transform:rotate(-6deg); animation:ticket-reveal .8s ease-out; }
+    .money-box { color:#fbbf24; font-size:6rem; }
+    .coin { color:#fde047; animation:coin-drop 1s ease-in infinite; }
+    .fortune-slip { align-self:flex-end; padding:.6rem 1rem; color:#5b1d12; background:#fff7ed; font-size:1rem; font-weight:900; writing-mode:vertical-rl; animation:slip-pop .8s .45s both; }
+    .grand-prize { animation:grand-flash .8s ease-in-out infinite alternate; }
+    .grand-prize-banner { color:#fff7d6; font-size:clamp(1.2rem,3vw,2.3rem); font-weight:950; letter-spacing:.2em; }
     .donate-reveal-label { color:#ffd166; font-weight:900; letter-spacing:.22em; margin-bottom:1rem; }
     .donate-reveal-image { max-width:min(68vw,640px); max-height:62vh; object-fit:contain; border:6px solid #ffd166; border-radius:1.25rem; box-shadow:0 0 45px rgba(255,209,102,.8); }
     .donate-reveal-fallback { width:min(68vw,640px); aspect-ratio:1; display:grid; place-items:center; border:6px solid #ffd166; border-radius:1.25rem; background:linear-gradient(135deg,#6d28d9,#f59e0b); font-size:clamp(2rem,7vw,5rem); font-weight:900; }
     .donate-reveal-prize { font-size:clamp(2rem,6vw,4.5rem); font-weight:900; margin-top:1rem; }
     .donate-reveal-donor { font-size:clamp(1.15rem,3vw,2rem); }
+    .donate-reveal-message { margin-top:.5rem; font-size:clamp(1rem,2.4vw,1.6rem); }
     .donate-test-panel { position:fixed; right:1rem; bottom:1rem; z-index:10; max-width:24rem; padding:1rem; border-radius:.75rem; background:#fff; color:#172033; box-shadow:0 8px 30px rgba(0,0,0,.35); }
     .donate-test-panel input { display:block; width:100%; margin:.5rem 0; padding:.45rem; }
     .donate-test-panel button { padding:.45rem .75rem; border:0; border-radius:.35rem; background:#2563eb; color:#fff; }
     @@keyframes donate-reveal { from { opacity:0; transform:scale(.45) rotate(-4deg); } to { opacity:1; transform:scale(1) rotate(0); } }
+    @@keyframes chibi-crank { to { transform:rotate(-16deg) translateY(5px); } }
+    @@keyframes gacha-shake { 50% { transform:translateX(5px) rotate(4deg); } }
+    @@keyframes drum-turn { to { transform:rotate(360deg); } }
+    @@keyframes ticket-reveal { from { transform:scale(.2) rotate(25deg); } to { transform:scale(1) rotate(-6deg); } }
+    @@keyframes coin-drop { from { transform:translateY(-4rem); opacity:0; } 30%,80% { opacity:1; } to { transform:translateY(1rem); opacity:0; } }
+    @@keyframes slip-pop { from { transform:translateY(4rem) scale(.4); opacity:0; } to { transform:translateY(0) scale(1); opacity:1; } }
+    @@keyframes grand-flash { from { filter:drop-shadow(0 0 8px #fbbf24); } to { filter:drop-shadow(0 0 35px #fef08a); transform:scale(1.04); } }
 </style>
 
 @code {
     [Parameter] public int ActivityId { get; set; }
     private DonateLotteryActivity? activity;
     private DonateLotteryDrawRecord? latestWin;
+    private bool isLoading = true;
     private int? displayedWinId;
     private bool prizeImageFailed;
     private bool testMode;
     private string testDonorName = "測試贊助者";
     private decimal testAmount = 100m;
+    private string testMessage = "這是一則 OBS Donate 測試通知";
+    private string testPaymentMethod = "測試付款";
     private string testResult = "";
+    private string AnimationClass => activity?.Animation switch
+    {
+        DonateLotteryAnimation.Gacha => "animation-gacha",
+        DonateLotteryAnimation.Garagara => "animation-garagara",
+        DonateLotteryAnimation.MoneyBox => "animation-money-box",
+        _ => "animation-ichiban"
+    };
+    private bool IsGrandPrize => latestWin is not null && activity?.Prizes.Any(prize => prize.IsGrandPrize && string.Equals(prize.Name, latestWin.PrizeName, StringComparison.Ordinal)) == true;
     private readonly CancellationTokenSource cancellation = new();
 
     protected override async Task OnInitializedAsync()
@@ -81,9 +126,9 @@
     {
         var document = await ConfigStore.LoadAsync(cancellation.Token);
         var testId = $"obs-test:{ActivityId}:{Guid.NewGuid():N}";
-        var result = DonateLotteryEngine.Process(document, testId, testDonorName, testAmount, DateTimeOffset.UtcNow);
+        var result = DonateLotteryEngine.Process(document, testId, testDonorName, testAmount, DateTimeOffset.UtcNow, donationMessage: testMessage, paymentMethod: testPaymentMethod);
         await ConfigStore.SaveAsync(document, cancellation.Token);
-        testResult = result.Wins.Count == 0 ? "測試完成：未中獎（請確認活動是否啟用、期間、門檻與庫存）。" : $"測試完成：抽中 {string.Join("、", result.Wins.Select(win => win.PrizeName))}";
+        testResult = result.Wins.Count == 0 ? "測試完成：沒有符合條件的活動。" : $"測試通知已送出（{testPaymentMethod}）：{testDonorName} NT${testAmount:N0}，結果 {string.Join("、", result.Wins.Select(win => win.PrizeName))}。留言：{testMessage}";
         await RefreshAsync();
     }
 
@@ -104,6 +149,7 @@
             displayedWinId = latestWin?.Id;
             prizeImageFailed = false;
         }
+        isLoading = false;
     }
 
     public ValueTask DisposeAsync() { cancellation.Cancel(); cancellation.Dispose(); return ValueTask.CompletedTask; }

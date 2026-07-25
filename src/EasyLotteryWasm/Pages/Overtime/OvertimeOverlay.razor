@@ -23,6 +23,9 @@ else
 {
     <div class="overtime-overlay">
         <div class="overtime-shell">
+            <div class="overtime-obs-controls mb-2">
+                <Button Color="Color.Secondary" Clicked="SendOvertimeTestAsync">測試贊助通知</Button>
+            </div>
             @if (IsIdle)
             {
                 <div class="overtime-standby-panel">
@@ -1261,6 +1264,22 @@ else
             SessionEndAtUtc = SessionEndAtUtc
         });
 
+        await ReloadEventsAsync();
+        StateHasChanged();
+    }
+
+    private async Task SendOvertimeTestAsync()
+    {
+        await OvertimeFeedClient.PostEcpayDonateAsync(new OvertimeSupportEvent
+        {
+            DisplayName = "測試贊助者",
+            Message = "加班台 OBS 測試通知",
+            Amount = settings.DemoEcpayAmount > 0 ? settings.DemoEcpayAmount : 100m,
+            AmountDisplay = "NT$100",
+            Currency = "TWD",
+            ExternalId = $"obs-overtime-test:{Guid.NewGuid():N}",
+            OccurredAtUtc = DateTimeOffset.UtcNow
+        });
         await ReloadEventsAsync();
         StateHasChanged();
     }
