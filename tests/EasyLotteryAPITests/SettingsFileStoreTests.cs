@@ -5,6 +5,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.FileProviders;
 using EasyLotteryInfrastructure.Storage;
+using EasyLotteryInfrastructure.Settings;
 using YamlDotNet.Serialization;
 
 namespace EasyLotteryApiTests;
@@ -139,7 +140,13 @@ public sealed class SettingsFileStoreTests
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?> { ["Storage:Directory"] = directory })
             .Build();
-        return new SettingsFileStore(configuration, new TestEnvironment(), new ConfigSecretRedactor(), new StorageGateProvider());
+        var environment = new TestEnvironment();
+        var storageGates = new StorageGateProvider();
+        return new SettingsFileStore(
+            new ConfigSecretRedactor(),
+            new YamlSettingsDocumentRepository(configuration, environment, storageGates),
+            new YamlActivitiesDocumentRepository(configuration, environment, storageGates),
+            new YamlActivityResultsDocumentRepository(configuration, environment, storageGates));
     }
 
     private static string CreateTempDirectory()
