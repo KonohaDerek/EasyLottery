@@ -1,10 +1,10 @@
 @page "/donate-activities"
 @using EasyLotteryDomain.Models.Config
-@using EasyLotteryDomain.Services
+@using EasyLotteryWasm.Services
 @using System.Globalization
 @using Serilog
 
-@inject DonateLotteryActivityService DonateLotteryActivityService
+@inject DonateLotteryActivityApiClient DonateLotteryActivityApiClient
 @inject IMessageService MessageService
 @inject IJSRuntime JSRuntime
 
@@ -96,12 +96,17 @@
 
     protected override async Task OnInitializedAsync()
     {
-        await ReloadAsync();
         requiresAdminToken = await JSRuntime.InvokeAsync<bool>("easyLotteryConfig.requiresAdminToken");
-        if (requiresAdminToken) activities = [];
+        if (requiresAdminToken)
+        {
+            activities = [];
+            return;
+        }
+
+        await ReloadAsync();
     }
 
-    private async Task ReloadAsync() => activities = await DonateLotteryActivityService.ListAsync();
+    private async Task ReloadAsync() => activities = await DonateLotteryActivityApiClient.ListAsync();
     private decimal PrizeProbabilityTotal => editing?.Prizes.Sum(prize => prize.Probability) ?? 0m;
     private bool ProbabilityTotalExceeded => PrizeProbabilityTotal > 100m;
     private Task CreateAsync() { editing = new DonateLotteryActivity { StartsAtUtc = DateTimeOffset.UtcNow, EndsAtUtc = DateTimeOffset.UtcNow.AddDays(7), Prizes = [new DonateLotteryPrize { Probability = 100m }] }; return Task.CompletedTask; }
@@ -112,7 +117,7 @@
         if (editing is null) return;
         try
         {
-            await DonateLotteryActivityService.SaveAsync(editing);
+            await DonateLotteryActivityApiClient.SaveAsync(editing);
             editing = null;
             await ReloadAsync();
             await MessageService.Success("Donate 活動已儲存。");
@@ -129,7 +134,7 @@
         if (!confirmed) return;
         try
         {
-            await DonateLotteryActivityService.DeleteAsync(activity.Id);
+            await DonateLotteryActivityApiClient.DeleteAsync(activity.Id);
             if (editing?.Id == activity.Id) editing = null;
             await ReloadAsync();
             await MessageService.Success("Donate 活動已刪除，既有抽獎紀錄會保留。");

@@ -35,7 +35,7 @@ builder.Services.AddScoped<SystemSettingsService>();
 builder.Services.AddScoped<ObsLayoutService>();
 builder.Services.AddScoped<SoundCueService>();
 builder.Services.AddScoped<ActivityResultService>();
-builder.Services.AddScoped<DonateLotteryActivityService>();
+builder.Services.AddScoped<DonateLotteryActivityApiClient>();
 builder.Services.AddScoped<ResultNotificationService>();
 builder.Services.AddScoped<VisualStyleService>();
 builder.Services.AddScoped<OvertimeFeedClient>();
