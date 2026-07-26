@@ -1,13 +1,10 @@
 using System.Text;
 using EasyLotteryApplication.DonateActivities;
 using EasyLotteryApplication.Payments;
-using EasyLotteryApplication.Settings;
 using EasyLotteryInfrastructure;
-using EasyLotteryInfrastructure.Settings;
 using MediatR;
 using EasyLotteryApi;
 using EasyLotteryApi.Payments;
-using EasyLotteryDomain.Models.Config;
 using EasyLotteryDomain.Services;
 using EasyLotteryApi.Endpoints;
 
@@ -17,12 +14,8 @@ builder.Services.AddSingleton<TunnelRuntimeService>();
 builder.Services.AddSingleton<IPaymentProvider, EcpayBroadcasterPaymentProvider>();
 builder.Services.AddSingleton<IPaymentProvider, NewebPayDonationPaymentProvider>();
 builder.Services.AddSingleton<PaymentProviderFactory>();
-builder.Services.AddSingleton<ConfigSecretRedactor>();
 builder.Services.AddEasyLotteryInfrastructure();
 builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblies(typeof(GetDonateActivitiesQuery).Assembly, typeof(DependencyInjection).Assembly));
-builder.Services.AddSingleton<SettingsFileStore>();
-builder.Services.AddSingleton<IEasyLotteryConfigRepository>(sp => sp.GetRequiredService<SettingsFileStore>());
-builder.Services.AddSingleton<IEasyLotteryConfigStore>(sp => sp.GetRequiredService<SettingsFileStore>());
 builder.Services.AddSingleton<AdminAccess>();
 builder.Services.AddSingleton<PaymentCallbackProcessor>();
 

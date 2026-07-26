@@ -5,6 +5,7 @@ using EasyLotteryInfrastructure.DonateActivities;
 using EasyLotteryInfrastructure.Payments;
 using EasyLotteryInfrastructure.Settings;
 using EasyLotteryInfrastructure.Storage;
+using EasyLotteryDomain.Services;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace EasyLotteryInfrastructure;
@@ -30,6 +31,10 @@ public static class DependencyInjection
         services.AddSingleton<IActivitiesYamlDocumentRepository>(sp => sp.GetRequiredService<YamlActivitiesDocumentRepository>());
         services.AddSingleton<YamlActivityResultsDocumentRepository>();
         services.AddSingleton<IActivityResultsYamlDocumentRepository>(sp => sp.GetRequiredService<YamlActivityResultsDocumentRepository>());
+        services.AddSingleton<ConfigSecretRedactor>();
+        services.AddSingleton<SettingsFileStore>();
+        services.AddSingleton<IEasyLotteryConfigRepository>(sp => sp.GetRequiredService<SettingsFileStore>());
+        services.AddSingleton<IEasyLotteryConfigStore>(sp => sp.GetRequiredService<SettingsFileStore>());
         return services;
     }
 }
