@@ -37,32 +37,32 @@ public sealed class SettingsFileStore : IEasyLotteryConfigRepository, IEasyLotte
     public async Task<string> ReadForBrowserAsync(CancellationToken cancellationToken)
     {
         await using var gate = await _storageGates.AcquireAsync(cancellationToken, ConfigPath, ActivitiesPath, ActivityResultsPath);
-            var document = await ReadMergedDocumentUnsafeAsync(cancellationToken);
-            return _secrets.RedactForBrowser(_serializer.Serialize(document));
+        var document = await ReadMergedDocumentUnsafeAsync(cancellationToken);
+        return _secrets.RedactForBrowser(_serializer.Serialize(document));
     }
 
     public async Task SaveBrowserUpdateAsync(string submittedYaml, CancellationToken cancellationToken)
     {
         await using var gate = await _storageGates.AcquireAsync(cancellationToken, ConfigPath, ActivitiesPath, ActivityResultsPath);
-            var currentYaml = _serializer.Serialize(await ReadMergedDocumentUnsafeAsync(cancellationToken));
-            var mergedYaml = _secrets.MergeBrowserUpdate(currentYaml, submittedYaml);
-            var document = DeserializeConfigDocument(mergedYaml);
-            await WriteSplitDocumentsAsync(document, cancellationToken);
+        var currentYaml = _serializer.Serialize(await ReadMergedDocumentUnsafeAsync(cancellationToken));
+        var mergedYaml = _secrets.MergeBrowserUpdate(currentYaml, submittedYaml);
+        var document = DeserializeConfigDocument(mergedYaml);
+        await WriteSplitDocumentsAsync(document, cancellationToken);
     }
 
     public async Task<EasyLotteryConfigDocument> ReadAsync(CancellationToken cancellationToken)
     {
         await using var gate = await _storageGates.AcquireAsync(cancellationToken, ConfigPath, ActivitiesPath, ActivityResultsPath);
-            return await ReadMergedDocumentUnsafeAsync(cancellationToken);
+        return await ReadMergedDocumentUnsafeAsync(cancellationToken);
     }
 
     public async Task<T> UpdateAsync<T>(Func<EasyLotteryConfigDocument, T> update, CancellationToken cancellationToken)
     {
         await using var gate = await _storageGates.AcquireAsync(cancellationToken, ConfigPath, ActivitiesPath, ActivityResultsPath);
-            var document = await ReadMergedDocumentUnsafeAsync(cancellationToken);
-            var result = update(document);
-            await WriteSplitDocumentsAsync(document, cancellationToken);
-            return result;
+        var document = await ReadMergedDocumentUnsafeAsync(cancellationToken);
+        var result = update(document);
+        await WriteSplitDocumentsAsync(document, cancellationToken);
+        return result;
     }
 
     public Task<EasyLotteryConfigDocument> LoadAsync(CancellationToken cancellationToken = default) =>
@@ -71,7 +71,7 @@ public sealed class SettingsFileStore : IEasyLotteryConfigRepository, IEasyLotte
     public async Task SaveAsync(EasyLotteryConfigDocument document, CancellationToken cancellationToken = default)
     {
         await using var gate = await _storageGates.AcquireAsync(cancellationToken, ConfigPath, ActivitiesPath, ActivityResultsPath);
-            await WriteSplitDocumentsAsync(document, cancellationToken);
+        await WriteSplitDocumentsAsync(document, cancellationToken);
     }
 
     private void EnsureRepositoryDocuments()
@@ -108,14 +108,6 @@ public sealed class SettingsFileStore : IEasyLotteryConfigRepository, IEasyLotte
         await WriteDocumentAsync(ActivityResultsPath, parts.Results, cancellationToken);
     }
 
-    private void WriteSplitDocuments(EasyLotteryConfigDocument document)
-    {
-        var parts = YamlRepositoryMapper.Split(document);
-        WriteDocument(ConfigPath, parts.Settings);
-        WriteDocument(ActivitiesPath, parts.Activities);
-        WriteDocument(ActivityResultsPath, parts.Results);
-    }
-
     private async Task<SettingsYamlDocument> ReadSettingsDocumentAsync(CancellationToken cancellationToken) =>
         await ReadDocumentAsync(ConfigPath, new SettingsYamlDocument(), cancellationToken);
 
@@ -124,12 +116,6 @@ public sealed class SettingsFileStore : IEasyLotteryConfigRepository, IEasyLotte
 
     private async Task<ActivityResultsYamlDocument> ReadActivityResultsDocumentAsync(CancellationToken cancellationToken) =>
         await ReadDocumentAsync(ActivityResultsPath, new ActivityResultsYamlDocument(), cancellationToken);
-
-    private ActivitiesYamlDocument ReadActivitiesDocument(string path) =>
-        File.Exists(path) ? DeserializeDocument<ActivitiesYamlDocument>(File.ReadAllText(path)) : new ActivitiesYamlDocument();
-
-    private ActivityResultsYamlDocument ReadActivityResultsDocument(string path) =>
-        File.Exists(path) ? DeserializeDocument<ActivityResultsYamlDocument>(File.ReadAllText(path)) : new ActivityResultsYamlDocument();
 
     private async Task<T> ReadDocumentAsync<T>(string path, T fallback, CancellationToken cancellationToken) where T : class
     {

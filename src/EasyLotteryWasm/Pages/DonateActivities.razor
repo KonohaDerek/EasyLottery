@@ -26,53 +26,67 @@
     </div>
 }
 
-@if (editing is not null && !requiresAdminToken)
-{
-    <Card class="mb-4">
-        <CardHeader><CardTitle>@(editing.Id == 0 ? "新增" : "編輯") Donate 活動</CardTitle></CardHeader>
-        <CardBody>
-            <div class="row g-3">
-                <div class="col-md-6"><Field><FieldLabel>活動名稱</FieldLabel><TextInput @bind-Value="editing.Name" /></Field></div>
-                <div class="col-md-3"><Field><FieldLabel>類型</FieldLabel><Select TValue="DonateLotteryActivityType" @bind-SelectedValue="editing.Type"><SelectItem Value="DonateLotteryActivityType.Postcard">明信片</SelectItem><SelectItem Value="DonateLotteryActivityType.Polaroid">拍立得</SelectItem></Select></Field></div>
-                <div class="col-md-3"><Field><FieldLabel>最低贊助金額</FieldLabel><NumericInput TValue="decimal" @bind-Value="editing.MinimumDonationAmount" Min="1" /></Field></div>
-                <div class="col-md-3"><Field><FieldLabel>抽獎動畫</FieldLabel><Select TValue="DonateLotteryAnimation" @bind-SelectedValue="editing.Animation"><SelectItem Value="DonateLotteryAnimation.IchibanKuji">一番賞</SelectItem><SelectItem Value="DonateLotteryAnimation.Gacha">扭蛋</SelectItem><SelectItem Value="DonateLotteryAnimation.Garagara">日式滾筒</SelectItem><SelectItem Value="DonateLotteryAnimation.MoneyBox">塞錢箱／詩籤</SelectItem></Select></Field></div>
-                <div class="col-md-4"><Field><FieldLabel>開始時間（本地時區）</FieldLabel><input class="form-control" type="datetime-local" value="@StartDateText" @onchange="OnStartDateChanged" /></Field></div>
-                <div class="col-md-4"><Field><FieldLabel>結束時間（本地時區）</FieldLabel><input class="form-control" type="datetime-local" value="@EndDateText" @onchange="OnEndDateChanged" /></Field></div>
-                <div class="col-md-2"><Field><FieldLabel>啟用</FieldLabel><Switch TValue="bool" @bind-Value="editing.IsEnabled" /></Field></div>
-            </div>
-            <h5 class="mt-4">獎項</h5>
-            <p class="text-muted">每個獎項設定 0–100% 的中獎率；未配置的剩餘機率固定為「銘謝惠顧」。合計不可超過 100%。</p>
-            <div class="row g-2 mb-1 d-none d-md-flex small fw-bold text-muted" aria-hidden="true">
-                <div class="col-md-3">獎項名稱</div>
-                <div class="col-md-2">中獎機率 (%)</div>
-                <div class="col-md-2">圖片 URL</div>
-                <div class="col-md-1">數量</div>
-                <div class="col-md-2">最大獎</div>
-                <div class="col-md-2">操作</div>
-            </div>
-            @foreach (var prize in editing.Prizes)
+<Modal Visible="@editorVisible"
+       VisibleChanged="@OnEditorVisibleChanged"
+       Centered
+       Scrollable
+       ShowBackdrop>
+    <ModalContent>
+        <ModalHeader>
+            <ModalTitle>@EditorTitle</ModalTitle>
+            <CloseButton Clicked="@CloseEditorAsync" />
+        </ModalHeader>
+        <ModalBody>
+            @if (editing is not null)
             {
-                <div class="row g-2 mb-2" @key="prize">
-                    <div class="col-md-3"><TextInput @bind-Value="prize.Name" Placeholder="獎項名稱" /></div>
-                    <div class="col-md-2"><NumericInput TValue="decimal" @bind-Value="prize.Probability" Min="0" Max="100" Placeholder="機率 (%)" /></div>
-                    <div class="col-md-2"><TextInput @bind-Value="prize.ImageUrl" Placeholder="圖片 URL" /></div>
-                    <div class="col-md-1"><NumericInput TValue="int" @bind-Value="prize.Quantity" Min="0" /></div>
-                    <div class="col-md-2"><Switch TValue="bool" @bind-Value="prize.IsGrandPrize" /> <small>最大獎</small></div>
-                    <div class="col-md-2"><Button Color="Color.Danger" Size="Size.Small" Clicked="() => editing.Prizes.Remove(prize)">移除</Button></div>
+                <div class="row g-3">
+                    <div class="col-md-6"><Field><FieldLabel>活動名稱</FieldLabel><TextInput @bind-Value="editing.Name" /></Field></div>
+                    <div class="col-md-3"><Field><FieldLabel>類型</FieldLabel><Select TValue="DonateLotteryActivityType" @bind-SelectedValue="editing.Type"><SelectItem Value="DonateLotteryActivityType.Postcard">明信片</SelectItem><SelectItem Value="DonateLotteryActivityType.Polaroid">拍立得</SelectItem></Select></Field></div>
+                    <div class="col-md-3"><Field><FieldLabel>最低贊助金額</FieldLabel><NumericInput TValue="decimal" @bind-Value="editing.MinimumDonationAmount" Min="1" /></Field></div>
+                    <div class="col-md-3"><Field><FieldLabel>抽獎動畫</FieldLabel><Select TValue="DonateLotteryAnimation" @bind-SelectedValue="editing.Animation"><SelectItem Value="DonateLotteryAnimation.IchibanKuji">一番賞</SelectItem><SelectItem Value="DonateLotteryAnimation.Gacha">扭蛋</SelectItem><SelectItem Value="DonateLotteryAnimation.Garagara">日式滾筒</SelectItem><SelectItem Value="DonateLotteryAnimation.MoneyBox">塞錢箱／詩籤</SelectItem></Select></Field></div>
+                    <div class="col-md-4"><Field><FieldLabel>開始時間（本地時區）</FieldLabel><input class="form-control" type="datetime-local" value="@StartDateText" @onchange="OnStartDateChanged" /></Field></div>
+                    <div class="col-md-4"><Field><FieldLabel>結束時間（本地時區）</FieldLabel><input class="form-control" type="datetime-local" value="@EndDateText" @onchange="OnEndDateChanged" /></Field></div>
+                    <div class="col-md-2"><Field><FieldLabel>啟用</FieldLabel><Switch TValue="bool" @bind-Value="editing.IsEnabled" /></Field></div>
                 </div>
-            }
-            <div class="alert @(ProbabilityTotalExceeded ? "alert-danger" : "alert-info") py-2 mb-2" role="status">
-                目前獎項機率合計：@PrizeProbabilityTotal.ToString("0.##")%　／　銘謝惠顧：@Math.Max(0m, 100m - PrizeProbabilityTotal).ToString("0.##")%
-                @if (ProbabilityTotalExceeded)
+                <h5 class="mt-4">獎項</h5>
+                <p class="text-muted">每個獎項設定 0–100% 的中獎率；未配置的剩餘機率固定為「銘謝惠顧」。合計不可超過 100%。</p>
+                <div class="row g-2 mb-1 d-none d-md-flex small fw-bold text-muted" aria-hidden="true">
+                    <div class="col-md-3">獎項名稱</div>
+                    <div class="col-md-2">中獎機率 (%)</div>
+                    <div class="col-md-2">圖片 URL</div>
+                    <div class="col-md-1">數量</div>
+                    <div class="col-md-2">最大獎</div>
+                    <div class="col-md-2">操作</div>
+                </div>
+                @foreach (var prize in editing.Prizes)
                 {
-                    <strong class="ms-2">機率總和不可超過 100%，請調整獎項機率後再儲存。</strong>
+                    <div class="row g-2 mb-2" @key="prize">
+                        <div class="col-md-3"><TextInput @bind-Value="prize.Name" Placeholder="獎項名稱" /></div>
+                        <div class="col-md-2"><NumericInput TValue="decimal" @bind-Value="prize.Probability" Min="0" Max="100" Placeholder="機率 (%)" /></div>
+                        <div class="col-md-2"><TextInput @bind-Value="prize.ImageUrl" Placeholder="圖片 URL" /></div>
+                        <div class="col-md-1"><NumericInput TValue="int" @bind-Value="prize.Quantity" Min="0" /></div>
+                        <div class="col-md-2"><Switch TValue="bool" @bind-Value="prize.IsGrandPrize" /> <small>最大獎</small></div>
+                        <div class="col-md-2"><Button Color="Color.Danger" Size="Size.Small" Clicked="() => editing.Prizes.Remove(prize)">移除</Button></div>
+                    </div>
                 }
+                <div class="alert @(ProbabilityTotalExceeded ? "alert-danger" : "alert-info") py-2 mb-2" role="status">
+                    目前獎項機率合計：@PrizeProbabilityTotal.ToString("0.##")%　／　銘謝惠顧：@Math.Max(0m, 100m - PrizeProbabilityTotal).ToString("0.##")%
+                    @if (ProbabilityTotalExceeded)
+                    {
+                        <strong class="ms-2">機率總和不可超過 100%，請調整獎項機率後再儲存。</strong>
+                    }
+                </div>
+                <Button Color="Color.Secondary" Size="Size.Small" Clicked="AddPrize">新增獎項</Button>
+            }
+        </ModalBody>
+        <ModalFooter>
+            <div class="d-flex gap-2">
+                <Button Color="Color.Primary" Clicked="SaveAsync" Disabled="ProbabilityTotalExceeded || editing is null">儲存</Button>
+                <Button Color="Color.Secondary" Clicked="@CloseEditorAsync">取消</Button>
             </div>
-            <Button Color="Color.Secondary" Size="Size.Small" Clicked="AddPrize">新增獎項</Button>
-            <div class="d-flex gap-2 mt-4"><Button Color="Color.Primary" Clicked="SaveAsync" Disabled="ProbabilityTotalExceeded">儲存</Button><Button Color="Color.Secondary" Clicked="() => editing = null">取消</Button></div>
-        </CardBody>
-    </Card>
-}
+        </ModalFooter>
+    </ModalContent>
+</Modal>
 
 @if (!requiresAdminToken)
 {
@@ -90,7 +104,11 @@
 @code {
     private IReadOnlyList<DonateLotteryActivity> activities = [];
     private DonateLotteryActivity? editing;
+    private bool editorVisible;
     private bool requiresAdminToken;
+    private string EditorTitle => editing is null
+        ? "Donate 活動"
+        : editing.Id == 0 ? "新增 Donate 活動" : $"編輯 Donate 活動：{editing.Name}";
     private string StartDateText => editing?.StartsAtUtc.LocalDateTime.ToString("yyyy-MM-ddTHH:mm") ?? "";
     private string EndDateText => editing?.EndsAtUtc.LocalDateTime.ToString("yyyy-MM-ddTHH:mm") ?? "";
 
@@ -109,8 +127,44 @@
     private async Task ReloadAsync() => activities = await DonateLotteryActivityApiClient.ListAsync();
     private decimal PrizeProbabilityTotal => editing?.Prizes.Sum(prize => prize.Probability) ?? 0m;
     private bool ProbabilityTotalExceeded => PrizeProbabilityTotal > 100m;
-    private Task CreateAsync() { editing = new DonateLotteryActivity { StartsAtUtc = DateTimeOffset.UtcNow, EndsAtUtc = DateTimeOffset.UtcNow.AddDays(7), Prizes = [new DonateLotteryPrize { Probability = 100m }] }; return Task.CompletedTask; }
-    private void Edit(DonateLotteryActivity activity) => editing = new DonateLotteryActivity { Id = activity.Id, Name = activity.Name, Type = activity.Type, Animation = activity.Animation, MinimumDonationAmount = activity.MinimumDonationAmount, StartsAtUtc = activity.StartsAtUtc, EndsAtUtc = activity.EndsAtUtc, IsEnabled = activity.IsEnabled, Prizes = activity.Prizes.Select(prize => new DonateLotteryPrize { Id = prize.Id, Name = prize.Name, ImageUrl = prize.ImageUrl, Quantity = prize.Quantity, RemainingQuantity = prize.RemainingQuantity, Probability = prize.Probability, IsGrandPrize = prize.IsGrandPrize }).ToList() };
+    private Task CreateAsync()
+    {
+        editing = new DonateLotteryActivity
+        {
+            StartsAtUtc = DateTimeOffset.UtcNow,
+            EndsAtUtc = DateTimeOffset.UtcNow.AddDays(7),
+            Prizes = [new DonateLotteryPrize { Probability = 100m }]
+        };
+        editorVisible = true;
+        return Task.CompletedTask;
+    }
+
+    private void Edit(DonateLotteryActivity activity)
+    {
+        editing = new DonateLotteryActivity
+        {
+            Id = activity.Id,
+            Name = activity.Name,
+            Type = activity.Type,
+            Animation = activity.Animation,
+            MinimumDonationAmount = activity.MinimumDonationAmount,
+            StartsAtUtc = activity.StartsAtUtc,
+            EndsAtUtc = activity.EndsAtUtc,
+            IsEnabled = activity.IsEnabled,
+            Prizes = activity.Prizes.Select(prize => new DonateLotteryPrize
+            {
+                Id = prize.Id,
+                Name = prize.Name,
+                ImageUrl = prize.ImageUrl,
+                Quantity = prize.Quantity,
+                RemainingQuantity = prize.RemainingQuantity,
+                Probability = prize.Probability,
+                IsGrandPrize = prize.IsGrandPrize
+            }).ToList()
+        };
+        editorVisible = true;
+    }
+
     private void AddPrize() => editing?.Prizes.Add(new DonateLotteryPrize());
     private async Task SaveAsync()
     {
@@ -118,7 +172,7 @@
         try
         {
             await DonateLotteryActivityApiClient.SaveAsync(editing);
-            editing = null;
+            await CloseEditorAsync();
             await ReloadAsync();
             await MessageService.Success("Donate 活動已儲存。");
         }
@@ -128,6 +182,25 @@
             await MessageService.Error(exception.Message);
         }
     }
+
+    private Task CloseEditorAsync()
+    {
+        editorVisible = false;
+        editing = null;
+        return Task.CompletedTask;
+    }
+
+    private Task OnEditorVisibleChanged(bool visible)
+    {
+        editorVisible = visible;
+        if (!visible)
+        {
+            editing = null;
+        }
+
+        return Task.CompletedTask;
+    }
+
     private async Task DeleteAsync(DonateLotteryActivity activity)
     {
         var confirmed = await JSRuntime.InvokeAsync<bool>("confirm", $"確定要刪除「{activity.Name}」嗎？活動設定與獎項會被移除，但既有抽獎紀錄會保留。");
@@ -135,7 +208,10 @@
         try
         {
             await DonateLotteryActivityApiClient.DeleteAsync(activity.Id);
-            if (editing?.Id == activity.Id) editing = null;
+            if (editing?.Id == activity.Id)
+            {
+                await CloseEditorAsync();
+            }
             await ReloadAsync();
             await MessageService.Success("Donate 活動已刪除，既有抽獎紀錄會保留。");
         }
