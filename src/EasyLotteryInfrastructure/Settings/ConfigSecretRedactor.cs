@@ -1,8 +1,8 @@
 using EasyLotteryDomain.Models.Config;
-using YamlDotNet.Serialization;
 using EasyLotteryDomain.Services;
+using YamlDotNet.Serialization;
 
-namespace EasyLotteryApi;
+namespace EasyLotteryInfrastructure.Settings;
 
 /// <summary>
 /// Keeps payment secrets in the server-side YAML while allowing the non-secret

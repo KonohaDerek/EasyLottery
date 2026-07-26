@@ -1,9 +1,9 @@
 using EasyLotteryDomain.Models.Config;
 using EasyLotteryDomain.Services;
-using EasyLotteryInfrastructure.Settings;
+using EasyLotteryApplication.Settings;
 using YamlDotNet.Serialization;
 
-namespace EasyLotteryApi;
+namespace EasyLotteryInfrastructure.Settings;
 
 /// <summary>YAML-backed repository for the EasyLottery configuration.</summary>
 public sealed class SettingsFileStore : IEasyLotteryConfigRepository, IEasyLotteryConfigStore

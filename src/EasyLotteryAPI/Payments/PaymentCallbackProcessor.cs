@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Mail;
 using EasyLotteryApplication.Payments;
+using EasyLotteryApplication.Settings;
 using EasyLotteryApi;
 using EasyLotteryDomain.Models.Config;
 using EasyLotteryDomain.Models.Overtime;

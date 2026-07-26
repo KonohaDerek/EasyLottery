@@ -1,6 +1,6 @@
 using EasyLotteryDomain.Models.Config;
 
-namespace EasyLotteryApi;
+namespace EasyLotteryApplication.Settings;
 
 public interface IEasyLotteryConfigRepository
 {
