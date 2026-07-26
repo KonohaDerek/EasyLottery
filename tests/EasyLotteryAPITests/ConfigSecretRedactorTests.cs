@@ -1,5 +1,5 @@
-using EasyLotteryApi;
 using EasyLotteryDomain.Models.Config;
+using EasyLotteryInfrastructure.Settings;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
 

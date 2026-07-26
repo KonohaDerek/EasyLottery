@@ -4,12 +4,14 @@ using System.Net.Mail;
 using System.Text.Json;
 using EasyLotteryApplication.DonateActivities;
 using EasyLotteryApplication.Payments;
+using EasyLotteryApplication.Settings;
 using EasyLotteryInfrastructure;
 using EasyLotteryDomain.Models.Overtime;
 using MediatR;
 using Microsoft.AspNetCore.SignalR;
 using EasyLotteryApi;
 using EasyLotteryApi.Payments;
+using EasyLotteryInfrastructure.Settings;
 using EasyLotteryDomain.Models.Config;
 using EasyLotteryDomain.Services;
 

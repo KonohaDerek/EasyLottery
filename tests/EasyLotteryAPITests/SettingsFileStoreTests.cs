@@ -4,6 +4,7 @@ using EasyLotteryDomain.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.FileProviders;
+using EasyLotteryApplication.Settings;
 using EasyLotteryInfrastructure.Storage;
 using EasyLotteryInfrastructure.Settings;
 using YamlDotNet.Serialization;
