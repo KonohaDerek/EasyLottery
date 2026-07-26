@@ -5,7 +5,7 @@ using YamlDotNet.Serialization;
 namespace EasyLotteryApi;
 
 /// <summary>YAML-backed repository for the EasyLottery configuration.</summary>
-public sealed class SettingsFileStore : IEasyLotteryConfigRepository
+public sealed class SettingsFileStore : IEasyLotteryConfigRepository, IEasyLotteryConfigStore
 {
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly ConfigSecretRedactor _secrets;
@@ -83,6 +83,22 @@ public sealed class SettingsFileStore : IEasyLotteryConfigRepository
             var result = update(document);
             await WriteSplitDocumentsAsync(document, cancellationToken);
             return result;
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
+    public Task<EasyLotteryConfigDocument> LoadAsync(CancellationToken cancellationToken = default) =>
+        ReadAsync(cancellationToken);
+
+    public async Task SaveAsync(EasyLotteryConfigDocument document, CancellationToken cancellationToken = default)
+    {
+        await _gate.WaitAsync(cancellationToken);
+        try
+        {
+            await WriteSplitDocumentsAsync(document, cancellationToken);
         }
         finally
         {

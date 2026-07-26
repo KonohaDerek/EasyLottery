@@ -4,6 +4,8 @@ using System.Net.Mail;
 using Microsoft.AspNetCore.SignalR;
 using EasyLotteryApi;
 using EasyLotteryApi.Payments;
+using EasyLotteryDomain.Models.Config;
+using EasyLotteryDomain.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddSignalR();
@@ -12,7 +14,10 @@ builder.Services.AddSingleton<IPaymentProvider, EcpayBroadcasterPaymentProvider>
 builder.Services.AddSingleton<IPaymentProvider, NewebPayDonationPaymentProvider>();
 builder.Services.AddSingleton<PaymentProviderFactory>();
 builder.Services.AddSingleton<ConfigSecretRedactor>();
-builder.Services.AddSingleton<IEasyLotteryConfigRepository, SettingsFileStore>();
+builder.Services.AddSingleton<SettingsFileStore>();
+builder.Services.AddSingleton<IEasyLotteryConfigRepository>(sp => sp.GetRequiredService<SettingsFileStore>());
+builder.Services.AddSingleton<IEasyLotteryConfigStore>(sp => sp.GetRequiredService<SettingsFileStore>());
+builder.Services.AddSingleton<DonateLotteryActivityService>();
 builder.Services.AddSingleton<AdminAccess>();
 builder.Services.AddSingleton<PaymentCallbackProcessor>();
 
@@ -72,6 +77,64 @@ Func<HttpContext, IHubContext<OvertimeHub>, IEasyLotteryConfigRepository, AdminA
 };
 app.MapPut("/settings", writeSettings);
 app.MapPut("/easy-lottery-config.yaml", writeSettings);
+
+Func<HttpContext, DonateLotteryActivityService, AdminAccess, Task<IResult>> listDonateActivities = async (context, donateActivities, adminAccess) =>
+{
+    if (!adminAccess.IsAuthorized(context.Request)) return Results.Unauthorized();
+    return Results.Ok(await donateActivities.ListAsync(context.RequestAborted));
+};
+app.MapGet("/api/donate-activities", listDonateActivities);
+
+Func<DonateLotteryActivity, HttpContext, DonateLotteryActivityService, AdminAccess, Task<IResult>> createDonateActivity = async (activity, context, donateActivities, adminAccess) =>
+{
+    if (!adminAccess.IsAuthorized(context.Request)) return Results.Unauthorized();
+    try
+    {
+        var saved = await donateActivities.SaveAsync(activity, context.RequestAborted);
+        return Results.Created($"/api/donate-activities/{saved.Id}", saved);
+    }
+    catch (InvalidOperationException exception)
+    {
+        return Results.BadRequest(new { error = exception.Message });
+    }
+};
+app.MapPost("/api/donate-activities", createDonateActivity);
+
+Func<int, DonateLotteryActivity, HttpContext, DonateLotteryActivityService, AdminAccess, Task<IResult>> updateDonateActivity = async (id, activity, context, donateActivities, adminAccess) =>
+{
+    if (!adminAccess.IsAuthorized(context.Request)) return Results.Unauthorized();
+    if (activity.Id != 0 && activity.Id != id)
+    {
+        return Results.BadRequest(new { error = "路由 ID 與活動 ID 不一致。" });
+    }
+
+    try
+    {
+        activity.Id = id;
+        var saved = await donateActivities.SaveAsync(activity, context.RequestAborted);
+        return Results.Ok(saved);
+    }
+    catch (InvalidOperationException exception)
+    {
+        return Results.BadRequest(new { error = exception.Message });
+    }
+};
+app.MapPut("/api/donate-activities/{id:int}", updateDonateActivity);
+
+Func<int, HttpContext, DonateLotteryActivityService, AdminAccess, Task<IResult>> deleteDonateActivity = async (id, context, donateActivities, adminAccess) =>
+{
+    if (!adminAccess.IsAuthorized(context.Request)) return Results.Unauthorized();
+    try
+    {
+        await donateActivities.DeleteAsync(id, context.RequestAborted);
+        return Results.NoContent();
+    }
+    catch (InvalidOperationException exception)
+    {
+        return Results.NotFound(new { error = exception.Message });
+    }
+};
+app.MapDelete("/api/donate-activities/{id:int}", deleteDonateActivity);
 
 app.MapGet("/easy-lottery-overtime-feed.json", async (HttpContext context) =>
 {
