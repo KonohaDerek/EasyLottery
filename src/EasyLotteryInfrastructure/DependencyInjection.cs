@@ -1,7 +1,9 @@
 using EasyLotteryApplication.DonateActivities;
 using EasyLotteryApplication.Payments;
+using EasyLotteryApplication.Settings;
 using EasyLotteryInfrastructure.DonateActivities;
 using EasyLotteryInfrastructure.Payments;
+using EasyLotteryInfrastructure.Settings;
 using EasyLotteryInfrastructure.Storage;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -22,6 +24,12 @@ public static class DependencyInjection
         services.AddSingleton<IPaymentOrderRepository>(sp => sp.GetRequiredService<JsonPaymentOrderRepository>());
         services.AddSingleton<JsonOvertimeFeedRepository>();
         services.AddSingleton<IOvertimeFeedRepository>(sp => sp.GetRequiredService<JsonOvertimeFeedRepository>());
+        services.AddSingleton<YamlSettingsDocumentRepository>();
+        services.AddSingleton<ISettingsYamlDocumentRepository>(sp => sp.GetRequiredService<YamlSettingsDocumentRepository>());
+        services.AddSingleton<YamlActivitiesDocumentRepository>();
+        services.AddSingleton<IActivitiesYamlDocumentRepository>(sp => sp.GetRequiredService<YamlActivitiesDocumentRepository>());
+        services.AddSingleton<YamlActivityResultsDocumentRepository>();
+        services.AddSingleton<IActivityResultsYamlDocumentRepository>(sp => sp.GetRequiredService<YamlActivityResultsDocumentRepository>());
         return services;
     }
 }
