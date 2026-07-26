@@ -14,7 +14,7 @@ public sealed class PaymentCallbackProcessor
     private readonly PaymentProviderFactory _factory;
     private readonly IHubContext<OvertimeHub> _hub;
     private readonly ILogger<PaymentCallbackProcessor> _logger;
-    private readonly SettingsFileStore _settingsStore;
+    private readonly IEasyLotteryConfigRepository _settingsStore;
     private readonly string _paymentEventsPath;
     private readonly string _paymentOrdersPath;
     private readonly string _overtimeFeedPath;
@@ -26,7 +26,7 @@ public sealed class PaymentCallbackProcessor
         ILogger<PaymentCallbackProcessor> logger,
         IConfiguration configuration,
         IWebHostEnvironment environment,
-        SettingsFileStore settingsStore)
+        IEasyLotteryConfigRepository settingsStore)
     {
         _factory = factory;
         _hub = hub;

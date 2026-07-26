@@ -1,6 +1,7 @@
 @page "/donate-activities"
 @using EasyLotteryDomain.Models.Config
 @using EasyLotteryDomain.Services
+@using System.Globalization
 @using Serilog
 
 @inject DonateLotteryActivityService DonateLotteryActivityService
@@ -137,5 +138,26 @@
     }
     private void OnStartDateChanged(ChangeEventArgs args) => SetDate(args.Value?.ToString(), isStart: true);
     private void OnEndDateChanged(ChangeEventArgs args) => SetDate(args.Value?.ToString(), isStart: false);
-    private void SetDate(string? value, bool isStart) { if (editing is null || !DateTime.TryParse(value, out var date)) return; var instant = new DateTimeOffset(DateTime.SpecifyKind(date, DateTimeKind.Local)).ToUniversalTime(); if (isStart) editing.StartsAtUtc = instant; else editing.EndsAtUtc = instant; }
+    private void SetDate(string? value, bool isStart)
+    {
+        if (editing is null || string.IsNullOrWhiteSpace(value))
+        {
+            return;
+        }
+
+        if (!DateTime.TryParseExact(value, "yyyy-MM-ddTHH:mm", CultureInfo.InvariantCulture, DateTimeStyles.None, out var date))
+        {
+            return;
+        }
+
+        var instant = new DateTimeOffset(DateTime.SpecifyKind(date, DateTimeKind.Local)).ToUniversalTime();
+        if (isStart)
+        {
+            editing.StartsAtUtc = instant;
+        }
+        else
+        {
+            editing.EndsAtUtc = instant;
+        }
+    }
 }

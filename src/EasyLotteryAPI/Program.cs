@@ -12,7 +12,7 @@ builder.Services.AddSingleton<IPaymentProvider, EcpayBroadcasterPaymentProvider>
 builder.Services.AddSingleton<IPaymentProvider, NewebPayDonationPaymentProvider>();
 builder.Services.AddSingleton<PaymentProviderFactory>();
 builder.Services.AddSingleton<ConfigSecretRedactor>();
-builder.Services.AddSingleton<SettingsFileStore>();
+builder.Services.AddSingleton<IEasyLotteryConfigRepository, SettingsFileStore>();
 builder.Services.AddSingleton<AdminAccess>();
 builder.Services.AddSingleton<PaymentCallbackProcessor>();
 
@@ -52,7 +52,7 @@ if (app.Environment.IsDevelopment())
 app.UseBlazorFrameworkFiles();
 app.UseStaticFiles();
 
-Func<HttpContext, SettingsFileStore, AdminAccess, Task<IResult>> readSettings = async (context, settingsStore, adminAccess) =>
+Func<HttpContext, IEasyLotteryConfigRepository, AdminAccess, Task<IResult>> readSettings = async (context, settingsStore, adminAccess) =>
 {
     if (!adminAccess.IsAuthorized(context.Request)) return Results.Unauthorized();
     return Results.Text(await settingsStore.ReadForBrowserAsync(context.RequestAborted), "text/yaml", Encoding.UTF8);
@@ -61,7 +61,7 @@ app.MapGet("/settings", readSettings);
 // Compatibility endpoint for browsers still serving a cached pre-settings.yaml build.
 app.MapGet("/easy-lottery-config.yaml", readSettings);
 
-Func<HttpContext, IHubContext<OvertimeHub>, SettingsFileStore, AdminAccess, Task<IResult>> writeSettings = async (context, hub, settingsStore, adminAccess) =>
+Func<HttpContext, IHubContext<OvertimeHub>, IEasyLotteryConfigRepository, AdminAccess, Task<IResult>> writeSettings = async (context, hub, settingsStore, adminAccess) =>
 {
     if (!adminAccess.IsAuthorized(context.Request)) return Results.Unauthorized();
 
