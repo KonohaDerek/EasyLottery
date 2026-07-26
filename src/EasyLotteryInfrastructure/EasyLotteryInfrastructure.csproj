@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\EasyLotteryApplication\EasyLotteryApplication.csproj" />
+    <ProjectReference Include="..\EasyLotteryDomain\EasyLotteryDomain.csproj" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.10" />
+    <PackageReference Include="YamlDotNet" Version="18.1.0" />
+  </ItemGroup>
+</Project>

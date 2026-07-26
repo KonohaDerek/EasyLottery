@@ -1,0 +1,82 @@
+using EasyLotteryDomain.Models.Config;
+
+namespace EasyLotteryApplication.DonateActivities;
+
+public static class DonateActivityRules
+{
+    public static DonateLotteryActivity NormalizeForSave(DonateLotteryActivity activity, IReadOnlyCollection<DonateLotteryActivity> existingActivities)
+    {
+        activity.Name = activity.Name?.Trim() ?? "";
+        if (string.IsNullOrWhiteSpace(activity.Name))
+        {
+            throw new InvalidOperationException("請輸入活動名稱。");
+        }
+
+        if (activity.MinimumDonationAmount <= 0m)
+        {
+            throw new InvalidOperationException("最低贊助金額必須大於 0。");
+        }
+
+        if (activity.EndsAtUtc <= activity.StartsAtUtc)
+        {
+            throw new InvalidOperationException("活動結束時間必須晚於開始時間。");
+        }
+
+        var normalized = Clone(activity);
+        var maxActivityId = existingActivities.Select(item => item.Id).DefaultIfEmpty(0).Max();
+        var maxPrizeId = existingActivities.SelectMany(item => item.Prizes ?? []).Select(item => item.Id).DefaultIfEmpty(0).Max();
+
+        if (normalized.Id <= 0)
+        {
+            normalized.Id = maxActivityId + 1;
+        }
+        else if (!existingActivities.Any(item => item.Id == normalized.Id))
+        {
+            throw new InvalidOperationException("找不到 Donate 活動。");
+        }
+
+        normalized.Prizes ??= [];
+        var nextPrizeId = maxPrizeId + 1;
+        var probabilityTotal = 0m;
+        foreach (var prize in normalized.Prizes)
+        {
+            prize.Id = prize.Id <= 0 ? nextPrizeId++ : prize.Id;
+            prize.Name = prize.Name?.Trim() ?? "";
+            prize.ImageUrl = prize.ImageUrl?.Trim() ?? "";
+            prize.Quantity = Math.Max(0, prize.Quantity);
+            prize.RemainingQuantity = Math.Clamp(prize.RemainingQuantity, 0, prize.Quantity);
+            prize.Probability = Math.Clamp(prize.Probability, 0m, 100m);
+            probabilityTotal += prize.Probability;
+        }
+
+        if (probabilityTotal > 100m)
+        {
+            throw new InvalidOperationException("獎項機率合計不可超過 100%。");
+        }
+
+        return normalized;
+    }
+
+    private static DonateLotteryActivity Clone(DonateLotteryActivity source) =>
+        new()
+        {
+            Id = source.Id,
+            Name = source.Name,
+            Type = source.Type,
+            MinimumDonationAmount = source.MinimumDonationAmount,
+            StartsAtUtc = source.StartsAtUtc,
+            EndsAtUtc = source.EndsAtUtc,
+            Animation = source.Animation,
+            IsEnabled = source.IsEnabled,
+            Prizes = source.Prizes?.Select(prize => new DonateLotteryPrize
+            {
+                Id = prize.Id,
+                Name = prize.Name,
+                ImageUrl = prize.ImageUrl,
+                Quantity = prize.Quantity,
+                RemainingQuantity = prize.RemainingQuantity,
+                Probability = prize.Probability,
+                IsGrandPrize = prize.IsGrandPrize
+            }).ToList() ?? []
+        };
+}

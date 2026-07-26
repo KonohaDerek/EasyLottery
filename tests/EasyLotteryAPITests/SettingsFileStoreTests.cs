@@ -1,9 +1,10 @@
 using EasyLotteryApi;
 using EasyLotteryDomain.Models.Config;
 using EasyLotteryDomain.Services;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.FileProviders;
+using EasyLotteryInfrastructure.Storage;
 using YamlDotNet.Serialization;
 
 namespace EasyLotteryApiTests;
@@ -40,16 +41,15 @@ public sealed class SettingsFileStoreTests
     }
 
     [TestMethod]
-    public async Task Constructor_MigratesLegacySettingsYaml_PreservesDatesAndResults()
+    public async Task Constructor_LeavesExistingSplitFiles_Intact()
     {
         var directory = CreateTempDirectory();
         try
         {
             var start = new DateTimeOffset(2026, 7, 21, 8, 0, 0, TimeSpan.Zero);
             var end = new DateTimeOffset(2026, 7, 31, 8, 0, 0, TimeSpan.Zero);
-            var legacyDocument = new EasyLotteryConfigDocument
+            var activitiesDocument = new ActivitiesYamlDocument
             {
-                SystemSettings = { ResultNotificationEmail = "results@example.test" },
                 DonateLotteryActivities =
                 [
                     new DonateLotteryActivity
@@ -59,7 +59,10 @@ public sealed class SettingsFileStoreTests
                         StartsAtUtc = start,
                         EndsAtUtc = end
                     }
-                ],
+                ]
+            };
+            var resultsDocument = new ActivityResultsYamlDocument
+            {
                 ActivityResults =
                 [
                     new ActivityResultRecord
@@ -71,7 +74,8 @@ public sealed class SettingsFileStoreTests
                 ],
                 ProcessedDonatePaymentIds = ["payment-1"]
             };
-            await File.WriteAllTextAsync(Path.Combine(directory, "settings.yaml"), Serialize(legacyDocument));
+            await File.WriteAllTextAsync(Path.Combine(directory, "activities.yaml"), Serialize(activitiesDocument));
+            await File.WriteAllTextAsync(Path.Combine(directory, "activity-results.yaml"), Serialize(resultsDocument));
 
             var store = CreateStore(directory);
             var merged = await store.ReadAsync(CancellationToken.None);
@@ -135,7 +139,7 @@ public sealed class SettingsFileStoreTests
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?> { ["Storage:Directory"] = directory })
             .Build();
-        return new SettingsFileStore(configuration, new TestEnvironment(), new ConfigSecretRedactor());
+        return new SettingsFileStore(configuration, new TestEnvironment(), new ConfigSecretRedactor(), new StorageGateProvider());
     }
 
     private static string CreateTempDirectory()
@@ -153,7 +157,7 @@ public sealed class SettingsFileStoreTests
         }
     }
 
-    private static string Serialize(EasyLotteryConfigDocument document) =>
+    private static string Serialize<T>(T document) where T : class =>
         YamlSerialization.CreateSerializerBuilder()
             .Build()
             .Serialize(document);
@@ -161,11 +165,9 @@ public sealed class SettingsFileStoreTests
     private static T Deserialize<T>(string yaml) where T : class =>
         Deserializer.Deserialize<T>(yaml) ?? throw new InvalidOperationException($"Unable to deserialize {typeof(T).Name}.");
 
-    private sealed class TestEnvironment : IWebHostEnvironment
+    private sealed class TestEnvironment : IHostEnvironment
     {
         public string ApplicationName { get; set; } = "EasyLotteryApiTests";
-        public IFileProvider WebRootFileProvider { get; set; } = new NullFileProvider();
-        public string WebRootPath { get; set; } = "";
         public string EnvironmentName { get; set; } = "Testing";
         public string ContentRootPath { get; set; } = Path.GetTempPath();
         public IFileProvider ContentRootFileProvider { get; set; } = new NullFileProvider();
