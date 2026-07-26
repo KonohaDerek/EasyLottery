@@ -1,8 +1,11 @@
 using System.Text;
 using System.Net;
 using System.Net.Mail;
+using System.Text.Json;
 using EasyLotteryApplication.DonateActivities;
+using EasyLotteryApplication.Payments;
 using EasyLotteryInfrastructure;
+using EasyLotteryDomain.Models.Overtime;
 using MediatR;
 using Microsoft.AspNetCore.SignalR;
 using EasyLotteryApi;
@@ -28,9 +31,6 @@ builder.Services.AddSingleton<PaymentCallbackProcessor>();
 var storageDirectory = builder.Configuration["Storage:Directory"]
     ?? Path.Combine(builder.Environment.ContentRootPath, "App_Data");
 Directory.CreateDirectory(storageDirectory);
-
-var overtimeFeedPath = Path.Combine(storageDirectory, "easy-lottery-overtime-feed.json");
-var storageGate = new SemaphoreSlim(1, 1);
 
 var app = builder.Build();
 
@@ -148,26 +148,37 @@ Func<int, HttpContext, IMediator, AdminAccess, Task<IResult>> deleteDonateActivi
 };
 app.MapDelete("/api/donate-activities/{id:int}", deleteDonateActivity);
 
-app.MapGet("/easy-lottery-overtime-feed.json", async (HttpContext context) =>
+Func<HttpContext, IOvertimeFeedRepository, AdminAccess, Task<IResult>> readOvertimeFeed = async (context, feedRepository, adminAccess) =>
 {
-    var content = await ReadFileAsync(overtimeFeedPath, "[]", context.RequestAborted);
-    return Results.Text(content, "application/json", Encoding.UTF8);
-});
+    if (!adminAccess.IsAuthorized(context.Request)) return Results.Unauthorized();
+    return Results.Text(JsonSerializer.Serialize(await feedRepository.ListAsync(context.RequestAborted)), "application/json", Encoding.UTF8);
+};
+app.MapGet("/api/overtime-feed", readOvertimeFeed);
+app.MapGet("/easy-lottery-overtime-feed.json", readOvertimeFeed);
 
-app.MapPut("/easy-lottery-overtime-feed.json", async (HttpContext context, IHubContext<OvertimeHub> hub) =>
+Func<HttpContext, IOvertimeFeedRepository, IHubContext<OvertimeHub>, AdminAccess, Task<IResult>> writeOvertimeFeed = async (context, feedRepository, hub, adminAccess) =>
 {
-    var content = await ReadRequestBodyAsync(context.Request, context.RequestAborted);
-    await WriteFileAsync(overtimeFeedPath, content, storageGate, context.RequestAborted);
+    if (!adminAccess.IsAuthorized(context.Request)) return Results.Unauthorized();
+    var body = await ReadRequestBodyAsync(context.Request, context.RequestAborted);
+    var events = string.IsNullOrWhiteSpace(body)
+        ? []
+        : JsonSerializer.Deserialize<List<OvertimeSupportEvent>>(body, new JsonSerializerOptions(JsonSerializerDefaults.Web)) ?? [];
+    await feedRepository.SaveAsync(events, context.RequestAborted);
     await hub.Clients.All.SendAsync("OvertimeFeedChanged", context.RequestAborted);
     return Results.NoContent();
-});
+};
+app.MapPut("/api/overtime-feed", writeOvertimeFeed);
+app.MapPut("/easy-lottery-overtime-feed.json", writeOvertimeFeed);
 
-app.MapDelete("/easy-lottery-overtime-feed.json", async (HttpContext context, IHubContext<OvertimeHub> hub) =>
+Func<HttpContext, IOvertimeFeedRepository, IHubContext<OvertimeHub>, AdminAccess, Task<IResult>> clearOvertimeFeed = async (context, feedRepository, hub, adminAccess) =>
 {
-    await WriteFileAsync(overtimeFeedPath, "[]", storageGate, context.RequestAborted);
+    if (!adminAccess.IsAuthorized(context.Request)) return Results.Unauthorized();
+    await feedRepository.SaveAsync([], context.RequestAborted);
     await hub.Clients.All.SendAsync("OvertimeFeedChanged", context.RequestAborted);
     return Results.NoContent();
-});
+};
+app.MapDelete("/api/overtime-feed", clearOvertimeFeed);
+app.MapDelete("/easy-lottery-overtime-feed.json", clearOvertimeFeed);
 
 app.MapPost("/api/result-notification", async (ResultNotificationRequest request) =>
 {
@@ -254,32 +265,10 @@ app.MapFallbackToFile("index.html");
 
 await app.RunAsync();
 
-static async Task<string> ReadFileAsync(string path, string fallback, CancellationToken cancellationToken)
-{
-    return File.Exists(path)
-        ? await File.ReadAllTextAsync(path, cancellationToken)
-        : fallback;
-}
-
 static async Task<string> ReadRequestBodyAsync(HttpRequest request, CancellationToken cancellationToken)
 {
     using var reader = new StreamReader(request.Body, Encoding.UTF8);
     return await reader.ReadToEndAsync(cancellationToken);
-}
-
-static async Task WriteFileAsync(string path, string content, SemaphoreSlim gate, CancellationToken cancellationToken)
-{
-    await gate.WaitAsync(cancellationToken);
-    try
-    {
-        var temporaryPath = $"{path}.{Guid.NewGuid():N}.tmp";
-        await File.WriteAllTextAsync(temporaryPath, content, Encoding.UTF8, cancellationToken);
-        File.Move(temporaryPath, path, overwrite: true);
-    }
-    finally
-    {
-        gate.Release();
-    }
 }
 
 sealed class ResultNotificationRequest

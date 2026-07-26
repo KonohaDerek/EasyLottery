@@ -1,10 +1,10 @@
-using System.Text.Json;
 using System.Net;
 using System.Net.Mail;
+using EasyLotteryApplication.Payments;
 using EasyLotteryApi;
 using EasyLotteryDomain.Models.Config;
-using EasyLotteryDomain.Services;
 using EasyLotteryDomain.Models.Overtime;
+using EasyLotteryDomain.Services;
 using Microsoft.AspNetCore.SignalR;
 
 namespace EasyLotteryApi.Payments;
@@ -15,28 +15,26 @@ public sealed class PaymentCallbackProcessor
     private readonly IHubContext<OvertimeHub> _hub;
     private readonly ILogger<PaymentCallbackProcessor> _logger;
     private readonly IEasyLotteryConfigRepository _settingsStore;
-    private readonly string _paymentEventsPath;
-    private readonly string _paymentOrdersPath;
-    private readonly string _overtimeFeedPath;
-    private readonly SemaphoreSlim _gate = new(1, 1);
+    private readonly IPaymentEventRepository _paymentEventRepository;
+    private readonly IPaymentOrderRepository _paymentOrderRepository;
+    private readonly IOvertimeFeedRepository _overtimeFeedRepository;
 
     public PaymentCallbackProcessor(
         PaymentProviderFactory factory,
         IHubContext<OvertimeHub> hub,
         ILogger<PaymentCallbackProcessor> logger,
-        IConfiguration configuration,
-        IWebHostEnvironment environment,
-        IEasyLotteryConfigRepository settingsStore)
+        IEasyLotteryConfigRepository settingsStore,
+        IPaymentEventRepository paymentEventRepository,
+        IPaymentOrderRepository paymentOrderRepository,
+        IOvertimeFeedRepository overtimeFeedRepository)
     {
         _factory = factory;
         _hub = hub;
         _logger = logger;
-        var storageDirectory = configuration["Storage:Directory"] ?? Path.Combine(environment.ContentRootPath, "App_Data");
-        Directory.CreateDirectory(storageDirectory);
         _settingsStore = settingsStore;
-        _paymentEventsPath = Path.Combine(storageDirectory, "easy-lottery-payment-events.json");
-        _paymentOrdersPath = Path.Combine(storageDirectory, "easy-lottery-payment-orders.json");
-        _overtimeFeedPath = Path.Combine(storageDirectory, "easy-lottery-overtime-feed.json");
+        _paymentEventRepository = paymentEventRepository;
+        _paymentOrderRepository = paymentOrderRepository;
+        _overtimeFeedRepository = overtimeFeedRepository;
     }
 
     public async Task<PaymentCallbackProcessResult> ProcessAsync(string providerId, PaymentNotificationRequest request, CancellationToken cancellationToken)
@@ -60,79 +58,70 @@ public sealed class PaymentCallbackProcessor
             return PaymentCallbackProcessResult.Rejected(notification.FailureReason);
         }
 
-        await _gate.WaitAsync(cancellationToken);
-        try
+        var paymentEvents = await _paymentEventRepository.ListAsync(cancellationToken);
+        if (paymentEvents.Any(item => string.Equals(item.ProviderId, providerId, StringComparison.OrdinalIgnoreCase) &&
+                                      string.Equals(item.ExternalId, notification.ExternalId, StringComparison.Ordinal)))
         {
-            var paymentEvents = await ReadJsonAsync<List<ProcessedPaymentEvent>>(_paymentEventsPath, cancellationToken) ?? [];
-            if (paymentEvents.Any(item => string.Equals(item.ProviderId, providerId, StringComparison.OrdinalIgnoreCase) &&
-                                          string.Equals(item.ExternalId, notification.ExternalId, StringComparison.Ordinal)))
-            {
-                return PaymentCallbackProcessResult.Duplicate();
-            }
+            return PaymentCallbackProcessResult.Duplicate();
+        }
 
-            var orders = await ReadJsonAsync<List<RegisteredPaymentOrder>>(_paymentOrdersPath, cancellationToken) ?? [];
-            var order = orders.FirstOrDefault(item => string.Equals(item.ProviderId, providerId, StringComparison.OrdinalIgnoreCase) &&
-                                                      string.Equals(item.MerchantOrderNo, notification.MerchantOrderNo, StringComparison.Ordinal));
-            if (order is not null)
-            {
-                order.Status = "paid";
-                order.PaidAtUtc = notification.OccurredAtUtc;
-                await WriteJsonAsync(_paymentOrdersPath, orders, cancellationToken);
-            }
+        var orders = (await _paymentOrderRepository.ListAsync(cancellationToken)).ToList();
+        var order = orders.FirstOrDefault(item => string.Equals(item.ProviderId, providerId, StringComparison.OrdinalIgnoreCase) &&
+                                                  string.Equals(item.MerchantOrderNo, notification.MerchantOrderNo, StringComparison.Ordinal));
+        if (order is not null)
+        {
+            order.Status = "paid";
+            order.PaidAtUtc = notification.OccurredAtUtc;
+            await _paymentOrderRepository.SaveAsync(orders, cancellationToken);
+        }
 
-            paymentEvents.Add(new ProcessedPaymentEvent
-            {
-                ProviderId = providerId,
-                ExternalId = notification.ExternalId,
-                MerchantOrderNo = notification.MerchantOrderNo,
-                Amount = notification.Amount,
-                Currency = notification.Currency,
-                Status = "paid",
-                DisplayName = order?.DisplayName ?? notification.DisplayName,
-                Message = order?.Message ?? "",
-                PaidAtUtc = notification.OccurredAtUtc,
-                ProcessedAtUtc = DateTimeOffset.UtcNow
-            });
-            await WriteJsonAsync(_paymentEventsPath, paymentEvents, cancellationToken);
+        await _paymentEventRepository.AppendAsync(new ProcessedPaymentEvent
+        {
+            ProviderId = providerId,
+            ExternalId = notification.ExternalId,
+            MerchantOrderNo = notification.MerchantOrderNo,
+            Amount = notification.Amount,
+            Currency = notification.Currency,
+            Status = "paid",
+            DisplayName = order?.DisplayName ?? notification.DisplayName,
+            Message = order?.Message ?? "",
+            PaidAtUtc = notification.OccurredAtUtc,
+            ProcessedAtUtc = DateTimeOffset.UtcNow
+        }, cancellationToken);
 
-            var donateWins = await ProcessDonateLotteryAsync(notification, provider.Descriptor.DisplayName, cancellationToken);
-            var feed = await ReadJsonAsync<List<OvertimeSupportEvent>>(_overtimeFeedPath, cancellationToken) ?? [];
+        var donateWins = await ProcessDonateLotteryAsync(notification, provider.Descriptor.DisplayName, cancellationToken);
+        var feed = (await _overtimeFeedRepository.ListAsync(cancellationToken)).ToList();
+        feed.Add(new OvertimeSupportEvent
+        {
+            Source = OvertimeSupportSource.ThirdPartyPayment,
+            SourceLabel = provider.Descriptor.DisplayName,
+            DisplayName = order?.DisplayName ?? notification.DisplayName,
+            Message = order?.Message ?? "",
+            Amount = notification.Amount,
+            AmountDisplay = $"NT${notification.Amount:N0}",
+            Currency = notification.Currency,
+            OccurredAtUtc = notification.OccurredAtUtc,
+            ExternalId = notification.ExternalId
+        });
+        foreach (var win in donateWins)
+        {
             feed.Add(new OvertimeSupportEvent
             {
                 Source = OvertimeSupportSource.ThirdPartyPayment,
-                SourceLabel = provider.Descriptor.DisplayName,
-                DisplayName = order?.DisplayName ?? notification.DisplayName,
-                Message = order?.Message ?? "",
-                Amount = notification.Amount,
-                AmountDisplay = $"NT${notification.Amount:N0}",
+                SourceLabel = "Donate 抽獎中獎",
+                DisplayName = win.DonorName,
+                Message = $"抽中 {win.PrizeName}",
+                Amount = win.Amount,
+                AmountDisplay = $"NT${win.Amount:N0}",
                 Currency = notification.Currency,
-                OccurredAtUtc = notification.OccurredAtUtc,
-                ExternalId = notification.ExternalId
+                AvatarUrl = win.PrizeImageUrl,
+                Color = "#ffd166",
+                OccurredAtUtc = win.DrawnAtUtc,
+                ExternalId = $"{win.PaymentExternalId}:{win.Id}"
             });
-            foreach (var win in donateWins)
-            {
-                feed.Add(new OvertimeSupportEvent
-                {
-                    Source = OvertimeSupportSource.ThirdPartyPayment,
-                    SourceLabel = "Donate 抽獎中獎",
-                    DisplayName = win.DonorName,
-                    Message = $"抽中 {win.PrizeName}",
-                    Amount = win.Amount,
-                    AmountDisplay = $"NT${win.Amount:N0}",
-                    Currency = notification.Currency,
-                    AvatarUrl = win.PrizeImageUrl,
-                    Color = "#ffd166",
-                    OccurredAtUtc = win.DrawnAtUtc,
-                    ExternalId = $"{win.PaymentExternalId}:{win.Id}"
-                });
-            }
-            await WriteJsonAsync(_overtimeFeedPath, feed, cancellationToken);
-            await SendResultNotificationAsync(donateWins, cancellationToken);
         }
-        finally
-        {
-            _gate.Release();
-        }
+        await _overtimeFeedRepository.SaveAsync(feed, cancellationToken);
+        await SendResultNotificationAsync(donateWins, cancellationToken);
 
         await _hub.Clients.All.SendAsync("OvertimeFeedChanged", cancellationToken);
         return PaymentCallbackProcessResult.Success();
@@ -146,35 +135,32 @@ public sealed class PaymentCallbackProcessor
             throw new ArgumentException("請提供支援的金流商與商店訂單編號。");
         }
 
-        await _gate.WaitAsync(cancellationToken);
-        try
+        var orders = (await _paymentOrderRepository.ListAsync(cancellationToken)).ToList();
+        if (orders.Any(order => string.Equals(order.ProviderId, providerId, StringComparison.OrdinalIgnoreCase) &&
+                                string.Equals(order.MerchantOrderNo, request.MerchantOrderNo.Trim(), StringComparison.Ordinal)))
         {
-            var orders = await ReadJsonAsync<List<RegisteredPaymentOrder>>(_paymentOrdersPath, cancellationToken) ?? [];
-            if (orders.Any(order => string.Equals(order.ProviderId, providerId, StringComparison.OrdinalIgnoreCase) && string.Equals(order.MerchantOrderNo, request.MerchantOrderNo.Trim(), StringComparison.Ordinal)))
-            {
-                throw new InvalidOperationException("此商店訂單編號已登記。");
-            }
-            var order = new RegisteredPaymentOrder
-            {
-                ProviderId = providerId,
-                MerchantOrderNo = request.MerchantOrderNo.Trim(),
-                DisplayName = request.DisplayName?.Trim() ?? "匿名贊助者",
-                Message = request.Message?.Trim() ?? "",
-                CreatedAtUtc = DateTimeOffset.UtcNow,
-                Status = "pending"
-            };
-            orders.Add(order);
-            await WriteJsonAsync(_paymentOrdersPath, orders, cancellationToken);
-            return order;
+            throw new InvalidOperationException("此商店訂單編號已登記。");
         }
-        finally { _gate.Release(); }
+
+        var order = new RegisteredPaymentOrder
+        {
+            ProviderId = providerId,
+            MerchantOrderNo = request.MerchantOrderNo.Trim(),
+            DisplayName = request.DisplayName?.Trim() ?? "匿名贊助者",
+            Message = request.Message?.Trim() ?? "",
+            CreatedAtUtc = DateTimeOffset.UtcNow,
+            Status = "pending"
+        };
+        orders.Add(order);
+        await _paymentOrderRepository.SaveAsync(orders, cancellationToken);
+        return order;
     }
 
     public async Task<IReadOnlyList<ProcessedPaymentEvent>> ListProcessedEventsAsync(CancellationToken cancellationToken)
     {
-        await _gate.WaitAsync(cancellationToken);
-        try { return (await ReadJsonAsync<List<ProcessedPaymentEvent>>(_paymentEventsPath, cancellationToken) ?? []).OrderByDescending(item => item.PaidAtUtc).ToList(); }
-        finally { _gate.Release(); }
+        return (await _paymentEventRepository.ListAsync(cancellationToken))
+            .OrderByDescending(item => item.PaidAtUtc)
+            .ToList();
     }
 
     private async Task<IReadOnlyList<DonateLotteryDrawRecord>> ProcessDonateLotteryAsync(PaymentNotification notification, string paymentMethod, CancellationToken cancellationToken)
@@ -231,65 +217,4 @@ public sealed class PaymentCallbackProcessor
         "newebpay" => PaymentProviderIds.NewebPayDonation,
         _ => providerId
     };
-
-    private static async Task<T?> ReadJsonAsync<T>(string path, CancellationToken cancellationToken)
-    {
-        if (!File.Exists(path))
-        {
-            return default;
-        }
-
-        await using var stream = File.OpenRead(path);
-        return await JsonSerializer.DeserializeAsync<T>(stream, cancellationToken: cancellationToken);
-    }
-
-    private static async Task WriteJsonAsync<T>(string path, T value, CancellationToken cancellationToken)
-    {
-        var temporaryPath = $"{path}.{Guid.NewGuid():N}.tmp";
-        await using (var stream = File.Create(temporaryPath))
-        {
-            await JsonSerializer.SerializeAsync(stream, value, cancellationToken: cancellationToken);
-        }
-        File.Move(temporaryPath, path, overwrite: true);
-    }
-}
-
-public sealed class ProcessedPaymentEvent
-{
-    public string ProviderId { get; set; } = "";
-    public string ExternalId { get; set; } = "";
-    public string MerchantOrderNo { get; set; } = "";
-    public decimal Amount { get; set; }
-    public string Currency { get; set; } = "TWD";
-    public string Status { get; set; } = "paid";
-    public string DisplayName { get; set; } = "";
-    public string Message { get; set; } = "";
-    public DateTimeOffset PaidAtUtc { get; set; }
-    public DateTimeOffset ProcessedAtUtc { get; set; }
-}
-
-public sealed class PaymentOrderRegistrationRequest
-{
-    public string ProviderId { get; set; } = "";
-    public string MerchantOrderNo { get; set; } = "";
-    public string DisplayName { get; set; } = "";
-    public string Message { get; set; } = "";
-}
-
-public sealed class RegisteredPaymentOrder
-{
-    public string ProviderId { get; set; } = "";
-    public string MerchantOrderNo { get; set; } = "";
-    public string DisplayName { get; set; } = "";
-    public string Message { get; set; } = "";
-    public string Status { get; set; } = "pending";
-    public DateTimeOffset CreatedAtUtc { get; set; }
-    public DateTimeOffset? PaidAtUtc { get; set; }
-}
-
-public sealed record PaymentCallbackProcessResult(bool Accepted, bool IsDuplicate, string Error)
-{
-    public static PaymentCallbackProcessResult Success() => new(true, false, "");
-    public static PaymentCallbackProcessResult Duplicate() => new(true, true, "");
-    public static PaymentCallbackProcessResult Rejected(string error) => new(false, false, error);
 }
