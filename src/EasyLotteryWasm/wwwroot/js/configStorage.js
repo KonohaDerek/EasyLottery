@@ -102,9 +102,6 @@
     async function write(content) {
         const safeContent = getSafeContent(content);
 
-        // Keep an offline copy in case the web host is temporarily unavailable.
-        cacheFallback(safeContent);
-
         try {
             const response = await fetch(remoteConfigUrl, {
                 method: "PUT",
@@ -118,9 +115,13 @@
                 throw new Error(`Unable to save shared YAML configuration (${response.status}).`);
             }
             authorizationRequired = false;
+
+            // Only update the browser cache after the shared YAML was written
+            // successfully so the browser never becomes the source of truth.
+            cacheFallback(safeContent);
         } catch (error) {
             logError("write.fetch", error);
-            // The browser cache above is the offline fallback.
+            throw error;
         }
     }
 

@@ -56,13 +56,14 @@ namespace EasyLotteryWasm.Services
             await _gate.WaitAsync(cancellationToken);
             try
             {
-                _cachedDocument = CloneDocument(normalized);
                 var yaml = _serializer.Serialize(normalized);
                 await _jsRuntime.InvokeVoidAsync("easyLotteryConfig.write", cancellationToken, yaml);
+                _cachedDocument = CloneDocument(normalized);
             }
             catch (JSException ex)
             {
                 _logger.LogWarning(ex, "Failed to write YAML configuration to the browser bridge. Using in-memory cache only.");
+                throw;
             }
             finally
             {
