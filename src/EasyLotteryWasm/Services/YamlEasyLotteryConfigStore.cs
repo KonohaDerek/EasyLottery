@@ -7,7 +7,6 @@ using EasyLotteryDomain.Services;
 using EasyLotteryWasm.Models;
 using Microsoft.JSInterop;
 using YamlDotNet.Serialization;
-using YamlDotNet.Serialization.NamingConventions;
 
 namespace EasyLotteryWasm.Services
 {
@@ -32,14 +31,8 @@ namespace EasyLotteryWasm.Services
             _configuration = configuration;
             _jsRuntime = jsRuntime;
             _logger = logger;
-            _deserializer = new DeserializerBuilder()
-                .WithNamingConvention(CamelCaseNamingConvention.Instance)
-                .IgnoreUnmatchedProperties()
-                .Build();
-            _serializer = new SerializerBuilder()
-                .WithNamingConvention(CamelCaseNamingConvention.Instance)
-                .ConfigureDefaultValuesHandling(DefaultValuesHandling.OmitNull | DefaultValuesHandling.OmitDefaults)
-                .Build();
+            _deserializer = YamlSerialization.CreateDeserializerBuilder().Build();
+            _serializer = YamlSerialization.CreateSerializerBuilder().Build();
         }
 
         public async Task<EasyLotteryConfigDocument> LoadAsync(CancellationToken cancellationToken = default)

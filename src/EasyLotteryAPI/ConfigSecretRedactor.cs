@@ -1,6 +1,6 @@
 using EasyLotteryDomain.Models.Config;
 using YamlDotNet.Serialization;
-using YamlDotNet.Serialization.NamingConventions;
+using EasyLotteryDomain.Services;
 
 namespace EasyLotteryApi;
 
@@ -12,14 +12,8 @@ public sealed class ConfigSecretRedactor
 {
     public const string UnchangedSecretMask = "__EASYLOTTERY_SECRET_UNCHANGED__";
 
-    private readonly IDeserializer _deserializer = new DeserializerBuilder()
-        .WithNamingConvention(CamelCaseNamingConvention.Instance)
-        .IgnoreUnmatchedProperties()
-        .Build();
-    private readonly ISerializer _serializer = new SerializerBuilder()
-        .WithNamingConvention(CamelCaseNamingConvention.Instance)
-        .ConfigureDefaultValuesHandling(DefaultValuesHandling.OmitNull | DefaultValuesHandling.OmitDefaults)
-        .Build();
+    private readonly IDeserializer _deserializer = YamlSerialization.CreateDeserializerBuilder().Build();
+    private readonly ISerializer _serializer = YamlSerialization.CreateSerializerBuilder().Build();
 
     public string RedactForBrowser(string yaml)
     {
