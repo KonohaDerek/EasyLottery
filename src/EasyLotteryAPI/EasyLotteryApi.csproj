@@ -12,6 +12,8 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\EasyLotteryApplication\EasyLotteryApplication.csproj" />
+    <ProjectReference Include="..\EasyLotteryInfrastructure\EasyLotteryInfrastructure.csproj" />
     <ProjectReference Include="..\EasyLotteryWasm\EasyLotteryWasm.csproj" />
   </ItemGroup>
 
