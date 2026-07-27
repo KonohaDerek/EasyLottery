@@ -1,11 +1,18 @@
 @page "/system/access"
-@inject IJSRuntime JSRuntime
-@inject IMessageService MessageService
 
-<PageTitle>管理存取</PageTitle>
-<Card><CardHeader><CardTitle>管理存取權杖</CardTitle></CardHeader><CardBody>
-    <CardText>輸入伺服器以 <code>Settings__AdminToken</code> 設定的權杖。權杖只保存於此瀏覽器工作階段。</CardText>
-    <Field><FieldLabel>管理權杖</FieldLabel><input class="form-control" type="password" @bind="token" autocomplete="current-password" /></Field>
-    <Button Color="Color.Primary" Clicked="SaveAsync">啟用管理存取</Button>
-</CardBody></Card>
-@code { private string token = ""; private async Task SaveAsync() { await JSRuntime.InvokeVoidAsync("easyLotteryConfig.setAdminToken", token); token = ""; await MessageService.Success("管理權杖已保存於此工作階段。"); } }
+<PageTitle>OBS Session 狀態</PageTitle>
+<Card>
+    <CardHeader><CardTitle>OBS Session 狀態</CardTitle></CardHeader>
+    <CardBody>
+        <CardText>
+            這個版本已經取消手動輸入管理權杖。
+            系統會在 WASM 啟動時自動取得 session token，並在開啟 OBS / 設定頁面時自動帶入。
+        </CardText>
+        <CardText class="text-muted">
+            如果你想更新目前的 session，請重新整理頁面即可；重新整理後會重新取得一組新的 session token。
+        </CardText>
+        <CardText class="text-muted">
+            這個頁面只保留作為說明與除錯入口，不需要再輸入任何額外資料。
+        </CardText>
+    </CardBody>
+</Card>

@@ -1,20 +1,19 @@
 using System.Net.Http.Json;
 using EasyLotteryDomain.Models.Config;
-using Microsoft.JSInterop;
 
 namespace EasyLotteryWasm.Services;
 
 public sealed class DonateLotteryActivityApiClient
 {
-    private const string AdminHeaderName = "X-EasyLottery-Admin-Token";
+    private const string SessionHeaderName = "X-EasyLottery-Session-Token";
 
     private readonly HttpClient _httpClient;
-    private readonly IJSRuntime _jsRuntime;
+    private readonly ObsSessionService _sessionService;
 
-    public DonateLotteryActivityApiClient(HttpClient httpClient, IJSRuntime jsRuntime)
+    public DonateLotteryActivityApiClient(HttpClient httpClient, ObsSessionService sessionService)
     {
         _httpClient = httpClient;
-        _jsRuntime = jsRuntime;
+        _sessionService = sessionService;
     }
 
     public async Task<IReadOnlyList<DonateLotteryActivity>> ListAsync(CancellationToken cancellationToken = default)
@@ -46,10 +45,10 @@ public sealed class DonateLotteryActivityApiClient
     private async Task<HttpRequestMessage> CreateRequestAsync(HttpMethod method, string path, CancellationToken cancellationToken)
     {
         var request = new HttpRequestMessage(method, path);
-        var token = await _jsRuntime.InvokeAsync<string>("easyLotteryConfig.getAdminToken", cancellationToken);
+        var token = await _sessionService.GetSessionTokenAsync(cancellationToken);
         if (!string.IsNullOrWhiteSpace(token))
         {
-            request.Headers.Add(AdminHeaderName, token);
+            request.Headers.Add(SessionHeaderName, token);
         }
 
         return request;

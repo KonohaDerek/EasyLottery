@@ -5,10 +5,10 @@
 
     const storageKey = "easy-lottery.config.yaml";
     const remoteConfigUrl = "/settings";
-    const adminTokenKey = "easy-lottery.admin-token";
+    const sessionTokenKey = "easy-lottery.session-token";
     let memoryFallback = "";
     let nextRemoteAttemptAt = 0;
-    let authorizationRequired = false;
+    let sessionTokenPromise = null;
 
     function logError(scope, error) {
         try {
@@ -18,19 +18,19 @@
         }
     }
 
-    function bootstrapAdminTokenFromQuery() {
+    function bootstrapSessionTokenFromQuery() {
         try {
             const url = new URL(window.location.href);
-            const token = (url.searchParams.get("adminToken") || "").trim();
+            const token = (url.searchParams.get("sessionToken") || "").trim();
             if (!token) {
                 return;
             }
 
-            window.sessionStorage.setItem(adminTokenKey, token);
-            url.searchParams.delete("adminToken");
+            window.sessionStorage.setItem(sessionTokenKey, token);
+            url.searchParams.delete("sessionToken");
             window.history.replaceState({}, document.title, `${url.pathname}${url.search}${url.hash}`);
         } catch (error) {
-            logError("bootstrapAdminTokenFromQuery", error);
+            logError("bootstrapSessionTokenFromQuery", error);
         }
     }
 
@@ -50,17 +50,58 @@
         return memoryFallback;
     }
 
-    function getAdminHeaders() {
+    async function ensureSessionToken() {
         try {
-            const token = window.sessionStorage.getItem(adminTokenKey);
-            return token ? { "X-EasyLottery-Admin-Token": token } : {};
+            const cached = window.sessionStorage.getItem(sessionTokenKey);
+            if (cached) {
+                return cached;
+            }
         } catch (error) {
-            logError("getAdminHeaders", error);
+            logError("ensureSessionToken.sessionStorage.getItem", error);
+        }
+
+        if (!sessionTokenPromise) {
+            sessionTokenPromise = (async () => {
+                const response = await fetch("/api/session-token", { cache: "no-store" });
+                if (!response.ok) {
+                    throw new Error(`Unable to obtain session token (${response.status}).`);
+                }
+
+                const payload = await response.json();
+                const token = (typeof payload === "string"
+                    ? payload
+                    : payload?.token ?? payload?.Token ?? payload?.sessionToken ?? payload?.SessionToken ?? "").toString().trim();
+                if (!token) {
+                    throw new Error("The session token endpoint returned an empty token.");
+                }
+
+                try {
+                    window.sessionStorage.setItem(sessionTokenKey, token);
+                } catch (error) {
+                    logError("ensureSessionToken.sessionStorage.setItem", error);
+                }
+
+                return token;
+            })().finally(() => {
+                sessionTokenPromise = null;
+            });
+        }
+
+        return sessionTokenPromise;
+    }
+
+    async function getSessionHeaders() {
+        try {
+            const token = await ensureSessionToken();
+            return token ? { "X-EasyLottery-Session-Token": token } : {};
+        } catch (error) {
+            logError("getSessionHeaders", error);
             return {};
         }
     }
 
-    bootstrapAdminTokenFromQuery();
+    bootstrapSessionTokenFromQuery();
+    void ensureSessionToken().catch(error => logError("ensureSessionToken.bootstrap", error));
 
     async function read() {
         const now = Date.now();
@@ -68,17 +109,11 @@
             // The web host owns the YAML file. Do not let a stale per-browser
             // localStorage value override shared settings.
             if (now >= nextRemoteAttemptAt) {
-                const response = await fetch(remoteConfigUrl, { cache: "no-store", headers: getAdminHeaders() });
+                const response = await fetch(remoteConfigUrl, { cache: "no-store", headers: await getSessionHeaders() });
                 if (response.ok) {
                     nextRemoteAttemptAt = 0;
-                    authorizationRequired = false;
                     return cacheFallback(await response.text());
                 }
-
-                // A reachable web host explicitly rejected the request. Preserve this
-                // distinction from an offline standalone WASM server so the UI can
-                // guide the user instead of displaying an empty fallback as settings.
-                authorizationRequired = response.status === 401;
 
                 // The standalone WASM dev server has no YAML API. Avoid generating
                 // a 404 every overlay refresh while retaining the local fallback.
@@ -86,7 +121,6 @@
             }
         } catch (error) {
             logError("read.fetch", error);
-            authorizationRequired = false;
             nextRemoteAttemptAt = now + 30_000;
         }
 
@@ -106,15 +140,13 @@
             const response = await fetch(remoteConfigUrl, {
                 method: "PUT",
                 cache: "no-store",
-                headers: { "Content-Type": "text/yaml; charset=utf-8", ...getAdminHeaders() },
+                headers: { "Content-Type": "text/yaml; charset=utf-8", ...(await getSessionHeaders()) },
                 body: safeContent
             });
 
             if (!response.ok) {
-                authorizationRequired = response.status === 401;
                 throw new Error(`Unable to save shared YAML configuration (${response.status}).`);
             }
-            authorizationRequired = false;
 
             // Only update the browser cache after the shared YAML was written
             // successfully so the browser never becomes the source of truth.
@@ -128,8 +160,14 @@
     window.easyLotteryConfig = {
         read,
         write,
-        setAdminToken: (token) => window.sessionStorage.setItem(adminTokenKey, token || ""),
-        getAdminToken: () => window.sessionStorage.getItem(adminTokenKey) || "",
-        requiresAdminToken: () => authorizationRequired,
+        getSessionToken: async () => await ensureSessionToken(),
+        hasSessionToken: () => {
+            try {
+                return !!window.sessionStorage.getItem(sessionTokenKey);
+            } catch (error) {
+                logError("hasSessionToken", error);
+                return false;
+            }
+        },
     };
 })();

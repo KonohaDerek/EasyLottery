@@ -1,6 +1,7 @@
 @page "/activity-results"
 @using EasyLotteryDomain.Models.Config
 @using EasyLotteryDomain.Services
+@using EasyLotteryWasm.Services
 @using System.Globalization
 @using System.Text.Json
 @using System.Net.Http.Json
@@ -11,6 +12,7 @@
 @inject IJSRuntime JSRuntime
 @inject IEasyLotteryConfigStore ConfigStore
 @inject HttpClient Http
+@inject ObsSessionService ObsSessionService
 
 <PageTitle>活動結果</PageTitle>
 
@@ -674,9 +676,9 @@
         var draws = document.DonateLotteryDrawRecords;
         try
         {
-            var token = await JSRuntime.InvokeAsync<string>("easyLotteryConfig.getAdminToken");
+            var token = await ObsSessionService.GetSessionTokenAsync();
             using var request = new HttpRequestMessage(HttpMethod.Get, "/api/payments/events");
-            request.Headers.Add("X-EasyLottery-Admin-Token", token);
+            request.Headers.Add("X-EasyLottery-Session-Token", token);
             var response = await Http.SendAsync(request);
             var payments = response.IsSuccessStatusCode ? await response.Content.ReadFromJsonAsync<List<PaymentReportEvent>>() ?? [] : [];
             var paymentCount = payments.Select(item => item.ExternalId).Distinct().Count();

@@ -57,6 +57,7 @@ public sealed class DonateActivityProjectionHandlers :
         new()
         {
             Id = source.Id,
+            PublicId = source.PublicId,
             Name = source.Name,
             Type = source.Type,
             MinimumDonationAmount = source.MinimumDonationAmount,

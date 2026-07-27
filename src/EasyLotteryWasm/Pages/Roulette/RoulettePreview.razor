@@ -1,6 +1,7 @@
 @page "/roulette/preview/{Id:int}"
 @using EasyLotteryDomain.Models.Entities
 @using EasyLotteryDomain.Services
+@using EasyLotteryWasm.Services
 @using Serilog
 
 @inject ActivityResultService ActivityResultService
@@ -8,6 +9,7 @@
 @inject RouletteService RouletteService
 @inject NavigationManager NavigationManager
 @inject IMessageService MessageService
+@inject ObsSessionService ObsSessionService
 
 <PageTitle>轉盤 - 預覽</PageTitle>
 
@@ -261,6 +263,7 @@ else
     private int forceIndex = 0;
     private bool isRecording;
     private string? lastRecordedSignature;
+    private string sessionToken = "";
 
     private const int PostSpinDelayMs = 300;
     private const int SpinCountdownSeconds = 3;
@@ -288,6 +291,7 @@ else
 
     protected override async Task OnInitializedAsync()
     {
+        sessionToken = await ObsSessionService.GetSessionTokenAsync();
         template = await RouletteService.LoadTemplateAsync(Id);
         if (template == null)
         {
@@ -383,7 +387,9 @@ else
         return $"M {cx.ToString("F2")} {cy.ToString("F2")} L {x1:F2} {y1:F2} A {r:F2} {r:F2} 0 {largeArc} 1 {x2:F2} {y2:F2} Z";
     }
 
-    private string ObsUrl => $"http://localhost:18930/obs/roulette/{Id}";
+    private string ObsUrl => string.IsNullOrWhiteSpace(sessionToken)
+        ? NavigationManager.ToAbsoluteUri($"/obs/roulette/{Id}").ToString()
+        : $"{NavigationManager.ToAbsoluteUri($"/obs/roulette/{Id}").ToString()}?sessionToken={Uri.EscapeDataString(sessionToken)}";
 
     private string BuildRecordSignature()
     {

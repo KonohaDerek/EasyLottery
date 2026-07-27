@@ -11,17 +11,17 @@ internal static class SettingsEndpoints
 {
     public static void MapSettingsEndpoints(this WebApplication app)
     {
-        Func<HttpContext, IEasyLotteryConfigRepository, AdminAccess, Task<IResult>> readSettings = async (context, settingsStore, adminAccess) =>
+        Func<HttpContext, IEasyLotteryConfigRepository, ObsSessionAccess, Task<IResult>> readSettings = async (context, settingsStore, sessionAccess) =>
         {
-            if (!adminAccess.IsAuthorized(context.Request)) return Results.Unauthorized();
+            if (!sessionAccess.IsAuthorized(context.Request)) return Results.Unauthorized();
             return Results.Text(await settingsStore.ReadForBrowserAsync(context.RequestAborted), "text/yaml", Encoding.UTF8);
         };
         app.MapGet("/settings", readSettings);
         app.MapGet("/easy-lottery-config.yaml", readSettings);
 
-        Func<HttpContext, IHubContext<OvertimeHub>, IEasyLotteryConfigRepository, AdminAccess, Task<IResult>> writeSettings = async (context, hub, settingsStore, adminAccess) =>
+        Func<HttpContext, IHubContext<OvertimeHub>, IEasyLotteryConfigRepository, ObsSessionAccess, Task<IResult>> writeSettings = async (context, hub, settingsStore, sessionAccess) =>
         {
-            if (!adminAccess.IsAuthorized(context.Request)) return Results.Unauthorized();
+            if (!sessionAccess.IsAuthorized(context.Request)) return Results.Unauthorized();
 
             var content = await HttpRequestBodyReader.ReadTextAsync(context.Request, context.RequestAborted);
             await settingsStore.SaveBrowserUpdateAsync(content, context.RequestAborted);

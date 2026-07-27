@@ -7,6 +7,8 @@
 @inject DonateLotteryActivityApiClient DonateLotteryActivityApiClient
 @inject IMessageService MessageService
 @inject IJSRuntime JSRuntime
+@inject NavigationManager NavigationManager
+@inject ObsSessionService ObsSessionService
 
 <PageTitle>Donate 活動</PageTitle>
 
@@ -14,17 +16,9 @@
     <CardHeader><CardTitle>Donate 抽獎活動</CardTitle></CardHeader>
     <CardBody>
         <CardText>贊助金額每達到最低門檻即可獲得一次抽獎機會。獎項用盡後不會重複抽出。</CardText>
-        <Button Color="Color.Primary" Clicked="CreateAsync" Disabled="requiresAdminToken">新增活動</Button>
+        <Button Color="Color.Primary" Clicked="CreateAsync">新增活動</Button>
     </CardBody>
 </Card>
-
-@if (requiresAdminToken)
-{
-    <div class="alert alert-warning" role="alert">
-        無法讀取共享活動設定：此瀏覽器尚未取得管理存取權杖。
-        請前往 <a href="system/access">管理存取</a> 輸入伺服器設定的 <code>Settings__AdminToken</code> 後重新整理。
-    </div>
-}
 
 <Modal Visible="@editorVisible"
        VisibleChanged="@OnEditorVisibleChanged"
@@ -88,24 +82,39 @@
     </ModalContent>
 </Modal>
 
-@if (!requiresAdminToken)
-{
 <table class="table align-middle">
     <thead><tr><th>活動</th><th>期間</th><th>最低贊助</th><th>獎項庫存</th><th>狀態</th><th></th></tr></thead>
     <tbody>
     @foreach (var activity in activities)
     {
-        <tr><td>@activity.Name <small class="text-muted">@activity.Type</small></td><td>@activity.StartsAtUtc.LocalDateTime:g — @activity.EndsAtUtc.LocalDateTime:g</td><td>NT$@activity.MinimumDonationAmount</td><td>@activity.Prizes.Sum(prize => prize.RemainingQuantity) / @activity.Prizes.Sum(prize => prize.Quantity)</td><td>@(activity.IsEnabled ? "啟用" : "停用")</td><td class="d-flex gap-2"><Button Color="Color.Secondary" Size="Size.Small" Clicked="() => Edit(activity)">編輯</Button>@if (activity.IsEnabled) { <a class="btn btn-outline-primary btn-sm" href="@($"/obs/donate/{activity.Id}")" target="_blank" rel="noopener noreferrer">開啟 OBS URL</a> } else { <Button Color="Color.Secondary" Size="Size.Small" Disabled>開啟 OBS URL</Button> }<Button Color="Color.Danger" Size="Size.Small" Clicked="() => DeleteAsync(activity)">刪除</Button></td></tr>
+        <tr>
+            <td>@activity.Name <small class="text-muted">@activity.Type</small></td>
+            <td>@activity.StartsAtUtc.LocalDateTime:g — @activity.EndsAtUtc.LocalDateTime:g</td>
+            <td>NT$@activity.MinimumDonationAmount</td>
+            <td>@activity.Prizes.Sum(prize => prize.RemainingQuantity) / @activity.Prizes.Sum(prize => prize.Quantity)</td>
+            <td>@(activity.IsEnabled ? "啟用" : "停用")</td>
+            <td class="d-flex gap-2">
+                <Button Color="Color.Secondary" Size="Size.Small" Clicked="() => Edit(activity)">編輯</Button>
+                @if (activity.IsEnabled)
+                {
+                    <a class="btn btn-outline-primary btn-sm" href="@BuildObsUrl(activity)" target="_blank" rel="noopener noreferrer">開啟 OBS URL</a>
+                }
+                else
+                {
+                    <Button Color="Color.Secondary" Size="Size.Small" Disabled>開啟 OBS URL</Button>
+                }
+                <Button Color="Color.Danger" Size="Size.Small" Clicked="() => DeleteAsync(activity)">刪除</Button>
+            </td>
+        </tr>
     }
     </tbody>
 </table>
-}
 
 @code {
     private IReadOnlyList<DonateLotteryActivity> activities = [];
     private DonateLotteryActivity? editing;
     private bool editorVisible;
-    private bool requiresAdminToken;
+    private string sessionToken = "";
     private string EditorTitle => editing is null
         ? "Donate 活動"
         : editing.Id == 0 ? "新增 Donate 活動" : $"編輯 Donate 活動：{editing.Name}";
@@ -114,13 +123,7 @@
 
     protected override async Task OnInitializedAsync()
     {
-        requiresAdminToken = await JSRuntime.InvokeAsync<bool>("easyLotteryConfig.requiresAdminToken");
-        if (requiresAdminToken)
-        {
-            activities = [];
-            return;
-        }
-
+        sessionToken = await ObsSessionService.GetSessionTokenAsync();
         await ReloadAsync();
     }
 
@@ -131,6 +134,7 @@
     {
         editing = new DonateLotteryActivity
         {
+            PublicId = Guid.NewGuid(),
             StartsAtUtc = DateTimeOffset.UtcNow,
             EndsAtUtc = DateTimeOffset.UtcNow.AddDays(7),
             Prizes = [new DonateLotteryPrize { Probability = 100m }]
@@ -144,6 +148,7 @@
         editing = new DonateLotteryActivity
         {
             Id = activity.Id,
+            PublicId = activity.PublicId == Guid.Empty ? Guid.NewGuid() : activity.PublicId,
             Name = activity.Name,
             Type = activity.Type,
             Animation = activity.Animation,
@@ -217,6 +222,15 @@
         }
         catch (Exception exception) { await MessageService.Error(exception.Message); }
     }
+
+    private string BuildObsUrl(DonateLotteryActivity activity)
+    {
+        var baseUrl = NavigationManager.ToAbsoluteUri($"/obs/donate/{activity.PublicId}").ToString();
+        return string.IsNullOrWhiteSpace(sessionToken)
+            ? baseUrl
+            : $"{baseUrl}?sessionToken={Uri.EscapeDataString(sessionToken)}";
+    }
+
     private void OnStartDateChanged(ChangeEventArgs args) => SetDate(args.Value?.ToString(), isStart: true);
     private void OnEndDateChanged(ChangeEventArgs args) => SetDate(args.Value?.ToString(), isStart: false);
     private void SetDate(string? value, bool isStart)
