@@ -24,6 +24,9 @@ public sealed class DonateLotteryActivity
     public DateTimeOffset StartsAtUtc { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset EndsAtUtc { get; set; } = DateTimeOffset.UtcNow.AddDays(1);
     public DonateLotteryAnimation Animation { get; set; } = DonateLotteryAnimation.IchibanKuji;
+    /// <summary>拍立得活動使用的結果模板；舊活動會回退為 classic。</summary>
+    public string PolaroidTemplateKey { get; set; } = "classic";
+    public bool UseAiCongratulation { get; set; }
     public bool IsEnabled { get; set; }
     public List<DonateLotteryPrize> Prizes { get; set; } = [];
 }

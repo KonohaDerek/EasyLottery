@@ -64,6 +64,8 @@ public sealed class DonateActivityProjectionHandlers :
             StartsAtUtc = source.StartsAtUtc,
             EndsAtUtc = source.EndsAtUtc,
             Animation = source.Animation,
+            PolaroidTemplateKey = source.PolaroidTemplateKey,
+            UseAiCongratulation = source.UseAiCongratulation,
             IsEnabled = source.IsEnabled,
             Prizes = source.Prizes.Select(prize => new EasyLotteryDomain.Models.Config.DonateLotteryPrize
             {

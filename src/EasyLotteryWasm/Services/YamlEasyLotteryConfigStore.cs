@@ -223,6 +223,7 @@ namespace EasyLotteryWasm.Services
             foreach (var activity in document.DonateLotteryActivities)
             {
                 activity.PublicId = activity.PublicId == Guid.Empty ? Guid.NewGuid() : activity.PublicId;
+                activity.PolaroidTemplateKey = string.IsNullOrWhiteSpace(activity.PolaroidTemplateKey) ? "classic" : activity.PolaroidTemplateKey.Trim().ToLowerInvariant();
                 activity.Name ??= "";
                 activity.Prizes ??= [];
                 foreach (var prize in activity.Prizes)

@@ -38,6 +38,11 @@
                     <div class="col-md-3"><Field><FieldLabel>類型</FieldLabel><Select TValue="DonateLotteryActivityType" @bind-SelectedValue="editing.Type"><SelectItem Value="DonateLotteryActivityType.Postcard">明信片</SelectItem><SelectItem Value="DonateLotteryActivityType.Polaroid">拍立得</SelectItem></Select></Field></div>
                     <div class="col-md-3"><Field><FieldLabel>最低贊助金額</FieldLabel><NumericInput TValue="decimal" @bind-Value="editing.MinimumDonationAmount" Min="1" /></Field></div>
                     <div class="col-md-3"><Field><FieldLabel>抽獎動畫</FieldLabel><Select TValue="DonateLotteryAnimation" @bind-SelectedValue="editing.Animation"><SelectItem Value="DonateLotteryAnimation.IchibanKuji">一番賞</SelectItem><SelectItem Value="DonateLotteryAnimation.Gacha">扭蛋</SelectItem><SelectItem Value="DonateLotteryAnimation.Garagara">日式滾筒</SelectItem><SelectItem Value="DonateLotteryAnimation.MoneyBox">塞錢箱／詩籤</SelectItem></Select></Field></div>
+                    @if (editing.Type == DonateLotteryActivityType.Polaroid)
+                    {
+                        <div class="col-md-3"><Field><FieldLabel>拍立得模板</FieldLabel><Select TValue="string" @bind-SelectedValue="editing.PolaroidTemplateKey"><SelectItem Value="@("classic")">經典拍立得</SelectItem><SelectItem Value="@("celebration")">慶典拍立得</SelectItem></Select></Field></div>
+                        <div class="col-md-2"><Field><FieldLabel>AI 恭喜文案</FieldLabel><Switch TValue="bool" @bind-Value="editing.UseAiCongratulation" /></Field></div>
+                    }
                     <div class="col-md-4"><Field><FieldLabel>開始時間（本地時區）</FieldLabel><input class="form-control" type="datetime-local" value="@StartDateText" @onchange="OnStartDateChanged" /></Field></div>
                     <div class="col-md-4"><Field><FieldLabel>結束時間（本地時區）</FieldLabel><input class="form-control" type="datetime-local" value="@EndDateText" @onchange="OnEndDateChanged" /></Field></div>
                     <div class="col-md-2"><Field><FieldLabel>啟用</FieldLabel><Switch TValue="bool" @bind-Value="editing.IsEnabled" /></Field></div>
@@ -152,6 +157,8 @@
             Name = activity.Name,
             Type = activity.Type,
             Animation = activity.Animation,
+            PolaroidTemplateKey = string.IsNullOrWhiteSpace(activity.PolaroidTemplateKey) ? "classic" : activity.PolaroidTemplateKey,
+            UseAiCongratulation = activity.UseAiCongratulation,
             MinimumDonationAmount = activity.MinimumDonationAmount,
             StartsAtUtc = activity.StartsAtUtc,
             EndsAtUtc = activity.EndsAtUtc,

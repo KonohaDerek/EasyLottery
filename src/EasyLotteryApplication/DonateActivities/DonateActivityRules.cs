@@ -23,6 +23,9 @@ public static class DonateActivityRules
         }
 
         var normalized = Clone(activity);
+        normalized.PolaroidTemplateKey = string.IsNullOrWhiteSpace(normalized.PolaroidTemplateKey)
+            ? "classic"
+            : normalized.PolaroidTemplateKey.Trim().ToLowerInvariant();
         var maxActivityId = existingActivities.Select(item => item.Id).DefaultIfEmpty(0).Max();
         var maxPrizeId = existingActivities.SelectMany(item => item.Prizes ?? []).Select(item => item.Id).DefaultIfEmpty(0).Max();
 
@@ -73,6 +76,8 @@ public static class DonateActivityRules
             StartsAtUtc = source.StartsAtUtc,
             EndsAtUtc = source.EndsAtUtc,
             Animation = source.Animation,
+            PolaroidTemplateKey = source.PolaroidTemplateKey,
+            UseAiCongratulation = source.UseAiCongratulation,
             IsEnabled = source.IsEnabled,
             Prizes = source.Prizes?.Select(prize => new DonateLotteryPrize
             {

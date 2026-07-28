@@ -19,6 +19,8 @@ builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblies(typeof(Get
 builder.Services.AddSingleton<ObsSessionTokenService>();
 builder.Services.AddSingleton<ObsSessionAccess>();
 builder.Services.AddSingleton<PaymentCallbackProcessor>();
+builder.Services.AddHttpClient();
+builder.Services.AddScoped<AiCongratulationProvider>();
 
 var storageDirectory = builder.Configuration["Storage:Directory"]
     ?? Path.Combine(builder.Environment.ContentRootPath, "App_Data");
@@ -50,6 +52,7 @@ app.UseStaticFiles();
 
 app.MapSettingsEndpoints();
 app.MapObsSessionEndpoints();
+app.MapAiCongratulationEndpoints();
 app.MapOvertimeFeedEndpoints();
 app.MapPaymentEndpoints();
 app.MapDonateActivityEndpoints();

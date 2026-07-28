@@ -5,6 +5,7 @@
 @using EasyLotteryDomain.Services
 @using Serilog
 @inject IEasyLotteryConfigStore ConfigStore
+@inject AiCongratulationClient AiCongratulationClient
 @implements IAsyncDisposable
 
 <PageTitle>Donate 抽獎 OBS</PageTitle>
@@ -24,7 +25,7 @@
     }
     else
     {
-        <div class="donate-reveal @AnimationClass @(IsGrandPrize ? "grand-prize" : "")" @key="latestWin.Id">
+        <div class="donate-reveal @AnimationClass @PolaroidTemplateClass @(IsGrandPrize ? "grand-prize" : "")" @key="latestWin.Id">
             <div class="donate-reveal-label">@(latestWin.IsWinning ? "DONATE RESULT" : "DONATE THANK YOU")</div>
             <div class="draw-prop animation-@AnimationKey" aria-hidden="true">
                 @if (activity.Animation == DonateLotteryAnimation.IchibanKuji)
@@ -83,6 +84,7 @@
             }
             else { <div class="donate-reveal-fallback">@latestWin.PrizeName</div> }
             <div class="donate-reveal-prize">@latestWin.PrizeName</div>
+            @if (activity.Type == DonateLotteryActivityType.Polaroid) { <div class="donate-reveal-congratulation">@(aiCongratulation ?? PolaroidFallbackCongratulation)</div> }
             @if (IsGrandPrize) { <div class="grand-prize-banner">★ 最大獎 ★</div> }
             <div class="donate-reveal-donor">@latestWin.DonorName · NT$@latestWin.Amount:N0</div>
             @if (!string.IsNullOrWhiteSpace(latestWin.DonationMessage)) { <div class="donate-reveal-message">「@latestWin.DonationMessage」</div> }
@@ -113,6 +115,8 @@ else
     .donate-obs-shell { min-height: 100vh; display:grid; place-items:center; background:transparent; color:white; font-family:system-ui,sans-serif; }
     .donate-obs-empty { text-align:center; padding:2rem 3rem; border-radius:1.5rem; background:rgba(8,10,26,.72); font-size:2rem; }
     .donate-reveal { text-align:center; padding:2rem; animation:donate-reveal .65s cubic-bezier(.16,1,.3,1); text-shadow:0 3px 18px #000; position:relative; }
+    .polaroid-template-classic { --polaroid-accent:#ffd166; --polaroid-surface:linear-gradient(135deg,#6d28d9,#f59e0b); }
+    .polaroid-template-celebration { --polaroid-accent:#f9a8d4; --polaroid-surface:linear-gradient(135deg,#ec4899,#7c3aed 52%,#22d3ee); }
     .donate-reveal::before { content:""; position:absolute; inset:-2.5rem; pointer-events:none; background:radial-gradient(circle at center, rgba(255,255,255,.16), transparent 60%); opacity:.7; filter:blur(14px); }
     .draw-prop { min-height:12rem; display:grid; place-items:center; margin:.25rem auto 1rem; perspective:1200px; position:relative; }
     .draw-prop > * { position:relative; }
@@ -158,9 +162,10 @@ else
     .grand-prize::after { content:""; position:absolute; inset:-4rem; pointer-events:none; background:conic-gradient(from 0deg, transparent 0 15%, rgba(255,255,255,.55) 20%, transparent 25% 40%, rgba(251,191,36,.55) 45%, transparent 50% 65%, rgba(255,255,255,.45) 70%, transparent 75% 100%); mask:radial-gradient(circle, transparent 0 38%, #000 52%); animation:grand-spin 3.5s linear infinite; }
     .grand-prize-banner { color:#fff7d6; font-size:clamp(1.2rem,3vw,2.3rem); font-weight:950; letter-spacing:.2em; text-shadow:0 0 24px rgba(255,240,140,.9); }
     .donate-reveal-label { color:#ffd166; font-weight:900; letter-spacing:.22em; margin-bottom:1rem; }
-    .donate-reveal-image { max-width:min(68vw,640px); max-height:62vh; object-fit:contain; border:6px solid #ffd166; border-radius:1.25rem; box-shadow:0 0 45px rgba(255,209,102,.8); }
-    .donate-reveal-fallback { width:min(68vw,640px); aspect-ratio:1; display:grid; place-items:center; border:6px solid #ffd166; border-radius:1.25rem; background:linear-gradient(135deg,#6d28d9,#f59e0b); font-size:clamp(2rem,7vw,5rem); font-weight:900; }
+    .donate-reveal-image { max-width:min(68vw,640px); max-height:62vh; object-fit:contain; border:6px solid var(--polaroid-accent,#ffd166); border-radius:1.25rem; box-shadow:0 0 45px color-mix(in srgb,var(--polaroid-accent,#ffd166) 80%,transparent); }
+    .donate-reveal-fallback { width:min(68vw,640px); aspect-ratio:1; display:grid; place-items:center; border:6px solid var(--polaroid-accent,#ffd166); border-radius:1.25rem; background:var(--polaroid-surface,linear-gradient(135deg,#6d28d9,#f59e0b)); font-size:clamp(2rem,7vw,5rem); font-weight:900; }
     .donate-reveal-prize { font-size:clamp(2rem,6vw,4.5rem); font-weight:900; margin-top:1rem; }
+    .donate-reveal-congratulation { margin:.5rem auto; color:var(--polaroid-accent,#ffd166); font-size:clamp(1.1rem,2.8vw,1.8rem); font-weight:800; }
     .donate-reveal-donor { font-size:clamp(1.15rem,3vw,2rem); }
     .donate-reveal-message { margin-top:.5rem; font-size:clamp(1rem,2.4vw,1.6rem); }
     .donate-test-panel { position:fixed; right:1rem; bottom:1rem; z-index:10; max-width:24rem; padding:1rem; border-radius:.75rem; background:#fff; color:#172033; box-shadow:0 8px 30px rgba(0,0,0,.35); }
@@ -209,6 +214,7 @@ else
     private string testMessage = "這是一則 OBS Donate 測試通知";
     private string testPaymentMethod = "測試付款";
     private string testResult = "";
+    private string? aiCongratulation;
     private string AnimationClass => activity?.Animation switch
     {
         DonateLotteryAnimation.Gacha => "animation-gacha",
@@ -223,6 +229,14 @@ else
         DonateLotteryAnimation.MoneyBox => "moneybox",
         _ => "ichiban"
     };
+    private string PolaroidTemplateClass => activity?.Type == DonateLotteryActivityType.Polaroid
+        ? $"polaroid-template-{(string.IsNullOrWhiteSpace(activity.PolaroidTemplateKey) ? "classic" : activity.PolaroidTemplateKey)}"
+        : "polaroid-template-classic";
+    private string PolaroidFallbackCongratulation => latestWin is null
+        ? ""
+        : PolaroidResultTemplateCatalog.Resolve(activity?.PolaroidTemplateKey).FallbackCongratulation
+            .Replace("{donor}", latestWin.DonorName, StringComparison.Ordinal)
+            .Replace("{prize}", latestWin.PrizeName, StringComparison.Ordinal);
     private bool IsGrandPrize => latestWin is not null && activity?.Prizes.Any(prize => prize.IsGrandPrize && string.Equals(prize.Name, latestWin.PrizeName, StringComparison.Ordinal)) == true;
     private readonly CancellationTokenSource cancellation = new();
 
@@ -270,6 +284,11 @@ else
         {
             displayedWinId = latestWin?.Id;
             prizeImageFailed = false;
+            aiCongratulation = null;
+            if (activity?.Type == DonateLotteryActivityType.Polaroid && activity.UseAiCongratulation && latestWin is not null)
+            {
+                aiCongratulation = await AiCongratulationClient.GenerateAsync(latestWin.DonorName, latestWin.PrizeName, cancellation.Token);
+            }
         }
         isLoading = false;
     }
