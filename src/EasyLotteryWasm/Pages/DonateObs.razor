@@ -249,9 +249,22 @@ else
         var document = await ConfigStore.LoadAsync(cancellation.Token);
         var activityKey = activity?.PublicId.ToString("N") ?? ActivityRouteKey;
         var testId = $"obs-test:{activityKey}:{Guid.NewGuid():N}";
-        var result = DonateLotteryEngine.Process(document, testId, testDonorName, testAmount, DateTimeOffset.UtcNow, donationMessage: testMessage, paymentMethod: testPaymentMethod);
+        if (activity is null)
+        {
+            testResult = "測試失敗：找不到目前 OBS 對應的 Donate 活動。";
+            return;
+        }
+
+        var recordsBefore = document.DonateLotteryDrawRecords.Count;
+        var result = DonateLotteryEngine.Process(document, testId, testDonorName, testAmount, DateTimeOffset.UtcNow,
+            donationMessage: testMessage, paymentMethod: testPaymentMethod, targetActivityId: activity.Id, bypassActivityEligibility: true);
         await ConfigStore.SaveAsync(document, cancellation.Token);
-        testResult = result.Wins.Count == 0 ? "測試完成：沒有符合條件的活動。" : $"測試通知已送出（{testPaymentMethod}）：{testDonorName} NT${testAmount:N0}，結果 {string.Join("、", result.Wins.Select(win => win.PrizeName))}。留言：{testMessage}";
+        var testRecords = document.DonateLotteryDrawRecords.Skip(recordsBefore).ToList();
+        testResult = !result.Processed
+            ? $"測試失敗：{result.Reason}"
+            : testRecords.Count == 0
+                ? $"測試完成：贊助金額未達活動門檻 NT${activity.MinimumDonationAmount:N0}。"
+                : $"測試通知已送出（{testPaymentMethod}）：{testDonorName} NT${testAmount:N0}，結果 {string.Join("、", testRecords.Select(win => win.PrizeName))}。留言：{testMessage}";
         await RefreshAsync();
     }
 

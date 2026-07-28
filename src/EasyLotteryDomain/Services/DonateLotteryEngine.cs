@@ -12,7 +12,9 @@ public static class DonateLotteryEngine
         DateTimeOffset occurredAtUtc,
         Func<double>? nextRandom = null,
         string? donationMessage = null,
-        string? paymentMethod = null)
+        string? paymentMethod = null,
+        int? targetActivityId = null,
+        bool bypassActivityEligibility = false)
     {
         if (string.IsNullOrWhiteSpace(paymentExternalId))
         {
@@ -28,7 +30,8 @@ public static class DonateLotteryEngine
         var results = new List<DonateLotteryDrawRecord>();
         var random = nextRandom ?? Random.Shared.NextDouble;
         foreach (var activity in document.DonateLotteryActivities.Where(activity =>
-                     activity.IsEnabled && occurredAtUtc >= activity.StartsAtUtc && occurredAtUtc <= activity.EndsAtUtc))
+                     (targetActivityId is null || activity.Id == targetActivityId) &&
+                     (bypassActivityEligibility || (activity.IsEnabled && occurredAtUtc >= activity.StartsAtUtc && occurredAtUtc <= activity.EndsAtUtc))))
         {
             var drawCount = activity.MinimumDonationAmount <= 0m ? 0 : (int)(amount / activity.MinimumDonationAmount);
             for (var draw = 0; draw < drawCount; draw++)

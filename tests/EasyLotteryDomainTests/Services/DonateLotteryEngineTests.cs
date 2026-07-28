@@ -71,6 +71,19 @@ public sealed class DonateLotteryEngineTests
         Assert.AreEqual("測試付款", result.Wins[0].PaymentMethod);
     }
 
+    [TestMethod]
+    public void Process_TestTargetCanBypassActivityEligibility()
+    {
+        var document = ActiveDocument();
+        document.DonateLotteryActivities[0].IsEnabled = false;
+        document.DonateLotteryActivities[0].StartsAtUtc = DateTimeOffset.UtcNow.AddDays(1);
+
+        var result = DonateLotteryEngine.Process(document, "obs-test", "Alice", 100m, DateTimeOffset.UtcNow, () => 0d,
+            targetActivityId: document.DonateLotteryActivities[0].Id, bypassActivityEligibility: true);
+
+        Assert.AreEqual(1, result.Wins.Count);
+    }
+
     private static EasyLotteryConfigDocument ActiveDocument() => new()
     {
         DonateLotteryActivities =
