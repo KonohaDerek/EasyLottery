@@ -11,10 +11,9 @@
       "cwd": "${workspaceFolder}/src/EasyLotteryAPI",
       "env": {
         "ASPNETCORE_ENVIRONMENT": "Development",
-        "ASPNETCORE_URLS": "http://localhost:18930",
-        "Settings__AdminToken": "50f5cedf96545c9ebaf6cf9e33892f4e0ec95b55c15aa8dba10654c880ed83fbn"
+        "ASPNETCORE_URLS": "http://localhost:18930"
       },
-      "url": "http://localhost:18930/?adminToken=50f5cedf96545c9ebaf6cf9e33892f4e0ec95b55c15aa8dba10654c880ed83fbn",
+      "url": "http://localhost:18930/",
       "browser": "chrome"
     },
     {
@@ -26,8 +25,7 @@
       "cwd": "${workspaceFolder}/src/EasyLotteryAPI",
       "env": {
         "ASPNETCORE_ENVIRONMENT": "Development",
-        "ASPNETCORE_URLS": "http://localhost:18930",
-        "Settings__AdminToken": "50f5cedf96545c9ebaf6cf9e33892f4e0ec95b55c15aa8dba10654c880ed83fbn"
+        "ASPNETCORE_URLS": "http://localhost:18930"
       },
       "serverReadyAction": {
         "action": "openExternally",
@@ -38,7 +36,7 @@
       "name": "EasyLottery Docker Compose (No .NET Breakpoints)",
       "type": "chrome",
       "request": "launch",
-      "url": "http://localhost:18930/?adminToken=50f5cedf96545c9ebaf6cf9e33892f4e0ec95b55c15aa8dba10654c880ed83fbn",
+      "url": "http://localhost:18930/",
       "webRoot": "${workspaceFolder}/src/EasyLotteryWasm",
       "preLaunchTask": "compose: up api",
       "postDebugTask": "compose: down api"
@@ -47,7 +45,7 @@
       "name": "EasyLottery WASM (Chrome, Local API)",
       "type": "chrome",
       "request": "launch",
-      "url": "http://localhost:18930/?adminToken=50f5cedf96545c9ebaf6cf9e33892f4e0ec95b55c15aa8dba10654c880ed83fbn",
+      "url": "http://localhost:18930/",
       "webRoot": "${workspaceFolder}/src/EasyLotteryWasm"
     }
   ],

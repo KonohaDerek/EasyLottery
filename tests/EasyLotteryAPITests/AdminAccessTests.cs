@@ -1,23 +1,48 @@
 using EasyLotteryApi;
 using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Configuration;
 
 namespace EasyLotteryApiTests;
 
 [TestClass]
-public sealed class AdminAccessTests
+public sealed class ObsSessionAccessTests
 {
     [TestMethod]
-    public void IsAuthorized_RequiresMatchingConfiguredToken()
+    public void IssueToken_CreatesIndependentTokens()
     {
-        var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["Settings:AdminToken"] = "test-token" }).Build();
-        var access = new AdminAccess(configuration);
+        var tokens = new ObsSessionTokenService();
+
+        var first = tokens.IssueToken();
+        var second = tokens.IssueToken();
+
+        Assert.AreNotEqual(first.Token, second.Token);
+        Assert.IsTrue(tokens.IsValid(first.Token));
+        Assert.IsTrue(tokens.IsValid(second.Token));
+    }
+
+    [TestMethod]
+    public void IsAuthorized_RequiresMatchingSessionToken()
+    {
+        var tokens = new ObsSessionTokenService();
+        var issued = tokens.IssueToken().Token;
+        var access = new ObsSessionAccess(tokens);
         var request = new DefaultHttpContext().Request;
 
         Assert.IsFalse(access.IsAuthorized(request));
-        request.Headers[AdminAccess.HeaderName] = "wrong";
+        request.Headers[ObsSessionTokenService.HeaderName] = "wrong";
         Assert.IsFalse(access.IsAuthorized(request));
-        request.Headers[AdminAccess.HeaderName] = "test-token";
+        request.Headers[ObsSessionTokenService.HeaderName] = issued;
         Assert.IsTrue(access.IsAuthorized(request));
+    }
+
+    [TestMethod]
+    public void IsAuthorized_AllowsQueryStringToken()
+    {
+        var tokens = new ObsSessionTokenService();
+        var issued = tokens.IssueToken().Token;
+        var access = new ObsSessionAccess(tokens);
+        var context = new DefaultHttpContext();
+        context.Request.QueryString = new QueryString($"?{ObsSessionAccess.QueryName}={Uri.EscapeDataString(issued)}");
+
+        Assert.IsTrue(access.IsAuthorized(context.Request));
     }
 }

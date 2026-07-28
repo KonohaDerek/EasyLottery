@@ -17,6 +17,7 @@ public enum DonateLotteryAnimation
 public sealed class DonateLotteryActivity
 {
     public int Id { get; set; }
+    public Guid PublicId { get; set; } = Guid.NewGuid();
     public string Name { get; set; } = "";
     public DonateLotteryActivityType Type { get; set; }
     public decimal MinimumDonationAmount { get; set; } = 100m;

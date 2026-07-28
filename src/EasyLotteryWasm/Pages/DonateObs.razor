@@ -1,3 +1,4 @@
+@page "/obs/donate/{ActivityPublicId:guid}"
 @page "/obs/donate/{ActivityId:int}"
 @layout EasyLotteryWasm.Layout.ObsLayout
 @using EasyLotteryDomain.Models.Config
@@ -195,6 +196,7 @@ else
 </style>
 
 @code {
+    [Parameter] public Guid ActivityPublicId { get; set; }
     [Parameter] public int ActivityId { get; set; }
     private DonateLotteryActivity? activity;
     private DonateLotteryDrawRecord? latestWin;
@@ -233,7 +235,8 @@ else
     private async Task RunTestAsync()
     {
         var document = await ConfigStore.LoadAsync(cancellation.Token);
-        var testId = $"obs-test:{ActivityId}:{Guid.NewGuid():N}";
+        var activityKey = ActivityPublicId != Guid.Empty ? ActivityPublicId.ToString("N") : ActivityId.ToString();
+        var testId = $"obs-test:{activityKey}:{Guid.NewGuid():N}";
         var result = DonateLotteryEngine.Process(document, testId, testDonorName, testAmount, DateTimeOffset.UtcNow, donationMessage: testMessage, paymentMethod: testPaymentMethod);
         await ConfigStore.SaveAsync(document, cancellation.Token);
         testResult = result.Wins.Count == 0 ? "測試完成：沒有符合條件的活動。" : $"測試通知已送出（{testPaymentMethod}）：{testDonorName} NT${testAmount:N0}，結果 {string.Join("、", result.Wins.Select(win => win.PrizeName))}。留言：{testMessage}";
@@ -253,8 +256,16 @@ else
     private async Task RefreshAsync()
     {
         var document = await ConfigStore.LoadAsync(cancellation.Token);
-        activity = document.DonateLotteryActivities.FirstOrDefault(item => item.Id == ActivityId);
-        latestWin = document.DonateLotteryDrawRecords.Where(item => item.ActivityId == ActivityId).OrderByDescending(item => item.Id).FirstOrDefault();
+        activity = document.DonateLotteryActivities.FirstOrDefault(item =>
+            item.PublicId == ActivityPublicId ||
+            (ActivityId > 0 && item.Id == ActivityId));
+        latestWin = activity is null
+            ? null
+            : document.DonateLotteryDrawRecords.Where(item => item.ActivityId == activity.Id).OrderByDescending(item => item.Id).FirstOrDefault();
+        if (activity is not null && ActivityPublicId == Guid.Empty)
+        {
+            ActivityPublicId = activity.PublicId;
+        }
         if (displayedWinId != latestWin?.Id)
         {
             displayedWinId = latestWin?.Id;

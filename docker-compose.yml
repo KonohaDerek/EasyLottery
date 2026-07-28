@@ -6,7 +6,6 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       Storage__Directory: /data
-      Settings__AdminToken: "50f5cedf96545c9ebaf6cf9e33892f4e0ec95b55c15aa8dba10654c880ed83fbn"
     ports:
       - "18930:18930"
     volumes:

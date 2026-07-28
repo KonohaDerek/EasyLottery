@@ -32,9 +32,9 @@ internal static class PaymentEndpoints
             return Results.Text(acknowledgement, "text/plain", Encoding.UTF8);
         });
 
-        app.MapPost("/api/payments/orders", async (PaymentOrderRegistrationRequest request, HttpContext context, PaymentCallbackProcessor callbacks, AdminAccess adminAccess) =>
+        app.MapPost("/api/payments/orders", async (PaymentOrderRegistrationRequest request, HttpContext context, PaymentCallbackProcessor callbacks, ObsSessionAccess sessionAccess) =>
         {
-            if (!adminAccess.IsAuthorized(context.Request)) return Results.Unauthorized();
+            if (!sessionAccess.IsAuthorized(context.Request)) return Results.Unauthorized();
             try { return Results.Created($"/api/payments/orders/{request.MerchantOrderNo}", await callbacks.RegisterOrderAsync(request, context.RequestAborted)); }
             catch (ArgumentException exception)
             {
@@ -48,7 +48,7 @@ internal static class PaymentEndpoints
             }
         });
 
-        app.MapGet("/api/payments/events", async (HttpContext context, PaymentCallbackProcessor callbacks, AdminAccess adminAccess) =>
-            !adminAccess.IsAuthorized(context.Request) ? Results.Unauthorized() : Results.Ok(await callbacks.ListProcessedEventsAsync(context.RequestAborted)));
+        app.MapGet("/api/payments/events", async (HttpContext context, PaymentCallbackProcessor callbacks, ObsSessionAccess sessionAccess) =>
+            !sessionAccess.IsAuthorized(context.Request) ? Results.Unauthorized() : Results.Ok(await callbacks.ListProcessedEventsAsync(context.RequestAborted)));
     }
 }

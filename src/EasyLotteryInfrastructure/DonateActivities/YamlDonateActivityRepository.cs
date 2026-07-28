@@ -52,8 +52,9 @@ public sealed class YamlDonateActivityRepository : IDonateLotteryActivityReposit
         }
 
         var replay = DonateActivityEventProjector.Rebuild(await _eventStore.ReadAllAsync(cancellationToken));
-        await WriteSnapshotUnsafeAsync(replay, cancellationToken);
-        return replay;
+        var (normalized, _) = NormalizePublicIds(replay);
+        await WriteSnapshotUnsafeAsync(normalized, cancellationToken);
+        return normalized;
     }
 
     internal async Task<IReadOnlyList<DonateLotteryActivity>> ReadSnapshotUnsafeAsync(CancellationToken cancellationToken = default)
@@ -64,9 +65,16 @@ public sealed class YamlDonateActivityRepository : IDonateLotteryActivityReposit
         }
 
         var yaml = await File.ReadAllTextAsync(SnapshotPath, cancellationToken);
-        return string.IsNullOrWhiteSpace(yaml)
+        var activities = string.IsNullOrWhiteSpace(yaml)
             ? []
             : _deserializer.Deserialize<List<DonateLotteryActivity>>(yaml) ?? [];
+        var (normalized, changed) = NormalizePublicIds(activities);
+        if (changed)
+        {
+            await WriteSnapshotUnsafeAsync(normalized, cancellationToken);
+        }
+
+        return normalized;
     }
 
     internal async Task WriteSnapshotUnsafeAsync(IReadOnlyList<DonateLotteryActivity> activities, CancellationToken cancellationToken = default)
@@ -76,5 +84,22 @@ public sealed class YamlDonateActivityRepository : IDonateLotteryActivityReposit
         var temporaryPath = $"{SnapshotPath}.{Guid.NewGuid():N}.tmp";
         await File.WriteAllTextAsync(temporaryPath, _serializer.Serialize(snapshot), cancellationToken);
         File.Move(temporaryPath, SnapshotPath, overwrite: true);
+    }
+
+    private static (List<DonateLotteryActivity> Activities, bool Changed) NormalizePublicIds(IEnumerable<DonateLotteryActivity> activities)
+    {
+        var changed = false;
+        var normalized = activities.Select(activity =>
+        {
+            if (activity.PublicId == Guid.Empty)
+            {
+                activity.PublicId = Guid.NewGuid();
+                changed = true;
+            }
+
+            return activity;
+        }).ToList();
+
+        return (normalized, changed);
     }
 }

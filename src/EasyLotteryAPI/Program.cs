@@ -16,7 +16,8 @@ builder.Services.AddSingleton<IPaymentProvider, NewebPayDonationPaymentProvider>
 builder.Services.AddSingleton<PaymentProviderFactory>();
 builder.Services.AddEasyLotteryInfrastructure();
 builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblies(typeof(GetDonateActivitiesQuery).Assembly, typeof(DependencyInjection).Assembly));
-builder.Services.AddSingleton<AdminAccess>();
+builder.Services.AddSingleton<ObsSessionTokenService>();
+builder.Services.AddSingleton<ObsSessionAccess>();
 builder.Services.AddSingleton<PaymentCallbackProcessor>();
 
 var storageDirectory = builder.Configuration["Storage:Directory"]
@@ -24,11 +25,6 @@ var storageDirectory = builder.Configuration["Storage:Directory"]
 Directory.CreateDirectory(storageDirectory);
 
 var app = builder.Build();
-
-if (!app.Services.GetRequiredService<AdminAccess>().IsConfigured)
-{
-    app.Logger.LogWarning("Settings administration is disabled because Settings:AdminToken is not configured.");
-}
 
 if (app.Environment.IsDevelopment())
 {
@@ -53,6 +49,7 @@ app.UseBlazorFrameworkFiles();
 app.UseStaticFiles();
 
 app.MapSettingsEndpoints();
+app.MapObsSessionEndpoints();
 app.MapOvertimeFeedEndpoints();
 app.MapPaymentEndpoints();
 app.MapDonateActivityEndpoints();

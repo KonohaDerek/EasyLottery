@@ -222,6 +222,7 @@ namespace EasyLotteryWasm.Services
 
             foreach (var activity in document.DonateLotteryActivities)
             {
+                activity.PublicId = activity.PublicId == Guid.Empty ? Guid.NewGuid() : activity.PublicId;
                 activity.Name ??= "";
                 activity.Prizes ??= [];
                 foreach (var prize in activity.Prizes)

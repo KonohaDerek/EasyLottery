@@ -11,16 +11,16 @@ internal static class OvertimeFeedEndpoints
 {
     public static void MapOvertimeFeedEndpoints(this WebApplication app)
     {
-        Func<HttpContext, IOvertimeFeedRepository, AdminAccess, Task<IResult>> readOvertimeFeed = async (context, feedRepository, adminAccess) =>
+        Func<HttpContext, IOvertimeFeedRepository, ObsSessionAccess, Task<IResult>> readOvertimeFeed = async (context, feedRepository, sessionAccess) =>
         {
-            if (!adminAccess.IsAuthorized(context.Request)) return Results.Unauthorized();
+            if (!sessionAccess.IsAuthorized(context.Request)) return Results.Unauthorized();
             return Results.Text(JsonSerializer.Serialize(await feedRepository.ListAsync(context.RequestAborted)), "application/json", Encoding.UTF8);
         };
         app.MapGet("/api/overtime-feed", readOvertimeFeed);
 
-        Func<HttpContext, IOvertimeFeedRepository, IHubContext<OvertimeHub>, AdminAccess, Task<IResult>> writeOvertimeFeed = async (context, feedRepository, hub, adminAccess) =>
+        Func<HttpContext, IOvertimeFeedRepository, IHubContext<OvertimeHub>, ObsSessionAccess, Task<IResult>> writeOvertimeFeed = async (context, feedRepository, hub, sessionAccess) =>
         {
-            if (!adminAccess.IsAuthorized(context.Request)) return Results.Unauthorized();
+            if (!sessionAccess.IsAuthorized(context.Request)) return Results.Unauthorized();
             var body = await HttpRequestBodyReader.ReadTextAsync(context.Request, context.RequestAborted);
             var events = string.IsNullOrWhiteSpace(body)
                 ? []
@@ -31,9 +31,9 @@ internal static class OvertimeFeedEndpoints
         };
         app.MapPut("/api/overtime-feed", writeOvertimeFeed);
 
-        Func<HttpContext, IOvertimeFeedRepository, IHubContext<OvertimeHub>, AdminAccess, Task<IResult>> clearOvertimeFeed = async (context, feedRepository, hub, adminAccess) =>
+        Func<HttpContext, IOvertimeFeedRepository, IHubContext<OvertimeHub>, ObsSessionAccess, Task<IResult>> clearOvertimeFeed = async (context, feedRepository, hub, sessionAccess) =>
         {
-            if (!adminAccess.IsAuthorized(context.Request)) return Results.Unauthorized();
+            if (!sessionAccess.IsAuthorized(context.Request)) return Results.Unauthorized();
             await feedRepository.SaveAsync([], context.RequestAborted);
             await hub.Clients.All.SendAsync("OvertimeFeedChanged", context.RequestAborted);
             return Results.NoContent();

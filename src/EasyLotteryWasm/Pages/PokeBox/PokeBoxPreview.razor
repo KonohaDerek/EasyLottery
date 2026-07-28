@@ -2,6 +2,7 @@
 @using EasyLotteryDomain.Models.Entities
 @using EasyLotteryDomain.Services
 @using EasyLotteryWasm.Models
+@using EasyLotteryWasm.Services
 @using Serilog
 
 @inject ActivityResultService ActivityResultService
@@ -9,6 +10,7 @@
 @inject PokeService PokeService
 @inject NavigationManager NavigationManager
 @inject IMessageService MessageService
+@inject ObsSessionService ObsSessionService
 
 <PageTitle>戳戳樂 - 預覽</PageTitle>
 
@@ -357,6 +359,7 @@ else
     private int? countdownRemaining;
     private bool isRecording;
     private string? lastRecordedSignature;
+    private string sessionToken = "";
 
     // Longest CSS animation is 600ms (smoke); wait slightly longer before clearing the class
     private const int AnimationDurationMs = 650;
@@ -407,6 +410,7 @@ else
 
     protected override async Task OnInitializedAsync()
     {
+        sessionToken = await ObsSessionService.GetSessionTokenAsync();
         await LoadTemplate();
     }
 
@@ -532,7 +536,9 @@ else
         StateHasChanged();
     }
 
-    private string ObsUrl => $"http://localhost:18930/obs/pokebox/{Id}";
+    private string ObsUrl => string.IsNullOrWhiteSpace(sessionToken)
+        ? NavigationManager.ToAbsoluteUri($"/obs/pokebox/{Id}").ToString()
+        : $"{NavigationManager.ToAbsoluteUri($"/obs/pokebox/{Id}").ToString()}?sessionToken={Uri.EscapeDataString(sessionToken)}";
 
     private string BuildRecordSignature()
     {

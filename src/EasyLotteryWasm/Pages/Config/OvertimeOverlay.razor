@@ -4,11 +4,13 @@
 @using EasyLotteryDomain.Models.Overtime
 @using EasyLotteryDomain.Services
 @using EasyLotteryWasm.Models
+@using EasyLotteryWasm.Services
 @inject IEasyLotteryConfigStore ConfigStore
 @inject IMessageService MessageService
 @inject NavigationManager NavigationManager
 @inject IJSRuntime JSRuntime
 @inject OvertimeFeedClient OvertimeFeedClient
+@inject ObsSessionService ObsSessionService
 
 <PageTitle>加班台</PageTitle>
 
@@ -705,13 +707,17 @@ else
     private OvertimeOverlaySettings settings = new();
     private IReadOnlyList<OvertimeTextAnimationPreset> textAnimationPresets = OvertimeTextAnimationPreset.Catalog;
     private string selectedTextAnimationKey = OvertimeTextAnimationPreset.Catalog[0].Key;
-    private string OverlayUrl => NavigationManager.ToAbsoluteUri("/obs/overtime").ToString();
+    private string sessionToken = "";
+    private string OverlayUrl => string.IsNullOrWhiteSpace(sessionToken)
+        ? NavigationManager.ToAbsoluteUri("/obs/overtime").ToString()
+        : $"{NavigationManager.ToAbsoluteUri("/obs/overtime").ToString()}?sessionToken={Uri.EscapeDataString(sessionToken)}";
     private string PlannedEndAtInput { get; set; } = "";
 
     private OvertimeTextAnimationPreset SelectedTextAnimation => OvertimeTextAnimationPreset.GetByKey(selectedTextAnimationKey);
 
     protected override async Task OnInitializedAsync()
     {
+        sessionToken = await ObsSessionService.GetSessionTokenAsync();
         document = await ConfigStore.LoadAsync();
         settings = document.OvertimeOverlay ?? new OvertimeOverlaySettings();
         settings.RewardRules ??= new List<OvertimeRewardRule>();

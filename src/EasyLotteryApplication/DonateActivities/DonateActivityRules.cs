@@ -26,6 +26,11 @@ public static class DonateActivityRules
         var maxActivityId = existingActivities.Select(item => item.Id).DefaultIfEmpty(0).Max();
         var maxPrizeId = existingActivities.SelectMany(item => item.Prizes ?? []).Select(item => item.Id).DefaultIfEmpty(0).Max();
 
+        if (normalized.PublicId == Guid.Empty || existingActivities.Any(item => item.Id != normalized.Id && item.PublicId == normalized.PublicId))
+        {
+            normalized.PublicId = Guid.NewGuid();
+        }
+
         if (normalized.Id <= 0)
         {
             normalized.Id = maxActivityId + 1;
@@ -61,6 +66,7 @@ public static class DonateActivityRules
         new()
         {
             Id = source.Id,
+            PublicId = source.PublicId,
             Name = source.Name,
             Type = source.Type,
             MinimumDonationAmount = source.MinimumDonationAmount,
