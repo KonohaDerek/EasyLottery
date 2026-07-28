@@ -13,6 +13,19 @@
 - 抽獎結果可寄送到系統設定中的信箱。
 - 模板可支援 SCSS 或等效的可維護樣式方式，並可串接 AI 產生恭喜語句。
 
+## Capabilities
+
+### New Capabilities
+
+- `donation-source-availability`：依各斗內來源的有效設定控制可否啟用，並保存來源設定。
+- `lottery-result-email-notification`：在有完整 SMTP 與收件人設定時寄送活動與 Donate 抽獎結果。
+- `polaroid-result-template`：提供可設定、可替換的拍立得抽獎結果模板與 overlay 呈現。
+- `ai-congratulation-fallback`：定義 AI 恭喜文案的選用與失敗 fallback 行為。
+
+### Modified Capabilities
+
+- 無既有根目錄規格；本次新增完整能力規格。
+
 ## 範圍
 
 - 斗內來源與啟用條件的設定模型。

@@ -37,6 +37,7 @@ builder.Services.AddScoped<SoundCueService>();
 builder.Services.AddScoped<ActivityResultService>();
 builder.Services.AddScoped<DonateLotteryActivityApiClient>();
 builder.Services.AddScoped<ObsSessionService>();
+builder.Services.AddScoped<AiCongratulationClient>();
 builder.Services.AddScoped<ResultNotificationService>();
 builder.Services.AddScoped<VisualStyleService>();
 builder.Services.AddScoped<OvertimeFeedClient>();

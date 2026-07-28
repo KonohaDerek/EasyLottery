@@ -52,7 +52,7 @@ public sealed class YamlDonateActivityRepository : IDonateLotteryActivityReposit
         }
 
         var replay = DonateActivityEventProjector.Rebuild(await _eventStore.ReadAllAsync(cancellationToken));
-        var (normalized, _) = NormalizePublicIds(replay);
+        var (normalized, _) = NormalizeActivities(replay);
         await WriteSnapshotUnsafeAsync(normalized, cancellationToken);
         return normalized;
     }
@@ -68,7 +68,7 @@ public sealed class YamlDonateActivityRepository : IDonateLotteryActivityReposit
         var activities = string.IsNullOrWhiteSpace(yaml)
             ? []
             : _deserializer.Deserialize<List<DonateLotteryActivity>>(yaml) ?? [];
-        var (normalized, changed) = NormalizePublicIds(activities);
+        var (normalized, changed) = NormalizeActivities(activities);
         if (changed)
         {
             await WriteSnapshotUnsafeAsync(normalized, cancellationToken);
@@ -86,7 +86,7 @@ public sealed class YamlDonateActivityRepository : IDonateLotteryActivityReposit
         File.Move(temporaryPath, SnapshotPath, overwrite: true);
     }
 
-    private static (List<DonateLotteryActivity> Activities, bool Changed) NormalizePublicIds(IEnumerable<DonateLotteryActivity> activities)
+    private static (List<DonateLotteryActivity> Activities, bool Changed) NormalizeActivities(IEnumerable<DonateLotteryActivity> activities)
     {
         var changed = false;
         var normalized = activities.Select(activity =>
@@ -94,6 +94,12 @@ public sealed class YamlDonateActivityRepository : IDonateLotteryActivityReposit
             if (activity.PublicId == Guid.Empty)
             {
                 activity.PublicId = Guid.NewGuid();
+                changed = true;
+            }
+
+            if (string.IsNullOrWhiteSpace(activity.PolaroidTemplateKey))
+            {
+                activity.PolaroidTemplateKey = "classic";
                 changed = true;
             }
 
