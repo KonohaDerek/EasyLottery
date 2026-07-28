@@ -119,6 +119,22 @@ public sealed class DonateActivityEventSourcingTests
         Assert.AreEqual("拍立得", activities[0].Name);
     }
 
+    [TestMethod]
+    public void NormalizeForSave_AllowsPastStartButRequiresEndThirtyMinutesAhead()
+    {
+        var activity = new DonateLotteryActivity
+        {
+            Name = "活動",
+            MinimumDonationAmount = 100m,
+            StartsAtUtc = DateTimeOffset.UtcNow.AddDays(-1),
+            EndsAtUtc = DateTimeOffset.UtcNow.AddMinutes(29)
+        };
+
+        var exception = Assert.ThrowsExactly<InvalidOperationException>(() => DonateActivityRules.NormalizeForSave(activity, []));
+
+        StringAssert.Contains(exception.Message, "30 分鐘後");
+    }
+
     private static ServiceProvider CreateServices()
     {
         var directory = Path.Combine(Path.GetTempPath(), $"easy-lottery-cqrs-{Guid.NewGuid():N}");

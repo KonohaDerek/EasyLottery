@@ -35,14 +35,10 @@
             {
                 <div class="row g-3">
                     <div class="col-md-6"><Field><FieldLabel>活動名稱</FieldLabel><TextInput @bind-Value="editing.Name" /></Field></div>
-                    <div class="col-md-3"><Field><FieldLabel>類型</FieldLabel><Select TValue="DonateLotteryActivityType" @bind-SelectedValue="editing.Type"><SelectItem Value="DonateLotteryActivityType.Postcard">明信片</SelectItem><SelectItem Value="DonateLotteryActivityType.Polaroid">拍立得</SelectItem></Select></Field></div>
                     <div class="col-md-3"><Field><FieldLabel>最低贊助金額</FieldLabel><NumericInput TValue="decimal" @bind-Value="editing.MinimumDonationAmount" Min="1" /></Field></div>
                     <div class="col-md-3"><Field><FieldLabel>抽獎動畫</FieldLabel><select class="form-select" @bind="editing.Animation"><option value="@DonateLotteryAnimation.IchibanKuji">一番賞</option><option value="@DonateLotteryAnimation.Gacha">扭蛋</option><option value="@DonateLotteryAnimation.Garagara">日式滾筒</option><option value="@DonateLotteryAnimation.MoneyBox">塞錢箱／詩籤</option></select></Field></div>
-                    @if (editing.Type == DonateLotteryActivityType.Polaroid)
-                    {
-                        <div class="col-md-3"><Field><FieldLabel>拍立得模板</FieldLabel><Select TValue="string" @bind-SelectedValue="editing.PolaroidTemplateKey"><SelectItem Value="@("classic")">經典拍立得</SelectItem><SelectItem Value="@("celebration")">慶典拍立得</SelectItem></Select></Field></div>
-                        <div class="col-md-2"><Field><FieldLabel>AI 恭喜文案</FieldLabel><Switch TValue="bool" @bind-Value="editing.UseAiCongratulation" /></Field></div>
-                    }
+                    <div class="col-md-3"><Field><FieldLabel>結果模板</FieldLabel><Select TValue="string" @bind-SelectedValue="editing.PolaroidTemplateKey"><SelectItem Value="@("classic")">經典</SelectItem><SelectItem Value="@("celebration")">慶典</SelectItem></Select></Field></div>
+                    <div class="col-md-2"><Field><FieldLabel>AI 恭喜文案</FieldLabel><Switch TValue="bool" @bind-Value="editing.UseAiCongratulation" /></Field></div>
                     <div class="col-md-4"><Field><FieldLabel>開始時間（本地時區）</FieldLabel><input class="form-control" type="datetime-local" value="@startDateInput" @oninput="OnStartDateInput" /></Field></div>
                     <div class="col-md-4"><Field><FieldLabel>結束時間（本地時區）</FieldLabel><input class="form-control" type="datetime-local" value="@endDateInput" @oninput="OnEndDateInput" /></Field></div>
                     <div class="col-md-2"><Field><FieldLabel>啟用</FieldLabel><Switch TValue="bool" @bind-Value="editing.IsEnabled" /></Field></div>
@@ -93,7 +89,7 @@
     @foreach (var activity in activities)
     {
         <tr>
-            <td>@activity.Name <small class="text-muted">@activity.Type</small></td>
+            <td>@activity.Name</td>
             <td>@activity.StartsAtUtc.LocalDateTime.ToString("g") — @activity.EndsAtUtc.LocalDateTime.ToString("g")</td>
             <td>NT$@activity.MinimumDonationAmount</td>
             <td>@activity.Prizes.Sum(prize => prize.RemainingQuantity) / @activity.Prizes.Sum(prize => prize.Quantity)</td>
@@ -254,14 +250,22 @@
         editing.EndsAtUtc = end;
     }
 
-    private void OnStartDateInput(ChangeEventArgs args) => startDateInput = args.Value?.ToString() ?? "";
-    private void OnEndDateInput(ChangeEventArgs args) => endDateInput = args.Value?.ToString() ?? "";
+    private void OnStartDateInput(ChangeEventArgs args) => startDateInput = NormalizeDateInput(args.Value);
+    private void OnEndDateInput(ChangeEventArgs args) => endDateInput = NormalizeDateInput(args.Value);
 
     private static bool TryConvertLocalDate(string value, out DateTimeOffset instant)
     {
         instant = default;
-        if (!DateTime.TryParseExact(value, "yyyy-MM-ddTHH:mm", CultureInfo.InvariantCulture, DateTimeStyles.None, out var date)) return false;
+        if (!DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.AllowWhiteSpaces, out var date) &&
+            !DateTime.TryParse(value, CultureInfo.CurrentCulture, DateTimeStyles.AllowWhiteSpaces, out date)) return false;
         instant = new DateTimeOffset(DateTime.SpecifyKind(date, DateTimeKind.Local)).ToUniversalTime();
         return true;
     }
+
+    private static string NormalizeDateInput(object? value) => value switch
+    {
+        DateTime date => date.ToString("yyyy-MM-ddTHH:mm", CultureInfo.InvariantCulture),
+        DateTimeOffset date => date.LocalDateTime.ToString("yyyy-MM-ddTHH:mm", CultureInfo.InvariantCulture),
+        _ => value?.ToString() ?? ""
+    };
 }

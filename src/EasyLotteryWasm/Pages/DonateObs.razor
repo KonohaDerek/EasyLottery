@@ -83,7 +83,7 @@
             }
             else { <div class="donate-reveal-fallback">@latestWin.PrizeName</div> }
             <div class="donate-reveal-prize">@latestWin.PrizeName</div>
-            @if (activity.Type == DonateLotteryActivityType.Polaroid) { <div class="donate-reveal-congratulation">@(aiCongratulation ?? PolaroidFallbackCongratulation)</div> }
+            <div class="donate-reveal-congratulation">@(aiCongratulation ?? PolaroidFallbackCongratulation)</div>
             @if (IsGrandPrize) { <div class="grand-prize-banner">★ 最大獎 ★</div> }
             <div class="donate-reveal-donor">@latestWin.DonorName · NT$@latestWin.Amount.ToString("N0")</div>
             @if (!string.IsNullOrWhiteSpace(latestWin.DonationMessage)) { <div class="donate-reveal-message">「@latestWin.DonationMessage」</div> }
@@ -227,9 +227,7 @@ else
         DonateLotteryAnimation.MoneyBox => "moneybox",
         _ => "ichiban"
     };
-    private string PolaroidTemplateClass => activity?.Type == DonateLotteryActivityType.Polaroid
-        ? $"polaroid-template-{(string.IsNullOrWhiteSpace(activity.PolaroidTemplateKey) ? "classic" : activity.PolaroidTemplateKey)}"
-        : "polaroid-template-classic";
+    private string PolaroidTemplateClass => $"polaroid-template-{(string.IsNullOrWhiteSpace(activity?.PolaroidTemplateKey) ? "classic" : activity.PolaroidTemplateKey)}";
     private string PolaroidFallbackCongratulation => latestWin is null
         ? ""
         : PolaroidResultTemplateCatalog.Resolve(activity?.PolaroidTemplateKey).FallbackCongratulation
@@ -294,7 +292,7 @@ else
             displayedWinId = latestWin?.Id;
             prizeImageFailed = false;
             aiCongratulation = null;
-            if (activity?.Type == DonateLotteryActivityType.Polaroid && activity.UseAiCongratulation && latestWin is not null)
+            if (activity?.UseAiCongratulation == true && latestWin is not null)
             {
                 aiCongratulation = await AiCongratulationClient.GenerateAsync(latestWin.DonorName, latestWin.PrizeName, cancellation.Token);
             }

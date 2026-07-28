@@ -22,6 +22,11 @@ public static class DonateActivityRules
             throw new InvalidOperationException("活動結束時間必須晚於開始時間。");
         }
 
+        if (activity.EndsAtUtc < DateTimeOffset.UtcNow.AddMinutes(30))
+        {
+            throw new InvalidOperationException("活動結束時間至少必須在目前時間 30 分鐘後。");
+        }
+
         var normalized = Clone(activity);
         normalized.PolaroidTemplateKey = string.IsNullOrWhiteSpace(normalized.PolaroidTemplateKey)
             ? "classic"
