@@ -125,6 +125,12 @@ public sealed class YamlDonateActivityRepository : IDonateLotteryActivityReposit
                 changed = true;
             }
 
+            if (activity.ResultDisplayDurationSeconds <= 0)
+            {
+                activity.ResultDisplayDurationSeconds = 15;
+                changed = true;
+            }
+
             return activity;
         }).ToList();
 

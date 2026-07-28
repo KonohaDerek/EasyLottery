@@ -76,7 +76,7 @@ public sealed class DonateActivityEventSourcingTests
     }
 
     [TestMethod]
-    public async Task SaveCommand_PersistsUpdatedAnimationAndDates()
+    public async Task SaveCommand_PersistsUpdatedAnimationDatesAndResultDuration()
     {
         var services = CreateServices();
         var mediator = services.GetRequiredService<IMediator>();
@@ -91,13 +91,15 @@ public sealed class DonateActivityEventSourcingTests
         await mediator.Send(new SaveDonateActivityCommand(new DonateLotteryActivity
         {
             Id = saved.Id, PublicId = saved.PublicId, Name = saved.Name, MinimumDonationAmount = 100m,
-            StartsAtUtc = expectedStart, EndsAtUtc = expectedEnd, Animation = DonateLotteryAnimation.Garagara
+            StartsAtUtc = expectedStart, EndsAtUtc = expectedEnd, Animation = DonateLotteryAnimation.Garagara,
+            ResultDisplayDurationSeconds = 45
         }));
 
         var updated = (await repository.ListAsync()).Single(activity => activity.Id == saved.Id);
         Assert.AreEqual(expectedStart, updated.StartsAtUtc);
         Assert.AreEqual(expectedEnd, updated.EndsAtUtc);
         Assert.AreEqual(DonateLotteryAnimation.Garagara, updated.Animation);
+        Assert.AreEqual(45, updated.ResultDisplayDurationSeconds);
     }
 
     [TestMethod]
@@ -117,6 +119,7 @@ public sealed class DonateActivityEventSourcingTests
         Assert.AreEqual(1, activities.Count);
         Assert.AreEqual(7, activities[0].Id);
         Assert.AreEqual("拍立得", activities[0].Name);
+        Assert.AreEqual(15, activities[0].ResultDisplayDurationSeconds);
     }
 
     [TestMethod]
@@ -133,6 +136,23 @@ public sealed class DonateActivityEventSourcingTests
         var exception = Assert.ThrowsExactly<InvalidOperationException>(() => DonateActivityRules.NormalizeForSave(activity, []));
 
         StringAssert.Contains(exception.Message, "30 分鐘後");
+    }
+
+    [TestMethod]
+    public void NormalizeForSave_RejectsResultDisplayDurationOutsideAllowedRange()
+    {
+        var activity = new DonateLotteryActivity
+        {
+            Name = "活動",
+            MinimumDonationAmount = 100m,
+            StartsAtUtc = DateTimeOffset.UtcNow.AddDays(-1),
+            EndsAtUtc = DateTimeOffset.UtcNow.AddDays(1),
+            ResultDisplayDurationSeconds = 2
+        };
+
+        var exception = Assert.ThrowsExactly<InvalidOperationException>(() => DonateActivityRules.NormalizeForSave(activity, []));
+
+        StringAssert.Contains(exception.Message, "3 至 300 秒");
     }
 
     private static ServiceProvider CreateServices()

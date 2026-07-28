@@ -21,6 +21,7 @@ public sealed class DonateLotteryActivityService
         if (string.IsNullOrWhiteSpace(activity.Name)) throw new InvalidOperationException("請輸入活動名稱。");
         if (activity.MinimumDonationAmount <= 0m) throw new InvalidOperationException("最低贊助金額必須大於 0。");
         if (activity.EndsAtUtc <= activity.StartsAtUtc) throw new InvalidOperationException("活動結束時間必須晚於開始時間。");
+        if (activity.ResultDisplayDurationSeconds is < 3 or > 300) throw new InvalidOperationException("結果顯示秒數必須介於 3 至 300 秒。");
         activity.Prizes ??= [];
         var probabilityTotal = 0m;
         foreach (var prize in activity.Prizes)

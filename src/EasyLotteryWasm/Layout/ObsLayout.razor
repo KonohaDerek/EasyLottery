@@ -1,16 +1,42 @@
 @inject EasyLotteryWasm.Services.ObsLayoutService ObsLayoutService
+@inject NavigationManager NavigationManager
 @inherits LayoutComponentBase
 
-<div class="obs-layout @layoutClass" style="@layoutStyle">
+<style>
+    html,
+    body,
+    #app,
+    .obs-layout {
+        background: transparent !important;
+        background-color: transparent !important;
+        background-image: none !important;
+    }
+
+    body::before,
+    body::after {
+        display: none !important;
+    }
+
+    .obs-layout:not(.obs-controls-enabled) .obs-controls,
+    .obs-layout:not(.obs-controls-enabled) .overtime-obs-controls,
+    .obs-layout:not(.obs-controls-enabled) .donate-test-launch,
+    .obs-layout:not(.obs-controls-enabled) .donate-test-panel {
+        display: none !important;
+    }
+</style>
+
+<div class="obs-layout @layoutClass @(controlsEnabled ? "obs-controls-enabled" : "")" style="@layoutStyle">
     @Body
 </div>
 
 @code {
     private string layoutClass = string.Empty;
     private string layoutStyle = string.Empty;
+    private bool controlsEnabled;
 
     protected override async Task OnInitializedAsync()
     {
+        controlsEnabled = NavigationManager.ToAbsoluteUri(NavigationManager.Uri).Query.Contains("controls=1", StringComparison.OrdinalIgnoreCase);
         var preset = ObsLayoutService.GetPreset(await ObsLayoutService.GetActiveLayoutKeyAsync());
         layoutClass = preset.StageClassName;
         layoutStyle = $"--obs-accent-gradient:{preset.AccentGradient};";

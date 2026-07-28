@@ -39,6 +39,7 @@
                     <div class="col-md-3"><Field><FieldLabel>抽獎動畫</FieldLabel><select class="form-select" @bind="editing.Animation"><option value="@DonateLotteryAnimation.IchibanKuji">一番賞</option><option value="@DonateLotteryAnimation.Gacha">扭蛋</option><option value="@DonateLotteryAnimation.Garagara">日式滾筒</option><option value="@DonateLotteryAnimation.MoneyBox">塞錢箱／詩籤</option></select></Field></div>
                     <div class="col-md-3"><Field><FieldLabel>結果模板</FieldLabel><Select TValue="string" @bind-SelectedValue="editing.PolaroidTemplateKey"><SelectItem Value="@("classic")">經典</SelectItem><SelectItem Value="@("celebration")">慶典</SelectItem></Select></Field></div>
                     <div class="col-md-2"><Field><FieldLabel>AI 恭喜文案</FieldLabel><Switch TValue="bool" @bind-Value="editing.UseAiCongratulation" /></Field></div>
+                    <div class="col-md-2"><Field><FieldLabel>結果顯示秒數</FieldLabel><NumericInput TValue="int" @bind-Value="editing.ResultDisplayDurationSeconds" Min="3" Max="300" /><div class="form-text">3–300 秒；到期後 OBS 會回到透明待機。</div></Field></div>
                     <div class="col-md-4"><Field><FieldLabel>開始時間（本地時區）</FieldLabel><input class="form-control" type="datetime-local" value="@startDateInput" @oninput="OnStartDateInput" /></Field></div>
                     <div class="col-md-4"><Field><FieldLabel>結束時間（本地時區）</FieldLabel><input class="form-control" type="datetime-local" value="@endDateInput" @oninput="OnEndDateInput" /></Field></div>
                     <div class="col-md-2"><Field><FieldLabel>啟用</FieldLabel><Switch TValue="bool" @bind-Value="editing.IsEnabled" /></Field></div>
@@ -99,6 +100,7 @@
                 @if (activity.IsEnabled)
                 {
                     <a class="btn btn-outline-primary btn-sm" href="@BuildObsUrl(activity)" target="_blank" rel="noopener noreferrer">開啟 OBS URL</a>
+                    <a class="btn btn-outline-secondary btn-sm" href="@BuildObsUrl(activity, showControls: true)" target="_blank" rel="noopener noreferrer">開啟測試 OBS</a>
                 }
                 else
                 {
@@ -157,6 +159,7 @@
             Animation = activity.Animation,
             PolaroidTemplateKey = string.IsNullOrWhiteSpace(activity.PolaroidTemplateKey) ? "classic" : activity.PolaroidTemplateKey,
             UseAiCongratulation = activity.UseAiCongratulation,
+            ResultDisplayDurationSeconds = activity.ResultDisplayDurationSeconds <= 0 ? 15 : activity.ResultDisplayDurationSeconds,
             MinimumDonationAmount = activity.MinimumDonationAmount,
             StartsAtUtc = activity.StartsAtUtc,
             EndsAtUtc = activity.EndsAtUtc,
@@ -231,12 +234,18 @@
         catch (Exception exception) { await MessageService.Error(exception.Message); }
     }
 
-    private string BuildObsUrl(DonateLotteryActivity activity)
+    private string BuildObsUrl(DonateLotteryActivity activity, bool showControls = false)
     {
         var baseUrl = NavigationManager.ToAbsoluteUri($"/obs/donate/{activity.PublicId}").ToString();
-        return string.IsNullOrWhiteSpace(sessionToken)
-            ? baseUrl
-            : $"{baseUrl}?sessionToken={Uri.EscapeDataString(sessionToken)}";
+        var query = showControls ? "controls=1" : "";
+        if (!string.IsNullOrWhiteSpace(sessionToken))
+        {
+            query = string.IsNullOrWhiteSpace(query)
+                ? $"sessionToken={Uri.EscapeDataString(sessionToken)}"
+                : $"{query}&sessionToken={Uri.EscapeDataString(sessionToken)}";
+        }
+
+        return string.IsNullOrWhiteSpace(query) ? baseUrl : $"{baseUrl}?{query}";
     }
 
     private void ApplyDateInputs()

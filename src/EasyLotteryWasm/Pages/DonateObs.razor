@@ -10,19 +10,7 @@
 <PageTitle>Donate 抽獎 OBS</PageTitle>
 
 <div class="donate-obs-shell">
-    @if (isLoading)
-    {
-        <div class="donate-obs-empty">載入 Donate 活動中…</div>
-    }
-    else if (activity is null)
-    {
-        <div class="donate-obs-empty">找不到 Donate 活動</div>
-    }
-    else if (latestWin is null)
-    {
-        <div class="donate-obs-empty">@activity.Name<br /><small>等待中獎結果…</small></div>
-    }
-    else
+    @if (!isLoading && activity is not null && latestWin is not null)
     {
         <div class="donate-reveal @AnimationClass @PolaroidTemplateClass @(IsGrandPrize ? "grand-prize" : "")" @key="latestWin.Id">
             <div class="donate-reveal-label">@(latestWin.IsWinning ? "DONATE RESULT" : "DONATE THANK YOU")</div>
@@ -136,7 +124,6 @@ else
 <style>
     .obs-layout:has(.donate-obs-shell) { align-items:flex-start; overflow-x:hidden; overflow-y:auto; }
     .donate-obs-shell { width:100%; min-height:100%; display:grid; place-items:center; background:transparent; color:white; font-family:system-ui,sans-serif; }
-    .donate-obs-empty { text-align:center; padding:2rem 3rem; border-radius:1.5rem; background:rgba(8,10,26,.72); font-size:2rem; }
     .donate-reveal { width:min(94vw,72rem); box-sizing:border-box; display:grid; justify-items:center; gap:clamp(.45rem,1vh,.9rem); text-align:center; padding:clamp(.75rem,2vh,1.5rem); animation:donate-reveal .65s cubic-bezier(.16,1,.3,1); text-shadow:0 3px 18px #000; position:relative; overflow-x:clip; }
     .polaroid-template-classic { --polaroid-accent:#ffd166; --polaroid-surface:linear-gradient(135deg,#6d28d9,#f59e0b); }
     .polaroid-template-celebration { --polaroid-accent:#f9a8d4; --polaroid-surface:linear-gradient(135deg,#ec4899,#7c3aed 52%,#22d3ee); }
@@ -245,7 +232,9 @@ else
     private DonateLotteryActivity? activity;
     private DonateLotteryDrawRecord? latestWin;
     private bool isLoading = true;
-    private int? displayedWinId;
+    private int? observedWinId;
+    private bool hasInitializedResultCursor;
+    private DateTimeOffset? resultExpiresAtUtc;
     private bool prizeImageFailed;
     private bool testPanelOpen;
     private string testDonorName = "測試贊助者";
@@ -325,18 +314,37 @@ else
         activity = document.DonateLotteryActivities.FirstOrDefault(item =>
             item.PublicId == publicId ||
             (legacyId > 0 && item.Id == legacyId));
-        latestWin = activity is null
+        var newestWin = activity is null
             ? null
             : document.DonateLotteryDrawRecords.Where(item => item.ActivityId == activity.Id).OrderByDescending(item => item.Id).FirstOrDefault();
-        if (displayedWinId != latestWin?.Id)
+
+        if (!hasInitializedResultCursor && activity is not null)
         {
-            displayedWinId = latestWin?.Id;
+            observedWinId = newestWin?.Id;
+            hasInitializedResultCursor = true;
+            latestWin = null;
+            resultExpiresAtUtc = null;
+            isLoading = false;
+            return;
+        }
+
+        if (newestWin?.Id is not null && newestWin.Id != observedWinId)
+        {
+            observedWinId = newestWin.Id;
+            latestWin = newestWin;
             prizeImageFailed = false;
             aiCongratulation = null;
-            if (activity?.UseAiCongratulation == true && latestWin is not null)
+            resultExpiresAtUtc = DateTimeOffset.UtcNow.AddSeconds(Math.Clamp(activity?.ResultDisplayDurationSeconds ?? 15, 3, 300));
+            if (activity?.UseAiCongratulation == true)
             {
-                aiCongratulation = await AiCongratulationClient.GenerateAsync(latestWin.DonorName, latestWin.PrizeName, cancellation.Token);
+                aiCongratulation = await AiCongratulationClient.GenerateAsync(newestWin.DonorName, newestWin.PrizeName, cancellation.Token);
             }
+        }
+        else if (resultExpiresAtUtc is not null && DateTimeOffset.UtcNow >= resultExpiresAtUtc)
+        {
+            latestWin = null;
+            resultExpiresAtUtc = null;
+            aiCongratulation = null;
         }
         isLoading = false;
     }
