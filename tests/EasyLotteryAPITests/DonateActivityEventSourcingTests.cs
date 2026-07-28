@@ -76,6 +76,31 @@ public sealed class DonateActivityEventSourcingTests
     }
 
     [TestMethod]
+    public async Task SaveCommand_PersistsUpdatedAnimationAndDates()
+    {
+        var services = CreateServices();
+        var mediator = services.GetRequiredService<IMediator>();
+        var repository = services.GetRequiredService<IDonateLotteryActivityRepository>();
+        var saved = await mediator.Send(new SaveDonateActivityCommand(new DonateLotteryActivity
+        {
+            Name = "活動", MinimumDonationAmount = 100m, StartsAtUtc = DateTimeOffset.UtcNow.AddDays(-1), EndsAtUtc = DateTimeOffset.UtcNow.AddDays(1)
+        }));
+        var expectedStart = new DateTimeOffset(2026, 7, 26, 3, 0, 0, TimeSpan.Zero);
+        var expectedEnd = new DateTimeOffset(2026, 7, 31, 3, 0, 0, TimeSpan.Zero);
+
+        await mediator.Send(new SaveDonateActivityCommand(new DonateLotteryActivity
+        {
+            Id = saved.Id, PublicId = saved.PublicId, Name = saved.Name, MinimumDonationAmount = 100m,
+            StartsAtUtc = expectedStart, EndsAtUtc = expectedEnd, Animation = DonateLotteryAnimation.Garagara
+        }));
+
+        var updated = (await repository.ListAsync()).Single(activity => activity.Id == saved.Id);
+        Assert.AreEqual(expectedStart, updated.StartsAtUtc);
+        Assert.AreEqual(expectedEnd, updated.EndsAtUtc);
+        Assert.AreEqual(DonateLotteryAnimation.Garagara, updated.Animation);
+    }
+
+    [TestMethod]
     public async Task ListAsync_ReadsDonateActivitiesFromSplitYamlDocument()
     {
         var services = CreateServices();
