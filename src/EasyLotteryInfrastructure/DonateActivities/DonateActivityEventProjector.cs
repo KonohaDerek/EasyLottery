@@ -60,12 +60,15 @@ internal static class DonateActivityEventProjector
         new()
         {
             Id = source.Id,
+            PublicId = source.PublicId,
             Name = source.Name,
             Type = source.Type,
             MinimumDonationAmount = source.MinimumDonationAmount,
             StartsAtUtc = source.StartsAtUtc,
             EndsAtUtc = source.EndsAtUtc,
             Animation = source.Animation,
+            PolaroidTemplateKey = source.PolaroidTemplateKey,
+            UseAiCongratulation = source.UseAiCongratulation,
             IsEnabled = source.IsEnabled,
             Prizes = source.Prizes.Select(prize => new DonateLotteryPrize
             {
