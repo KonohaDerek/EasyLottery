@@ -1,5 +1,4 @@
-@page "/obs/donate/{ActivityPublicId:guid}"
-@page "/obs/donate/{ActivityId:int}"
+@page "/obs/donate/{ActivityRouteKey}"
 @layout EasyLotteryWasm.Layout.ObsLayout
 @using EasyLotteryDomain.Models.Config
 @using EasyLotteryDomain.Services
@@ -201,8 +200,7 @@ else
 </style>
 
 @code {
-    [Parameter] public Guid ActivityPublicId { get; set; }
-    [Parameter] public int ActivityId { get; set; }
+    [Parameter] public string ActivityRouteKey { get; set; } = "";
     private DonateLotteryActivity? activity;
     private DonateLotteryDrawRecord? latestWin;
     private bool isLoading = true;
@@ -249,7 +247,7 @@ else
     private async Task RunTestAsync()
     {
         var document = await ConfigStore.LoadAsync(cancellation.Token);
-        var activityKey = ActivityPublicId != Guid.Empty ? ActivityPublicId.ToString("N") : ActivityId.ToString();
+        var activityKey = activity?.PublicId.ToString("N") ?? ActivityRouteKey;
         var testId = $"obs-test:{activityKey}:{Guid.NewGuid():N}";
         var result = DonateLotteryEngine.Process(document, testId, testDonorName, testAmount, DateTimeOffset.UtcNow, donationMessage: testMessage, paymentMethod: testPaymentMethod);
         await ConfigStore.SaveAsync(document, cancellation.Token);
@@ -270,16 +268,14 @@ else
     private async Task RefreshAsync()
     {
         var document = await ConfigStore.LoadAsync(cancellation.Token);
+        var publicId = Guid.TryParse(ActivityRouteKey, out var parsedPublicId) ? parsedPublicId : Guid.Empty;
+        var legacyId = publicId == Guid.Empty && int.TryParse(ActivityRouteKey, out var parsedLegacyId) ? parsedLegacyId : 0;
         activity = document.DonateLotteryActivities.FirstOrDefault(item =>
-            item.PublicId == ActivityPublicId ||
-            (ActivityId > 0 && item.Id == ActivityId));
+            item.PublicId == publicId ||
+            (legacyId > 0 && item.Id == legacyId));
         latestWin = activity is null
             ? null
             : document.DonateLotteryDrawRecords.Where(item => item.ActivityId == activity.Id).OrderByDescending(item => item.Id).FirstOrDefault();
-        if (activity is not null && ActivityPublicId == Guid.Empty)
-        {
-            ActivityPublicId = activity.PublicId;
-        }
         if (displayedWinId != latestWin?.Id)
         {
             displayedWinId = latestWin?.Id;
