@@ -12,7 +12,14 @@
 <div class="donate-obs-shell">
     @if (!isLoading && activity is not null && latestWin is not null)
     {
-        <div class="donate-reveal @AnimationClass @PolaroidTemplateClass @(IsGrandPrize ? "grand-prize" : "")" @key="latestWin.Id">
+        <div class="donate-reveal @AnimationClass @PolaroidTemplateClass phase-@RevealPhaseClass @(IsGrandPrize ? "grand-prize" : "")" style="--draw-duration:@AnimationDurationSeconds.ToString(System.Globalization.CultureInfo.InvariantCulture)s" @key="latestWin.Id">
+            <section class="donate-notice" aria-label="新的 Donate 通知">
+                <div class="donate-notice-eyebrow">NEW DONATE</div>
+                <div class="donate-notice-name">@latestWin.DonorName</div>
+                <div class="donate-notice-amount">NT$@latestWin.Amount.ToString("N0")</div>
+                @if (!string.IsNullOrWhiteSpace(latestWin.DonationMessage)) { <div class="donate-notice-message">@latestWin.DonationMessage</div> }
+                @if (!string.IsNullOrWhiteSpace(latestWin.PaymentMethod)) { <div class="donate-notice-payment">付款方式：@latestWin.PaymentMethod</div> }
+            </section>
             <div class="donate-reveal-label">@(latestWin.IsWinning ? "DONATE RESULT" : "DONATE THANK YOU")</div>
             <div class="draw-prop animation-@AnimationKey" aria-hidden="true">
                 @if (activity.Animation == DonateLotteryAnimation.IchibanKuji)
@@ -21,8 +28,10 @@
                         <div class="ichiban-curtain ichiban-curtain-left"></div>
                         <div class="ichiban-curtain ichiban-curtain-right"></div>
                         <div class="ichiban-ribbon"></div>
+                        <div class="ichiban-box">一番賞</div>
+                        <div class="ichiban-hand ichiban-hand-left"></div><div class="ichiban-hand ichiban-hand-right"></div>
                         <div class="ichiban-ticket">一番賞</div>
-                        <div class="ichiban-chibi">◉</div>
+                        <div class="chibi-actor ichiban-chibi"><i></i><b></b></div>
                     </div>
                 }
                 else if (activity.Animation == DonateLotteryAnimation.Gacha)
@@ -35,13 +44,13 @@
                             <div class="gacha-crank"></div>
                             <div class="gacha-capsule"></div>
                         </div>
-                        <div class="chibi gacha-chibi">◉</div>
+                        <div class="chibi-actor gacha-chibi"><i></i><b></b></div>
                     </div>
                 }
                 else if (activity.Animation == DonateLotteryAnimation.Garagara)
                 {
                     <div class="garagara-stage">
-                        <div class="garagara-chibi">◉</div>
+                        <div class="chibi-actor garagara-chibi"><i></i><b></b></div>
                         <div class="garagara-arm"></div>
                         <div class="garagara-drum">
                             <span></span><span></span><span></span><span></span>
@@ -49,6 +58,7 @@
                         <div class="garagara-rain">
                             <span></span><span></span><span></span>
                         </div>
+                        <div class="garagara-ball @GaragaraBallClass"></div>
                     </div>
                 }
                 else if (activity.Animation == DonateLotteryAnimation.MoneyBox)
@@ -61,10 +71,11 @@
                             <div class="money-box-slot"></div>
                             <div class="money-box-face"></div>
                         </div>
-                        <div class="fortune-slip">@latestWin.PrizeName</div>
+                        <div class="fortune-slip">御神籤</div>
                     </div>
                 }
             </div>
+            <div class="donate-result-content">
             @if (!string.IsNullOrWhiteSpace(latestWin.PrizeImageUrl) && !prizeImageFailed)
             {
                 <img class="donate-reveal-image" src="@latestWin.PrizeImageUrl" alt="@latestWin.PrizeName" @onerror="() => prizeImageFailed = true" />
@@ -99,6 +110,7 @@
                     }
                 </dl>
             </section>
+            </div>
         </div>
     }
 </div>
@@ -125,6 +137,9 @@ else
     .obs-layout:has(.donate-obs-shell) { align-items:flex-start; overflow-x:hidden; overflow-y:auto; }
     .donate-obs-shell { width:100%; min-height:100%; display:grid; place-items:center; background:transparent; color:white; font-family:system-ui,sans-serif; }
     .donate-reveal { width:min(94vw,72rem); box-sizing:border-box; display:grid; justify-items:center; gap:clamp(.45rem,1vh,.9rem); text-align:center; padding:clamp(.75rem,2vh,1.5rem); animation:donate-reveal .65s cubic-bezier(.16,1,.3,1); text-shadow:0 3px 18px #000; position:relative; overflow-x:clip; }
+    .donate-notice { width:min(92vw,42rem); padding:1.25rem 1.5rem; border:2px solid #fde68a; border-radius:1.25rem; background:linear-gradient(135deg,rgba(45,15,82,.96),rgba(154,52,18,.92)); box-shadow:0 14px 38px rgba(0,0,0,.36); animation:notice-pop .5s ease-out both; }
+    .donate-notice-eyebrow { color:#fde68a; font-size:.9rem; font-weight:900; letter-spacing:.2em; }.donate-notice-name{font-size:clamp(1.5rem,4vw,3rem);font-weight:950;overflow-wrap:anywhere}.donate-notice-amount{color:#fef3c7;font-size:clamp(1.4rem,3.5vw,2.6rem);font-weight:950}.donate-notice-message{margin-top:.4rem;white-space:pre-wrap;overflow-wrap:anywhere}.donate-notice-payment{margin-top:.4rem;color:#fde68a}
+    .phase-notification .draw-prop,.phase-notification .donate-reveal-label,.phase-notification .donate-result-content,.phase-animation .donate-notice,.phase-animation .donate-reveal-label,.phase-animation .donate-result-content,.phase-reveal .donate-notice,.phase-reveal .draw-prop,.phase-reveal .donate-reveal-label{display:none}
     .polaroid-template-classic { --polaroid-accent:#ffd166; --polaroid-surface:linear-gradient(135deg,#6d28d9,#f59e0b); }
     .polaroid-template-celebration { --polaroid-accent:#f9a8d4; --polaroid-surface:linear-gradient(135deg,#ec4899,#7c3aed 52%,#22d3ee); }
     .donate-reveal::before { content:""; position:absolute; inset:-2.5rem; pointer-events:none; background:radial-gradient(circle at center, rgba(255,255,255,.16), transparent 60%); opacity:.7; filter:blur(14px); }
@@ -136,6 +151,7 @@ else
     .ichiban-curtain-right { right:0; transform-origin:right center; border-radius:0 1rem 1rem 0; animation:curtain-open-right 1.2s ease-in-out infinite alternate; }
     .ichiban-ribbon { position:absolute; inset:1.2rem 22%; border-radius:999px; background:linear-gradient(90deg,#f59e0b,#fef08a,#f59e0b); filter:blur(1px); animation:shine-sweep 2s linear infinite; }
     .ichiban-ticket { display:grid; place-items:center; width:13rem; height:5.5rem; color:#fff7d6; background:linear-gradient(135deg,#d90429,#7f1d1d); border:5px solid #fbbf24; border-radius:.75rem; font-size:2rem; font-weight:900; transform:rotate(-6deg); animation:ticket-reveal .8s ease-out, ticket-bob 1.8s ease-in-out infinite alternate; z-index:1; }
+    .ichiban-box{position:absolute;width:15rem;height:7rem;display:grid;place-items:center;background:linear-gradient(135deg,#b91c1c,#450a0a);border:5px solid #fbbf24;border-radius:1rem;color:#fde68a;font-weight:950;font-size:2rem;animation:box-shake 1s linear infinite}.ichiban-hand{position:absolute;width:5rem;height:2.1rem;background:#f6c7a4;border-radius:999px;z-index:2;top:4rem}.ichiban-hand-left{left:2rem;animation:tear-left var(--draw-duration) ease-in forwards}.ichiban-hand-right{right:2rem;animation:tear-right var(--draw-duration) ease-in forwards}
     .ichiban-chibi { position:absolute; left:1rem; bottom:-.75rem; font-size:2rem; animation:chibi-pull 1.1s ease-in-out infinite alternate; }
     .animation-gacha .gacha-stage { width:min(25rem, 76vw); height:12rem; display:grid; place-items:center; position:relative; }
     .gacha-halo { position:absolute; width:8rem; height:8rem; border-radius:50%; background:radial-gradient(circle, rgba(253,224,71,.9), rgba(253,224,71,.12) 55%, transparent 70%); animation:halo-pulse 1.2s ease-in-out infinite alternate; }
@@ -144,10 +160,12 @@ else
     .gacha-slot { position:absolute; bottom:.8rem; left:50%; width:3rem; height:.5rem; transform:translateX(-50%); border-radius:999px; background:#fef08a; box-shadow:0 0 12px rgba(254,240,138,.95); }
     .gacha-crank { position:absolute; right:-1.9rem; bottom:1.5rem; width:2.5rem; height:2.5rem; border:.55rem solid #fde68a; border-radius:50%; box-shadow:0 0 0 .25rem #92400e; animation:crank-turn .9s linear infinite; }
     .gacha-capsule { position:absolute; top:-1.5rem; left:50%; width:2.15rem; height:3rem; transform:translateX(-50%); border-radius:999px; background:linear-gradient(180deg,#fde047 0 50%, #fb7185 50% 100%); box-shadow:0 .5rem 1rem rgba(0,0,0,.35); animation:capsule-drop 1.1s ease-in-out infinite; }
-    .gacha-chibi { position:absolute; left:1rem; bottom:0; font-size:2rem; animation:chibi-turn-crank .9s ease-in-out infinite alternate; }
+    .chibi-actor{width:3.7rem;height:4.5rem;position:absolute;display:grid;place-items:end center}.chibi-actor::before{content:"";position:absolute;top:0;width:2.7rem;height:2.7rem;border-radius:48% 48% 44% 44%;background:radial-gradient(circle at 35% 42%,#1f2937 0 .16rem,transparent .18rem),radial-gradient(circle at 65% 42%,#1f2937 0 .16rem,transparent .18rem),#ffd4bb;border:3px solid #5b2a22}.chibi-actor i{width:2.6rem;height:2.5rem;border-radius:1.3rem 1.3rem .7rem .7rem;background:linear-gradient(#f472b6,#7c3aed);border:3px solid #fff}.chibi-actor b{position:absolute;width:3.6rem;height:.45rem;bottom:1.7rem;border-radius:999px;background:#ffd4bb;transform:rotate(18deg)}
+    .gacha-chibi { left:1rem; bottom:0; animation:chibi-turn-crank .9s ease-in-out infinite alternate; }
     .animation-garagara .garagara-stage { width:min(28rem, 82vw); height:12rem; display:grid; place-items:center; position:relative; }
     .garagara-arm { position:absolute; left:2.5rem; bottom:2.1rem; width:5rem; height:.65rem; background:linear-gradient(90deg,#b45309,#fbbf24); border-radius:999px; transform-origin:right center; transform:rotate(-24deg); animation:arm-turn .9s ease-in-out infinite alternate; }
-    .garagara-chibi { position:absolute; left:0; bottom:1.25rem; font-size:2rem; animation:chibi-push 1s ease-in-out infinite alternate; }
+    .garagara-chibi { left:0; bottom:1.25rem; animation:chibi-push 1s ease-in-out infinite alternate; }
+    .garagara-ball{position:absolute;right:2rem;bottom:.5rem;width:2.35rem;height:2.35rem;border-radius:50%;box-shadow:inset -.35rem -.4rem rgba(0,0,0,.28),0 0 18px rgba(255,255,255,.7);animation:ball-drop var(--draw-duration) cubic-bezier(.2,.9,.3,1) forwards}.ball-white{background:#fff}.ball-blue{background:#38bdf8}.ball-green{background:#4ade80}.ball-yellow{background:#fde047}.ball-red{background:#f43f5e}.ball-copper{background:#c2410c}.ball-silver{background:#cbd5e1}.ball-gold{background:#fbbf24}
     .garagara-drum { width:8.75rem; height:8.75rem; display:grid; place-items:center; border:12px solid #b7791f; border-radius:50%; background:repeating-conic-gradient(#f7d794 0 12deg,#d69e2e 12deg 24deg); box-shadow:0 9px 0 #78350f, inset 0 0 0 8px rgba(255,255,255,.08); animation:drum-turn 1.2s linear infinite; position:relative; }
     .garagara-drum span { position:absolute; width:.9rem; height:1.7rem; background:#fffaf0; border-radius:.35rem; box-shadow:0 0 0 .15rem rgba(120,53,15,.18); }
     .garagara-drum span:nth-child(1) { transform:rotate(15deg) translateY(-2.8rem); }
@@ -202,6 +220,7 @@ else
         .donate-reveal, .donate-reveal *, .donate-reveal::before, .donate-reveal::after { animation:none !important; }
     }
     @@keyframes donate-reveal { from { opacity:0; transform:scale(.45) rotate(-4deg); } to { opacity:1; transform:scale(1) rotate(0); } }
+    @@keyframes notice-pop{from{opacity:0;transform:translateY(2rem) scale(.85)}to{opacity:1;transform:none}}@@keyframes box-shake{50%{transform:rotate(2deg)}}@@keyframes tear-left{0%,65%{transform:translateX(0)}100%{transform:translateX(-7rem) rotate(-22deg);opacity:0}}@@keyframes tear-right{0%,65%{transform:translateX(0)}100%{transform:translateX(7rem) rotate(22deg);opacity:0}}@@keyframes ball-drop{0%,72%{transform:translateY(-8rem) scale(.2);opacity:0}82%{opacity:1}100%{transform:translateY(0) scale(1);opacity:1}}
     @@keyframes curtain-open-left { from { transform:scaleX(1); } to { transform:scaleX(.82) rotate(-1.5deg); } }
     @@keyframes curtain-open-right { from { transform:scaleX(1); } to { transform:scaleX(.82) rotate(1.5deg); } }
     @@keyframes shine-sweep { from { filter:brightness(1); transform:translateX(-10%); } to { filter:brightness(1.45); transform:translateX(10%); } }
@@ -235,6 +254,8 @@ else
     private int? observedWinId;
     private bool hasInitializedResultCursor;
     private DateTimeOffset? resultExpiresAtUtc;
+    private DateTimeOffset? phaseExpiresAtUtc;
+    private DonateRevealPhase revealPhase = DonateRevealPhase.Notification;
     private bool prizeImageFailed;
     private bool testPanelOpen;
     private string testDonorName = "測試贊助者";
@@ -243,6 +264,8 @@ else
     private string testPaymentMethod = "測試付款";
     private string testResult = "";
     private string? aiCongratulation;
+    private int AnimationDurationSeconds => Math.Clamp(activity?.AnimationDurationSeconds ?? 8, 3, 30);
+    private string RevealPhaseClass => revealPhase switch { DonateRevealPhase.Notification => "notification", DonateRevealPhase.Animation => "animation", _ => "reveal" };
     private string AnimationClass => activity?.Animation switch
     {
         DonateLotteryAnimation.Gacha => "animation-gacha",
@@ -264,6 +287,7 @@ else
             .Replace("{donor}", latestWin.DonorName, StringComparison.Ordinal)
             .Replace("{prize}", latestWin.PrizeName, StringComparison.Ordinal);
     private bool IsGrandPrize => latestWin is not null && activity?.Prizes.Any(prize => prize.IsGrandPrize && string.Equals(prize.Name, latestWin.PrizeName, StringComparison.Ordinal)) == true;
+    private string GaragaraBallClass => $"ball-{ResolveGaragaraBallColor()}";
     private readonly CancellationTokenSource cancellation = new();
 
     protected override async Task OnInitializedAsync()
@@ -324,6 +348,7 @@ else
             hasInitializedResultCursor = true;
             latestWin = null;
             resultExpiresAtUtc = null;
+            phaseExpiresAtUtc = null;
             isLoading = false;
             return;
         }
@@ -332,12 +357,25 @@ else
         {
             observedWinId = newestWin.Id;
             latestWin = newestWin;
+            revealPhase = DonateRevealPhase.Notification;
             prizeImageFailed = false;
             aiCongratulation = null;
+            phaseExpiresAtUtc = DateTimeOffset.UtcNow.AddSeconds(3);
+            resultExpiresAtUtc = null;
+        }
+        else if (latestWin is not null && phaseExpiresAtUtc is not null && DateTimeOffset.UtcNow >= phaseExpiresAtUtc && revealPhase == DonateRevealPhase.Notification)
+        {
+            revealPhase = DonateRevealPhase.Animation;
+            phaseExpiresAtUtc = DateTimeOffset.UtcNow.AddSeconds(AnimationDurationSeconds);
+        }
+        else if (latestWin is not null && phaseExpiresAtUtc is not null && DateTimeOffset.UtcNow >= phaseExpiresAtUtc && revealPhase == DonateRevealPhase.Animation)
+        {
+            revealPhase = DonateRevealPhase.Reveal;
+            phaseExpiresAtUtc = null;
             resultExpiresAtUtc = DateTimeOffset.UtcNow.AddSeconds(Math.Clamp(activity?.ResultDisplayDurationSeconds ?? 15, 3, 300));
             if (activity?.UseAiCongratulation == true)
             {
-                aiCongratulation = await AiCongratulationClient.GenerateAsync(newestWin.DonorName, newestWin.PrizeName, cancellation.Token);
+                aiCongratulation = await AiCongratulationClient.GenerateAsync(latestWin.DonorName, latestWin.PrizeName, cancellation.Token);
             }
         }
         else if (resultExpiresAtUtc is not null && DateTimeOffset.UtcNow >= resultExpiresAtUtc)
@@ -350,4 +388,20 @@ else
     }
 
     public ValueTask DisposeAsync() { cancellation.Cancel(); cancellation.Dispose(); return ValueTask.CompletedTask; }
+
+    private string ResolveGaragaraBallColor()
+    {
+        if (latestWin is null || activity is null || !latestWin.IsWinning) return "white";
+        var prize = activity.Prizes.FirstOrDefault(item => string.Equals(item.Name, latestWin.PrizeName, StringComparison.Ordinal));
+        if (prize?.IsGrandPrize == true) return "gold";
+        var candidates = activity.Prizes.Where(item => item.RemainingQuantity > 0 || item.Quantity > 0).ToList();
+        if (candidates.Count == 0) return "white";
+        var white = candidates.OrderBy(item => item.Probability).ThenByDescending(item => item.RemainingQuantity).First();
+        if (prize is not null && prize.Id == white.Id) return "white";
+        var ordered = candidates.Where(item => item.Id != white.Id).OrderBy(item => item.Probability).ToList();
+        var index = Math.Max(0, ordered.FindIndex(item => item.Id == prize?.Id));
+        return new[] { "blue", "green", "yellow", "red", "copper", "silver" }[Math.Min(index, 5)];
+    }
+
+    private enum DonateRevealPhase { Notification, Animation, Reveal }
 }
