@@ -254,14 +254,22 @@
         editing.EndsAtUtc = end;
     }
 
-    private void OnStartDateInput(ChangeEventArgs args) => startDateInput = args.Value?.ToString() ?? "";
-    private void OnEndDateInput(ChangeEventArgs args) => endDateInput = args.Value?.ToString() ?? "";
+    private void OnStartDateInput(ChangeEventArgs args) => startDateInput = NormalizeDateInput(args.Value);
+    private void OnEndDateInput(ChangeEventArgs args) => endDateInput = NormalizeDateInput(args.Value);
 
     private static bool TryConvertLocalDate(string value, out DateTimeOffset instant)
     {
         instant = default;
-        if (!DateTime.TryParseExact(value, "yyyy-MM-ddTHH:mm", CultureInfo.InvariantCulture, DateTimeStyles.None, out var date)) return false;
+        if (!DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.AllowWhiteSpaces, out var date) &&
+            !DateTime.TryParse(value, CultureInfo.CurrentCulture, DateTimeStyles.AllowWhiteSpaces, out date)) return false;
         instant = new DateTimeOffset(DateTime.SpecifyKind(date, DateTimeKind.Local)).ToUniversalTime();
         return true;
     }
+
+    private static string NormalizeDateInput(object? value) => value switch
+    {
+        DateTime date => date.ToString("yyyy-MM-ddTHH:mm", CultureInfo.InvariantCulture),
+        DateTimeOffset date => date.LocalDateTime.ToString("yyyy-MM-ddTHH:mm", CultureInfo.InvariantCulture),
+        _ => value?.ToString() ?? ""
+    };
 }
