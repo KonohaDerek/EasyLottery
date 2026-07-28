@@ -65,9 +65,7 @@ public sealed class YamlDonateActivityRepository : IDonateLotteryActivityReposit
         }
 
         var yaml = await File.ReadAllTextAsync(SnapshotPath, cancellationToken);
-        var activities = string.IsNullOrWhiteSpace(yaml)
-            ? []
-            : _deserializer.Deserialize<List<DonateLotteryActivity>>(yaml) ?? [];
+        var activities = DeserializeActivities(yaml);
         var (normalized, changed) = NormalizeActivities(activities);
         if (changed)
         {
@@ -79,11 +77,35 @@ public sealed class YamlDonateActivityRepository : IDonateLotteryActivityReposit
 
     internal async Task WriteSnapshotUnsafeAsync(IReadOnlyList<DonateLotteryActivity> activities, CancellationToken cancellationToken = default)
     {
-        var snapshot = activities.OrderByDescending(activity => activity.Id).ToList();
+        var document = File.Exists(SnapshotPath)
+            ? DeserializeActivitiesDocument(await File.ReadAllTextAsync(SnapshotPath, cancellationToken))
+            : new ActivitiesYamlDocument();
+        document.DonateLotteryActivities = activities.OrderByDescending(activity => activity.Id).ToList();
         Directory.CreateDirectory(Path.GetDirectoryName(SnapshotPath) ?? ".");
         var temporaryPath = $"{SnapshotPath}.{Guid.NewGuid():N}.tmp";
-        await File.WriteAllTextAsync(temporaryPath, _serializer.Serialize(snapshot), cancellationToken);
+        await File.WriteAllTextAsync(temporaryPath, _serializer.Serialize(document), cancellationToken);
         File.Move(temporaryPath, SnapshotPath, overwrite: true);
+    }
+
+    private List<DonateLotteryActivity> DeserializeActivities(string yaml) =>
+        DeserializeActivitiesDocument(yaml).DonateLotteryActivities ?? [];
+
+    private ActivitiesYamlDocument DeserializeActivitiesDocument(string yaml)
+    {
+        if (string.IsNullOrWhiteSpace(yaml)) return new ActivitiesYamlDocument();
+
+        try
+        {
+            return _deserializer.Deserialize<ActivitiesYamlDocument>(yaml) ?? new ActivitiesYamlDocument();
+        }
+        catch (YamlDotNet.Core.YamlException)
+        {
+            // Snapshots produced before YAML repositories were split used a root list.
+            return new ActivitiesYamlDocument
+            {
+                DonateLotteryActivities = _deserializer.Deserialize<List<DonateLotteryActivity>>(yaml) ?? []
+            };
+        }
     }
 
     private static (List<DonateLotteryActivity> Activities, bool Changed) NormalizeActivities(IEnumerable<DonateLotteryActivity> activities)
