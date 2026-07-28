@@ -10,46 +10,19 @@
 @inject OvertimeFeedClient OvertimeFeedClient
 @inject OvertimeRealtimeClient OvertimeRealtimeClient
 @inject IJSRuntime JSRuntime
+@inject NavigationManager NavigationManager
 @implements IAsyncDisposable
 
 <PageTitle>加班台 - OBS</PageTitle>
 
-@if (isLoading)
-{
-    <div class="overtime-state">
-        <div class="overtime-state-title">載入加班台中…</div>
-    </div>
-}
-else
+@if (!isLoading && (!IsIdle && !IsEnded || ShowObsControls))
 {
     <div class="overtime-overlay">
         <div class="overtime-shell">
             <div class="overtime-obs-controls mb-2">
                 <Button Color="Color.Secondary" Clicked="SendOvertimeTestAsync">測試贊助通知</Button>
             </div>
-            @if (IsIdle)
-            {
-                <div class="overtime-standby-panel">
-                    <div class="overtime-countdown-label">預計關台時間</div>
-                    <div class="overtime-countdown-line">@PlannedCloseText</div>
-                    <div class="overtime-standby-actions overtime-obs-controls">
-                        <Button Color="Color.Primary" Clicked="@StartCountdownAsync">開始加班</Button>
-                    </div>
-                </div>
-            }
-            else if (IsEnded)
-            {
-                <div class="overtime-standby-panel">
-                    <div class="overtime-countdown-label">加班台已結束</div>
-                    <div class="overtime-countdown-line">感謝大家的支持</div>
-                    <div class="overtime-standby-actions overtime-obs-controls">
-                        <Button Color="Color.Primary" Clicked="@StartCountdownAsync">開始新一輪加班</Button>
-                    </div>
-                </div>
-            }
-            else
-            {
-                <div class="overtime-minimal-overlay">
+            <div class="overtime-minimal-overlay">
                     <div class="overtime-progress-wrap">
                         <div id="overtime-progress-panel"
                              class="overtime-progress-panel"
@@ -142,8 +115,7 @@ else
                             </div>
                         }
                     }
-                </div>
-            }
+            </div>
 
             @if (shouldPlayCompletionFireworks)
             {
@@ -1043,6 +1015,7 @@ else
     private bool IsPaused => settings.SessionState == OvertimeSessionStates.Paused;
     private bool IsCompleted => settings.SessionState == OvertimeSessionStates.Completed;
     private bool IsEnded => settings.SessionState == OvertimeSessionStates.Ended;
+    private bool ShowObsControls => NavigationManager.ToAbsoluteUri(NavigationManager.Uri).Query.Contains("controls=1", StringComparison.OrdinalIgnoreCase);
     private string PlannedCloseText => BuildPlannedCloseText(PlannedEndMarker?.SessionEndAtUtc ?? settings.PlannedEndAtUtc);
     private string RemainingTimeText => BuildRemainingTimeText(SessionEndAtUtc, SessionClockUtc);
     private double ProgressPercent => OvertimeSessionTimeCalculator.CalculateProgressPercent(settings.StreamStartedAtUtc, SessionEndAtUtc, SessionClockUtc) ?? 0d;

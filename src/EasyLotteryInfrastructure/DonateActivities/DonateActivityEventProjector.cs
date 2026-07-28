@@ -69,6 +69,7 @@ internal static class DonateActivityEventProjector
             Animation = source.Animation,
             PolaroidTemplateKey = source.PolaroidTemplateKey,
             UseAiCongratulation = source.UseAiCongratulation,
+            ResultDisplayDurationSeconds = source.ResultDisplayDurationSeconds,
             IsEnabled = source.IsEnabled,
             Prizes = source.Prizes.Select(prize => new DonateLotteryPrize
             {

@@ -27,6 +27,8 @@ public sealed class DonateLotteryActivity
     /// <summary>拍立得活動使用的結果模板；舊活動會回退為 classic。</summary>
     public string PolaroidTemplateKey { get; set; } = "classic";
     public bool UseAiCongratulation { get; set; }
+    /// <summary>Donate 抽獎結果在 OBS 顯示的秒數。</summary>
+    public int ResultDisplayDurationSeconds { get; set; } = 15;
     public bool IsEnabled { get; set; }
     public List<DonateLotteryPrize> Prizes { get; set; } = [];
 }
