@@ -18,7 +18,7 @@
 
 @if (donateSummary is not null)
 {
-    <Card class="mb-4"><CardBody><h4>Donate 統計</h4><div class="row"><div class="col">贊助筆數：@donateSummary.Value.Count</div><div class="col">總金額：NT$@donateSummary.Value.Total:N0</div><div class="col">平均金額：NT$@donateSummary.Value.Average:N0</div><div class="col">中獎結果：@donateSummary.Value.Wins</div></div></CardBody></Card>
+    <Card class="mb-4"><CardBody><h4>Donate 統計</h4><div class="row"><div class="col">贊助筆數：@donateSummary.Value.Count</div><div class="col">總金額：NT$@donateSummary.Value.Total.ToString("N0")</div><div class="col">平均金額：NT$@donateSummary.Value.Average.ToString("N0")</div><div class="col">中獎結果：@donateSummary.Value.Wins</div></div></CardBody></Card>
 }
 
 <div class="activity-results-page">

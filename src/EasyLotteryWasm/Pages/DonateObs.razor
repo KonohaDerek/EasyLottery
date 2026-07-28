@@ -85,7 +85,7 @@
             <div class="donate-reveal-prize">@latestWin.PrizeName</div>
             @if (activity.Type == DonateLotteryActivityType.Polaroid) { <div class="donate-reveal-congratulation">@(aiCongratulation ?? PolaroidFallbackCongratulation)</div> }
             @if (IsGrandPrize) { <div class="grand-prize-banner">★ 最大獎 ★</div> }
-            <div class="donate-reveal-donor">@latestWin.DonorName · NT$@latestWin.Amount:N0</div>
+            <div class="donate-reveal-donor">@latestWin.DonorName · NT$@latestWin.Amount.ToString("N0")</div>
             @if (!string.IsNullOrWhiteSpace(latestWin.DonationMessage)) { <div class="donate-reveal-message">「@latestWin.DonationMessage」</div> }
             @if (!string.IsNullOrWhiteSpace(latestWin.PaymentMethod)) { <small>@latestWin.PaymentMethod</small> }
         </div>
