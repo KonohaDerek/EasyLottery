@@ -37,14 +37,14 @@
                     <div class="col-md-6"><Field><FieldLabel>活動名稱</FieldLabel><TextInput @bind-Value="editing.Name" /></Field></div>
                     <div class="col-md-3"><Field><FieldLabel>類型</FieldLabel><Select TValue="DonateLotteryActivityType" @bind-SelectedValue="editing.Type"><SelectItem Value="DonateLotteryActivityType.Postcard">明信片</SelectItem><SelectItem Value="DonateLotteryActivityType.Polaroid">拍立得</SelectItem></Select></Field></div>
                     <div class="col-md-3"><Field><FieldLabel>最低贊助金額</FieldLabel><NumericInput TValue="decimal" @bind-Value="editing.MinimumDonationAmount" Min="1" /></Field></div>
-                    <div class="col-md-3"><Field><FieldLabel>抽獎動畫</FieldLabel><Select TValue="DonateLotteryAnimation" @bind-SelectedValue="editing.Animation"><SelectItem Value="DonateLotteryAnimation.IchibanKuji">一番賞</SelectItem><SelectItem Value="DonateLotteryAnimation.Gacha">扭蛋</SelectItem><SelectItem Value="DonateLotteryAnimation.Garagara">日式滾筒</SelectItem><SelectItem Value="DonateLotteryAnimation.MoneyBox">塞錢箱／詩籤</SelectItem></Select></Field></div>
+                    <div class="col-md-3"><Field><FieldLabel>抽獎動畫</FieldLabel><select class="form-select" @bind="editing.Animation"><option value="@DonateLotteryAnimation.IchibanKuji">一番賞</option><option value="@DonateLotteryAnimation.Gacha">扭蛋</option><option value="@DonateLotteryAnimation.Garagara">日式滾筒</option><option value="@DonateLotteryAnimation.MoneyBox">塞錢箱／詩籤</option></select></Field></div>
                     @if (editing.Type == DonateLotteryActivityType.Polaroid)
                     {
                         <div class="col-md-3"><Field><FieldLabel>拍立得模板</FieldLabel><Select TValue="string" @bind-SelectedValue="editing.PolaroidTemplateKey"><SelectItem Value="@("classic")">經典拍立得</SelectItem><SelectItem Value="@("celebration")">慶典拍立得</SelectItem></Select></Field></div>
                         <div class="col-md-2"><Field><FieldLabel>AI 恭喜文案</FieldLabel><Switch TValue="bool" @bind-Value="editing.UseAiCongratulation" /></Field></div>
                     }
-                    <div class="col-md-4"><Field><FieldLabel>開始時間（本地時區）</FieldLabel><input class="form-control" type="datetime-local" value="@StartDateText" @onchange="OnStartDateChanged" /></Field></div>
-                    <div class="col-md-4"><Field><FieldLabel>結束時間（本地時區）</FieldLabel><input class="form-control" type="datetime-local" value="@EndDateText" @onchange="OnEndDateChanged" /></Field></div>
+                    <div class="col-md-4"><Field><FieldLabel>開始時間（本地時區）</FieldLabel><input class="form-control" type="datetime-local" value="@startDateInput" @oninput="OnStartDateInput" /></Field></div>
+                    <div class="col-md-4"><Field><FieldLabel>結束時間（本地時區）</FieldLabel><input class="form-control" type="datetime-local" value="@endDateInput" @oninput="OnEndDateInput" /></Field></div>
                     <div class="col-md-2"><Field><FieldLabel>啟用</FieldLabel><Switch TValue="bool" @bind-Value="editing.IsEnabled" /></Field></div>
                 </div>
                 <h5 class="mt-4">獎項</h5>
@@ -123,8 +123,8 @@
     private string EditorTitle => editing is null
         ? "Donate 活動"
         : editing.Id == 0 ? "新增 Donate 活動" : $"編輯 Donate 活動：{editing.Name}";
-    private string StartDateText => editing?.StartsAtUtc.LocalDateTime.ToString("yyyy-MM-ddTHH:mm") ?? "";
-    private string EndDateText => editing?.EndsAtUtc.LocalDateTime.ToString("yyyy-MM-ddTHH:mm") ?? "";
+    private string startDateInput = "";
+    private string endDateInput = "";
 
     protected override async Task OnInitializedAsync()
     {
@@ -144,6 +144,8 @@
             EndsAtUtc = DateTimeOffset.UtcNow.AddDays(7),
             Prizes = [new DonateLotteryPrize { Probability = 100m }]
         };
+        startDateInput = editing.StartsAtUtc.LocalDateTime.ToString("yyyy-MM-ddTHH:mm");
+        endDateInput = editing.EndsAtUtc.LocalDateTime.ToString("yyyy-MM-ddTHH:mm");
         editorVisible = true;
         return Task.CompletedTask;
     }
@@ -174,6 +176,8 @@
                 IsGrandPrize = prize.IsGrandPrize
             }).ToList()
         };
+        startDateInput = editing.StartsAtUtc.LocalDateTime.ToString("yyyy-MM-ddTHH:mm");
+        endDateInput = editing.EndsAtUtc.LocalDateTime.ToString("yyyy-MM-ddTHH:mm");
         editorVisible = true;
     }
 
@@ -183,6 +187,7 @@
         if (editing is null) return;
         try
         {
+            ApplyDateInputs();
             await DonateLotteryActivityApiClient.SaveAsync(editing);
             await CloseEditorAsync();
             await ReloadAsync();
@@ -238,28 +243,25 @@
             : $"{baseUrl}?sessionToken={Uri.EscapeDataString(sessionToken)}";
     }
 
-    private void OnStartDateChanged(ChangeEventArgs args) => SetDate(args.Value?.ToString(), isStart: true);
-    private void OnEndDateChanged(ChangeEventArgs args) => SetDate(args.Value?.ToString(), isStart: false);
-    private void SetDate(string? value, bool isStart)
+    private void ApplyDateInputs()
     {
-        if (editing is null || string.IsNullOrWhiteSpace(value))
+        if (!TryConvertLocalDate(startDateInput, out var start) || !TryConvertLocalDate(endDateInput, out var end))
         {
-            return;
+            throw new InvalidOperationException("請輸入有效的活動開始與結束時間。");
         }
 
-        if (!DateTime.TryParseExact(value, "yyyy-MM-ddTHH:mm", CultureInfo.InvariantCulture, DateTimeStyles.None, out var date))
-        {
-            return;
-        }
+        editing!.StartsAtUtc = start;
+        editing.EndsAtUtc = end;
+    }
 
-        var instant = new DateTimeOffset(DateTime.SpecifyKind(date, DateTimeKind.Local)).ToUniversalTime();
-        if (isStart)
-        {
-            editing.StartsAtUtc = instant;
-        }
-        else
-        {
-            editing.EndsAtUtc = instant;
-        }
+    private void OnStartDateInput(ChangeEventArgs args) => startDateInput = args.Value?.ToString() ?? "";
+    private void OnEndDateInput(ChangeEventArgs args) => endDateInput = args.Value?.ToString() ?? "";
+
+    private static bool TryConvertLocalDate(string value, out DateTimeOffset instant)
+    {
+        instant = default;
+        if (!DateTime.TryParseExact(value, "yyyy-MM-ddTHH:mm", CultureInfo.InvariantCulture, DateTimeStyles.None, out var date)) return false;
+        instant = new DateTimeOffset(DateTime.SpecifyKind(date, DateTimeKind.Local)).ToUniversalTime();
+        return true;
     }
 }
