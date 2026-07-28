@@ -85,9 +85,32 @@
             <div class="donate-reveal-prize">@latestWin.PrizeName</div>
             <div class="donate-reveal-congratulation">@(aiCongratulation ?? PolaroidFallbackCongratulation)</div>
             @if (IsGrandPrize) { <div class="grand-prize-banner">★ 最大獎 ★</div> }
-            <div class="donate-reveal-donor">@latestWin.DonorName · NT$@latestWin.Amount.ToString("N0")</div>
-            @if (!string.IsNullOrWhiteSpace(latestWin.DonationMessage)) { <div class="donate-reveal-message">「@latestWin.DonationMessage」</div> }
-            @if (!string.IsNullOrWhiteSpace(latestWin.PaymentMethod)) { <small>@latestWin.PaymentMethod</small> }
+            <section class="donate-reveal-details" aria-label="本次 Donate 資訊">
+                <dl class="donate-reveal-details-grid">
+                    <div class="donate-reveal-detail donate-reveal-donor">
+                        <dt>贊助者</dt>
+                        <dd>@latestWin.DonorName</dd>
+                    </div>
+                    <div class="donate-reveal-detail donate-reveal-amount">
+                        <dt>贊助金額</dt>
+                        <dd>NT$@latestWin.Amount.ToString("N0")</dd>
+                    </div>
+                    @if (!string.IsNullOrWhiteSpace(latestWin.PaymentMethod))
+                    {
+                        <div class="donate-reveal-detail donate-reveal-payment">
+                            <dt>付款方式</dt>
+                            <dd>@latestWin.PaymentMethod</dd>
+                        </div>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(latestWin.DonationMessage))
+                    {
+                        <div class="donate-reveal-detail donate-reveal-message">
+                            <dt>留言</dt>
+                            <dd>@latestWin.DonationMessage</dd>
+                        </div>
+                    }
+                </dl>
+            </section>
         </div>
     }
 </div>
@@ -111,13 +134,14 @@ else
 }
 
 <style>
-    .donate-obs-shell { min-height: 100vh; display:grid; place-items:center; background:transparent; color:white; font-family:system-ui,sans-serif; }
+    .obs-layout:has(.donate-obs-shell) { align-items:flex-start; overflow-x:hidden; overflow-y:auto; }
+    .donate-obs-shell { width:100%; min-height:100%; display:grid; place-items:center; background:transparent; color:white; font-family:system-ui,sans-serif; }
     .donate-obs-empty { text-align:center; padding:2rem 3rem; border-radius:1.5rem; background:rgba(8,10,26,.72); font-size:2rem; }
-    .donate-reveal { text-align:center; padding:2rem; animation:donate-reveal .65s cubic-bezier(.16,1,.3,1); text-shadow:0 3px 18px #000; position:relative; }
+    .donate-reveal { width:min(94vw,72rem); box-sizing:border-box; display:grid; justify-items:center; gap:clamp(.45rem,1vh,.9rem); text-align:center; padding:clamp(.75rem,2vh,1.5rem); animation:donate-reveal .65s cubic-bezier(.16,1,.3,1); text-shadow:0 3px 18px #000; position:relative; overflow-x:clip; }
     .polaroid-template-classic { --polaroid-accent:#ffd166; --polaroid-surface:linear-gradient(135deg,#6d28d9,#f59e0b); }
     .polaroid-template-celebration { --polaroid-accent:#f9a8d4; --polaroid-surface:linear-gradient(135deg,#ec4899,#7c3aed 52%,#22d3ee); }
     .donate-reveal::before { content:""; position:absolute; inset:-2.5rem; pointer-events:none; background:radial-gradient(circle at center, rgba(255,255,255,.16), transparent 60%); opacity:.7; filter:blur(14px); }
-    .draw-prop { min-height:12rem; display:grid; place-items:center; margin:.25rem auto 1rem; perspective:1200px; position:relative; }
+    .draw-prop { min-height:clamp(7rem,16vh,10rem); display:grid; place-items:center; margin:0 auto; perspective:1200px; position:relative; }
     .draw-prop > * { position:relative; }
     .animation-ichiban .ichiban-stage { width:min(22rem, 72vw); height:10rem; display:grid; place-items:center; position:relative; }
     .ichiban-curtain { position:absolute; top:0; bottom:0; width:40%; background:linear-gradient(180deg, rgba(190,24,93,.95), rgba(127,29,29,.95)); border:4px solid #fbbf24; box-shadow:inset 0 0 28px rgba(255,255,255,.2); }
@@ -160,19 +184,36 @@ else
     .grand-prize { animation:grand-flash .8s ease-in-out infinite alternate, grand-scale 1.4s ease-in-out infinite alternate; }
     .grand-prize::after { content:""; position:absolute; inset:-4rem; pointer-events:none; background:conic-gradient(from 0deg, transparent 0 15%, rgba(255,255,255,.55) 20%, transparent 25% 40%, rgba(251,191,36,.55) 45%, transparent 50% 65%, rgba(255,255,255,.45) 70%, transparent 75% 100%); mask:radial-gradient(circle, transparent 0 38%, #000 52%); animation:grand-spin 3.5s linear infinite; }
     .grand-prize-banner { color:#fff7d6; font-size:clamp(1.2rem,3vw,2.3rem); font-weight:950; letter-spacing:.2em; text-shadow:0 0 24px rgba(255,240,140,.9); }
-    .donate-reveal-label { color:#ffd166; font-weight:900; letter-spacing:.22em; margin-bottom:1rem; }
-    .donate-reveal-image { max-width:min(68vw,640px); max-height:62vh; object-fit:contain; border:6px solid var(--polaroid-accent,#ffd166); border-radius:1.25rem; box-shadow:0 0 45px color-mix(in srgb,var(--polaroid-accent,#ffd166) 80%,transparent); }
-    .donate-reveal-fallback { width:min(68vw,640px); aspect-ratio:1; display:grid; place-items:center; border:6px solid var(--polaroid-accent,#ffd166); border-radius:1.25rem; background:var(--polaroid-surface,linear-gradient(135deg,#6d28d9,#f59e0b)); font-size:clamp(2rem,7vw,5rem); font-weight:900; }
-    .donate-reveal-prize { font-size:clamp(2rem,6vw,4.5rem); font-weight:900; margin-top:1rem; }
-    .donate-reveal-congratulation { margin:.5rem auto; color:var(--polaroid-accent,#ffd166); font-size:clamp(1.1rem,2.8vw,1.8rem); font-weight:800; }
-    .donate-reveal-donor { font-size:clamp(1.15rem,3vw,2rem); }
-    .donate-reveal-message { margin-top:.5rem; font-size:clamp(1rem,2.4vw,1.6rem); }
+    .donate-reveal-label { max-width:100%; color:#ffd166; font-weight:900; letter-spacing:.16em; overflow-wrap:anywhere; }
+    .donate-reveal-image { display:block; width:auto; max-width:min(70vw,34rem); height:auto; max-height:min(30vh,20rem); object-fit:contain; border:6px solid var(--polaroid-accent,#ffd166); border-radius:1.25rem; box-shadow:0 0 45px color-mix(in srgb,var(--polaroid-accent,#ffd166) 80%,transparent); }
+    .donate-reveal-fallback { width:min(70vw,34rem); height:min(30vh,20rem); min-height:8rem; display:grid; place-items:center; border:6px solid var(--polaroid-accent,#ffd166); border-radius:1.25rem; background:var(--polaroid-surface,linear-gradient(135deg,#6d28d9,#f59e0b)); font-size:clamp(2rem,7vw,5rem); font-weight:900; overflow-wrap:anywhere; }
+    .donate-reveal-prize { max-width:100%; font-size:clamp(2rem,5vw,4.25rem); font-weight:900; overflow-wrap:anywhere; }
+    .donate-reveal-congratulation { max-width:min(92vw,56rem); margin:0 auto; color:var(--polaroid-accent,#ffd166); font-size:clamp(1rem,2.4vw,1.65rem); font-weight:800; overflow-wrap:anywhere; }
+    .donate-reveal-details { width:min(92vw,58rem); box-sizing:border-box; padding:clamp(.7rem,1.8vw,1.15rem); border:1px solid color-mix(in srgb,var(--polaroid-accent,#ffd166) 65%,transparent); border-radius:1rem; background:linear-gradient(135deg,rgba(8,10,26,.88),rgba(24,26,52,.78)); box-shadow:0 10px 26px rgba(0,0,0,.28); text-align:left; }
+    .donate-reveal-details-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:.75rem 1rem; margin:0; }
+    .donate-reveal-detail { min-width:0; }
+    .donate-reveal-detail dt { margin:0 0 .2rem; color:var(--polaroid-accent,#ffd166); font-size:clamp(.78rem,1.5vw,1rem); font-weight:800; letter-spacing:.08em; text-shadow:none; }
+    .donate-reveal-detail dd { margin:0; color:#fff; font-size:clamp(1rem,2.1vw,1.5rem); font-weight:750; line-height:1.42; overflow-wrap:anywhere; word-break:break-word; }
+    .donate-reveal-amount dd { color:#fef3c7; font-variant-numeric:tabular-nums; white-space:nowrap; }
+    .donate-reveal-message { grid-column:1 / -1; padding-top:.75rem; border-top:1px solid rgba(255,255,255,.2); }
+    .donate-reveal-message dd { white-space:pre-wrap; }
     .donate-test-panel { position:fixed; right:1rem; bottom:1rem; z-index:10; max-width:24rem; padding:1rem; border-radius:.75rem; background:#fff; color:#172033; box-shadow:0 8px 30px rgba(0,0,0,.35); }
     .donate-test-panel-header { display:flex; justify-content:space-between; align-items:center; }
     .donate-test-panel input { display:block; width:100%; margin:.5rem 0; padding:.45rem; }
     .donate-test-panel button { padding:.45rem .75rem; border:0; border-radius:.35rem; background:#2563eb; color:#fff; }
     .donate-test-close { font-size:1.25rem; line-height:1; }
     .donate-test-launch { position:fixed; right:1rem; bottom:1rem; z-index:10; padding:.75rem 1rem; border:0; border-radius:.5rem; background:#2563eb; color:#fff; font-weight:800; box-shadow:0 6px 20px rgba(0,0,0,.35); }
+    @@media (max-width:46rem) {
+        .donate-reveal { width:100%; padding:.75rem .5rem; }
+        .donate-reveal-details { width:100%; border-radius:.75rem; }
+        .donate-reveal-details-grid { grid-template-columns:1fr 1fr; gap:.65rem .75rem; }
+        .donate-reveal-payment, .donate-reveal-message { grid-column:1 / -1; }
+        .donate-reveal-image { max-width:82vw; max-height:27vh; }
+        .donate-reveal-fallback { width:82vw; height:27vh; }
+    }
+    @@media (prefers-reduced-motion:reduce) {
+        .donate-reveal, .donate-reveal *, .donate-reveal::before, .donate-reveal::after { animation:none !important; }
+    }
     @@keyframes donate-reveal { from { opacity:0; transform:scale(.45) rotate(-4deg); } to { opacity:1; transform:scale(1) rotate(0); } }
     @@keyframes curtain-open-left { from { transform:scaleX(1); } to { transform:scaleX(.82) rotate(-1.5deg); } }
     @@keyframes curtain-open-right { from { transform:scaleX(1); } to { transform:scaleX(.82) rotate(1.5deg); } }
