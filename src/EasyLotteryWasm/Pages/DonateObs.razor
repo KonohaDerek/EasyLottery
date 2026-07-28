@@ -79,37 +79,11 @@
             @if (!string.IsNullOrWhiteSpace(latestWin.PrizeImageUrl) && !prizeImageFailed)
             {
                 <img class="donate-reveal-image" src="@latestWin.PrizeImageUrl" alt="@latestWin.PrizeName" @onerror="() => prizeImageFailed = true" />
+                <div class="donate-reveal-prize">@latestWin.PrizeName</div>
             }
             else { <div class="donate-reveal-fallback">@latestWin.PrizeName</div> }
-            <div class="donate-reveal-prize">@latestWin.PrizeName</div>
             <div class="donate-reveal-congratulation">@(aiCongratulation ?? PolaroidFallbackCongratulation)</div>
             @if (IsGrandPrize) { <div class="grand-prize-banner">★ 最大獎 ★</div> }
-            <section class="donate-reveal-details" aria-label="本次 Donate 資訊">
-                <dl class="donate-reveal-details-grid">
-                    <div class="donate-reveal-detail donate-reveal-donor">
-                        <dt>贊助者</dt>
-                        <dd>@latestWin.DonorName</dd>
-                    </div>
-                    <div class="donate-reveal-detail donate-reveal-amount">
-                        <dt>贊助金額</dt>
-                        <dd>NT$@latestWin.Amount.ToString("N0")</dd>
-                    </div>
-                    @if (!string.IsNullOrWhiteSpace(latestWin.PaymentMethod))
-                    {
-                        <div class="donate-reveal-detail donate-reveal-payment">
-                            <dt>付款方式</dt>
-                            <dd>@latestWin.PaymentMethod</dd>
-                        </div>
-                    }
-                    @if (!string.IsNullOrWhiteSpace(latestWin.DonationMessage))
-                    {
-                        <div class="donate-reveal-detail donate-reveal-message">
-                            <dt>留言</dt>
-                            <dd>@latestWin.DonationMessage</dd>
-                        </div>
-                    }
-                </dl>
-            </section>
             </div>
         </div>
     }
@@ -190,18 +164,11 @@ else
     .grand-prize::after { content:""; position:absolute; inset:-4rem; pointer-events:none; background:conic-gradient(from 0deg, transparent 0 15%, rgba(255,255,255,.55) 20%, transparent 25% 40%, rgba(251,191,36,.55) 45%, transparent 50% 65%, rgba(255,255,255,.45) 70%, transparent 75% 100%); mask:radial-gradient(circle, transparent 0 38%, #000 52%); animation:grand-spin 3.5s linear infinite; }
     .grand-prize-banner { color:#fff7d6; font-size:clamp(1.2rem,3vw,2.3rem); font-weight:950; letter-spacing:.2em; text-shadow:0 0 24px rgba(255,240,140,.9); }
     .donate-reveal-label { max-width:100%; color:#ffd166; font-weight:900; letter-spacing:.16em; overflow-wrap:anywhere; }
-    .donate-reveal-image { display:block; width:auto; max-width:min(70vw,34rem); height:auto; max-height:min(30vh,20rem); object-fit:contain; border:6px solid var(--polaroid-accent,#ffd166); border-radius:1.25rem; box-shadow:0 0 45px color-mix(in srgb,var(--polaroid-accent,#ffd166) 80%,transparent); }
-    .donate-reveal-fallback { width:min(70vw,34rem); height:min(30vh,20rem); min-height:8rem; display:grid; place-items:center; border:6px solid var(--polaroid-accent,#ffd166); border-radius:1.25rem; background:var(--polaroid-surface,linear-gradient(135deg,#6d28d9,#f59e0b)); font-size:clamp(2rem,7vw,5rem); font-weight:900; overflow-wrap:anywhere; }
-    .donate-reveal-prize { max-width:100%; font-size:clamp(2rem,5vw,4.25rem); font-weight:900; overflow-wrap:anywhere; }
-    .donate-reveal-congratulation { max-width:min(92vw,56rem); margin:0 auto; color:var(--polaroid-accent,#ffd166); font-size:clamp(1rem,2.4vw,1.65rem); font-weight:800; overflow-wrap:anywhere; }
-    .donate-reveal-details { width:min(92vw,58rem); box-sizing:border-box; padding:clamp(.7rem,1.8vw,1.15rem); border:1px solid color-mix(in srgb,var(--polaroid-accent,#ffd166) 65%,transparent); border-radius:1rem; background:linear-gradient(135deg,rgba(8,10,26,.88),rgba(24,26,52,.78)); box-shadow:0 10px 26px rgba(0,0,0,.28); text-align:left; }
-    .donate-reveal-details-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:.75rem 1rem; margin:0; }
-    .donate-reveal-detail { min-width:0; }
-    .donate-reveal-detail dt { margin:0 0 .2rem; color:var(--polaroid-accent,#ffd166); font-size:clamp(.78rem,1.5vw,1rem); font-weight:800; letter-spacing:.08em; text-shadow:none; }
-    .donate-reveal-detail dd { margin:0; color:#fff; font-size:clamp(1rem,2.1vw,1.5rem); font-weight:750; line-height:1.42; overflow-wrap:anywhere; word-break:break-word; }
-    .donate-reveal-amount dd { color:#fef3c7; font-variant-numeric:tabular-nums; white-space:nowrap; }
-    .donate-reveal-message { grid-column:1 / -1; padding-top:.75rem; border-top:1px solid rgba(255,255,255,.2); }
-    .donate-reveal-message dd { white-space:pre-wrap; }
+    .donate-result-content { width:min(92vw,38rem); display:grid; justify-items:center; gap:clamp(.4rem,1vh,.7rem); }
+    .donate-reveal-image { display:block; width:auto; max-width:min(78vw,32rem); height:auto; max-height:min(28vh,16rem); object-fit:contain; border:5px solid var(--polaroid-accent,#ffd166); border-radius:1rem; box-shadow:0 0 38px color-mix(in srgb,var(--polaroid-accent,#ffd166) 80%,transparent); }
+    .donate-reveal-fallback { width:min(78vw,32rem); min-height:clamp(7rem,16vh,11rem); padding:clamp(1rem,3vw,2rem); box-sizing:border-box; display:grid; place-items:center; border:5px solid var(--polaroid-accent,#ffd166); border-radius:1rem; background:var(--polaroid-surface,linear-gradient(135deg,#6d28d9,#f59e0b)); font-size:clamp(1.8rem,5vw,3.5rem); font-weight:900; line-height:1.2; overflow-wrap:anywhere; }
+    .donate-reveal-prize { max-width:100%; font-size:clamp(1.6rem,4vw,3rem); font-weight:900; line-height:1.2; overflow-wrap:anywhere; }
+    .donate-reveal-congratulation { max-width:100%; margin:0 auto; color:var(--polaroid-accent,#ffd166); font-size:clamp(.95rem,2.1vw,1.35rem); font-weight:800; line-height:1.4; overflow-wrap:anywhere; }
     .donate-test-panel { position:fixed; right:1rem; bottom:1rem; z-index:10; max-width:24rem; padding:1rem; border-radius:.75rem; background:#fff; color:#172033; box-shadow:0 8px 30px rgba(0,0,0,.35); }
     .donate-test-panel-header { display:flex; justify-content:space-between; align-items:center; }
     .donate-test-panel input { display:block; width:100%; margin:.5rem 0; padding:.45rem; }
@@ -210,11 +177,8 @@ else
     .donate-test-launch { position:fixed; right:1rem; bottom:1rem; z-index:10; padding:.75rem 1rem; border:0; border-radius:.5rem; background:#2563eb; color:#fff; font-weight:800; box-shadow:0 6px 20px rgba(0,0,0,.35); }
     @@media (max-width:46rem) {
         .donate-reveal { width:100%; padding:.75rem .5rem; }
-        .donate-reveal-details { width:100%; border-radius:.75rem; }
-        .donate-reveal-details-grid { grid-template-columns:1fr 1fr; gap:.65rem .75rem; }
-        .donate-reveal-payment, .donate-reveal-message { grid-column:1 / -1; }
         .donate-reveal-image { max-width:82vw; max-height:27vh; }
-        .donate-reveal-fallback { width:82vw; height:27vh; }
+        .donate-reveal-fallback { width:82vw; }
     }
     @@media (prefers-reduced-motion:reduce) {
         .donate-reveal, .donate-reveal *, .donate-reveal::before, .donate-reveal::after { animation:none !important; }
@@ -265,6 +229,7 @@ else
     private string testResult = "";
     private string? aiCongratulation;
     private int AnimationDurationSeconds => Math.Clamp(activity?.AnimationDurationSeconds ?? 8, 3, 30);
+    private bool ShowDonateInformation => activity?.ShowDonateInformation ?? true;
     private string RevealPhaseClass => revealPhase switch { DonateRevealPhase.Notification => "notification", DonateRevealPhase.Animation => "animation", _ => "reveal" };
     private string AnimationClass => activity?.Animation switch
     {
@@ -357,10 +322,10 @@ else
         {
             observedWinId = newestWin.Id;
             latestWin = newestWin;
-            revealPhase = DonateRevealPhase.Notification;
+            revealPhase = ShowDonateInformation ? DonateRevealPhase.Notification : DonateRevealPhase.Animation;
             prizeImageFailed = false;
             aiCongratulation = null;
-            phaseExpiresAtUtc = DateTimeOffset.UtcNow.AddSeconds(3);
+            phaseExpiresAtUtc = DateTimeOffset.UtcNow.AddSeconds(revealPhase == DonateRevealPhase.Notification ? 3 : AnimationDurationSeconds);
             resultExpiresAtUtc = null;
         }
         else if (latestWin is not null && phaseExpiresAtUtc is not null && DateTimeOffset.UtcNow >= phaseExpiresAtUtc && revealPhase == DonateRevealPhase.Notification)

@@ -13,7 +13,12 @@ public sealed class YamlDonateActivityRepository : IDonateLotteryActivityReposit
     private readonly IStorageGateProvider _storageGates;
     private readonly IDonateActivityEventStore _eventStore;
     private readonly IDeserializer _deserializer = YamlSerialization.CreateDeserializerBuilder().Build();
-    private readonly ISerializer _serializer = YamlSerialization.CreateSerializerBuilder().Build();
+    // Activity snapshots must preserve explicit false values such as ShowDonateInformation.
+    // The shared serializer omits defaults, which would otherwise turn a saved false back
+    // into the model's true default when the YAML is read again.
+    private readonly ISerializer _serializer = YamlSerialization.CreateSerializerBuilder()
+        .ConfigureDefaultValuesHandling(DefaultValuesHandling.OmitNull)
+        .Build();
 
     public string SnapshotPath { get; }
 

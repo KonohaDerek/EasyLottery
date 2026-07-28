@@ -88,12 +88,14 @@ public sealed class DonateActivityEventSourcingTests
         var expectedStart = new DateTimeOffset(2026, 7, 26, 3, 0, 0, TimeSpan.Zero);
         var expectedEnd = new DateTimeOffset(2026, 7, 31, 3, 0, 0, TimeSpan.Zero);
 
-        await mediator.Send(new SaveDonateActivityCommand(new DonateLotteryActivity
+        var savedUpdate = await mediator.Send(new SaveDonateActivityCommand(new DonateLotteryActivity
         {
             Id = saved.Id, PublicId = saved.PublicId, Name = saved.Name, MinimumDonationAmount = 100m,
             StartsAtUtc = expectedStart, EndsAtUtc = expectedEnd, Animation = DonateLotteryAnimation.Garagara,
-            ResultDisplayDurationSeconds = 45, AnimationDurationSeconds = 12
+            ResultDisplayDurationSeconds = 45, AnimationDurationSeconds = 12, ShowDonateInformation = false
         }));
+
+        Assert.IsFalse(savedUpdate.ShowDonateInformation);
 
         var updated = (await repository.ListAsync()).Single(activity => activity.Id == saved.Id);
         Assert.AreEqual(expectedStart, updated.StartsAtUtc);
@@ -101,6 +103,7 @@ public sealed class DonateActivityEventSourcingTests
         Assert.AreEqual(DonateLotteryAnimation.Garagara, updated.Animation);
         Assert.AreEqual(45, updated.ResultDisplayDurationSeconds);
         Assert.AreEqual(12, updated.AnimationDurationSeconds);
+        Assert.IsFalse(updated.ShowDonateInformation);
     }
 
     [TestMethod]
@@ -122,6 +125,7 @@ public sealed class DonateActivityEventSourcingTests
         Assert.AreEqual("拍立得", activities[0].Name);
         Assert.AreEqual(15, activities[0].ResultDisplayDurationSeconds);
         Assert.AreEqual(8, activities[0].AnimationDurationSeconds);
+        Assert.IsTrue(activities[0].ShowDonateInformation);
     }
 
     [TestMethod]
