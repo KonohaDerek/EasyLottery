@@ -32,6 +32,11 @@ public static class DonateActivityRules
             throw new InvalidOperationException("結果顯示秒數必須介於 3 至 300 秒。");
         }
 
+        if (activity.AnimationDurationSeconds is < 3 or > 30)
+        {
+            throw new InvalidOperationException("抽獎動畫秒數必須介於 3 至 30 秒。");
+        }
+
         var normalized = Clone(activity);
         normalized.PolaroidTemplateKey = string.IsNullOrWhiteSpace(normalized.PolaroidTemplateKey)
             ? "classic"
@@ -89,6 +94,7 @@ public static class DonateActivityRules
             PolaroidTemplateKey = source.PolaroidTemplateKey,
             UseAiCongratulation = source.UseAiCongratulation,
             ResultDisplayDurationSeconds = source.ResultDisplayDurationSeconds,
+            AnimationDurationSeconds = source.AnimationDurationSeconds,
             IsEnabled = source.IsEnabled,
             Prizes = source.Prizes?.Select(prize => new DonateLotteryPrize
             {

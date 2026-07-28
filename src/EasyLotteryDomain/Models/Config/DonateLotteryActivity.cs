@@ -29,6 +29,8 @@ public sealed class DonateLotteryActivity
     public bool UseAiCongratulation { get; set; }
     /// <summary>Donate 抽獎結果在 OBS 顯示的秒數。</summary>
     public int ResultDisplayDurationSeconds { get; set; } = 15;
+    /// <summary>Donate 抽獎動畫在揭曉前播放的秒數。</summary>
+    public int AnimationDurationSeconds { get; set; } = 8;
     public bool IsEnabled { get; set; }
     public List<DonateLotteryPrize> Prizes { get; set; } = [];
 }

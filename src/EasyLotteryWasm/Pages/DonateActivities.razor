@@ -40,6 +40,7 @@
                     <div class="col-md-3"><Field><FieldLabel>結果模板</FieldLabel><Select TValue="string" @bind-SelectedValue="editing.PolaroidTemplateKey"><SelectItem Value="@("classic")">經典</SelectItem><SelectItem Value="@("celebration")">慶典</SelectItem></Select></Field></div>
                     <div class="col-md-2"><Field><FieldLabel>AI 恭喜文案</FieldLabel><Switch TValue="bool" @bind-Value="editing.UseAiCongratulation" /></Field></div>
                     <div class="col-md-2"><Field><FieldLabel>結果顯示秒數</FieldLabel><NumericInput TValue="int" @bind-Value="editing.ResultDisplayDurationSeconds" Min="3" Max="300" /><div class="form-text">3–300 秒；到期後 OBS 會回到透明待機。</div></Field></div>
+                    <div class="col-md-2"><Field><FieldLabel>抽獎動畫秒數</FieldLabel><NumericInput TValue="int" @bind-Value="editing.AnimationDurationSeconds" Min="3" Max="30" /><div class="form-text">先顯示贊助通知，再播放動畫後揭曉。</div></Field></div>
                     <div class="col-md-4"><Field><FieldLabel>開始時間（本地時區）</FieldLabel><input class="form-control" type="datetime-local" value="@startDateInput" @oninput="OnStartDateInput" /></Field></div>
                     <div class="col-md-4"><Field><FieldLabel>結束時間（本地時區）</FieldLabel><input class="form-control" type="datetime-local" value="@endDateInput" @oninput="OnEndDateInput" /></Field></div>
                     <div class="col-md-2"><Field><FieldLabel>啟用</FieldLabel><Switch TValue="bool" @bind-Value="editing.IsEnabled" /></Field></div>
@@ -160,6 +161,7 @@
             PolaroidTemplateKey = string.IsNullOrWhiteSpace(activity.PolaroidTemplateKey) ? "classic" : activity.PolaroidTemplateKey,
             UseAiCongratulation = activity.UseAiCongratulation,
             ResultDisplayDurationSeconds = activity.ResultDisplayDurationSeconds <= 0 ? 15 : activity.ResultDisplayDurationSeconds,
+            AnimationDurationSeconds = activity.AnimationDurationSeconds <= 0 ? 8 : activity.AnimationDurationSeconds,
             MinimumDonationAmount = activity.MinimumDonationAmount,
             StartsAtUtc = activity.StartsAtUtc,
             EndsAtUtc = activity.EndsAtUtc,
