@@ -75,6 +75,25 @@ public sealed class DonateActivityEventSourcingTests
         Assert.AreEqual(DonateActivityEventTypes.Deleted, events[1].Type);
     }
 
+    [TestMethod]
+    public async Task ListAsync_ReadsDonateActivitiesFromSplitYamlDocument()
+    {
+        var services = CreateServices();
+        var repository = (YamlDonateActivityRepository)services.GetRequiredService<IDonateLotteryActivityRepository>();
+        await File.WriteAllTextAsync(repository.SnapshotPath, """
+            donateLotteryActivities:
+            - id: 7
+              publicId: 7b6e3891-53c3-4c6f-8433-75bdbb9b7f38
+              name: 拍立得
+            """);
+
+        var activities = await repository.ListAsync();
+
+        Assert.AreEqual(1, activities.Count);
+        Assert.AreEqual(7, activities[0].Id);
+        Assert.AreEqual("拍立得", activities[0].Name);
+    }
+
     private static ServiceProvider CreateServices()
     {
         var directory = Path.Combine(Path.GetTempPath(), $"easy-lottery-cqrs-{Guid.NewGuid():N}");
