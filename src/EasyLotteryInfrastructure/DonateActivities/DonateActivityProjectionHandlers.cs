@@ -66,6 +66,7 @@ public sealed class DonateActivityProjectionHandlers :
             Animation = source.Animation,
             PolaroidTemplateKey = source.PolaroidTemplateKey,
             UseAiCongratulation = source.UseAiCongratulation,
+            ShowDonateInformation = source.ShowDonateInformation,
             ResultDisplayDurationSeconds = source.ResultDisplayDurationSeconds,
             AnimationDurationSeconds = source.AnimationDurationSeconds,
             IsEnabled = source.IsEnabled,
