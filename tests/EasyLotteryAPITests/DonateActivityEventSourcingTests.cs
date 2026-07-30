@@ -91,7 +91,7 @@ public sealed class DonateActivityEventSourcingTests
         var savedUpdate = await mediator.Send(new SaveDonateActivityCommand(new DonateLotteryActivity
         {
             Id = saved.Id, PublicId = saved.PublicId, Name = saved.Name, MinimumDonationAmount = 100m,
-            StartsAtUtc = expectedStart, EndsAtUtc = expectedEnd, Animation = DonateLotteryAnimation.Garagara,
+            StartsAtUtc = expectedStart, EndsAtUtc = expectedEnd, Animation = DonateLotteryAnimation.ScratchCard,
             ResultDisplayDurationSeconds = 45, AnimationDurationSeconds = 12, ShowDonateInformation = false
         }));
 
@@ -100,7 +100,7 @@ public sealed class DonateActivityEventSourcingTests
         var updated = (await repository.ListAsync()).Single(activity => activity.Id == saved.Id);
         Assert.AreEqual(expectedStart, updated.StartsAtUtc);
         Assert.AreEqual(expectedEnd, updated.EndsAtUtc);
-        Assert.AreEqual(DonateLotteryAnimation.Garagara, updated.Animation);
+        Assert.AreEqual(DonateLotteryAnimation.ScratchCard, updated.Animation);
         Assert.AreEqual(45, updated.ResultDisplayDurationSeconds);
         Assert.AreEqual(12, updated.AnimationDurationSeconds);
         Assert.IsFalse(updated.ShowDonateInformation);
@@ -188,6 +188,7 @@ public sealed class DonateActivityEventSourcingTests
         var services = new ServiceCollection();
         services.AddSingleton<IConfiguration>(configuration);
         services.AddSingleton<IHostEnvironment>(new TestEnvironment(directory));
+        services.AddLogging();
         services.AddEasyLotteryInfrastructure();
         services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblies(
             typeof(GetDonateActivitiesQuery).Assembly,
