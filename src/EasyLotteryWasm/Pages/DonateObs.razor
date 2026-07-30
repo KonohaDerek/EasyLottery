@@ -74,6 +74,20 @@
                         <div class="fortune-slip">御神籤</div>
                     </div>
                 }
+                else if (activity.Animation == DonateLotteryAnimation.ScratchCard)
+                {
+                    <div class="scratch-stage">
+                        <div class="scratch-card">
+                            <div class="scratch-card-heading">LUCKY SCRATCH</div>
+                            <div class="scratch-card-result">@latestWin.PrizeName</div>
+                            <div class="scratch-silver"></div>
+                            <div class="scratch-brush"></div>
+                            <div class="scratch-spark scratch-spark-one"></div>
+                            <div class="scratch-spark scratch-spark-two"></div>
+                            <div class="scratch-spark scratch-spark-three"></div>
+                        </div>
+                    </div>
+                }
             </div>
             <div class="donate-result-content">
             @if (!string.IsNullOrWhiteSpace(latestWin.PrizeImageUrl) && !prizeImageFailed)
@@ -160,6 +174,14 @@ else
     .coin-2 { left:50%; top:-.2rem; transform:translateX(-50%); animation:coin-drop-center 1.2s ease-in .15s infinite; }
     .coin-3 { right:2rem; top:1.1rem; animation:coin-drop-right 1.2s ease-in .3s infinite; }
     .fortune-slip { position:absolute; right:0; bottom:-.25rem; padding:.6rem 1rem; color:#5b1d12; background:#fff7ed; font-size:1rem; font-weight:900; border-radius:.4rem; box-shadow:0 0 18px rgba(255,247,237,.75); writing-mode:vertical-rl; animation:slip-pop .85s .35s both; }
+    .animation-scratch-card .scratch-stage { width:min(30rem,86vw); height:14rem; display:grid; place-items:center; position:relative; }
+    .scratch-card { width:min(28rem,82vw); height:12rem; position:relative; display:grid; place-items:center; overflow:hidden; border:6px solid #fbbf24; border-radius:1.15rem; background:linear-gradient(135deg,#4c1d95,#be185d 54%,#f59e0b); box-shadow:0 .8rem 1.8rem rgba(0,0,0,.38),inset 0 0 0 3px rgba(255,255,255,.25); }
+    .scratch-card-heading { position:absolute; top:.7rem; left:0; right:0; z-index:1; color:#fef3c7; font-size:clamp(.7rem,1.8vw,1rem); font-weight:950; letter-spacing:.24em; }
+    .scratch-card-result { z-index:1; max-width:82%; color:#fff; font-size:clamp(1.7rem,5.6vw,3.8rem); font-weight:950; line-height:1.15; overflow-wrap:anywhere; text-shadow:0 4px 16px rgba(20,8,43,.78); }
+    .scratch-silver { position:absolute; inset:2.3rem 1.1rem 1.15rem; z-index:2; border:2px solid rgba(255,255,255,.72); border-radius:.7rem; background:repeating-linear-gradient(112deg,#9ca3af 0 .35rem,#e5e7eb .35rem .7rem,#6b7280 .7rem 1.05rem,#d1d5db 1.05rem 1.45rem); box-shadow:inset 0 0 1.1rem rgba(255,255,255,.78),0 0 .7rem rgba(255,255,255,.42); animation:silver-scratch var(--draw-duration) cubic-bezier(.15,.75,.3,1) forwards; }
+    .scratch-silver::after { content:""; position:absolute; inset:0; background:repeating-linear-gradient(18deg,transparent 0 1rem,rgba(30,41,59,.32) 1.05rem 1.2rem,transparent 1.25rem 2.1rem); animation:scratch-grooves var(--draw-duration) linear forwards; }
+    .scratch-brush { position:absolute; z-index:3; width:2.7rem; height:2.7rem; border:5px solid rgba(255,255,255,.96); border-radius:50%; box-shadow:0 0 0 .35rem rgba(71,85,105,.6),0 .3rem .7rem rgba(0,0,0,.35); background:radial-gradient(circle at 35% 30%,#fff,#cbd5e1 48%,#64748b 52%); animation:scratch-brush-path var(--draw-duration) ease-in-out forwards; }
+    .scratch-spark { position:absolute; z-index:4; width:.45rem; height:.45rem; border-radius:50%; background:#e5e7eb; box-shadow:0 0 .6rem #fff; opacity:0; animation:scratch-spark var(--draw-duration) ease-out forwards; }.scratch-spark-one{left:28%;top:38%}.scratch-spark-two{right:24%;top:53%;animation-delay:calc(var(--draw-duration) * .08)}.scratch-spark-three{left:48%;bottom:18%;animation-delay:calc(var(--draw-duration) * .16)}
     .grand-prize { animation:grand-flash .8s ease-in-out infinite alternate, grand-scale 1.4s ease-in-out infinite alternate; }
     .grand-prize::after { content:""; position:absolute; inset:-4rem; pointer-events:none; background:conic-gradient(from 0deg, transparent 0 15%, rgba(255,255,255,.55) 20%, transparent 25% 40%, rgba(251,191,36,.55) 45%, transparent 50% 65%, rgba(255,255,255,.45) 70%, transparent 75% 100%); mask:radial-gradient(circle, transparent 0 38%, #000 52%); animation:grand-spin 3.5s linear infinite; }
     .grand-prize-banner { color:#fff7d6; font-size:clamp(1.2rem,3vw,2.3rem); font-weight:950; letter-spacing:.2em; text-shadow:0 0 24px rgba(255,240,140,.9); }
@@ -205,6 +227,10 @@ else
     @@keyframes coin-drop-center { from { transform:translateX(-50%) translateY(-3.2rem); opacity:0; } 25%,80% { opacity:1; } to { transform:translateX(-50%) translateY(3rem); opacity:0; } }
     @@keyframes coin-drop-right { from { transform:translateY(-3rem) rotate(15deg); opacity:0; } 25%,80% { opacity:1; } to { transform:translateY(3rem) rotate(-18deg); opacity:0; } }
     @@keyframes slip-pop { from { transform:translateY(4rem) scale(.4); opacity:0; } to { transform:translateY(0) scale(1); opacity:1; } }
+    @@keyframes silver-scratch { 0%,18% { opacity:1; clip-path:inset(0); } 36% { opacity:1; clip-path:polygon(0 0,100% 0,100% 100%,0 100%,0 74%,18% 62%,7% 49%,31% 36%,14% 18%,0 22%); } 58% { opacity:.92; clip-path:polygon(0 0,100% 0,100% 100%,0 100%,0 82%,25% 69%,8% 54%,42% 44%,18% 27%,57% 17%,36% 0); } 78% { opacity:.55; clip-path:polygon(0 0,100% 0,100% 100%,0 100%,0 91%,36% 75%,15% 60%,62% 46%,28% 30%,78% 17%,53% 0); } 100% { opacity:0; clip-path:inset(0); } }
+    @@keyframes scratch-grooves { 0% { transform:translateX(-110%) skewX(-16deg); } 100% { transform:translateX(110%) skewX(-16deg); } }
+    @@keyframes scratch-brush-path { 0% { transform:translate(-10rem,-3rem) rotate(-18deg); opacity:0; } 10% { opacity:1; } 28% { transform:translate(7rem,1rem) rotate(22deg); } 45% { transform:translate(-4rem,3rem) rotate(-28deg); } 63% { transform:translate(9rem,-.5rem) rotate(20deg); } 82% { transform:translate(-1rem,3.4rem) rotate(-18deg); opacity:1; } 100% { transform:translate(10rem,5rem) rotate(18deg); opacity:0; } }
+    @@keyframes scratch-spark { 12% { opacity:0; transform:scale(.2); } 35%,75% { opacity:1; transform:translate(2rem,-1.2rem) scale(1); } 100% { opacity:0; transform:translate(4rem,-2.4rem) scale(.3); } }
     @@keyframes grand-flash { from { filter:drop-shadow(0 0 8px #fbbf24); } to { filter:drop-shadow(0 0 35px #fef08a); transform:scale(1.04); } }
     @@keyframes grand-scale { from { transform:scale(1); } to { transform:scale(1.06); } }
     @@keyframes grand-spin { to { transform:rotate(360deg); } }
@@ -236,6 +262,7 @@ else
         DonateLotteryAnimation.Gacha => "animation-gacha",
         DonateLotteryAnimation.Garagara => "animation-garagara",
         DonateLotteryAnimation.MoneyBox => "animation-money-box",
+        DonateLotteryAnimation.ScratchCard => "animation-scratch-card",
         _ => "animation-ichiban"
     };
     private string AnimationKey => activity?.Animation switch
@@ -243,6 +270,7 @@ else
         DonateLotteryAnimation.Gacha => "gacha",
         DonateLotteryAnimation.Garagara => "garagara",
         DonateLotteryAnimation.MoneyBox => "moneybox",
+        DonateLotteryAnimation.ScratchCard => "scratch-card",
         _ => "ichiban"
     };
     private string PolaroidTemplateClass => $"polaroid-template-{(string.IsNullOrWhiteSpace(activity?.PolaroidTemplateKey) ? "classic" : activity.PolaroidTemplateKey)}";

@@ -11,7 +11,8 @@ public enum DonateLotteryAnimation
     IchibanKuji,
     Gacha,
     Garagara,
-    MoneyBox
+    MoneyBox,
+    ScratchCard
 }
 
 public sealed class DonateLotteryActivity
