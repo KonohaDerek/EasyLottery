@@ -276,7 +276,9 @@ else
     private string PolaroidTemplateClass => $"polaroid-template-{(string.IsNullOrWhiteSpace(activity?.PolaroidTemplateKey) ? "classic" : activity.PolaroidTemplateKey)}";
     private string PolaroidFallbackCongratulation => latestWin is null
         ? ""
-        : PolaroidResultTemplateCatalog.Resolve(activity?.PolaroidTemplateKey).FallbackCongratulation
+        : !latestWin.IsWinning
+            ? $"感謝 {latestWin.DonorName} 的贊助與參與！"
+            : PolaroidResultTemplateCatalog.Resolve(activity?.PolaroidTemplateKey).FallbackCongratulation
             .Replace("{donor}", latestWin.DonorName, StringComparison.Ordinal)
             .Replace("{prize}", latestWin.PrizeName, StringComparison.Ordinal);
     private bool IsGrandPrize => latestWin is not null && activity?.Prizes.Any(prize => prize.IsGrandPrize && string.Equals(prize.Name, latestWin.PrizeName, StringComparison.Ordinal)) == true;
@@ -366,7 +368,7 @@ else
             revealPhase = DonateRevealPhase.Reveal;
             phaseExpiresAtUtc = null;
             resultExpiresAtUtc = DateTimeOffset.UtcNow.AddSeconds(Math.Clamp(activity?.ResultDisplayDurationSeconds ?? 15, 3, 300));
-            if (activity?.UseAiCongratulation == true)
+            if (latestWin.IsWinning && activity?.UseAiCongratulation == true)
             {
                 aiCongratulation = await AiCongratulationClient.GenerateAsync(latestWin.DonorName, latestWin.PrizeName, cancellation.Token);
             }
