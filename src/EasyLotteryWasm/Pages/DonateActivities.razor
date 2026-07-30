@@ -25,7 +25,7 @@
        Centered
        Scrollable
        ShowBackdrop>
-    <ModalContent>
+    <ModalContent Class="donate-activity-editor-dialog">
         <ModalHeader>
             <ModalTitle>@EditorTitle</ModalTitle>
             <CloseButton Clicked="@CloseEditorAsync" />
@@ -85,6 +85,21 @@
         </ModalFooter>
     </ModalContent>
 </Modal>
+
+<style>
+    .donate-activity-editor-dialog {
+        width: 75vw;
+        max-width: 75vw;
+    }
+
+    @@media (max-width: 767.98px) {
+        .donate-activity-editor-dialog {
+            width: calc(100vw - 1rem);
+            max-width: calc(100vw - 1rem);
+            margin-inline: auto;
+        }
+    }
+</style>
 
 <table class="table align-middle">
     <thead><tr><th>活動</th><th>期間</th><th>最低贊助</th><th>獎項庫存</th><th>狀態</th><th></th></tr></thead>
