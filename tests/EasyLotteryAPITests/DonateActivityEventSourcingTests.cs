@@ -26,8 +26,8 @@ public sealed class DonateActivityEventSourcingTests
         {
             Name = "一番賞",
             MinimumDonationAmount = 100m,
-            StartsAtUtc = new DateTimeOffset(2026, 7, 21, 8, 0, 0, TimeSpan.Zero),
-            EndsAtUtc = new DateTimeOffset(2026, 7, 31, 8, 0, 0, TimeSpan.Zero),
+            StartsAtUtc = DateTimeOffset.UtcNow.AddDays(-1),
+            EndsAtUtc = DateTimeOffset.UtcNow.AddDays(1),
             Prizes =
             [
                 new DonateLotteryPrize { Name = "A賞", Quantity = 1, RemainingQuantity = 1, Probability = 50m },
@@ -61,8 +61,8 @@ public sealed class DonateActivityEventSourcingTests
         {
             Name = "一番賞",
             MinimumDonationAmount = 100m,
-            StartsAtUtc = new DateTimeOffset(2026, 7, 21, 8, 0, 0, TimeSpan.Zero),
-            EndsAtUtc = new DateTimeOffset(2026, 7, 31, 8, 0, 0, TimeSpan.Zero)
+            StartsAtUtc = DateTimeOffset.UtcNow.AddDays(-1),
+            EndsAtUtc = DateTimeOffset.UtcNow.AddDays(1)
         }));
 
         await mediator.Send(new DeleteDonateActivityCommand(saved.Id));
@@ -85,8 +85,8 @@ public sealed class DonateActivityEventSourcingTests
         {
             Name = "活動", MinimumDonationAmount = 100m, StartsAtUtc = DateTimeOffset.UtcNow.AddDays(-1), EndsAtUtc = DateTimeOffset.UtcNow.AddDays(1)
         }));
-        var expectedStart = new DateTimeOffset(2026, 7, 26, 3, 0, 0, TimeSpan.Zero);
-        var expectedEnd = new DateTimeOffset(2026, 7, 31, 3, 0, 0, TimeSpan.Zero);
+        var expectedStart = DateTimeOffset.UtcNow.AddDays(-1);
+        var expectedEnd = DateTimeOffset.UtcNow.AddDays(3);
 
         var savedUpdate = await mediator.Send(new SaveDonateActivityCommand(new DonateLotteryActivity
         {
