@@ -2,6 +2,7 @@
 @layout EasyLotteryWasm.Layout.ObsLayout
 @using EasyLotteryDomain.Models.Config
 @using EasyLotteryDomain.Services
+@using EasyLotteryWasm.Models
 @using Serilog
 @inject IEasyLotteryConfigStore ConfigStore
 @inject AiCongratulationClient AiCongratulationClient
@@ -239,13 +240,8 @@ else
 @code {
     [Parameter] public string ActivityRouteKey { get; set; } = "";
     private DonateLotteryActivity? activity;
-    private DonateLotteryDrawRecord? latestWin;
     private bool isLoading = true;
-    private int? observedWinId;
-    private bool hasInitializedResultCursor;
-    private DateTimeOffset? resultExpiresAtUtc;
-    private DateTimeOffset? phaseExpiresAtUtc;
-    private DonateRevealPhase revealPhase = DonateRevealPhase.Notification;
+    private readonly DonateObsRevealState revealState = new();
     private bool prizeImageFailed;
     private bool testPanelOpen;
     private string testDonorName = "測試贊助者";
@@ -255,24 +251,11 @@ else
     private string testResult = "";
     private string? aiCongratulation;
     private int AnimationDurationSeconds => Math.Clamp(activity?.AnimationDurationSeconds ?? 8, 3, 30);
-    private bool ShowDonateInformation => activity?.ShowDonateInformation ?? true;
-    private string RevealPhaseClass => revealPhase switch { DonateRevealPhase.Notification => "notification", DonateRevealPhase.Animation => "animation", _ => "reveal" };
-    private string AnimationClass => activity?.Animation switch
-    {
-        DonateLotteryAnimation.Gacha => "animation-gacha",
-        DonateLotteryAnimation.Garagara => "animation-garagara",
-        DonateLotteryAnimation.MoneyBox => "animation-money-box",
-        DonateLotteryAnimation.ScratchCard => "animation-scratch-card",
-        _ => "animation-ichiban"
-    };
-    private string AnimationKey => activity?.Animation switch
-    {
-        DonateLotteryAnimation.Gacha => "gacha",
-        DonateLotteryAnimation.Garagara => "garagara",
-        DonateLotteryAnimation.MoneyBox => "moneybox",
-        DonateLotteryAnimation.ScratchCard => "scratch-card",
-        _ => "ichiban"
-    };
+    private DonateLotteryDrawRecord? latestWin => revealState.CurrentResult;
+    private string RevealPhaseClass => revealState.Phase switch { DonateObsRevealPhase.Notification => "notification", DonateObsRevealPhase.Animation => "animation", _ => "reveal" };
+    private DonateObsAnimationPresentation AnimationPresentation => DonateObsAnimationCatalog.Resolve(activity?.Animation ?? DonateLotteryAnimation.IchibanKuji);
+    private string AnimationClass => AnimationPresentation.CssClass;
+    private string AnimationKey => AnimationPresentation.SceneKey;
     private string PolaroidTemplateClass => $"polaroid-template-{(string.IsNullOrWhiteSpace(activity?.PolaroidTemplateKey) ? "classic" : activity.PolaroidTemplateKey)}";
     private string PolaroidFallbackCongratulation => latestWin is null
         ? ""
@@ -337,46 +320,21 @@ else
             ? null
             : document.DonateLotteryDrawRecords.Where(item => item.ActivityId == activity.Id).OrderByDescending(item => item.Id).FirstOrDefault();
 
-        if (!hasInitializedResultCursor && activity is not null)
+        var transition = DonateObsRevealLifecycle.Advance(revealState, activity, newestWin, DateTimeOffset.UtcNow);
+        if (transition.IsNewResult)
         {
-            observedWinId = newestWin?.Id;
-            hasInitializedResultCursor = true;
-            latestWin = null;
-            resultExpiresAtUtc = null;
-            phaseExpiresAtUtc = null;
-            isLoading = false;
-            return;
-        }
-
-        if (newestWin?.Id is not null && newestWin.Id != observedWinId)
-        {
-            observedWinId = newestWin.Id;
-            latestWin = newestWin;
-            revealPhase = ShowDonateInformation ? DonateRevealPhase.Notification : DonateRevealPhase.Animation;
             prizeImageFailed = false;
             aiCongratulation = null;
-            phaseExpiresAtUtc = DateTimeOffset.UtcNow.AddSeconds(revealPhase == DonateRevealPhase.Notification ? 3 : AnimationDurationSeconds);
-            resultExpiresAtUtc = null;
         }
-        else if (latestWin is not null && phaseExpiresAtUtc is not null && DateTimeOffset.UtcNow >= phaseExpiresAtUtc && revealPhase == DonateRevealPhase.Notification)
+        else if (transition.EnteredReveal && latestWin is not null)
         {
-            revealPhase = DonateRevealPhase.Animation;
-            phaseExpiresAtUtc = DateTimeOffset.UtcNow.AddSeconds(AnimationDurationSeconds);
-        }
-        else if (latestWin is not null && phaseExpiresAtUtc is not null && DateTimeOffset.UtcNow >= phaseExpiresAtUtc && revealPhase == DonateRevealPhase.Animation)
-        {
-            revealPhase = DonateRevealPhase.Reveal;
-            phaseExpiresAtUtc = null;
-            resultExpiresAtUtc = DateTimeOffset.UtcNow.AddSeconds(Math.Clamp(activity?.ResultDisplayDurationSeconds ?? 15, 3, 300));
             if (latestWin.IsWinning && activity?.UseAiCongratulation == true)
             {
                 aiCongratulation = await AiCongratulationClient.GenerateAsync(latestWin.DonorName, latestWin.PrizeName, cancellation.Token);
             }
         }
-        else if (resultExpiresAtUtc is not null && DateTimeOffset.UtcNow >= resultExpiresAtUtc)
+        else if (transition.Cleared)
         {
-            latestWin = null;
-            resultExpiresAtUtc = null;
             aiCongratulation = null;
         }
         isLoading = false;
@@ -397,6 +355,4 @@ else
         var index = Math.Max(0, ordered.FindIndex(item => item.Id == prize?.Id));
         return new[] { "blue", "green", "yellow", "red", "copper", "silver" }[Math.Min(index, 5)];
     }
-
-    private enum DonateRevealPhase { Notification, Animation, Reveal }
 }
