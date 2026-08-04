@@ -1,234 +1,294 @@
 @page "/pokebox"
 @using EasyLotteryDomain.Models.Entities
 @using EasyLotteryDomain.Services
+@using EasyLotteryWasm.Services
 @using Serilog
 
 @inject PokeService PokeService
-@inject NavigationManager NavigationManager
 @inject IMessageService MessageService
+@inject IJSRuntime JSRuntime
+@inject NavigationManager NavigationManager
+@inject ObsSessionService ObsSessionService
 
-<PageTitle>戳戳樂 - 模板列表</PageTitle>
+<PageTitle>戳戳樂模板</PageTitle>
 
-<div class="pokebox-page">
-    <section class="pokebox-hero">
-        <div class="pokebox-hero-copy">
-            <div class="pokebox-eyebrow">POKE BOX CONTROL CENTER</div>
-            <h3 class="pokebox-title">戳戳樂模板管理</h3>
-            <p class="pokebox-subtitle">把模板列表、預覽和匯入匯出整理成一個更清晰的工作台，方便快速切換活動設定。</p>
+<Card class="mb-4">
+    <CardHeader><CardTitle>戳戳樂模板</CardTitle></CardHeader>
+    <CardBody>
+        <CardText>建立戳戳樂格子與揭露效果，儲存後可直接開啟正式或測試 OBS 畫面。</CardText>
+        <div class="d-flex gap-2 flex-wrap">
+            <Button Color="Color.Primary" Clicked="CreateAsync">新增模板</Button>
+            <Button Color="Color.Secondary" Clicked="SeedDefaultsAsync">載入預設模板</Button>
         </div>
+    </CardBody>
+</Card>
 
-        <div class="pokebox-hero-actions">
-            <Button Color="Color.Primary" Clicked="@NavigateToCreate">新增模板</Button>
-            <Button Color="Color.Secondary" Clicked="@SeedDefaults">載入預設模板</Button>
+<Modal Visible="@editorVisible"
+       VisibleChanged="@OnEditorVisibleChanged"
+       Centered
+       Scrollable
+       ShowBackdrop>
+    <ModalContent Class="template-editor-dialog">
+        <ModalHeader>
+            <ModalTitle>@EditorTitle</ModalTitle>
+            <CloseButton Clicked="CloseEditorAsync" />
+        </ModalHeader>
+        <ModalBody>
+            @if (editing is not null)
+            {
+                <div class="row g-3">
+                    <div class="col-md-6"><Field><FieldLabel>模板名稱</FieldLabel><TextInput @bind-Value="editing.Name" /></Field></div>
+                    <div class="col-md-6"><Field><FieldLabel>說明</FieldLabel><TextInput @bind-Value="editing.Description" /></Field></div>
+                    <div class="col-md-2"><Field><FieldLabel>行數</FieldLabel><NumericInput TValue="int" @bind-Value="editing.GridRows" Min="1" Max="10" /></Field></div>
+                    <div class="col-md-2"><Field><FieldLabel>欄數</FieldLabel><NumericInput TValue="int" @bind-Value="editing.GridColumns" Min="1" Max="10" /></Field></div>
+                    <div class="col-md-2 d-flex align-items-end"><Button Color="Color.Secondary" Clicked="ApplyGrid">套用格數</Button></div>
+                    <div class="col-md-3">
+                        <Field><FieldLabel>戳擊模式</FieldLabel><select class="form-select" @bind="editing.Mode"><option value="@PokeMode.Random">隨機</option><option value="@PokeMode.Manual">手動</option></select></Field>
+                    </div>
+                    <div class="col-md-3">
+                        <Field><FieldLabel>動畫效果</FieldLabel><select class="form-select" @bind="editing.Animation"><option value="@PokeAnimation.Burst">爆破</option><option value="@PokeAnimation.Smoke">煙霧</option><option value="@PokeAnimation.Flash">光芒</option><option value="@PokeAnimation.Bounce">彈跳</option><option value="@PokeAnimation.Flip">翻轉</option></select></Field>
+                    </div>
+                    <div class="col-md-3"><Field><FieldLabel>允許重複戳</FieldLabel><Switch TValue="bool" @bind-Value="editing.AllowRePoking" /></Field></div>
+                    <div class="col-md-3"><Field><FieldLabel>次數限制（0 = 無限）</FieldLabel><NumericInput TValue="int" @bind-Value="editing.MaxPokeCount" Min="0" /></Field></div>
+                    <div class="col-md-3"><Field><FieldLabel>啟用</FieldLabel><Switch TValue="bool" @bind-Value="EditingIsPublished" /></Field></div>
+                    <div class="col-md-3"><Field><FieldLabel>字體</FieldLabel><TextInput @bind-Value="editing.FontFamily" Placeholder="例如：Arial" /></Field></div>
+                    <div class="col-md-6"><Field><FieldLabel>背景圖片 URL</FieldLabel><TextInput @bind-Value="editing.BackgroundImageUrl" Placeholder="https://…" /></Field></div>
+                    <div class="col-md-6"><Field><FieldLabel>恭喜語句</FieldLabel><TextInput @bind-Value="editing.CongratulationMessage" /></Field></div>
+                    <div class="col-md-3"><Field><FieldLabel>Overlay 寬度</FieldLabel><NumericInput TValue="int" @bind-Value="editing.OverlayWidth" Min="320" Max="3840" /></Field></div>
+                    <div class="col-md-3"><Field><FieldLabel>Overlay 高度</FieldLabel><NumericInput TValue="int" @bind-Value="editing.OverlayHeight" Min="240" Max="2160" /></Field></div>
+                    <div class="col-md-3"><Field><FieldLabel>戳擊音效 URL</FieldLabel><TextInput @bind-Value="editing.PokeSoundUrl" Placeholder="https://…" /></Field></div>
+                    <div class="col-md-3"><Field><FieldLabel>揭露音效 URL</FieldLabel><TextInput @bind-Value="editing.OpenSoundUrl" Placeholder="https://…" /></Field></div>
+                </div>
+
+                <div class="d-flex justify-content-between align-items-center mt-4 mb-2">
+                    <div>
+                        <h5 class="mb-1">格子設定</h5>
+                        <div class="text-muted small">共 @editing.Cells.Count 格；調整行列後請按「套用格數」。</div>
+                    </div>
+                </div>
+                <div class="row g-3">
+                    @foreach (var cell in editing.Cells.OrderBy(cell => cell.Index))
+                    {
+                        <div class="col-12 col-lg-6" @key="cell">
+                            <div class="border rounded p-3 h-100" style="border-left:6px solid @cell.RevealedColor !important;">
+                                <div class="fw-bold mb-2">格 @(cell.Index + 1)</div>
+                                <div class="row g-2">
+                                    <div class="col-md-6"><Field><FieldLabel>標題</FieldLabel><TextInput @bind-Value="cell.Title" /></Field></div>
+                                    <div class="col-md-6"><Field><FieldLabel>副標</FieldLabel><TextInput @bind-Value="cell.SubTitle" /></Field></div>
+                                    <div class="col-md-6"><Field><FieldLabel>未揭露圖片 URL</FieldLabel><TextInput @bind-Value="cell.ImageUrl" /></Field></div>
+                                    <div class="col-md-6"><Field><FieldLabel>揭露後圖片 URL</FieldLabel><TextInput @bind-Value="cell.RevealedImageUrl" /></Field></div>
+                                    <div class="col-md-4"><Field><FieldLabel>揭露後顏色</FieldLabel><ColorInput @bind-Value="cell.RevealedColor" /></Field></div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </ModalBody>
+        <ModalFooter>
+            <div class="d-flex gap-2">
+                <Button Color="Color.Primary" Clicked="SaveAsync" Disabled="editing is null">儲存</Button>
+                <Button Color="Color.Secondary" Clicked="CloseEditorAsync">取消</Button>
+            </div>
+        </ModalFooter>
+    </ModalContent>
+</Modal>
+
+<style>
+    .template-editor-dialog {
+        width: 75vw;
+        max-width: 75vw;
+    }
+
+    @@media (max-width: 767.98px) {
+        .template-editor-dialog {
+            width: calc(100vw - 1rem);
+            max-width: calc(100vw - 1rem);
+            margin-inline: auto;
+        }
+    }
+</style>
+
+@if (templates is null)
+{
+    <div class="alert alert-info">載入中…</div>
+}
+else if (templates.Count == 0)
+{
+    <div class="alert alert-light border">尚無模板，請新增模板或載入預設模板。</div>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table align-middle">
+            <thead><tr><th>模板</th><th>格數</th><th>模式</th><th>動畫</th><th>狀態</th><th>操作</th></tr></thead>
+            <tbody>
+            @foreach (var template in templates)
+            {
+                <tr>
+                    <td><div class="fw-semibold">@template.Name</div><div class="text-muted small">@template.Description</div></td>
+                    <td>@template.GridRows × @template.GridColumns</td>
+                    <td>@(template.Mode == PokeMode.Random ? "隨機" : "手動")</td>
+                    <td>@GetAnimationName(template.Animation)</td>
+                    <td>@(template.PublicationStatus == TemplatePublicationStatus.Published ? "啟用" : "停用")</td>
+                    <td>
+                        <div class="d-flex gap-2 flex-wrap">
+                            <Button Color="Color.Secondary" Size="Size.Small" Clicked="() => Edit(template)">編輯</Button>
+                            @if (template.PublicationStatus == TemplatePublicationStatus.Published)
+                            {
+                                <a class="btn btn-outline-primary btn-sm" href="@BuildObsUrl(template)" target="_blank" rel="noopener noreferrer">開啟 OBS URL</a>
+                                <a class="btn btn-outline-secondary btn-sm" href="@BuildObsUrl(template, true)" target="_blank" rel="noopener noreferrer">開啟測試 OBS</a>
+                            }
+                            else
+                            {
+                                <Button Color="Color.Secondary" Size="Size.Small" Disabled>開啟 OBS URL</Button>
+                            }
+                            <Button Color="Color.Primary" Size="Size.Small" Clicked="() => DuplicateAsync(template.Id)">複製</Button>
+                            <Button Color="Color.Info" Size="Size.Small" Clicked="() => ExportAsync(template.Id)">匯出</Button>
+                            @if (!template.IsBuiltIn)
+                            {
+                                <Button Color="Color.Danger" Size="Size.Small" Clicked="() => DeleteAsync(template)">刪除</Button>
+                            }
+                        </div>
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+}
+
+<details class="card mt-4">
+    <summary class="card-header fw-semibold" style="cursor:pointer;">進階：匯入／匯出模板</summary>
+    <div class="card-body">
+        <div class="row g-3">
+            <div class="col-lg-6"><Field><FieldLabel>匯入 JSON</FieldLabel><MemoInput @bind-Value="importJson" Rows="8" Placeholder="貼上 JSON 模板內容…" /></Field><Button Color="Color.Primary" Clicked="ImportAsync">匯入</Button></div>
+            <div class="col-lg-6"><Field><FieldLabel>匯出結果</FieldLabel><MemoInput @bind-Value="exportJson" Rows="8" ReadOnly Placeholder="按下列表中的匯出後顯示於此" /></Field></div>
         </div>
-    </section>
-
-    @if (templates == null)
-    {
-        <div class="pokebox-state-panel">載入中…</div>
-    }
-    else
-    {
-        <section class="pokebox-metric-grid">
-            <div class="pokebox-metric-card">
-                <div class="pokebox-metric-label">模板總數</div>
-                <div class="pokebox-metric-value">@templates.Count</div>
-            </div>
-            <div class="pokebox-metric-card">
-                <div class="pokebox-metric-label">草稿</div>
-                <div class="pokebox-metric-value">@templates.Count(t => t.PublicationStatus == TemplatePublicationStatus.Draft)</div>
-            </div>
-            <div class="pokebox-metric-card">
-                <div class="pokebox-metric-label">已發布</div>
-                <div class="pokebox-metric-value">@templates.Count(t => t.PublicationStatus == TemplatePublicationStatus.Published)</div>
-            </div>
-            <div class="pokebox-metric-card">
-                <div class="pokebox-metric-label">內建模板</div>
-                <div class="pokebox-metric-value">@templates.Count(t => t.IsBuiltIn)</div>
-            </div>
-        </section>
-
-        @if (!templates.Any())
-        {
-            <div class="pokebox-empty-state">
-                <div class="pokebox-empty-title">尚無模板</div>
-                <div class="pokebox-empty-description">先載入預設模板，或者直接建立第一個戳戳樂模板。</div>
-            </div>
-        }
-        else
-        {
-            <section class="pokebox-table-shell">
-                <Table FullWidth Striped Hoverable Bordered Responsive class="pokebox-table">
-                    <TableHeader>
-                        <TableRow>
-                            <TableHeaderCell>名稱</TableHeaderCell>
-                            <TableHeaderCell>說明</TableHeaderCell>
-                            <TableHeaderCell>狀態</TableHeaderCell>
-                            <TableHeaderCell>格數</TableHeaderCell>
-                            <TableHeaderCell>模式</TableHeaderCell>
-                            <TableHeaderCell>動畫</TableHeaderCell>
-                            <TableHeaderCell>操作</TableHeaderCell>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        @foreach (var t in templates)
-                        {
-                            <TableRow>
-                                <TableRowCell>
-                                    <div class="pokebox-template-name">
-                                        <span>@t.Name</span>
-                                        @if (t.IsBuiltIn)
-                                        {
-                                            <Badge Color="Color.Light">內建</Badge>
-                                        }
-                                    </div>
-                                </TableRowCell>
-                                <TableRowCell>@t.Description</TableRowCell>
-                                <TableRowCell>
-                                    <Badge Color="@(t.PublicationStatus == TemplatePublicationStatus.Draft ? Color.Warning : Color.Success)">
-                                        @(t.PublicationStatus == TemplatePublicationStatus.Draft ? "草稿" : "已發布")
-                                    </Badge>
-                                </TableRowCell>
-                                <TableRowCell>@t.GridRows × @t.GridColumns</TableRowCell>
-                                <TableRowCell>@(t.Mode == PokeMode.Random ? "隨機" : "手動")</TableRowCell>
-                                <TableRowCell>@t.Animation</TableRowCell>
-                                <TableRowCell>
-                                    <div class="pokebox-action-row">
-                                        <Button Size="Size.Small" Color="Color.Success" Clicked="@(() => NavigateToPreview(t.Id))">預覽</Button>
-                                        <Button Size="Size.Small" Color="Color.Warning" Clicked="@(() => NavigateToEditor(t.Id))">編輯</Button>
-                                        <Button Size="Size.Small" Color="@(t.PublicationStatus == TemplatePublicationStatus.Draft ? Color.Success : Color.Secondary)" Clicked="@(() => TogglePublicationStatus(t))">
-                                            @(t.PublicationStatus == TemplatePublicationStatus.Draft ? "發布" : "轉草稿")
-                                        </Button>
-                                        <Button Size="Size.Small" Color="Color.Primary" Clicked="@(() => DuplicateTemplate(t.Id))">複製</Button>
-                                        <Button Size="Size.Small" Color="Color.Info" Clicked="@(() => ExportTemplate(t.Id))">匯出</Button>
-                                        @if (!t.IsBuiltIn)
-                                        {
-                                            <Button Size="Size.Small" Color="Color.Danger" Clicked="@(() => DeleteTemplate(t.Id))">刪除</Button>
-                                        }
-                                    </div>
-                                </TableRowCell>
-                            </TableRow>
-                        }
-                    </TableBody>
-                </Table>
-            </section>
-        }
-
-        <section class="pokebox-import-grid">
-            <Card class="pokebox-import-card">
-                <CardHeader>
-                    <CardTitle>匯入模板（JSON）</CardTitle>
-                </CardHeader>
-                <CardBody>
-                    <MemoInput @bind-Value="@importJson" Rows="6" Placeholder="貼上 JSON 模板內容…" />
-                    <Button Color="Color.Primary" Clicked="@ImportTemplate" class="mt-3">匯入</Button>
-                </CardBody>
-            </Card>
-
-            <Card class="pokebox-import-card">
-                <CardHeader>
-                    <CardTitle>匯出結果</CardTitle>
-                </CardHeader>
-                <CardBody>
-                    @if (!string.IsNullOrEmpty(exportJson))
-                    {
-                        <MemoInput @bind-Value="@exportJson" Rows="10" ReadOnly />
-                    }
-                    else
-                    {
-                        <div class="pokebox-state-panel pokebox-state-panel-inline">選擇任一模板的「匯出」後，內容會顯示在這裡。</div>
-                    }
-                </CardBody>
-            </Card>
-        </section>
-    }
-</div>
+    </div>
+</details>
 
 @code {
     private List<PokeTemplate>? templates;
+    private PokeTemplate? editing;
+    private bool editorVisible;
     private string importJson = "";
     private string exportJson = "";
+    private string sessionToken = "";
+
+    private string EditorTitle => editing is null ? "戳戳樂模板" : editing.Id == 0 ? "新增戳戳樂模板" : $"編輯戳戳樂模板：{editing.Name}";
+    private bool EditingIsPublished
+    {
+        get => editing?.PublicationStatus == TemplatePublicationStatus.Published;
+        set { if (editing is not null) editing.PublicationStatus = value ? TemplatePublicationStatus.Published : TemplatePublicationStatus.Draft; }
+    }
 
     protected override async Task OnInitializedAsync()
     {
-        await LoadTemplates();
+        sessionToken = await ObsSessionService.GetSessionTokenAsync();
+        await ReloadAsync();
     }
 
-    private async Task LoadTemplates()
+    private async Task ReloadAsync() => templates = await PokeService.ListTemplatesAsync();
+
+    private Task CreateAsync()
     {
-        templates = await PokeService.ListTemplatesAsync();
+        editing = new PokeTemplate { PublicationStatus = TemplatePublicationStatus.Draft };
+        ApplyGridToTemplate();
+        editorVisible = true;
+        return Task.CompletedTask;
     }
 
-    private void NavigateToCreate()
+    private void Edit(PokeTemplate template)
     {
-        NavigationManager.NavigateTo("/pokebox/editor/0");
+        editing = Clone(template);
+        editorVisible = true;
     }
 
-    private void NavigateToEditor(int id)
+    private void ApplyGrid() => ApplyGridToTemplate();
+
+    private void ApplyGridToTemplate()
     {
-        NavigationManager.NavigateTo($"/pokebox/editor/{id}");
+        if (editing is null) return;
+        editing.GridRows = Math.Clamp(editing.GridRows, 1, 10);
+        editing.GridColumns = Math.Clamp(editing.GridColumns, 1, 10);
+        var total = editing.GridRows * editing.GridColumns;
+        var ordered = editing.Cells.OrderBy(cell => cell.Index).Take(total).ToList();
+        while (ordered.Count < total)
+        {
+            ordered.Add(new PokeCell { Index = ordered.Count, Title = $"格子 {ordered.Count + 1}", RevealedColor = "#cccccc" });
+        }
+        for (var index = 0; index < ordered.Count; index++) ordered[index].Index = index;
+        editing.Cells = ordered;
     }
 
-    private void NavigateToPreview(int id)
+    private async Task SaveAsync()
     {
-        NavigationManager.NavigateTo($"/pokebox/preview/{id}");
+        if (editing is null) return;
+        if (string.IsNullOrWhiteSpace(editing.Name)) { await MessageService.Warning("請輸入模板名稱。"); return; }
+        try
+        {
+            ApplyGridToTemplate();
+            if (editing.Id == 0) await PokeService.CreateTemplateAsync(editing); else await PokeService.UpdateTemplateAsync(editing);
+            await CloseEditorAsync();
+            await ReloadAsync();
+            await MessageService.Success("戳戳樂模板已儲存。");
+        }
+        catch (Exception exception)
+        {
+            Log.Error(exception, "Failed to save poke template.");
+            await MessageService.Error(exception.Message);
+        }
     }
 
-    private async Task SeedDefaults()
-    {
-        await PokeService.SeedDefaultTemplatesAsync();
-        await LoadTemplates();
-        await MessageService.Info("已載入 3 組預設模板。");
-    }
+    private Task CloseEditorAsync() { editorVisible = false; editing = null; return Task.CompletedTask; }
+    private Task OnEditorVisibleChanged(bool visible) { editorVisible = visible; if (!visible) editing = null; return Task.CompletedTask; }
 
-    private async Task DeleteTemplate(int id)
-    {
-        await PokeService.DeleteTemplateAsync(id);
-        await LoadTemplates();
-    }
+    private async Task SeedDefaultsAsync() { await PokeService.SeedDefaultTemplatesAsync(); await ReloadAsync(); await MessageService.Info("已載入預設模板。"); }
 
-    private async Task DuplicateTemplate(int id)
+    private async Task DuplicateAsync(int id)
     {
         var duplicate = await PokeService.DuplicateTemplateAsync(id);
-        await LoadTemplates();
-        NavigationManager.NavigateTo($"/pokebox/editor/{duplicate.Id}");
+        await ReloadAsync();
+        Edit(duplicate);
         await MessageService.Success($"已建立複本「{duplicate.Name}」。");
     }
 
-    private async Task TogglePublicationStatus(PokeTemplate template)
+    private async Task DeleteAsync(PokeTemplate template)
     {
-        var nextStatus = template.PublicationStatus == TemplatePublicationStatus.Draft
-            ? TemplatePublicationStatus.Published
-            : TemplatePublicationStatus.Draft;
-
-        await PokeService.SetPublicationStatusAsync(template.Id, nextStatus);
-        await LoadTemplates();
-        await MessageService.Success(nextStatus == TemplatePublicationStatus.Published ? "已發布模板。" : "已轉為草稿。");
+        var confirmed = await JSRuntime.InvokeAsync<bool>("confirm", $"確定要刪除「{template.Name}」嗎？");
+        if (!confirmed) return;
+        await PokeService.DeleteTemplateAsync(template.Id);
+        await ReloadAsync();
+        await MessageService.Success("戳戳樂模板已刪除。");
     }
 
-    private async Task ExportTemplate(int id)
+    private async Task ExportAsync(int id) { exportJson = await PokeService.ExportTemplateAsync(id); await MessageService.Info("匯出內容已顯示於頁面下方。"); }
+
+    private async Task ImportAsync()
     {
-        exportJson = await PokeService.ExportTemplateAsync(id);
+        if (string.IsNullOrWhiteSpace(importJson)) { await MessageService.Warning("請貼上 JSON 內容。"); return; }
+        try { await PokeService.ImportTemplateAsync(importJson); importJson = ""; await ReloadAsync(); await MessageService.Success("匯入成功。"); }
+        catch (Exception exception) { Log.Error(exception, "Failed to import poke template JSON."); await MessageService.Error($"匯入失敗：{exception.Message}"); }
     }
 
-    private async Task ImportTemplate()
+    private string BuildObsUrl(PokeTemplate template, bool showControls = false)
     {
-        if (string.IsNullOrWhiteSpace(importJson))
-        {
-            await MessageService.Warning("請貼上 JSON 內容。");
-            return;
-        }
-        try
-        {
-            await PokeService.ImportTemplateAsync(importJson);
-            importJson = "";
-            await LoadTemplates();
-            await MessageService.Success("匯入成功！");
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "Failed to import poke template JSON.");
-            await MessageService.Error($"匯入失敗：{ex.Message}");
-        }
+        var baseUrl = NavigationManager.ToAbsoluteUri($"/obs/pokebox/{template.Id}").ToString();
+        var query = showControls ? "controls=1" : "";
+        if (!string.IsNullOrWhiteSpace(sessionToken)) query = string.IsNullOrWhiteSpace(query) ? $"sessionToken={Uri.EscapeDataString(sessionToken)}" : $"{query}&sessionToken={Uri.EscapeDataString(sessionToken)}";
+        return string.IsNullOrWhiteSpace(query) ? baseUrl : $"{baseUrl}?{query}";
     }
+
+    private static string GetAnimationName(PokeAnimation animation) => animation switch { PokeAnimation.Burst => "爆破", PokeAnimation.Smoke => "煙霧", PokeAnimation.Flash => "光芒", PokeAnimation.Bounce => "彈跳", PokeAnimation.Flip => "翻轉", _ => animation.ToString() };
+
+    private static PokeTemplate Clone(PokeTemplate source) => new()
+    {
+        Id = source.Id, Name = source.Name, Description = source.Description, GridRows = source.GridRows, GridColumns = source.GridColumns,
+        Mode = source.Mode, AllowRePoking = source.AllowRePoking, MaxPokeCount = source.MaxPokeCount, BackgroundImageUrl = source.BackgroundImageUrl,
+        FontFamily = source.FontFamily, CongratulationMessage = source.CongratulationMessage, OverlayWidth = source.OverlayWidth,
+        OverlayHeight = source.OverlayHeight, Animation = source.Animation, PokeSoundUrl = source.PokeSoundUrl, OpenSoundUrl = source.OpenSoundUrl,
+        IsBuiltIn = source.IsBuiltIn, PublicationStatus = source.PublicationStatus, CreatedAt = source.CreatedAt, UpdatedAt = source.UpdatedAt,
+        Cells = source.Cells.OrderBy(cell => cell.Index).Select(cell => new PokeCell { Id = cell.Id, TemplateId = cell.TemplateId, Index = cell.Index, Title = cell.Title, SubTitle = cell.SubTitle, ImageUrl = cell.ImageUrl, RevealedImageUrl = cell.RevealedImageUrl, RevealedColor = cell.RevealedColor, IsRevealed = cell.IsRevealed, RevealedAt = cell.RevealedAt }).ToList()
+    };
 }
