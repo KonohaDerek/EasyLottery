@@ -1,4 +1,3 @@
-@page "/obs/pokebox/{Id:int}"
 @page "/obs/pokebox/{PublicId:guid}"
 @layout ObsLayout
 @implements IAsyncDisposable
@@ -412,9 +411,8 @@ else
 </style>
 
 @code {
-    [Parameter] public int Id { get; set; }
     [Parameter] public Guid PublicId { get; set; }
-    private Guid ActivePublicId => PublicId != Guid.Empty ? PublicId : template?.PublicId ?? Guid.Empty;
+    private Guid ActivePublicId => PublicId;
 
     private PokeTemplate? template;
     private int? lastPokedIndex;
@@ -487,15 +485,11 @@ else
 
     private async Task LoadTemplate()
     {
-        template = PublicId == Guid.Empty
-            ? await PokeService.LoadTemplateAsync(Id)
-            : await PokeService.LoadTemplateAsync(PublicId);
+        template = PublicId == Guid.Empty ? null : await PokeService.LoadTemplateAsync(PublicId);
         if (template == null)
         {
             await PokeService.SeedDefaultTemplatesAsync();
-            template = PublicId == Guid.Empty
-                ? await PokeService.LoadTemplateAsync(Id)
-                : await PokeService.LoadTemplateAsync(PublicId);
+            template = PublicId == Guid.Empty ? null : await PokeService.LoadTemplateAsync(PublicId);
         }
 
         isLoading = false;

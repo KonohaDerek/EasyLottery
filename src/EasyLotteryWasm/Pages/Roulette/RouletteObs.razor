@@ -1,4 +1,3 @@
-@page "/obs/roulette/{Id:int}"
 @page "/obs/roulette/{PublicId:guid}"
 @layout ObsLayout
 @implements IAsyncDisposable
@@ -414,9 +413,8 @@ else
 </style>
 
 @code {
-    [Parameter] public int Id { get; set; }
     [Parameter] public Guid PublicId { get; set; }
-    private Guid ActivePublicId => PublicId != Guid.Empty ? PublicId : template?.PublicId ?? Guid.Empty;
+    private Guid ActivePublicId => PublicId;
 
     private RouletteTemplate? template;
     private SpinResult? lastResult;
@@ -452,15 +450,11 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        template = PublicId == Guid.Empty
-            ? await RouletteService.LoadTemplateAsync(Id)
-            : await RouletteService.LoadTemplateAsync(PublicId);
+        template = PublicId == Guid.Empty ? null : await RouletteService.LoadTemplateAsync(PublicId);
         if (template == null)
         {
             await RouletteService.SeedDefaultTemplatesAsync();
-            template = PublicId == Guid.Empty
-                ? await RouletteService.LoadTemplateAsync(Id)
-                : await RouletteService.LoadTemplateAsync(PublicId);
+            template = PublicId == Guid.Empty ? null : await RouletteService.LoadTemplateAsync(PublicId);
         }
 
         isLoading = false;
