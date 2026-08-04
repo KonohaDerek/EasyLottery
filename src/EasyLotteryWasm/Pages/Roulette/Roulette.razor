@@ -1,234 +1,299 @@
 @page "/roulette"
 @using EasyLotteryDomain.Models.Entities
 @using EasyLotteryDomain.Services
+@using EasyLotteryWasm.Services
 @using Serilog
 
 @inject RouletteService RouletteService
-@inject NavigationManager NavigationManager
 @inject IMessageService MessageService
+@inject IJSRuntime JSRuntime
+@inject NavigationManager NavigationManager
+@inject ObsSessionService ObsSessionService
 
-<PageTitle>轉盤 - 模板列表</PageTitle>
+<PageTitle>轉盤模板</PageTitle>
 
-<div class="roulette-page">
-    <section class="roulette-hero">
-        <div class="roulette-hero-copy">
-            <div class="roulette-eyebrow">ROULETTE CONTROL CENTER</div>
-            <h3 class="roulette-title">轉盤模板管理</h3>
-            <p class="roulette-subtitle">集中管理轉盤模板、預覽結果與匯入匯出內容，讓抽獎流程更像一個乾淨的後台作業台。</p>
+<Card class="mb-4">
+    <CardHeader><CardTitle>轉盤模板</CardTitle></CardHeader>
+    <CardBody>
+        <CardText>建立轉盤項目、機率與旋轉效果，儲存後可直接開啟正式或測試 OBS 畫面。</CardText>
+        <div class="d-flex gap-2 flex-wrap">
+            <Button Color="Color.Primary" Clicked="CreateAsync">新增模板</Button>
+            <Button Color="Color.Secondary" Clicked="SeedDefaultsAsync">載入預設模板</Button>
         </div>
+    </CardBody>
+</Card>
 
-        <div class="roulette-hero-actions">
-            <Button Color="Color.Primary" Clicked="@NavigateToCreate">新增模板</Button>
-            <Button Color="Color.Secondary" Clicked="@SeedDefaults">載入預設模板</Button>
-        </div>
-    </section>
+<Modal Visible="@editorVisible"
+       VisibleChanged="@OnEditorVisibleChanged"
+       Centered
+       Scrollable
+       ShowBackdrop>
+    <ModalContent Class="template-editor-dialog">
+        <ModalHeader>
+            <ModalTitle>@EditorTitle</ModalTitle>
+            <CloseButton Clicked="CloseEditorAsync" />
+        </ModalHeader>
+        <ModalBody>
+            @if (editing is not null)
+            {
+                <div class="row g-3">
+                    <div class="col-md-6"><Field><FieldLabel>模板名稱</FieldLabel><TextInput @bind-Value="editing.Name" /></Field></div>
+                    <div class="col-md-6"><Field><FieldLabel>說明</FieldLabel><TextInput @bind-Value="editing.Description" /></Field></div>
+                    <div class="col-md-2">
+                        <Field><FieldLabel>格數</FieldLabel><Select TValue="int" @bind-SelectedValue="editing.SegmentCount"><SelectItem Value="6">6</SelectItem><SelectItem Value="8">8</SelectItem><SelectItem Value="12">12</SelectItem><SelectItem Value="24">24</SelectItem></Select></Field>
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end"><Button Color="Color.Secondary" Clicked="ApplySegmentCount">套用格數</Button></div>
+                    <div class="col-md-2"><Field><FieldLabel>旋轉時間（秒）</FieldLabel><NumericInput TValue="double" @bind-Value="editing.SpinDurationSec" Min="1" Max="30" /></Field></div>
+                    <div class="col-md-3">
+                        <Field><FieldLabel>緩動曲線</FieldLabel><Select TValue="string" @bind-SelectedValue="editing.EasingFunction"><SelectItem Value="@("ease-out-cubic")">ease-out-cubic</SelectItem><SelectItem Value="@("ease-out-quad")">ease-out-quad</SelectItem><SelectItem Value="@("ease-out-quart")">ease-out-quart</SelectItem><SelectItem Value="@("ease-out-expo")">ease-out-expo</SelectItem><SelectItem Value="@("linear")">linear</SelectItem></Select></Field>
+                    </div>
+                    <div class="col-md-2"><Field><FieldLabel>初始角度</FieldLabel><NumericInput TValue="double" @bind-Value="editing.InitialAngleDeg" Min="0" Max="359" /></Field></div>
+                    <div class="col-md-1"><Field><FieldLabel>啟用</FieldLabel><Switch TValue="bool" @bind-Value="EditingIsPublished" /></Field></div>
+                    <div class="col-md-4"><Field><FieldLabel>中心圖片 URL</FieldLabel><TextInput @bind-Value="editing.CenterImageUrl" Placeholder="https://…" /></Field></div>
+                    <div class="col-md-4"><Field><FieldLabel>背景圖片 URL</FieldLabel><TextInput @bind-Value="editing.BackgroundImageUrl" Placeholder="https://…" /></Field></div>
+                    <div class="col-md-4"><Field><FieldLabel>指針圖片 URL</FieldLabel><TextInput @bind-Value="editing.PointerImageUrl" Placeholder="https://…" /></Field></div>
+                    <div class="col-md-6"><Field><FieldLabel>轉動音效 URL</FieldLabel><TextInput @bind-Value="editing.SpinSoundUrl" Placeholder="https://…" /></Field></div>
+                    <div class="col-md-6"><Field><FieldLabel>中獎音效 URL</FieldLabel><TextInput @bind-Value="editing.WinSoundUrl" Placeholder="https://…" /></Field></div>
+                </div>
 
-    @if (templates == null)
-    {
-        <div class="roulette-state-panel">載入中…</div>
-    }
-    else
-    {
-        <section class="roulette-metric-grid">
-            <div class="roulette-metric-card">
-                <div class="roulette-metric-label">模板總數</div>
-                <div class="roulette-metric-value">@templates.Count</div>
-            </div>
-            <div class="roulette-metric-card">
-                <div class="roulette-metric-label">草稿</div>
-                <div class="roulette-metric-value">@templates.Count(t => t.PublicationStatus == TemplatePublicationStatus.Draft)</div>
-            </div>
-            <div class="roulette-metric-card">
-                <div class="roulette-metric-label">已發布</div>
-                <div class="roulette-metric-value">@templates.Count(t => t.PublicationStatus == TemplatePublicationStatus.Published)</div>
-            </div>
-            <div class="roulette-metric-card">
-                <div class="roulette-metric-label">內建模板</div>
-                <div class="roulette-metric-value">@templates.Count(t => t.IsBuiltIn)</div>
-            </div>
-        </section>
-
-        @if (!templates.Any())
-        {
-            <div class="roulette-empty-state">
-                <div class="roulette-empty-title">尚無模板</div>
-                <div class="roulette-empty-description">可以先載入預設模板，或直接建立第一個轉盤模板。</div>
-            </div>
-        }
-        else
-        {
-            <section class="roulette-table-shell">
-                <Table FullWidth Striped Hoverable Bordered Responsive class="roulette-table">
-                    <TableHeader>
-                        <TableRow>
-                            <TableHeaderCell>名稱</TableHeaderCell>
-                            <TableHeaderCell>說明</TableHeaderCell>
-                            <TableHeaderCell>狀態</TableHeaderCell>
-                            <TableHeaderCell>格數</TableHeaderCell>
-                            <TableHeaderCell>旋轉時間</TableHeaderCell>
-                            <TableHeaderCell>Easing</TableHeaderCell>
-                            <TableHeaderCell>操作</TableHeaderCell>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        @foreach (var t in templates)
-                        {
-                            <TableRow>
-                                <TableRowCell>
-                                    <div class="roulette-template-name">
-                                        <span>@t.Name</span>
-                                        @if (t.IsBuiltIn)
-                                        {
-                                            <Badge Color="Color.Light">內建</Badge>
-                                        }
-                                    </div>
-                                </TableRowCell>
-                                <TableRowCell>@t.Description</TableRowCell>
-                                <TableRowCell>
-                                    <Badge Color="@(t.PublicationStatus == TemplatePublicationStatus.Draft ? Color.Warning : Color.Success)">
-                                        @(t.PublicationStatus == TemplatePublicationStatus.Draft ? "草稿" : "已發布")
-                                    </Badge>
-                                </TableRowCell>
-                                <TableRowCell>@t.SegmentCount</TableRowCell>
-                                <TableRowCell>@t.SpinDurationSec 秒</TableRowCell>
-                                <TableRowCell>@t.EasingFunction</TableRowCell>
-                                <TableRowCell>
-                                    <div class="roulette-action-row">
-                                        <Button Size="Size.Small" Color="Color.Success" Clicked="@(() => NavigateToPreview(t.Id))">預覽</Button>
-                                        <Button Size="Size.Small" Color="Color.Warning" Clicked="@(() => NavigateToEditor(t.Id))">編輯</Button>
-                                        <Button Size="Size.Small" Color="@(t.PublicationStatus == TemplatePublicationStatus.Draft ? Color.Success : Color.Secondary)" Clicked="@(() => TogglePublicationStatus(t))">
-                                            @(t.PublicationStatus == TemplatePublicationStatus.Draft ? "發布" : "轉草稿")
-                                        </Button>
-                                        <Button Size="Size.Small" Color="Color.Primary" Clicked="@(() => DuplicateTemplate(t.Id))">複製</Button>
-                                        <Button Size="Size.Small" Color="Color.Info" Clicked="@(() => ExportTemplate(t.Id))">匯出</Button>
-                                        @if (!t.IsBuiltIn)
-                                        {
-                                            <Button Size="Size.Small" Color="Color.Danger" Clicked="@(() => DeleteTemplate(t.Id))">刪除</Button>
-                                        }
-                                    </div>
-                                </TableRowCell>
-                            </TableRow>
-                        }
-                    </TableBody>
-                </Table>
-            </section>
-        }
-
-        <section class="roulette-import-grid">
-            <Card class="roulette-import-card">
-                <CardHeader>
-                    <CardTitle>匯入模板（JSON）</CardTitle>
-                </CardHeader>
-                <CardBody>
-                    <MemoInput @bind-Value="@importJson" Rows="6" Placeholder="貼上 JSON 模板內容…" />
-                    <Button Color="Color.Primary" Clicked="@ImportTemplate" class="mt-3">匯入</Button>
-                </CardBody>
-            </Card>
-
-            <Card class="roulette-import-card">
-                <CardHeader>
-                    <CardTitle>匯出結果</CardTitle>
-                </CardHeader>
-                <CardBody>
-                    @if (!string.IsNullOrEmpty(exportJson))
+                <div class="d-flex justify-content-between align-items-center mt-4 mb-2">
+                    <div>
+                        <h5 class="mb-1">轉盤項目</h5>
+                        <div class="text-muted small">共 @editing.Segments.Count 格；機率全為 0 時採等比分配。</div>
+                    </div>
+                </div>
+                <div class="row g-3">
+                    @foreach (var segment in editing.Segments.OrderBy(segment => segment.Index))
                     {
-                        <MemoInput @bind-Value="@exportJson" Rows="10" ReadOnly />
+                        <div class="col-12 col-lg-6" @key="segment">
+                            <div class="border rounded p-3 h-100" style="border-left:6px solid @segment.Color !important;">
+                                <div class="fw-bold mb-2">格 @(segment.Index + 1)</div>
+                                <div class="row g-2">
+                                    <div class="col-md-6"><Field><FieldLabel>標題</FieldLabel><TextInput @bind-Value="segment.Title" /></Field></div>
+                                    <div class="col-md-6"><Field><FieldLabel>中獎機率 (%)</FieldLabel><NumericInput TValue="double" @bind-Value="segment.Probability" Min="0" Max="100" /></Field></div>
+                                    <div class="col-md-8"><Field><FieldLabel>圖片 URL</FieldLabel><TextInput @bind-Value="segment.ImageUrl" Placeholder="https://…" /></Field></div>
+                                    <div class="col-md-4"><Field><FieldLabel>顏色</FieldLabel><ColorInput @bind-Value="segment.Color" /></Field></div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+                <div class="alert alert-info py-2 mt-3 mb-0" role="status">
+                    @if (ProbabilityTotal > 0)
+                    {
+                        <span>目前機率權重合計：@ProbabilityTotal.ToString("0.##")%</span>
                     }
                     else
                     {
-                        <div class="roulette-state-panel roulette-state-panel-inline">選擇任一模板的「匯出」後，內容會顯示在這裡。</div>
+                        <span>目前使用等比分配。</span>
                     }
-                </CardBody>
-            </Card>
-        </section>
+                </div>
+            }
+        </ModalBody>
+        <ModalFooter>
+            <div class="d-flex gap-2">
+                <Button Color="Color.Primary" Clicked="SaveAsync" Disabled="editing is null">儲存</Button>
+                <Button Color="Color.Secondary" Clicked="CloseEditorAsync">取消</Button>
+            </div>
+        </ModalFooter>
+    </ModalContent>
+</Modal>
+
+<style>
+    .template-editor-dialog {
+        width: 75vw;
+        max-width: 75vw;
     }
-</div>
+
+    @@media (max-width: 767.98px) {
+        .template-editor-dialog {
+            width: calc(100vw - 1rem);
+            max-width: calc(100vw - 1rem);
+            margin-inline: auto;
+        }
+    }
+</style>
+
+@if (templates is null)
+{
+    <div class="alert alert-info">載入中…</div>
+}
+else if (templates.Count == 0)
+{
+    <div class="alert alert-light border">尚無模板，請新增模板或載入預設模板。</div>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table align-middle">
+            <thead><tr><th>模板</th><th>格數</th><th>旋轉時間</th><th>緩動曲線</th><th>狀態</th><th>操作</th></tr></thead>
+            <tbody>
+            @foreach (var template in templates)
+            {
+                <tr>
+                    <td><div class="fw-semibold">@template.Name</div><div class="text-muted small">@template.Description</div></td>
+                    <td>@template.SegmentCount</td>
+                    <td>@template.SpinDurationSec.ToString("0.##") 秒</td>
+                    <td>@template.EasingFunction</td>
+                    <td>@(template.PublicationStatus == TemplatePublicationStatus.Published ? "啟用" : "停用")</td>
+                    <td>
+                        <div class="d-flex gap-2 flex-wrap">
+                            <Button Color="Color.Secondary" Size="Size.Small" Clicked="() => Edit(template)">編輯</Button>
+                            @if (template.PublicationStatus == TemplatePublicationStatus.Published)
+                            {
+                                <a class="btn btn-outline-primary btn-sm" href="@BuildObsUrl(template)" target="_blank" rel="noopener noreferrer">開啟 OBS URL</a>
+                                <a class="btn btn-outline-secondary btn-sm" href="@BuildObsUrl(template, true)" target="_blank" rel="noopener noreferrer">開啟測試 OBS</a>
+                            }
+                            else
+                            {
+                                <Button Color="Color.Secondary" Size="Size.Small" Disabled>開啟 OBS URL</Button>
+                            }
+                            <Button Color="Color.Primary" Size="Size.Small" Clicked="() => DuplicateAsync(template.Id)">複製</Button>
+                            <Button Color="Color.Info" Size="Size.Small" Clicked="() => ExportAsync(template.Id)">匯出</Button>
+                            @if (!template.IsBuiltIn)
+                            {
+                                <Button Color="Color.Danger" Size="Size.Small" Clicked="() => DeleteAsync(template)">刪除</Button>
+                            }
+                        </div>
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+}
+
+<details class="card mt-4">
+    <summary class="card-header fw-semibold" style="cursor:pointer;">進階：匯入／匯出模板</summary>
+    <div class="card-body">
+        <div class="row g-3">
+            <div class="col-lg-6"><Field><FieldLabel>匯入 JSON</FieldLabel><MemoInput @bind-Value="importJson" Rows="8" Placeholder="貼上 JSON 模板內容…" /></Field><Button Color="Color.Primary" Clicked="ImportAsync">匯入</Button></div>
+            <div class="col-lg-6"><Field><FieldLabel>匯出結果</FieldLabel><MemoInput @bind-Value="exportJson" Rows="8" ReadOnly Placeholder="按下列表中的匯出後顯示於此" /></Field></div>
+        </div>
+    </div>
+</details>
 
 @code {
     private List<RouletteTemplate>? templates;
+    private RouletteTemplate? editing;
+    private bool editorVisible;
     private string importJson = "";
     private string exportJson = "";
+    private string sessionToken = "";
+
+    private string EditorTitle => editing is null ? "轉盤模板" : editing.Id == 0 ? "新增轉盤模板" : $"編輯轉盤模板：{editing.Name}";
+    private double ProbabilityTotal => editing?.Segments.Sum(segment => segment.Probability) ?? 0;
+    private bool EditingIsPublished
+    {
+        get => editing?.PublicationStatus == TemplatePublicationStatus.Published;
+        set { if (editing is not null) editing.PublicationStatus = value ? TemplatePublicationStatus.Published : TemplatePublicationStatus.Draft; }
+    }
 
     protected override async Task OnInitializedAsync()
     {
-        await LoadTemplates();
+        sessionToken = await ObsSessionService.GetSessionTokenAsync();
+        await ReloadAsync();
     }
 
-    private async Task LoadTemplates()
+    private async Task ReloadAsync() => templates = await RouletteService.ListTemplatesAsync();
+
+    private Task CreateAsync()
     {
-        templates = await RouletteService.ListTemplatesAsync();
+        editing = new RouletteTemplate { PublicationStatus = TemplatePublicationStatus.Draft };
+        ApplySegmentsToTemplate();
+        editorVisible = true;
+        return Task.CompletedTask;
     }
 
-    private void NavigateToCreate()
+    private void Edit(RouletteTemplate template)
     {
-        NavigationManager.NavigateTo("/roulette/editor/0");
+        editing = Clone(template);
+        editorVisible = true;
     }
 
-    private void NavigateToEditor(int id)
+    private void ApplySegmentCount() => ApplySegmentsToTemplate();
+
+    private void ApplySegmentsToTemplate()
     {
-        NavigationManager.NavigateTo($"/roulette/editor/{id}");
+        if (editing is null) return;
+        var allowedCounts = new[] { 6, 8, 12, 24 };
+        if (!allowedCounts.Contains(editing.SegmentCount)) editing.SegmentCount = 8;
+        var total = editing.SegmentCount;
+        var ordered = editing.Segments.OrderBy(segment => segment.Index).Take(total).ToList();
+        var colors = new[] { "#e74c3c", "#e67e22", "#f1c40f", "#2ecc71", "#1abc9c", "#3498db", "#9b59b6", "#e91e63" };
+        while (ordered.Count < total)
+        {
+            ordered.Add(new RouletteSegment { Index = ordered.Count, Title = $"選項 {ordered.Count + 1}", Color = colors[ordered.Count % colors.Length] });
+        }
+        for (var index = 0; index < ordered.Count; index++) ordered[index].Index = index;
+        editing.Segments = ordered;
     }
 
-    private void NavigateToPreview(int id)
+    private async Task SaveAsync()
     {
-        NavigationManager.NavigateTo($"/roulette/preview/{id}");
+        if (editing is null) return;
+        if (string.IsNullOrWhiteSpace(editing.Name)) { await MessageService.Warning("請輸入模板名稱。"); return; }
+        try
+        {
+            ApplySegmentsToTemplate();
+            if (editing.Id == 0) await RouletteService.CreateTemplateAsync(editing); else await RouletteService.UpdateTemplateAsync(editing);
+            await CloseEditorAsync();
+            await ReloadAsync();
+            await MessageService.Success("轉盤模板已儲存。");
+        }
+        catch (Exception exception)
+        {
+            Log.Error(exception, "Failed to save roulette template.");
+            await MessageService.Error(exception.Message);
+        }
     }
 
-    private async Task SeedDefaults()
-    {
-        await RouletteService.SeedDefaultTemplatesAsync();
-        await LoadTemplates();
-        await MessageService.Info("已載入 3 組預設模板。");
-    }
+    private Task CloseEditorAsync() { editorVisible = false; editing = null; return Task.CompletedTask; }
+    private Task OnEditorVisibleChanged(bool visible) { editorVisible = visible; if (!visible) editing = null; return Task.CompletedTask; }
 
-    private async Task DeleteTemplate(int id)
-    {
-        await RouletteService.DeleteTemplateAsync(id);
-        await LoadTemplates();
-    }
+    private async Task SeedDefaultsAsync() { await RouletteService.SeedDefaultTemplatesAsync(); await ReloadAsync(); await MessageService.Info("已載入預設模板。"); }
 
-    private async Task DuplicateTemplate(int id)
+    private async Task DuplicateAsync(int id)
     {
         var duplicate = await RouletteService.DuplicateTemplateAsync(id);
-        await LoadTemplates();
-        NavigationManager.NavigateTo($"/roulette/editor/{duplicate.Id}");
+        await ReloadAsync();
+        Edit(duplicate);
         await MessageService.Success($"已建立複本「{duplicate.Name}」。");
     }
 
-    private async Task TogglePublicationStatus(RouletteTemplate template)
+    private async Task DeleteAsync(RouletteTemplate template)
     {
-        var nextStatus = template.PublicationStatus == TemplatePublicationStatus.Draft
-            ? TemplatePublicationStatus.Published
-            : TemplatePublicationStatus.Draft;
-
-        await RouletteService.SetPublicationStatusAsync(template.Id, nextStatus);
-        await LoadTemplates();
-        await MessageService.Success(nextStatus == TemplatePublicationStatus.Published ? "已發布模板。" : "已轉為草稿。");
+        var confirmed = await JSRuntime.InvokeAsync<bool>("confirm", $"確定要刪除「{template.Name}」嗎？");
+        if (!confirmed) return;
+        await RouletteService.DeleteTemplateAsync(template.Id);
+        await ReloadAsync();
+        await MessageService.Success("轉盤模板已刪除。");
     }
 
-    private async Task ExportTemplate(int id)
+    private async Task ExportAsync(int id) { exportJson = await RouletteService.ExportTemplateAsync(id); await MessageService.Info("匯出內容已顯示於頁面下方。"); }
+
+    private async Task ImportAsync()
     {
-        exportJson = await RouletteService.ExportTemplateAsync(id);
+        if (string.IsNullOrWhiteSpace(importJson)) { await MessageService.Warning("請貼上 JSON 內容。"); return; }
+        try { await RouletteService.ImportTemplateAsync(importJson); importJson = ""; await ReloadAsync(); await MessageService.Success("匯入成功。"); }
+        catch (Exception exception) { Log.Error(exception, "Failed to import roulette template JSON."); await MessageService.Error($"匯入失敗：{exception.Message}"); }
     }
 
-    private async Task ImportTemplate()
+    private string BuildObsUrl(RouletteTemplate template, bool showControls = false)
     {
-        if (string.IsNullOrWhiteSpace(importJson))
-        {
-            await MessageService.Warning("請貼上 JSON 內容。");
-            return;
-        }
-        try
-        {
-            await RouletteService.ImportTemplateAsync(importJson);
-            importJson = "";
-            await LoadTemplates();
-            await MessageService.Success("匯入成功！");
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "Failed to import roulette template JSON.");
-            await MessageService.Error($"匯入失敗：{ex.Message}");
-        }
+        var baseUrl = NavigationManager.ToAbsoluteUri($"/obs/roulette/{template.Id}").ToString();
+        var query = showControls ? "controls=1" : "";
+        if (!string.IsNullOrWhiteSpace(sessionToken)) query = string.IsNullOrWhiteSpace(query) ? $"sessionToken={Uri.EscapeDataString(sessionToken)}" : $"{query}&sessionToken={Uri.EscapeDataString(sessionToken)}";
+        return string.IsNullOrWhiteSpace(query) ? baseUrl : $"{baseUrl}?{query}";
     }
+
+    private static RouletteTemplate Clone(RouletteTemplate source) => new()
+    {
+        Id = source.Id, Name = source.Name, Description = source.Description, SegmentCount = source.SegmentCount, SpinDurationSec = source.SpinDurationSec,
+        EasingFunction = source.EasingFunction, InitialAngleDeg = source.InitialAngleDeg, CenterImageUrl = source.CenterImageUrl,
+        BackgroundImageUrl = source.BackgroundImageUrl, PointerImageUrl = source.PointerImageUrl, SpinSoundUrl = source.SpinSoundUrl,
+        WinSoundUrl = source.WinSoundUrl, IsBuiltIn = source.IsBuiltIn, PublicationStatus = source.PublicationStatus,
+        CreatedAt = source.CreatedAt, UpdatedAt = source.UpdatedAt,
+        Segments = source.Segments.OrderBy(segment => segment.Index).Select(segment => new RouletteSegment { Id = segment.Id, TemplateId = segment.TemplateId, Index = segment.Index, Title = segment.Title, ImageUrl = segment.ImageUrl, Color = segment.Color, Probability = segment.Probability }).ToList()
+    };
 }
