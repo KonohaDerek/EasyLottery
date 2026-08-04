@@ -54,12 +54,12 @@
                     <div class="col-md-3"><Field><FieldLabel>次數限制（0 = 無限）</FieldLabel><NumericInput TValue="int" @bind-Value="editing.MaxPokeCount" Min="0" /></Field></div>
                     <div class="col-md-3"><Field><FieldLabel>啟用</FieldLabel><Switch TValue="bool" @bind-Value="EditingIsPublished" /></Field></div>
                     <div class="col-md-3"><Field><FieldLabel>字體</FieldLabel><TextInput @bind-Value="editing.FontFamily" Placeholder="例如：Arial" /></Field></div>
-                    <div class="col-md-6"><Field><FieldLabel>背景圖片 URL</FieldLabel><TextInput @bind-Value="editing.BackgroundImageUrl" Placeholder="https://…" /></Field></div>
+                    <div class="col-md-6"><Field><FieldLabel>背景圖片 URL</FieldLabel><ObsAssetUrlPicker @bind-Value="editing.BackgroundImageUrl" Kind="ObsAssetKind.Image" Label="背景圖片 URL" /></Field></div>
                     <div class="col-md-6"><Field><FieldLabel>恭喜語句</FieldLabel><TextInput @bind-Value="editing.CongratulationMessage" /></Field></div>
                     <div class="col-md-3"><Field><FieldLabel>Overlay 寬度</FieldLabel><NumericInput TValue="int" @bind-Value="editing.OverlayWidth" Min="320" Max="3840" /></Field></div>
                     <div class="col-md-3"><Field><FieldLabel>Overlay 高度</FieldLabel><NumericInput TValue="int" @bind-Value="editing.OverlayHeight" Min="240" Max="2160" /></Field></div>
-                    <div class="col-md-3"><Field><FieldLabel>戳擊音效 URL</FieldLabel><TextInput @bind-Value="editing.PokeSoundUrl" Placeholder="https://…" /></Field></div>
-                    <div class="col-md-3"><Field><FieldLabel>揭露音效 URL</FieldLabel><TextInput @bind-Value="editing.OpenSoundUrl" Placeholder="https://…" /></Field></div>
+                    <div class="col-md-3"><Field><FieldLabel>戳擊音效 URL</FieldLabel><ObsAssetUrlPicker @bind-Value="editing.PokeSoundUrl" Kind="ObsAssetKind.Audio" Label="戳擊音效 URL" /></Field></div>
+                    <div class="col-md-3"><Field><FieldLabel>揭露音效 URL</FieldLabel><ObsAssetUrlPicker @bind-Value="editing.OpenSoundUrl" Kind="ObsAssetKind.Audio" Label="揭露音效 URL" /></Field></div>
                 </div>
 
                 <div class="d-flex justify-content-between align-items-center mt-4 mb-2">
@@ -77,8 +77,8 @@
                                 <div class="row g-2">
                                     <div class="col-md-6"><Field><FieldLabel>標題</FieldLabel><TextInput @bind-Value="cell.Title" /></Field></div>
                                     <div class="col-md-6"><Field><FieldLabel>副標</FieldLabel><TextInput @bind-Value="cell.SubTitle" /></Field></div>
-                                    <div class="col-md-6"><Field><FieldLabel>未揭露圖片 URL</FieldLabel><TextInput @bind-Value="cell.ImageUrl" /></Field></div>
-                                    <div class="col-md-6"><Field><FieldLabel>揭露後圖片 URL</FieldLabel><TextInput @bind-Value="cell.RevealedImageUrl" /></Field></div>
+                                    <div class="col-md-6"><Field><FieldLabel>未揭露圖片 URL</FieldLabel><ObsAssetUrlPicker @bind-Value="cell.ImageUrl" Kind="ObsAssetKind.Image" Label="未揭露圖片 URL" /></Field></div>
+                                    <div class="col-md-6"><Field><FieldLabel>揭露後圖片 URL</FieldLabel><ObsAssetUrlPicker @bind-Value="cell.RevealedImageUrl" Kind="ObsAssetKind.Image" Label="揭露後圖片 URL" /></Field></div>
                                     <div class="col-md-4"><Field><FieldLabel>揭露後顏色</FieldLabel><ColorInput @bind-Value="cell.RevealedColor" /></Field></div>
                                 </div>
                             </div>

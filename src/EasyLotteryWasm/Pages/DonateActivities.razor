@@ -61,7 +61,7 @@
                     <div class="row g-2 mb-2" @key="prize">
                         <div class="col-md-3"><TextInput @bind-Value="prize.Name" Placeholder="獎項名稱" /></div>
                         <div class="col-md-2"><NumericInput TValue="decimal" @bind-Value="prize.Probability" Min="0" Max="100" Placeholder="機率 (%)" /></div>
-                        <div class="col-md-2"><TextInput @bind-Value="prize.ImageUrl" Placeholder="圖片 URL" /></div>
+                        <div class="col-md-2"><ObsAssetUrlPicker @bind-Value="prize.ImageUrl" Kind="ObsAssetKind.Image" Label="獎項圖片 URL" Placeholder="圖片 URL" /></div>
                         <div class="col-md-1"><NumericInput TValue="int" @bind-Value="prize.Quantity" Min="0" /></div>
                         <div class="col-md-2"><Switch TValue="bool" @bind-Value="prize.IsGrandPrize" /> <small>最大獎</small></div>
                         <div class="col-md-2"><Button Color="Color.Danger" Size="Size.Small" Clicked="() => editing.Prizes.Remove(prize)">移除</Button></div>
