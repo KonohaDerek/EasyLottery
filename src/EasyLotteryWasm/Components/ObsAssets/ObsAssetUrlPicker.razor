@@ -1,0 +1,126 @@
+@using EasyLotteryDomain.Models.Obs
+@using EasyLotteryWasm.Services
+@inject ObsAssetApiClient AssetApi
+
+<div class="obs-asset-url-picker">
+    <div class="input-group">
+        <input class="form-control" value="@Value" @oninput="HandleInput" placeholder="@Placeholder" aria-label="@Label" />
+        <button type="button" class="btn btn-outline-secondary" @onclick="OpenAsync" disabled="@isLoading">選擇資產</button>
+    </div>
+    @if (!string.IsNullOrWhiteSpace(Value) && IsLocalAssetUrl(Value))
+    {
+        <div class="form-text text-success">已使用本機 OBS 資產</div>
+    }
+
+    <Modal Visible="@pickerVisible" VisibleChanged="OnPickerVisibleChanged" Centered Scrollable ShowBackdrop>
+        <ModalContent Class="obs-asset-picker-dialog">
+            <ModalHeader>
+                <ModalTitle>選擇@(Kind == ObsAssetKind.Image ? "圖片" : Kind == ObsAssetKind.Audio ? "音效" : "OBS 資產")</ModalTitle>
+                <CloseButton Clicked="CloseAsync" />
+            </ModalHeader>
+            <ModalBody>
+                @if (isLoading)
+                {
+                    <p class="text-muted">載入資產中…</p>
+                }
+                else if (!string.IsNullOrWhiteSpace(loadError))
+                {
+                    <div class="alert alert-warning">@loadError</div>
+                }
+                else if (availableAssets.Count == 0)
+                {
+                    <div class="alert alert-light border">尚無符合用途的本機資產，請先至 OBS 資產庫上傳。</div>
+                }
+                else
+                {
+                    <div class="obs-asset-picker-grid">
+                        @foreach (var asset in availableAssets)
+                        {
+                            <button type="button" class="obs-asset-choice" @onclick="@(() => SelectAsync(asset))">
+                                @if (asset.Kind == ObsAssetKind.Image)
+                                {
+                                    <img src="@AssetApi.GetContentUrl(asset.Id)" alt="@asset.FileName" loading="lazy" />
+                                }
+                                else if (asset.Kind == ObsAssetKind.Audio)
+                                {
+                                    <span class="obs-asset-audio-icon" aria-hidden="true">♫</span>
+                                }
+                                else
+                                {
+                                    <span class="obs-asset-audio-icon" aria-hidden="true">◇</span>
+                                }
+                                <strong class="text-break">@asset.FileName</strong>
+                                <small>@FormatSize(asset.Length)</small>
+                            </button>
+                        }
+                    </div>
+                }
+            </ModalBody>
+        </ModalContent>
+    </Modal>
+</div>
+
+@code {
+    [Parameter] public string? Value { get; set; }
+    [Parameter] public EventCallback<string?> ValueChanged { get; set; }
+    [Parameter] public ObsAssetKind Kind { get; set; } = ObsAssetKind.Image;
+    [Parameter] public string Label { get; set; } = "資產 URL";
+    [Parameter] public string Placeholder { get; set; } = "https://… 或本機資產 URL";
+
+    private bool pickerVisible;
+    private bool isLoading;
+    private string? loadError;
+    private List<ObsAsset> availableAssets = [];
+
+    private async Task HandleInput(ChangeEventArgs args)
+    {
+        Value = args.Value?.ToString() ?? "";
+        await ValueChanged.InvokeAsync(Value);
+    }
+
+    private async Task OpenAsync()
+    {
+        pickerVisible = true;
+        isLoading = true;
+        loadError = null;
+        try
+        {
+            var assets = await AssetApi.ListAsync();
+            availableAssets = assets.Where(asset => asset.Kind == Kind).ToList();
+        }
+        catch (Exception exception)
+        {
+            availableAssets = [];
+            loadError = $"資產載入失敗：{exception.Message}";
+        }
+        finally { isLoading = false; }
+    }
+
+    private async Task SelectAsync(ObsAsset asset)
+    {
+        Value = AssetApi.GetContentUrl(asset.Id);
+        await ValueChanged.InvokeAsync(Value);
+        await CloseAsync();
+    }
+
+    private Task CloseAsync()
+    {
+        pickerVisible = false;
+        return Task.CompletedTask;
+    }
+
+    private Task OnPickerVisibleChanged(bool visible)
+    {
+        pickerVisible = visible;
+        return Task.CompletedTask;
+    }
+
+    private bool IsLocalAssetUrl(string value) => value.Contains("/api/obs-assets/", StringComparison.OrdinalIgnoreCase);
+
+    private static string FormatSize(long bytes) => bytes switch
+    {
+        >= 1024 * 1024 => $"{bytes / 1024d / 1024d:0.##} MB",
+        >= 1024 => $"{bytes / 1024d:0.##} KB",
+        _ => $"{bytes} B"
+    };
+}

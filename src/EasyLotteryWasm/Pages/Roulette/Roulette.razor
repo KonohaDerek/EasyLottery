@@ -50,11 +50,11 @@
                     </div>
                     <div class="col-md-2"><Field><FieldLabel>初始角度</FieldLabel><NumericInput TValue="double" @bind-Value="editing.InitialAngleDeg" Min="0" Max="359" /></Field></div>
                     <div class="col-md-1"><Field><FieldLabel>啟用</FieldLabel><Switch TValue="bool" @bind-Value="EditingIsPublished" /></Field></div>
-                    <div class="col-md-4"><Field><FieldLabel>中心圖片 URL</FieldLabel><TextInput @bind-Value="editing.CenterImageUrl" Placeholder="https://…" /></Field></div>
-                    <div class="col-md-4"><Field><FieldLabel>背景圖片 URL</FieldLabel><TextInput @bind-Value="editing.BackgroundImageUrl" Placeholder="https://…" /></Field></div>
-                    <div class="col-md-4"><Field><FieldLabel>指針圖片 URL</FieldLabel><TextInput @bind-Value="editing.PointerImageUrl" Placeholder="https://…" /></Field></div>
-                    <div class="col-md-6"><Field><FieldLabel>轉動音效 URL</FieldLabel><TextInput @bind-Value="editing.SpinSoundUrl" Placeholder="https://…" /></Field></div>
-                    <div class="col-md-6"><Field><FieldLabel>中獎音效 URL</FieldLabel><TextInput @bind-Value="editing.WinSoundUrl" Placeholder="https://…" /></Field></div>
+                    <div class="col-md-4"><Field><FieldLabel>中心圖片 URL</FieldLabel><ObsAssetUrlPicker @bind-Value="editing.CenterImageUrl" Kind="ObsAssetKind.Image" Label="中心圖片 URL" /></Field></div>
+                    <div class="col-md-4"><Field><FieldLabel>背景圖片 URL</FieldLabel><ObsAssetUrlPicker @bind-Value="editing.BackgroundImageUrl" Kind="ObsAssetKind.Image" Label="背景圖片 URL" /></Field></div>
+                    <div class="col-md-4"><Field><FieldLabel>指針圖片 URL</FieldLabel><ObsAssetUrlPicker @bind-Value="editing.PointerImageUrl" Kind="ObsAssetKind.Image" Label="指針圖片 URL" /></Field></div>
+                    <div class="col-md-6"><Field><FieldLabel>轉動音效 URL</FieldLabel><ObsAssetUrlPicker @bind-Value="editing.SpinSoundUrl" Kind="ObsAssetKind.Audio" Label="轉動音效 URL" /></Field></div>
+                    <div class="col-md-6"><Field><FieldLabel>中獎音效 URL</FieldLabel><ObsAssetUrlPicker @bind-Value="editing.WinSoundUrl" Kind="ObsAssetKind.Audio" Label="中獎音效 URL" /></Field></div>
                 </div>
 
                 <div class="d-flex justify-content-between align-items-center mt-4 mb-2">
@@ -72,7 +72,7 @@
                                 <div class="row g-2">
                                     <div class="col-md-6"><Field><FieldLabel>標題</FieldLabel><TextInput @bind-Value="segment.Title" /></Field></div>
                                     <div class="col-md-6"><Field><FieldLabel>中獎機率 (%)</FieldLabel><NumericInput TValue="double" @bind-Value="segment.Probability" Min="0" Max="100" /></Field></div>
-                                    <div class="col-md-8"><Field><FieldLabel>圖片 URL</FieldLabel><TextInput @bind-Value="segment.ImageUrl" Placeholder="https://…" /></Field></div>
+                                    <div class="col-md-8"><Field><FieldLabel>圖片 URL</FieldLabel><ObsAssetUrlPicker @bind-Value="segment.ImageUrl" Kind="ObsAssetKind.Image" Label="轉盤項目圖片 URL" /></Field></div>
                                     <div class="col-md-4"><Field><FieldLabel>顏色</FieldLabel><ColorInput @bind-Value="segment.Color" /></Field></div>
                                 </div>
                             </div>
