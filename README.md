@@ -122,6 +122,8 @@ OBS 資產頁面（`/system/obs-assets`）可上傳圖片、音效與 Live2D 模
 
 OBS 動畫階段、結果停留時間、透明背景與低動態／低效能選項請參閱 [OBS 動畫生命週期](docs/obs-animation-lifecycle.md)。
 
+版本驗證、Docker 發布與桌面封裝現況請參閱 [發布策略](docs/release.md)。目前不提供 Tauri 桌面安裝包。
+
 ### 前置需求
 
 - .NET SDK 10.0
