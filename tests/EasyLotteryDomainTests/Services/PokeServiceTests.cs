@@ -45,6 +45,22 @@ namespace EasyLotteryDomainTests.Services
         }
 
         [TestMethod]
+        public async Task CreateTemplate_ClampsPlaybackDurations()
+        {
+            var svc = new PokeService(new InMemoryEasyLotteryConfigStore());
+
+            var created = await svc.CreateTemplateAsync(new PokeTemplate
+            {
+                Name = "Playback",
+                AnimationDurationMs = 1,
+                ResultDisplayDurationSeconds = 999
+            });
+
+            Assert.AreEqual(300, created.AnimationDurationMs);
+            Assert.AreEqual(300, created.ResultDisplayDurationSeconds);
+        }
+
+        [TestMethod]
         public async Task ListTemplates_AssignsAndPersistsMissingPublicId()
         {
             var store = new InMemoryEasyLotteryConfigStore();
@@ -151,6 +167,8 @@ namespace EasyLotteryDomainTests.Services
             Assert.AreEqual(template.OverlayWidth, duplicate.OverlayWidth);
             Assert.AreEqual(template.OverlayHeight, duplicate.OverlayHeight);
             Assert.AreEqual(template.Animation, duplicate.Animation);
+            Assert.AreEqual(template.AnimationDurationMs, duplicate.AnimationDurationMs);
+            Assert.AreEqual(template.ResultDisplayDurationSeconds, duplicate.ResultDisplayDurationSeconds);
             Assert.AreEqual(template.PokeSoundUrl, duplicate.PokeSoundUrl);
             Assert.AreEqual(template.OpenSoundUrl, duplicate.OpenSoundUrl);
             Assert.AreEqual(2, duplicate.Cells.Count);

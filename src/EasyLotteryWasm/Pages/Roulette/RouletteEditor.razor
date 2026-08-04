@@ -69,6 +69,11 @@
                         <NumericInput TValue="double" @bind-Value="@template.SpinDurationSec" Min="1.0" Max="30.0" />
                     </Field>
                     <Field>
+                        <FieldLabel>結果停留秒數</FieldLabel>
+                        <NumericInput TValue="int" @bind-Value="@template.ResultDisplayDurationSeconds" Min="1" Max="300" />
+                        <div class="form-text">結束後回到透明待機</div>
+                    </Field>
+                    <Field>
                         <FieldLabel>Easing 曲線</FieldLabel>
                         <Select TValue="string" @bind-SelectedValue="@template.EasingFunction">
                             <SelectItem Value="@("ease-out-cubic")">ease-out-cubic（推薦）</SelectItem>

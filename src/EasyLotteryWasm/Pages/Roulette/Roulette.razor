@@ -44,6 +44,7 @@
                     </div>
                     <div class="col-md-2 d-flex align-items-end"><Button Color="Color.Secondary" Clicked="ApplySegmentCount">套用格數</Button></div>
                     <div class="col-md-2"><Field><FieldLabel>旋轉時間（秒）</FieldLabel><NumericInput TValue="double" @bind-Value="editing.SpinDurationSec" Min="1" Max="30" /></Field></div>
+                    <div class="col-md-2"><Field><FieldLabel>結果停留秒數</FieldLabel><NumericInput TValue="int" @bind-Value="editing.ResultDisplayDurationSeconds" Min="1" Max="300" /><div class="form-text">結束後回到透明待機</div></Field></div>
                     <div class="col-md-3">
                         <Field><FieldLabel>緩動曲線</FieldLabel><Select TValue="string" @bind-SelectedValue="editing.EasingFunction"><SelectItem Value="@("ease-out-cubic")">ease-out-cubic</SelectItem><SelectItem Value="@("ease-out-quad")">ease-out-quad</SelectItem><SelectItem Value="@("ease-out-quart")">ease-out-quart</SelectItem><SelectItem Value="@("ease-out-expo")">ease-out-expo</SelectItem><SelectItem Value="@("linear")">linear</SelectItem></Select></Field>
                     </div>
@@ -126,7 +127,7 @@ else
 {
     <div class="table-responsive">
         <table class="table align-middle">
-            <thead><tr><th>模板</th><th>格數</th><th>旋轉時間</th><th>緩動曲線</th><th>狀態</th><th>操作</th></tr></thead>
+            <thead><tr><th>模板</th><th>格數</th><th>旋轉時間</th><th>結果停留</th><th>緩動曲線</th><th>狀態</th><th>操作</th></tr></thead>
             <tbody>
             @foreach (var template in templates)
             {
@@ -134,6 +135,7 @@ else
                     <td><div class="fw-semibold">@template.Name</div><div class="text-muted small">@template.Description</div></td>
                     <td>@template.SegmentCount</td>
                     <td>@template.SpinDurationSec.ToString("0.##") 秒</td>
+                    <td>@template.ResultDisplayDurationSeconds 秒</td>
                     <td>@template.EasingFunction</td>
                     <td>@(template.PublicationStatus == TemplatePublicationStatus.Published ? "啟用" : "停用")</td>
                     <td>
@@ -300,6 +302,7 @@ else
     private static RouletteTemplate Clone(RouletteTemplate source) => new()
     {
         Id = source.Id, PublicId = source.PublicId, Name = source.Name, Description = source.Description, SegmentCount = source.SegmentCount, SpinDurationSec = source.SpinDurationSec,
+        ResultDisplayDurationSeconds = source.ResultDisplayDurationSeconds,
         EasingFunction = source.EasingFunction, InitialAngleDeg = source.InitialAngleDeg, CenterImageUrl = source.CenterImageUrl,
         BackgroundImageUrl = source.BackgroundImageUrl, PointerImageUrl = source.PointerImageUrl, SpinSoundUrl = source.SpinSoundUrl,
         WinSoundUrl = source.WinSoundUrl, IsBuiltIn = source.IsBuiltIn, PublicationStatus = source.PublicationStatus,

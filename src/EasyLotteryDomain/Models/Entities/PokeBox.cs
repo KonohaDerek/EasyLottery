@@ -55,6 +55,12 @@ namespace EasyLotteryDomain.Models.Entities
 
         public PokeAnimation Animation { get; set; } = PokeAnimation.Burst;
 
+        /// <summary>揭露動畫播放時間（毫秒），介於 300 至 10000。</summary>
+        public int AnimationDurationMs { get; set; } = 650;
+
+        /// <summary>結果階段保留時間（秒），介於 1 至 300。</summary>
+        public int ResultDisplayDurationSeconds { get; set; } = 8;
+
         public string PokeSoundUrl { get; set; } = "";
 
         public string OpenSoundUrl { get; set; } = "";

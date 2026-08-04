@@ -23,9 +23,23 @@
     .obs-layout:not(.obs-controls-enabled) .donate-test-panel {
         display: none !important;
     }
+
+    .obs-layout.obs-motion-reduced *,
+    .obs-layout.obs-motion-reduced::before,
+    .obs-layout.obs-motion-reduced::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+    }
+
+    .obs-layout.obs-quality-low .obs-stage {
+        backdrop-filter: none !important;
+        box-shadow: none !important;
+    }
 </style>
 
-<div class="obs-layout @layoutClass @(controlsEnabled ? "obs-controls-enabled" : "")" style="@layoutStyle">
+<div class="obs-layout @layoutClass @(controlsEnabled ? "obs-controls-enabled" : "") @(motionReduced ? "obs-motion-reduced" : "") @(lowQuality ? "obs-quality-low" : "")" style="@layoutStyle">
     @Body
 </div>
 
@@ -33,10 +47,15 @@
     private string layoutClass = string.Empty;
     private string layoutStyle = string.Empty;
     private bool controlsEnabled;
+    private bool motionReduced;
+    private bool lowQuality;
 
     protected override async Task OnInitializedAsync()
     {
-        controlsEnabled = NavigationManager.ToAbsoluteUri(NavigationManager.Uri).Query.Contains("controls=1", StringComparison.OrdinalIgnoreCase);
+        var query = NavigationManager.ToAbsoluteUri(NavigationManager.Uri).Query;
+        controlsEnabled = query.Contains("controls=1", StringComparison.OrdinalIgnoreCase);
+        motionReduced = query.Contains("motion=reduce", StringComparison.OrdinalIgnoreCase);
+        lowQuality = query.Contains("quality=low", StringComparison.OrdinalIgnoreCase);
         var preset = ObsLayoutService.GetPreset(await ObsLayoutService.GetActiveLayoutKeyAsync());
         layoutClass = preset.StageClassName;
         layoutStyle = $"--obs-accent-gradient:{preset.AccentGradient};";

@@ -132,6 +132,13 @@ else
     .donate-notice { width:min(92vw,42rem); padding:1.25rem 1.5rem; border:2px solid #fde68a; border-radius:1.25rem; background:linear-gradient(135deg,rgba(45,15,82,.96),rgba(154,52,18,.92)); box-shadow:0 14px 38px rgba(0,0,0,.36); animation:notice-pop .5s ease-out both; }
     .donate-notice-eyebrow { color:#fde68a; font-size:.9rem; font-weight:900; letter-spacing:.2em; }.donate-notice-name{font-size:clamp(1.5rem,4vw,3rem);font-weight:950;overflow-wrap:anywhere}.donate-notice-amount{color:#fef3c7;font-size:clamp(1.4rem,3.5vw,2.6rem);font-weight:950}.donate-notice-message{margin-top:.4rem;white-space:pre-wrap;overflow-wrap:anywhere}.donate-notice-payment{margin-top:.4rem;color:#fde68a}
     .phase-notification .draw-prop,.phase-notification .donate-reveal-label,.phase-notification .donate-result-content,.phase-animation .donate-notice,.phase-animation .donate-reveal-label,.phase-animation .donate-result-content,.phase-reveal .donate-notice,.phase-reveal .draw-prop,.phase-reveal .donate-reveal-label{display:none}
+    .phase-animation .draw-prop,
+    .phase-animation .draw-prop *,
+    .phase-reveal .donate-result-content,
+    .phase-reveal .donate-result-content * {
+        animation-iteration-count: 1;
+        animation-fill-mode: both;
+    }
     .polaroid-template-classic { --polaroid-accent:#ffd166; --polaroid-surface:linear-gradient(135deg,#6d28d9,#f59e0b); }
     .polaroid-template-celebration { --polaroid-accent:#f9a8d4; --polaroid-surface:linear-gradient(135deg,#ec4899,#7c3aed 52%,#22d3ee); }
     .donate-reveal::before { content:""; position:absolute; inset:-2.5rem; pointer-events:none; background:radial-gradient(circle at center, rgba(255,255,255,.16), transparent 60%); opacity:.7; filter:blur(14px); }
@@ -244,7 +251,10 @@ else
     [Parameter] public string ActivityRouteKey { get; set; } = "";
     private DonateLotteryActivity? activity;
     private bool isLoading = true;
-    private readonly DonateObsRevealState revealState = new();
+    private DonateObsRevealState revealState = new();
+    private readonly Queue<DonateLotteryDrawRecord> pendingResults = new();
+    private int? queueActivityId;
+    private int? lastSeenRecordId;
     private bool prizeImageFailed;
     private bool testPanelOpen;
     private string testDonorName = "測試贊助者";
@@ -325,11 +335,38 @@ else
         activity = document.DonateLotteryActivities.FirstOrDefault(item =>
             item.PublicId == publicId ||
             (legacyId > 0 && item.Id == legacyId));
-        var newestWin = activity is null
-            ? null
-            : document.DonateLotteryDrawRecords.Where(item => item.ActivityId == activity.Id).OrderByDescending(item => item.Id).FirstOrDefault();
+        var records = activity is null
+            ? []
+            : document.DonateLotteryDrawRecords.Where(item => item.ActivityId == activity.Id).OrderBy(item => item.Id).ToList();
+        var newestWin = records.LastOrDefault();
 
-        var transition = DonateObsRevealLifecycle.Advance(revealState, activity, newestWin, DateTimeOffset.UtcNow);
+        if (activity is not null && queueActivityId != activity.Id)
+        {
+            queueActivityId = activity.Id;
+            lastSeenRecordId = newestWin?.Id;
+            pendingResults.Clear();
+            revealState = new DonateObsRevealState();
+        }
+
+        DonateObsRevealTransition transition;
+        if (!revealState.IsInitialized)
+        {
+            lastSeenRecordId = newestWin?.Id;
+            transition = DonateObsRevealLifecycle.Advance(revealState, activity, newestWin, DateTimeOffset.UtcNow);
+        }
+        else
+        {
+            foreach (var record in records.Where(record => record.Id > (lastSeenRecordId ?? revealState.ObservedWinId ?? 0)))
+            {
+                pendingResults.Enqueue(record);
+                lastSeenRecordId = Math.Max(lastSeenRecordId ?? 0, record.Id);
+            }
+
+            var nextResult = revealState.CurrentResult is null && pendingResults.Count > 0
+                ? pendingResults.Dequeue()
+                : null;
+            transition = DonateObsRevealLifecycle.Advance(revealState, activity, nextResult, DateTimeOffset.UtcNow);
+        }
         if (transition.IsNewResult)
         {
             prizeImageFailed = false;

@@ -48,6 +48,8 @@
                     <div class="col-md-3">
                         <Field><FieldLabel>動畫效果</FieldLabel><select class="form-select" @bind="editing.Animation"><option value="@PokeAnimation.Burst">爆破</option><option value="@PokeAnimation.Smoke">煙霧</option><option value="@PokeAnimation.Flash">光芒</option><option value="@PokeAnimation.Bounce">彈跳</option><option value="@PokeAnimation.Flip">翻轉</option></select></Field>
                     </div>
+                    <div class="col-md-3"><Field><FieldLabel>動畫秒數</FieldLabel><NumericInput TValue="int" @bind-Value="editing.AnimationDurationMs" Min="300" Max="10000" /><div class="form-text">300–10000 毫秒</div></Field></div>
+                    <div class="col-md-3"><Field><FieldLabel>結果停留秒數</FieldLabel><NumericInput TValue="int" @bind-Value="editing.ResultDisplayDurationSeconds" Min="1" Max="300" /><div class="form-text">結束後回到透明待機</div></Field></div>
                     <div class="col-md-3"><Field><FieldLabel>允許重複戳</FieldLabel><Switch TValue="bool" @bind-Value="editing.AllowRePoking" /></Field></div>
                     <div class="col-md-3"><Field><FieldLabel>次數限制（0 = 無限）</FieldLabel><NumericInput TValue="int" @bind-Value="editing.MaxPokeCount" Min="0" /></Field></div>
                     <div class="col-md-3"><Field><FieldLabel>啟用</FieldLabel><Switch TValue="bool" @bind-Value="EditingIsPublished" /></Field></div>
@@ -121,7 +123,7 @@ else
 {
     <div class="table-responsive">
         <table class="table align-middle">
-            <thead><tr><th>模板</th><th>格數</th><th>模式</th><th>動畫</th><th>狀態</th><th>操作</th></tr></thead>
+            <thead><tr><th>模板</th><th>格數</th><th>模式</th><th>動畫</th><th>節奏</th><th>狀態</th><th>操作</th></tr></thead>
             <tbody>
             @foreach (var template in templates)
             {
@@ -130,6 +132,7 @@ else
                     <td>@template.GridRows × @template.GridColumns</td>
                     <td>@(template.Mode == PokeMode.Random ? "隨機" : "手動")</td>
                     <td>@GetAnimationName(template.Animation)</td>
+                    <td>@(template.AnimationDurationMs) ms / @(template.ResultDisplayDurationSeconds) 秒</td>
                     <td>@(template.PublicationStatus == TemplatePublicationStatus.Published ? "啟用" : "停用")</td>
                     <td>
                         <div class="d-flex gap-2 flex-wrap">
@@ -297,7 +300,8 @@ else
         Id = source.Id, PublicId = source.PublicId, Name = source.Name, Description = source.Description, GridRows = source.GridRows, GridColumns = source.GridColumns,
         Mode = source.Mode, AllowRePoking = source.AllowRePoking, MaxPokeCount = source.MaxPokeCount, BackgroundImageUrl = source.BackgroundImageUrl,
         FontFamily = source.FontFamily, CongratulationMessage = source.CongratulationMessage, OverlayWidth = source.OverlayWidth,
-        OverlayHeight = source.OverlayHeight, Animation = source.Animation, PokeSoundUrl = source.PokeSoundUrl, OpenSoundUrl = source.OpenSoundUrl,
+        OverlayHeight = source.OverlayHeight, Animation = source.Animation, AnimationDurationMs = source.AnimationDurationMs,
+        ResultDisplayDurationSeconds = source.ResultDisplayDurationSeconds, PokeSoundUrl = source.PokeSoundUrl, OpenSoundUrl = source.OpenSoundUrl,
         IsBuiltIn = source.IsBuiltIn, PublicationStatus = source.PublicationStatus, CreatedAt = source.CreatedAt, UpdatedAt = source.UpdatedAt,
         Cells = source.Cells.OrderBy(cell => cell.Index).Select(cell => new PokeCell { Id = cell.Id, TemplateId = cell.TemplateId, Index = cell.Index, Title = cell.Title, SubTitle = cell.SubTitle, ImageUrl = cell.ImageUrl, RevealedImageUrl = cell.RevealedImageUrl, RevealedColor = cell.RevealedColor, IsRevealed = cell.IsRevealed, RevealedAt = cell.RevealedAt }).ToList()
     };

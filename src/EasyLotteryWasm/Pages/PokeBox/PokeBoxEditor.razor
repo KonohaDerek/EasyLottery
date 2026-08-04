@@ -89,6 +89,16 @@
                         </select>
                     </Field>
                     <Field>
+                        <FieldLabel>動畫秒數</FieldLabel>
+                        <NumericInput TValue="int" @bind-Value="@template.AnimationDurationMs" Min="300" Max="10000" />
+                        <div class="form-text">300–10000 毫秒</div>
+                    </Field>
+                    <Field>
+                        <FieldLabel>結果停留秒數</FieldLabel>
+                        <NumericInput TValue="int" @bind-Value="@template.ResultDisplayDurationSeconds" Min="1" Max="300" />
+                        <div class="form-text">結束後回到透明待機</div>
+                    </Field>
+                    <Field>
                         <FieldLabel>字體</FieldLabel>
                         <TextInput @bind-Value="@template.FontFamily" Placeholder="例如：Arial" />
                     </Field>
