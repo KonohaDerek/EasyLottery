@@ -1,5 +1,8 @@
 @page "/obs/pokebox/{Id:int}"
+@page "/obs/pokebox/{PublicId:guid}"
 @layout ObsLayout
+@implements IAsyncDisposable
+@using EasyLotteryDomain.Models
 @using EasyLotteryDomain.Models.Entities
 @using EasyLotteryDomain.Services
 @using EasyLotteryWasm.Layout
@@ -10,6 +13,7 @@
 @inject ResultNotificationService ResultNotificationService
 @inject PokeService PokeService
 @inject EasyLotteryWasm.Services.SoundCueService SoundCueService
+@inject EasyLotteryWasm.Services.LiveDrawSessionClient LiveDrawClient
 
 <PageTitle>戳戳樂 - OBS</PageTitle>
 
@@ -383,6 +387,7 @@ else
 
 @code {
     [Parameter] public int Id { get; set; }
+    [Parameter] public Guid PublicId { get; set; }
 
     private PokeTemplate? template;
     private int? lastPokedIndex;
@@ -393,6 +398,7 @@ else
     private string? lastRecordedSignature;
     private string? statusMessage;
     private bool statusIsError;
+    private long appliedRevision;
 
     private const int AnimationDurationMs = 650;
     private const int RevealCountdownSeconds = 2;
@@ -443,15 +449,25 @@ else
     protected override async Task OnInitializedAsync()
     {
         await LoadTemplate();
+        if (PublicId != Guid.Empty && template is not null)
+        {
+            LiveDrawClient.StateChanged += ApplyLiveStateAsync;
+            var state = await LiveDrawClient.StartAsync("pokebox", PublicId);
+            if (state is not null) await ApplyLiveStateAsync(state);
+        }
     }
 
     private async Task LoadTemplate()
     {
-        template = await PokeService.LoadTemplateAsync(Id);
+        template = PublicId == Guid.Empty
+            ? await PokeService.LoadTemplateAsync(Id)
+            : await PokeService.LoadTemplateAsync(PublicId);
         if (template == null)
         {
             await PokeService.SeedDefaultTemplatesAsync();
-            template = await PokeService.LoadTemplateAsync(Id);
+            template = PublicId == Guid.Empty
+                ? await PokeService.LoadTemplateAsync(Id)
+                : await PokeService.LoadTemplateAsync(PublicId);
         }
 
         isLoading = false;
@@ -462,6 +478,12 @@ else
         if (template == null) return;
         if (template.Mode != PokeMode.Manual) return;
         if (cell.IsRevealed && !template.AllowRePoking) return;
+
+        if (PublicId != Guid.Empty)
+        {
+            await ExecuteLiveCommandAsync(() => LiveDrawClient.PokeAsync(new PokeLiveDrawCommand(cell.Index, RevealCountdownSeconds)));
+            return;
+        }
 
         await RunRevealSequenceAsync(() => PokeService.PokeCellByIndexAsync(template.Id, cell.Index), poked =>
         {
@@ -474,6 +496,12 @@ else
     private async Task PokeRandom()
     {
         if (template == null) return;
+
+        if (PublicId != Guid.Empty)
+        {
+            await ExecuteLiveCommandAsync(() => LiveDrawClient.PokeAsync(new PokeLiveDrawCommand(null, RevealCountdownSeconds)));
+            return;
+        }
 
         await RunRevealSequenceAsync(() => PokeService.PokeRandomCellAsync(template.Id), poked =>
         {
@@ -490,6 +518,11 @@ else
     private async Task ResetTemplate()
     {
         if (template == null) return;
+        if (PublicId != Guid.Empty)
+        {
+            await ExecuteLiveCommandAsync(() => LiveDrawClient.ResetPokeAsync());
+            return;
+        }
         await PokeService.ResetTemplateAsync(template.Id);
         lastPokedIndex = null;
         lastRecordedSignature = null;
@@ -525,6 +558,69 @@ else
         await Task.Delay(AnimationDurationMs);
         lastPokedIndex = null;
         StateHasChanged();
+    }
+
+    private async Task ExecuteLiveCommandAsync(Func<Task<LiveDrawSessionState>> command)
+    {
+        if (IsBusy) return;
+        try
+        {
+            await command();
+        }
+        catch (Exception exception)
+        {
+            Log.Error(exception, "Live poke command failed.");
+            SetStatus(exception.Message, true);
+        }
+    }
+
+    private async Task ApplyLiveStateAsync(LiveDrawSessionState state)
+    {
+        if (state.PublicId != PublicId || state.Revision < appliedRevision) return;
+        appliedRevision = state.Revision;
+        flowPhase = state.Phase switch
+        {
+            LiveDrawSessionPhase.CountingDown => LiveDrawPhase.CountingDown,
+            LiveDrawSessionPhase.Animating => LiveDrawPhase.Spinning,
+            LiveDrawSessionPhase.ShowingResult => LiveDrawPhase.ShowingResult,
+            _ => LiveDrawPhase.Ready
+        };
+        countdownRemaining = state.Phase == LiveDrawSessionPhase.CountingDown && state.PhaseEndsAtUtc.HasValue
+            ? Math.Max(1, (int)Math.Ceiling((state.PhaseEndsAtUtc.Value - DateTimeOffset.UtcNow).TotalSeconds))
+            : null;
+
+        if (state.PokeCellIndex.HasValue && template is not null)
+        {
+            var cell = template.Cells.FirstOrDefault(item => item.Index == state.PokeCellIndex.Value);
+            if (cell is not null)
+            {
+                cell.IsRevealed = true;
+                cell.RevealedAt ??= state.UpdatedAtUtc.UtcDateTime;
+                lastPokedIndex = cell.Index;
+            }
+        }
+        else if (state.Phase == LiveDrawSessionPhase.Ready && state.Revision > 1)
+        {
+            lastPokedIndex = null;
+            await LoadTemplate();
+        }
+
+        var preset = SoundCueService.GetPreset(await SoundCueService.GetActivePresetKeyAsync());
+        if (state.Phase == LiveDrawSessionPhase.CountingDown) await SoundCueService.PlayCueAsync(preset.CountdownCue);
+        if (state.Phase == LiveDrawSessionPhase.Animating) await SoundCueService.PlayCueAsync(preset.PokeCue);
+        if (state.Phase == LiveDrawSessionPhase.ShowingResult) await SoundCueService.PlayCueAsync(preset.RevealCue);
+        await InvokeAsync(StateHasChanged);
+        if (countdownRemaining.HasValue) _ = TrackCountdownAsync(state.Revision, state.PhaseEndsAtUtc!.Value);
+    }
+
+    private async Task TrackCountdownAsync(long revision, DateTimeOffset endsAtUtc)
+    {
+        while (appliedRevision == revision && DateTimeOffset.UtcNow < endsAtUtc)
+        {
+            countdownRemaining = Math.Max(1, (int)Math.Ceiling((endsAtUtc - DateTimeOffset.UtcNow).TotalSeconds));
+            await InvokeAsync(StateHasChanged);
+            await Task.Delay(200);
+        }
     }
 
     private async Task RunRevealSequenceAsync(Func<Task<PokeCell?>> revealAsync, Action<PokeCell> applyReveal)
@@ -599,5 +695,11 @@ else
     {
         statusMessage = null;
         statusIsError = false;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        LiveDrawClient.StateChanged -= ApplyLiveStateAsync;
+        await LiveDrawClient.DisposeAsync();
     }
 }

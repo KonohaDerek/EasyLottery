@@ -281,7 +281,7 @@ else
 
     private string BuildObsUrl(RouletteTemplate template, bool showControls = false)
     {
-        var baseUrl = NavigationManager.ToAbsoluteUri($"/obs/roulette/{template.Id}").ToString();
+        var baseUrl = NavigationManager.ToAbsoluteUri($"/obs/roulette/{template.PublicId:D}").ToString();
         var query = showControls ? "controls=1" : "";
         if (!string.IsNullOrWhiteSpace(sessionToken)) query = string.IsNullOrWhiteSpace(query) ? $"sessionToken={Uri.EscapeDataString(sessionToken)}" : $"{query}&sessionToken={Uri.EscapeDataString(sessionToken)}";
         return string.IsNullOrWhiteSpace(query) ? baseUrl : $"{baseUrl}?{query}";
@@ -289,7 +289,7 @@ else
 
     private static RouletteTemplate Clone(RouletteTemplate source) => new()
     {
-        Id = source.Id, Name = source.Name, Description = source.Description, SegmentCount = source.SegmentCount, SpinDurationSec = source.SpinDurationSec,
+        Id = source.Id, PublicId = source.PublicId, Name = source.Name, Description = source.Description, SegmentCount = source.SegmentCount, SpinDurationSec = source.SpinDurationSec,
         EasingFunction = source.EasingFunction, InitialAngleDeg = source.InitialAngleDeg, CenterImageUrl = source.CenterImageUrl,
         BackgroundImageUrl = source.BackgroundImageUrl, PointerImageUrl = source.PointerImageUrl, SpinSoundUrl = source.SpinSoundUrl,
         WinSoundUrl = source.WinSoundUrl, IsBuiltIn = source.IsBuiltIn, PublicationStatus = source.PublicationStatus,
