@@ -20,7 +20,7 @@ dotnet build src/EasyLotteryAPI/EasyLotteryApi.csproj --configuration Release --
 
 ## Docker 發布
 
-使用 `docker compose build` 產生 Web host image，再以獨立 volume 保存 `App_Data`。啟動前必須設定隨機管理密碼或依 [管理者與 OBS 權限](security.md) 完成初始化：
+使用 `docker compose build` 產生 Web host image，再以獨立 volume 保存 `App_Data`。啟動後請依 [Session 與 OBS 權限](security.md) 將網站限制在可信任的 localhost、內網或 Tunnel：
 
 ```bash
 docker compose build api

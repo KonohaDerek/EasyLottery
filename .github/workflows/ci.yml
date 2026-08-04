@@ -69,7 +69,6 @@ jobs:
       - name: Start API for browser tests
         env:
           ASPNETCORE_ENVIRONMENT: Development
-          Security__AdminPassword: ci-admin-password
           Storage__Directory: ${{ runner.temp }}/easy-lottery-e2e
         run: |
           mkdir -p "$Storage__Directory"
@@ -88,7 +87,6 @@ jobs:
         working-directory: tests/e2e
         env:
           BASE_URL: http://127.0.0.1:18930
-          EASYLOTTERY_ADMIN_PASSWORD: ci-admin-password
         run: npm test
 
       - name: Upload browser test artifacts

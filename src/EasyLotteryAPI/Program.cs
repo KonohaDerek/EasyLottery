@@ -21,7 +21,6 @@ builder.Services.AddEasyLotteryInfrastructure();
 builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblies(typeof(GetDonateActivitiesQuery).Assembly, typeof(DependencyInjection).Assembly));
 builder.Services.AddSingleton<ObsSessionTokenService>();
 builder.Services.AddSingleton<ObsSessionAccess>();
-builder.Services.AddSingleton<AdminCredentialService>();
 builder.Services.AddSingleton<ObsSettingsProjectionService>();
 builder.Services.AddRateLimiter(options =>
 {

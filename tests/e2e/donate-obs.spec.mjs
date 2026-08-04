@@ -1,11 +1,7 @@
 import { expect, test } from "@playwright/test";
 
-const adminPassword = process.env.EASYLOTTERY_ADMIN_PASSWORD ?? "ci-admin-password";
-
 async function login(request) {
-  const response = await request.post("/api/admin/session", {
-    data: { password: adminPassword }
-  });
+  const response = await request.get("/api/session-token");
   expect(response.ok()).toBeTruthy();
   return (await response.json()).token;
 }
