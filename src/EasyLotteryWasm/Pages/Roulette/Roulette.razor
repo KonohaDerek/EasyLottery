@@ -194,6 +194,7 @@ else
     protected override async Task OnInitializedAsync()
     {
         await ReloadAsync();
+        await OpenRequestedEditorAsync();
     }
 
     private async Task ReloadAsync()
@@ -213,6 +214,20 @@ else
         ApplySegmentsToTemplate();
         editorVisible = true;
         return Task.CompletedTask;
+    }
+
+    private async Task OpenRequestedEditorAsync()
+    {
+        var query = NavigationManager.ToAbsoluteUri(NavigationManager.Uri).Query;
+        if (!NavigationQuery.TryGetInt(query, "edit", out var id)) return;
+        if (id == 0)
+        {
+            await CreateAsync();
+            return;
+        }
+
+        var target = templates?.FirstOrDefault(template => template.Id == id);
+        if (target is not null) Edit(target);
     }
 
     private void Edit(RouletteTemplate template)
