@@ -19,14 +19,14 @@ else { <div class="row g-3">@foreach (var item in items) { <div class="col-md-6 
  private async Task ReloadAsync()
  {
      var pokes=await PokeService.ListTemplatesAsync(); var roulettes=await RouletteService.ListTemplatesAsync();
-     items=pokes.Where(x=>x.IsBuiltIn && x.PublicationStatus==TemplatePublicationStatus.Published).Select(source => { var installed=pokes.Where(x=>!x.IsBuiltIn && x.Name.StartsWith(source.Name, StringComparison.Ordinal)).OrderByDescending(x=>x.UpdatedAt).FirstOrDefault(); return new MarketItem("戳戳樂",source.Name,source.Description,source.Id,installed is not null,installed?.Id,installed is null ? "" : $"/pokebox/editor/{installed.Id}"); })
-         .Concat(roulettes.Where(x=>x.IsBuiltIn && x.PublicationStatus==TemplatePublicationStatus.Published).Select(source => { var installed=roulettes.Where(x=>!x.IsBuiltIn && x.Name.StartsWith(source.Name, StringComparison.Ordinal)).OrderByDescending(x=>x.UpdatedAt).FirstOrDefault(); return new MarketItem("轉盤",source.Name,source.Description,source.Id,installed is not null,installed?.Id,installed is null ? "" : $"/roulette/editor/{installed.Id}"); })).ToList();
+     items=pokes.Where(x=>x.IsBuiltIn && x.PublicationStatus==TemplatePublicationStatus.Published).Select(source => { var installed=pokes.Where(x=>!x.IsBuiltIn && x.Name.StartsWith(source.Name, StringComparison.Ordinal)).OrderByDescending(x=>x.UpdatedAt).FirstOrDefault(); return new MarketItem("戳戳樂",source.Name,source.Description,source.Id,installed is not null,installed?.Id,installed is null ? "" : $"/pokebox?edit={installed.Id}"); })
+         .Concat(roulettes.Where(x=>x.IsBuiltIn && x.PublicationStatus==TemplatePublicationStatus.Published).Select(source => { var installed=roulettes.Where(x=>!x.IsBuiltIn && x.Name.StartsWith(source.Name, StringComparison.Ordinal)).OrderByDescending(x=>x.UpdatedAt).FirstOrDefault(); return new MarketItem("轉盤",source.Name,source.Description,source.Id,installed is not null,installed?.Id,installed is null ? "" : $"/roulette?edit={installed.Id}"); })).ToList();
      loading=false;
  }
  private async Task InstallAsync(MarketItem item)
  {
-     if (item.Type == "戳戳樂") { var installed=await PokeService.DuplicateTemplateAsync(item.SourceId); await PokeService.SetPublicationStatusAsync(installed.Id, TemplatePublicationStatus.Published); Navigation.NavigateTo($"/pokebox/editor/{installed.Id}"); }
-     else { var installed=await RouletteService.DuplicateTemplateAsync(item.SourceId); await RouletteService.SetPublicationStatusAsync(installed.Id, TemplatePublicationStatus.Published); Navigation.NavigateTo($"/roulette/editor/{installed.Id}"); }
+     if (item.Type == "戳戳樂") { var installed=await PokeService.DuplicateTemplateAsync(item.SourceId); await PokeService.SetPublicationStatusAsync(installed.Id, TemplatePublicationStatus.Published); Navigation.NavigateTo($"/pokebox?edit={installed.Id}"); }
+     else { var installed=await RouletteService.DuplicateTemplateAsync(item.SourceId); await RouletteService.SetPublicationStatusAsync(installed.Id, TemplatePublicationStatus.Published); Navigation.NavigateTo($"/roulette?edit={installed.Id}"); }
      await MessageService.Success("市集活動已安裝並啟用。");
  }
 }
