@@ -8,9 +8,9 @@
 @using EasyLotteryWasm.Models
 @using Serilog
 
-@inject ActivityResultService ActivityResultService
+@inject ActivityResultApiClient ActivityResultService
 @inject ResultNotificationService ResultNotificationService
-@inject PokeService PokeService
+@inject PokeTemplateApiClient PokeService
 @inject EasyLotteryWasm.Services.SoundCueService SoundCueService
 @inject EasyLotteryWasm.Services.LiveDrawSessionClient LiveDrawClient
 
@@ -559,7 +559,7 @@ else
         isRecording = true;
         try
         {
-            var record = await ActivityResultService.RecordPokeActivityAsync(template.Id);
+            var record = await ActivityResultService.RecordPokeActivityAsync(template.Id, PublicId);
             lastRecordedSignature = BuildRecordSignature();
             await ResultNotificationService.NotifyActivityResultAsync(record);
             SetStatus($"已記錄活動「{record.ActivityName}」結果。", false);

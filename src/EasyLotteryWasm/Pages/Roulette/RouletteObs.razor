@@ -7,9 +7,9 @@
 @using EasyLotteryWasm.Layout
 @using Serilog
 
-@inject ActivityResultService ActivityResultService
+@inject ActivityResultApiClient ActivityResultService
 @inject ResultNotificationService ResultNotificationService
-@inject RouletteService RouletteService
+@inject RouletteTemplateApiClient RouletteService
 @inject EasyLotteryWasm.Services.SoundCueService SoundCueService
 @inject EasyLotteryWasm.Services.LiveDrawSessionClient LiveDrawClient
 
@@ -517,7 +517,7 @@ else
         var cuePreset = SoundCueService.GetPreset(await SoundCueService.GetActivePresetKeyAsync());
         await SoundCueService.PlayCueAsync(cuePreset.SpinCue);
 
-        var result = RouletteService.Spin(template, forced, currentRotation);
+        var result = await RouletteService.SpinAsync(template.Id, forced, currentRotation);
 
         currentRotation += result.TotalRotationDeg;
         StateHasChanged();
@@ -544,7 +544,7 @@ else
         isRecording = true;
         try
         {
-            var record = await ActivityResultService.RecordRouletteActivityAsync(template.Id, lastResult);
+            var record = await ActivityResultService.RecordRouletteActivityAsync(template.Id, lastResult, PublicId);
             lastRecordedSignature = BuildRecordSignature();
             await ResultNotificationService.NotifyActivityResultAsync(record);
             SetStatus($"已記錄活動「{record.ActivityName}」結果。", false);

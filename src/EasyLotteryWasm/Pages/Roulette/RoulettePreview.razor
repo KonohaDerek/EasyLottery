@@ -4,9 +4,9 @@
 @using EasyLotteryWasm.Services
 @using Serilog
 
-@inject ActivityResultService ActivityResultService
+@inject ActivityResultApiClient ActivityResultService
 @inject ResultNotificationService ResultNotificationService
-@inject RouletteService RouletteService
+@inject RouletteTemplateApiClient RouletteService
 @inject NavigationManager NavigationManager
 @inject IMessageService MessageService
 @inject ObsSessionService ObsSessionService
@@ -341,7 +341,7 @@ else
         isSpinning = true;
         countdownRemaining = null;
 
-        var result = RouletteService.Spin(template, forced, currentRotation);
+        var result = await RouletteService.SpinAsync(template.Id, forced, currentRotation);
         currentRotation += result.TotalRotationDeg;
         StateHasChanged();
 

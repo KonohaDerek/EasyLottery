@@ -16,6 +16,8 @@ namespace EasyLotteryDomain.Models.Config
 
         public int TemplateId { get; set; }
 
+        public Guid TemplatePublicId { get; set; }
+
         public DateTime ActivityDateUtc { get; set; } = DateTime.UtcNow;
 
         public string Summary { get; set; } = "";
