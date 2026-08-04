@@ -4,14 +4,8 @@ internal static class ObsSessionEndpoints
 {
     public static void MapObsSessionEndpoints(this WebApplication app)
     {
-        app.MapPost("/api/admin/session", (AdminLoginRequest request, AdminCredentialService credentials, ObsSessionTokenService tokens) =>
+        app.MapGet("/api/session-token", (ObsSessionTokenService tokens) =>
         {
-            if (!credentials.Verify(request.Password))
-            {
-                app.Logger.LogWarning("Admin login rejected from API client.");
-                return Results.Unauthorized();
-            }
-
             var issued = tokens.IssueAdminToken();
             return Results.Ok(new SessionTokenResponse(issued.Token, issued.ExpiresAtUtc));
         }).RequireRateLimiting("authentication");
@@ -44,10 +38,8 @@ internal static class ObsSessionEndpoints
             return Results.NoContent();
         });
 
-        app.MapGet("/api/session-token", () => Results.NotFound(new { error = "公開 session token endpoint 已停用，請使用管理者登入。" }));
     }
 }
 
-public sealed record AdminLoginRequest(string Password);
 public sealed record ObsTokenRequest(string ResourceKind, string ResourceId, string[] Scopes);
 public sealed record SessionTokenResponse(string Token, DateTimeOffset ExpiresAtUtc);

@@ -1,22 +1,12 @@
-# 管理者與 OBS 權限
+# Session 與 OBS 權限
 
-## 設定管理密碼
+## 自動取得 Session
 
-正式部署與 Tunnel 模式建議在啟動前設定：
+EasyLottery 網站不需要管理密碼。WASM 啟動時會呼叫同源的 `GET /api/session-token`，由目前 API 執行個體簽發短期 admin JWT，並只保存於瀏覽器的 `sessionStorage`。重新整理或重新開啟瀏覽器後，系統會自動取得新的 token。
 
-```bash
-export EASYLOTTERY_ADMIN_PASSWORD='請改成足夠長且唯一的密碼'
-```
+API 重啟會重新產生簽章金鑰，先前的 token 會失效；重新載入網站即可恢復。網站仍應放在可信任的 localhost、內網或已限制存取的 Tunnel 後方，因為沒有帳號登入時，能開啟網站的人也能取得管理 session。
 
-也可使用 ASP.NET Core 設定鍵 `Security:AdminPassword`。管理密碼不會寫入 `settings.yaml`，OBS URL 也不會包含管理 token。
-
-若兩者皆未設定，API 會在 `Storage:Directory` 建立 `.admin-password`。檔案在 Unix 系統只允許目前使用者讀寫；第一次登入時請從主機讀取該檔案。不要把此檔案提交至版本控制或分享給 OBS viewer。
-
-## 管理頁登入
-
-開啟管理頁時，瀏覽器會要求管理密碼並以 `/api/admin/session` 交換四小時 admin JWT。token 只保存在該分頁的 session storage，關閉瀏覽器 session 後需重新登入。
-
-錯誤登入每個來源每分鐘最多五次。設定寫入、活動 CRUD、Tunnel、測試支付與其他敏感命令另有速率限制及 1 MiB request body 上限。
+設定寫入、活動 CRUD、Tunnel、測試支付與其他敏感命令仍要求有效的 admin session，並套用速率限制及 1 MiB request body 上限。
 
 ## OBS URL
 
@@ -33,5 +23,5 @@ export EASYLOTTERY_ADMIN_PASSWORD='請改成足夠長且唯一的密碼'
 
 - Tunnel 啟動、停止與狀態 API 只接受 admin token。
 - 支付 callback 不接受 admin／OBS token取代金流 provider signature。
-- `.admin-password`、storage YAML／JSON、Tunnel credentials 都必須留在可信任主機。
+- storage YAML／JSON、Tunnel credentials 與可取得管理 session 的網站都必須留在可信任環境。
 - 公開直播前請以無痕視窗測試正式 OBS URL，確認無法修改設定或操作其他活動。

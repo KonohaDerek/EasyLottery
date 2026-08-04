@@ -73,13 +73,12 @@ public sealed class TemplateApiTests
         new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.ConfigureAppConfiguration((_, configuration) =>
             configuration.AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["Security:AdminPassword"] = "test-admin-password",
                 ["Storage:Directory"] = Path.Combine(Path.GetTempPath(), $"easy-lottery-template-tests-{Guid.NewGuid():N}")
             })));
 
     private static async Task<string> LoginAsync(HttpClient client)
     {
-        using var response = await client.PostAsJsonAsync("/api/admin/session", new { password = "test-admin-password" });
+        using var response = await client.GetAsync("/api/session-token");
         response.EnsureSuccessStatusCode();
         return (await response.Content.ReadFromJsonAsync<TokenResponse>())!.Token;
     }

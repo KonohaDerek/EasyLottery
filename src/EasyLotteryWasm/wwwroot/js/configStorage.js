@@ -83,19 +83,12 @@
 
         if (!sessionTokenPromise) {
             sessionTokenPromise = (async () => {
-                const password = window.prompt("請輸入 EasyLottery 管理密碼。未設定環境變數時，密碼位於伺服器 Storage 目錄的 .admin-password。");
-                if (!password) {
-                    throw new Error("Administrator login was cancelled.");
-                }
-
-                const response = await fetch("/api/admin/session", {
-                    method: "POST",
+                const response = await fetch("/api/session-token", {
+                    method: "GET",
                     cache: "no-store",
-                    headers: { "Content-Type": "application/json; charset=utf-8" },
-                    body: JSON.stringify({ password })
                 });
                 if (!response.ok) {
-                    throw new Error(`Unable to authenticate administrator (${response.status}).`);
+                    throw new Error(`Unable to obtain a session token (${response.status}).`);
                 }
 
                 const payload = await response.json();

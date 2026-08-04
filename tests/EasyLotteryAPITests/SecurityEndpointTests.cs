@@ -13,17 +13,20 @@ namespace EasyLotteryApiTests;
 public sealed class SecurityEndpointTests
 {
     [TestMethod]
-    public async Task AdminLogin_RequiresCorrectPassword()
+    public async Task SessionTokenEndpoint_IssuesAdminTokenWithoutPassword()
     {
         await using var factory = CreateFactory();
         using var client = factory.CreateClient();
 
-        var denied = await client.PostAsJsonAsync("/api/admin/session", new { password = "wrong" });
-        var allowed = await client.PostAsJsonAsync("/api/admin/session", new { password = "test-admin-password" });
+        var first = await client.GetAsync("/api/session-token");
+        var second = await client.GetAsync("/api/session-token");
 
-        Assert.AreEqual(HttpStatusCode.Unauthorized, denied.StatusCode);
-        Assert.AreEqual(HttpStatusCode.OK, allowed.StatusCode);
-        Assert.IsFalse(string.IsNullOrWhiteSpace((await allowed.Content.ReadFromJsonAsync<TokenResponse>())?.Token));
+        Assert.AreEqual(HttpStatusCode.OK, first.StatusCode);
+        Assert.AreEqual(HttpStatusCode.OK, second.StatusCode);
+        var firstToken = (await first.Content.ReadFromJsonAsync<TokenResponse>())!;
+        var secondToken = (await second.Content.ReadFromJsonAsync<TokenResponse>())!;
+        Assert.IsFalse(string.IsNullOrWhiteSpace(firstToken.Token));
+        Assert.AreNotEqual(firstToken.Token, secondToken.Token);
     }
 
     [TestMethod]
@@ -87,7 +90,7 @@ public sealed class SecurityEndpointTests
     }
 
     [TestMethod]
-    public async Task LoginRateLimit_ReturnsTooManyRequests()
+    public async Task SessionTokenRateLimit_ReturnsTooManyRequests()
     {
         await using var factory = CreateFactory();
         using var client = factory.CreateClient();
@@ -95,7 +98,7 @@ public sealed class SecurityEndpointTests
         for (var attempt = 0; attempt < 6; attempt++)
         {
             response?.Dispose();
-            response = await client.PostAsJsonAsync("/api/admin/session", new { password = "wrong" });
+            response = await client.GetAsync("/api/session-token");
         }
 
         using (response)
@@ -108,7 +111,7 @@ public sealed class SecurityEndpointTests
         await using var factory = CreateFactory();
         using var client = factory.CreateClient();
         using var content = new ByteArrayContent(new byte[1_048_577]);
-        using var response = await client.PostAsync("/api/admin/session", content);
+        using var response = await client.PutAsync("/settings", content);
 
         Assert.AreEqual(HttpStatusCode.RequestEntityTooLarge, response.StatusCode);
     }
@@ -117,13 +120,12 @@ public sealed class SecurityEndpointTests
         new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.ConfigureAppConfiguration((_, configuration) =>
             configuration.AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["Security:AdminPassword"] = "test-admin-password",
                 ["Storage:Directory"] = Path.Combine(Path.GetTempPath(), $"easy-lottery-security-tests-{Guid.NewGuid():N}")
             })));
 
     private static async Task<string> LoginAsync(HttpClient client)
     {
-        using var response = await client.PostAsJsonAsync("/api/admin/session", new { password = "test-admin-password" });
+        using var response = await client.GetAsync("/api/session-token");
         response.EnsureSuccessStatusCode();
         return (await response.Content.ReadFromJsonAsync<TokenResponse>())!.Token;
     }
