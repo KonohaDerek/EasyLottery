@@ -180,6 +180,24 @@ html, body {
     min-height: 100%;
 }
 
+/* Management editors contain multi-column forms and asset pickers. Bootstrap's
+   default modal width is too narrow for these fields, so keep them at 75vw
+   while allowing a one-rem gutter on small screens. */
+.modal.wide-editor-modal .modal-dialog,
+.modal.wide-asset-picker-modal .modal-dialog {
+    width: 75vw;
+    max-width: 75vw;
+}
+
+@media (max-width: 767.98px) {
+    .modal.wide-editor-modal .modal-dialog,
+    .modal.wide-asset-picker-modal .modal-dialog {
+        width: calc(100vw - 1rem);
+        max-width: calc(100vw - 1rem);
+        margin-inline: auto;
+    }
+}
+
 /* The navigation owns its collapsed state; the shell follows it without a
    second state container in MainLayout. Chromium/WebView2 (the supported OBS
    browser runtime) supports :has and keeps the main content width in sync. */

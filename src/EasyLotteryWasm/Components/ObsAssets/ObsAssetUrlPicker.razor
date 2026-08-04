@@ -12,7 +12,7 @@
         <div class="form-text text-success">已使用本機 OBS 資產</div>
     }
 
-    <Modal Visible="@pickerVisible" VisibleChanged="OnPickerVisibleChanged" Centered Scrollable ShowBackdrop>
+    <Modal Visible="@pickerVisible" VisibleChanged="OnPickerVisibleChanged" Class="wide-asset-picker-modal" Size="ModalSize.ExtraLarge" Centered Scrollable ShowBackdrop>
         <ModalContent Class="obs-asset-picker-dialog">
             <ModalHeader>
                 <ModalTitle>選擇@(Kind == ObsAssetKind.Image ? "圖片" : Kind == ObsAssetKind.Audio ? "音效" : "OBS 資產")</ModalTitle>
