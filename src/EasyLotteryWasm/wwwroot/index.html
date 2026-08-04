@@ -98,7 +98,10 @@
             send: async (request) => {
                 const response = await fetch("/api/result-notification", {
                     method: "POST",
-                    headers: { "Content-Type": "application/json; charset=utf-8" },
+                    headers: {
+                        "Content-Type": "application/json; charset=utf-8",
+                        "X-EasyLottery-Session-Token": await window.easyLotteryConfig.getSessionToken()
+                    },
                     body: JSON.stringify(request)
                 });
 
@@ -216,7 +219,11 @@
                 }
 
                 try {
-                    const response = await fetch(remoteFeedUrl, { cache: "no-store", mode: "cors" });
+                    const response = await fetch(remoteFeedUrl, {
+                        cache: "no-store",
+                        mode: "cors",
+                        headers: { "X-EasyLottery-Session-Token": await window.easyLotteryConfig.getSessionToken() }
+                    });
                     if (response.ok) {
                         nextRemoteAttemptAt = 0;
                         return getSafeContent(await response.text());
@@ -244,7 +251,8 @@
                         cache: "no-store",
                         mode: "cors",
                         headers: {
-                            "Content-Type": "application/json; charset=utf-8"
+                            "Content-Type": "application/json; charset=utf-8",
+                            "X-EasyLottery-Session-Token": await window.easyLotteryConfig.getSessionToken()
                         },
                         body: getSafeContent(content)
                     });
@@ -282,7 +290,8 @@
                         await fetch(remoteFeedUrl, {
                             method: "DELETE",
                             cache: "no-store",
-                            mode: "cors"
+                            mode: "cors",
+                            headers: { "X-EasyLottery-Session-Token": await window.easyLotteryConfig.getSessionToken() }
                         });
                     } catch {
                     }

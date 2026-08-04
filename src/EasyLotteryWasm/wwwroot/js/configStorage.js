@@ -10,6 +10,17 @@
     let nextRemoteAttemptAt = 0;
     let sessionTokenPromise = null;
 
+    function readJwtPayload(token) {
+        try {
+            const part = token.split(".")[1];
+            if (!part) return null;
+            const normalized = part.replace(/-/g, "+").replace(/_/g, "/");
+            return JSON.parse(atob(normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=")));
+        } catch {
+            return null;
+        }
+    }
+
     function logError(scope, error) {
         try {
             console.error(`[easyLotteryConfig] ${scope}`, error);
@@ -21,13 +32,16 @@
     function bootstrapSessionTokenFromQuery() {
         try {
             const url = new URL(window.location.href);
-            const token = (url.searchParams.get("sessionToken") || "").trim();
+            const hashParams = new URLSearchParams(url.hash.replace(/^#/, ""));
+            const token = (url.searchParams.get("sessionToken") || hashParams.get("sessionToken") || "").trim();
             if (!token) {
                 return;
             }
 
             window.sessionStorage.setItem(sessionTokenKey, token);
             url.searchParams.delete("sessionToken");
+            hashParams.delete("sessionToken");
+            url.hash = hashParams.toString() ? `#${hashParams.toString()}` : "";
             window.history.replaceState({}, document.title, `${url.pathname}${url.search}${url.hash}`);
         } catch (error) {
             logError("bootstrapSessionTokenFromQuery", error);
@@ -54,7 +68,13 @@
         try {
             const cached = window.sessionStorage.getItem(sessionTokenKey);
             if (cached) {
-                return cached;
+                const payload = readJwtPayload(cached);
+                const expired = !payload?.exp || payload.exp * 1000 <= Date.now() + 5_000;
+                if (!expired) return cached;
+                window.sessionStorage.removeItem(sessionTokenKey);
+                if (payload?.token_use === "obs") {
+                    throw new Error("OBS token 已過期，請從管理頁重新開啟 OBS URL。");
+                }
             }
         } catch (error) {
             logError("ensureSessionToken.sessionStorage.getItem", error);
@@ -62,9 +82,19 @@
 
         if (!sessionTokenPromise) {
             sessionTokenPromise = (async () => {
-                const response = await fetch("/api/session-token", { cache: "no-store" });
+                const password = window.prompt("請輸入 EasyLottery 管理密碼。未設定環境變數時，密碼位於伺服器 Storage 目錄的 .admin-password。");
+                if (!password) {
+                    throw new Error("Administrator login was cancelled.");
+                }
+
+                const response = await fetch("/api/admin/session", {
+                    method: "POST",
+                    cache: "no-store",
+                    headers: { "Content-Type": "application/json; charset=utf-8" },
+                    body: JSON.stringify({ password })
+                });
                 if (!response.ok) {
-                    throw new Error(`Unable to obtain session token (${response.status}).`);
+                    throw new Error(`Unable to authenticate administrator (${response.status}).`);
                 }
 
                 const payload = await response.json();

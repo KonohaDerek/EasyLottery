@@ -6,6 +6,9 @@
 @using Serilog
 @inject IEasyLotteryConfigStore ConfigStore
 @inject AiCongratulationClient AiCongratulationClient
+@inject HttpClient HttpClient
+@inject EasyLotteryWasm.Services.ObsSessionService ObsSessionService
+@using System.Net.Http.Json
 @implements IAsyncDisposable
 
 <PageTitle>Donate 抽獎 OBS</PageTitle>
@@ -276,27 +279,33 @@ else
 
     private async Task RunTestAsync()
     {
-        var document = await ConfigStore.LoadAsync(cancellation.Token);
-        var activityKey = activity?.PublicId.ToString("N") ?? ActivityRouteKey;
-        var testId = $"obs-test:{activityKey}:{Guid.NewGuid():N}";
         if (activity is null)
         {
             testResult = "測試失敗：找不到目前 OBS 對應的 Donate 活動。";
             return;
         }
 
-        var recordsBefore = document.DonateLotteryDrawRecords.Count;
-        var result = DonateLotteryEngine.Process(document, testId, testDonorName, testAmount, DateTimeOffset.UtcNow,
-            donationMessage: testMessage, paymentMethod: testPaymentMethod, targetActivityId: activity.Id, bypassActivityEligibility: true);
-        await ConfigStore.SaveAsync(document, cancellation.Token);
-        var testRecords = document.DonateLotteryDrawRecords.Skip(recordsBefore).ToList();
-        testResult = !result.Processed
-            ? $"測試失敗：{result.Reason}"
-            : testRecords.Count == 0
+        using var httpRequest = new HttpRequestMessage(HttpMethod.Post, $"api/obs/donate/{activity.PublicId:D}/test");
+        httpRequest.Headers.Add(ObsSessionTokenHeader.Name, await ObsSessionService.GetSessionTokenAsync(cancellation.Token));
+        httpRequest.Content = JsonContent.Create(new DonateObsTestRequest(testDonorName, testAmount, testMessage, testPaymentMethod));
+        using var response = await HttpClient.SendAsync(httpRequest, cancellation.Token);
+        if (!response.IsSuccessStatusCode)
+        {
+            testResult = $"測試失敗：API 回傳 {(int)response.StatusCode}。";
+            return;
+        }
+        var result = await response.Content.ReadFromJsonAsync<DonateObsTestResponse>(cancellationToken: cancellation.Token);
+        var testRecords = result?.Records ?? [];
+        testResult = result?.Processed != true
+            ? $"測試失敗：{result?.Reason}"
+            : testRecords.Length == 0
                 ? $"測試完成：贊助金額未達活動門檻 NT${activity.MinimumDonationAmount:N0}。"
                 : $"測試通知已送出（{testPaymentMethod}）：{testDonorName} NT${testAmount:N0}，結果 {string.Join("、", testRecords.Select(win => win.PrizeName))}。留言：{testMessage}";
         await RefreshAsync();
     }
+
+    private sealed record DonateObsTestRequest(string DonorName, decimal Amount, string Message, string PaymentMethod);
+    private sealed record DonateObsTestResponse(bool Processed, string Reason, DonateLotteryDrawRecord[] Records);
 
     private async Task PollAsync()
     {
@@ -330,7 +339,7 @@ else
         {
             if (latestWin.IsWinning && activity?.UseAiCongratulation == true)
             {
-                aiCongratulation = await AiCongratulationClient.GenerateAsync(latestWin.DonorName, latestWin.PrizeName, cancellation.Token);
+                aiCongratulation = await AiCongratulationClient.GenerateAsync(activity.PublicId, latestWin.DonorName, latestWin.PrizeName, cancellation.Token);
             }
         }
         else if (transition.Cleared)

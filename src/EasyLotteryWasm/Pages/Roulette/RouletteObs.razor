@@ -381,6 +381,7 @@ else
 @code {
     [Parameter] public int Id { get; set; }
     [Parameter] public Guid PublicId { get; set; }
+    private Guid ActivePublicId => PublicId != Guid.Empty ? PublicId : template?.PublicId ?? Guid.Empty;
 
     private RouletteTemplate? template;
     private SpinResult? lastResult;
@@ -423,10 +424,10 @@ else
         }
 
         isLoading = false;
-        if (PublicId != Guid.Empty && template is not null)
+        if (ActivePublicId != Guid.Empty && template is not null)
         {
             LiveDrawClient.StateChanged += ApplyLiveStateAsync;
-            var state = await LiveDrawClient.StartAsync("roulette", PublicId);
+            var state = await LiveDrawClient.StartAsync("roulette", ActivePublicId);
             if (state is not null) await ApplyLiveStateAsync(state);
         }
     }
@@ -445,7 +446,7 @@ else
     {
         if (template == null || IsBusy) return;
 
-        if (PublicId != Guid.Empty)
+        if (ActivePublicId != Guid.Empty)
         {
             try
             {
@@ -534,7 +535,7 @@ else
 
     private async Task ApplyLiveStateAsync(LiveDrawSessionState state)
     {
-        if (state.PublicId != PublicId || state.Revision < appliedRevision) return;
+        if (state.PublicId != ActivePublicId || state.Revision < appliedRevision) return;
         appliedRevision = state.Revision;
         flowPhase = state.Phase switch
         {

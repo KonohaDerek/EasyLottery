@@ -6,16 +6,16 @@ namespace EasyLotteryWasm.Services
 {
     public sealed class ResultNotificationService
     {
-        private readonly SystemSettingsService _systemSettingsService;
         private readonly IJSRuntime _jsRuntime;
         private readonly ILogger<ResultNotificationService> _logger;
+        private readonly IEasyLotteryConfigStore _configStore;
 
         public ResultNotificationService(
-            SystemSettingsService systemSettingsService,
+            IEasyLotteryConfigStore configStore,
             IJSRuntime jsRuntime,
             ILogger<ResultNotificationService> logger)
         {
-            _systemSettingsService = systemSettingsService;
+            _configStore = configStore;
             _jsRuntime = jsRuntime;
             _logger = logger;
         }
@@ -29,27 +29,19 @@ namespace EasyLotteryWasm.Services
 
             try
             {
-                var settings = await _systemSettingsService.GetSettingsAsync(cancellationToken);
-                if (string.IsNullOrWhiteSpace(settings.ResultNotificationEmail) || !settings.MailDelivery.HasConfiguration)
-                {
-                    return;
-                }
+                var document = await _configStore.LoadAsync(cancellationToken);
+                var resourceKind = record.ActivityType == ActivityResultType.PokeBox ? "pokebox" : "roulette";
+                var resourceId = record.ActivityType == ActivityResultType.PokeBox
+                    ? document.PokeTemplates.FirstOrDefault(item => item.Id == record.TemplateId)?.PublicId.ToString()
+                    : document.RouletteTemplates.FirstOrDefault(item => item.Id == record.TemplateId)?.PublicId.ToString();
+                if (string.IsNullOrWhiteSpace(resourceId)) return;
 
                 var request = new EmailRequest
                 {
-                    Recipient = settings.ResultNotificationEmail.Trim(),
                     Subject = ActivityResultNotificationFormatter.BuildSubject(record),
                     Body = ActivityResultNotificationFormatter.BuildBody(record),
-                    Smtp = new SmtpRequest
-                    {
-                        Host = settings.MailDelivery.SmtpHost,
-                        Port = settings.MailDelivery.SmtpPort,
-                        Username = settings.MailDelivery.SmtpUsername,
-                        Password = settings.MailDelivery.SmtpPassword,
-                        FromAddress = settings.MailDelivery.FromAddress,
-                        FromName = settings.MailDelivery.FromName,
-                        EnableSsl = settings.MailDelivery.EnableSsl
-                    }
+                    ResourceKind = resourceKind,
+                    ResourceId = resourceId
                 };
 
                 await _jsRuntime.InvokeVoidAsync("easyLotteryMail.send", cancellationToken, request);
@@ -66,30 +58,12 @@ namespace EasyLotteryWasm.Services
 
         public sealed class EmailRequest
         {
-            public string Recipient { get; set; } = "";
-
             public string Subject { get; set; } = "";
 
             public string Body { get; set; } = "";
+            public string ResourceKind { get; set; } = "";
+            public string ResourceId { get; set; } = "";
 
-            public SmtpRequest Smtp { get; set; } = new();
-        }
-
-        public sealed class SmtpRequest
-        {
-            public string Host { get; set; } = "";
-
-            public int Port { get; set; }
-
-            public string Username { get; set; } = "";
-
-            public string Password { get; set; } = "";
-
-            public string FromAddress { get; set; } = "";
-
-            public string FromName { get; set; } = "";
-
-            public bool EnableSsl { get; set; }
         }
     }
 }

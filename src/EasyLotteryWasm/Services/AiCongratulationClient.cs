@@ -4,9 +4,9 @@ namespace EasyLotteryWasm.Services;
 
 public sealed class AiCongratulationClient(HttpClient client, ObsSessionService session)
 {
-    public async Task<string?> GenerateAsync(string donorName, string prizeName, CancellationToken cancellationToken)
+    public async Task<string?> GenerateAsync(Guid activityPublicId, string donorName, string prizeName, CancellationToken cancellationToken)
     {
-        using var request = new HttpRequestMessage(HttpMethod.Post, "api/polaroid-congratulation") { Content = JsonContent.Create(new { donorName, prizeName }) };
+        using var request = new HttpRequestMessage(HttpMethod.Post, "api/polaroid-congratulation") { Content = JsonContent.Create(new { activityPublicId, donorName, prizeName }) };
         request.Headers.Add(ObsSessionTokenHeader.Name, await session.GetSessionTokenAsync(cancellationToken));
         using var response = await client.SendAsync(request, cancellationToken);
         if (!response.IsSuccessStatusCode) return null;

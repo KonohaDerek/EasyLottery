@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Mail;
+using EasyLotteryDomain.Services;
 
 namespace EasyLotteryApi.Endpoints;
 
@@ -7,50 +8,42 @@ internal static class ResultNotificationEndpoints
 {
     public static void MapResultNotificationEndpoints(this WebApplication app)
     {
-        app.MapPost("/api/result-notification", async (ResultNotificationRequest request) =>
+        app.MapPost("/api/result-notification", async (
+            ResultNotificationRequest request,
+            HttpContext context,
+            IEasyLotteryConfigStore configStore,
+            ObsSessionAccess access) =>
         {
-            if (string.IsNullOrWhiteSpace(request.Recipient) ||
-                string.IsNullOrWhiteSpace(request.Smtp.Host) ||
-                request.Smtp.Port <= 0 ||
-                string.IsNullOrWhiteSpace(request.Smtp.FromAddress))
-            {
-                return Results.NoContent();
-            }
+            var denied = ObsSessionAccess.DeniedResult(access.RequireObs(context.Request, request.ResourceKind, request.ResourceId, "control"));
+            if (denied is not null) return denied;
+
+            var settings = (await configStore.LoadAsync(context.RequestAborted)).SystemSettings;
+            var smtp = settings.MailDelivery;
+            var recipient = settings.ResultNotificationEmail.Trim();
+            if (string.IsNullOrWhiteSpace(recipient) || !smtp.HasConfiguration) return Results.NoContent();
 
             using var message = new MailMessage(
-                new MailAddress(request.Smtp.FromAddress, request.Smtp.FromName),
-                new MailAddress(request.Recipient))
+                new MailAddress(smtp.FromAddress, smtp.FromName),
+                new MailAddress(recipient))
             {
                 Subject = request.Subject,
                 Body = request.Body
             };
-            using var client = new SmtpClient(request.Smtp.Host, request.Smtp.Port)
+            using var client = new SmtpClient(smtp.SmtpHost, smtp.SmtpPort)
             {
-                EnableSsl = request.Smtp.EnableSsl,
-                Credentials = new NetworkCredential(request.Smtp.Username, request.Smtp.Password)
+                EnableSsl = smtp.EnableSsl,
+                Credentials = new NetworkCredential(smtp.SmtpUsername, smtp.SmtpPassword)
             };
-
-            await client.SendMailAsync(message);
+            await client.SendMailAsync(message, context.RequestAborted);
             return Results.NoContent();
-        });
+        }).RequireRateLimiting("sensitive");
     }
 }
 
-internal sealed class ResultNotificationRequest
+public sealed class ResultNotificationRequest
 {
-    public string Recipient { get; set; } = "";
     public string Subject { get; set; } = "";
     public string Body { get; set; } = "";
-    public SmtpSettings Smtp { get; set; } = new();
-}
-
-internal sealed class SmtpSettings
-{
-    public string Host { get; set; } = "";
-    public int Port { get; set; }
-    public string Username { get; set; } = "";
-    public string Password { get; set; } = "";
-    public string FromAddress { get; set; } = "";
-    public string FromName { get; set; } = "";
-    public bool EnableSsl { get; set; }
+    public string ResourceKind { get; set; } = "";
+    public string ResourceId { get; set; } = "";
 }

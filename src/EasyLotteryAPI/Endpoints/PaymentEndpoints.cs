@@ -30,11 +30,12 @@ internal static class PaymentEndpoints
                 ? "1|OK"
                 : "OK";
             return Results.Text(acknowledgement, "text/plain", Encoding.UTF8);
-        });
+        }).RequireRateLimiting("sensitive");
 
         app.MapPost("/api/payments/orders", async (PaymentOrderRegistrationRequest request, HttpContext context, PaymentCallbackProcessor callbacks, ObsSessionAccess sessionAccess) =>
         {
-            if (!sessionAccess.IsAuthorized(context.Request)) return Results.Unauthorized();
+            var denied = ObsSessionAccess.DeniedResult(sessionAccess.RequireAdmin(context.Request));
+            if (denied is not null) return denied;
             try { return Results.Created($"/api/payments/orders/{request.MerchantOrderNo}", await callbacks.RegisterOrderAsync(request, context.RequestAborted)); }
             catch (ArgumentException exception)
             {
@@ -46,9 +47,12 @@ internal static class PaymentEndpoints
                 app.Logger.LogWarning(exception, "Payment order registration conflict for merchant order {MerchantOrderNo}.", request.MerchantOrderNo);
                 return Results.Conflict(new { error = exception.Message });
             }
-        });
+        }).RequireRateLimiting("sensitive");
 
         app.MapGet("/api/payments/events", async (HttpContext context, PaymentCallbackProcessor callbacks, ObsSessionAccess sessionAccess) =>
-            !sessionAccess.IsAuthorized(context.Request) ? Results.Unauthorized() : Results.Ok(await callbacks.ListProcessedEventsAsync(context.RequestAborted)));
+        {
+            var denied = ObsSessionAccess.DeniedResult(sessionAccess.RequireAdmin(context.Request));
+            return denied ?? Results.Ok(await callbacks.ListProcessedEventsAsync(context.RequestAborted));
+        });
     }
 }

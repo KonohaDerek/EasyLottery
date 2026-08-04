@@ -7,6 +7,7 @@ using EasyLotteryApi;
 using EasyLotteryApi.Payments;
 using EasyLotteryDomain.Services;
 using EasyLotteryApi.Endpoints;
+using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddSignalR();
@@ -18,6 +19,18 @@ builder.Services.AddEasyLotteryInfrastructure();
 builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblies(typeof(GetDonateActivitiesQuery).Assembly, typeof(DependencyInjection).Assembly));
 builder.Services.AddSingleton<ObsSessionTokenService>();
 builder.Services.AddSingleton<ObsSessionAccess>();
+builder.Services.AddSingleton<AdminCredentialService>();
+builder.Services.AddSingleton<ObsSettingsProjectionService>();
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddPolicy("authentication", context => RateLimitPartition.GetFixedWindowLimiter(
+        context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = 5, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
+    options.AddPolicy("sensitive", context => RateLimitPartition.GetSlidingWindowLimiter(
+        context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new SlidingWindowRateLimiterOptions { PermitLimit = 60, Window = TimeSpan.FromMinutes(1), SegmentsPerWindow = 6, QueueLimit = 0 }));
+});
 builder.Services.AddSingleton<PaymentCallbackProcessor>();
 builder.Services.AddSingleton<PokeService>();
 builder.Services.AddSingleton<RouletteService>();
@@ -52,6 +65,24 @@ if (app.Environment.IsDevelopment())
 
 app.UseBlazorFrameworkFiles();
 app.UseStaticFiles();
+app.Use(async (context, next) =>
+{
+    const long maxRequestBytes = 1_048_576;
+    var bodySizeFeature = context.Features.Get<Microsoft.AspNetCore.Http.Features.IHttpMaxRequestBodySizeFeature>();
+    if (bodySizeFeature is { IsReadOnly: false }) bodySizeFeature.MaxRequestBodySize = maxRequestBytes;
+    if (context.Request.ContentLength > maxRequestBytes)
+    {
+        app.Logger.LogWarning("Security request rejected: payload too large for {Method} {Path} from {RemoteIp}", context.Request.Method, context.Request.Path, context.Connection.RemoteIpAddress);
+        context.Response.StatusCode = StatusCodes.Status413PayloadTooLarge;
+        return;
+    }
+    await next();
+    if (context.Response.StatusCode is StatusCodes.Status401Unauthorized or StatusCodes.Status403Forbidden or StatusCodes.Status429TooManyRequests)
+    {
+        app.Logger.LogWarning("Security request rejected: HTTP {StatusCode} for {Method} {Path} from {RemoteIp}", context.Response.StatusCode, context.Request.Method, context.Request.Path, context.Connection.RemoteIpAddress);
+    }
+});
+app.UseRateLimiter();
 
 app.MapSettingsEndpoints();
 app.MapObsSessionEndpoints();
@@ -68,3 +99,5 @@ app.MapHub<LiveDrawHub>("/hubs/live-draw");
 app.MapFallbackToFile("index.html");
 
 await app.RunAsync();
+
+public partial class Program;
