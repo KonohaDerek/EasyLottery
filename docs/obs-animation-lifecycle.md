@@ -13,6 +13,10 @@
 
 Donate 的新事件會依序排隊處理，不會因為上一個動畫尚未結束而遺失。正式 OBS 頁面不提供操作按鈕；若要手動預覽或測試，請在網址加上 `controls=1`。
 
+Donate 的動畫場景位於 `EasyLotteryWasm/Components/ObsAnimations`，主頁只負責生命週期與資料，不直接包含一番賞、扭蛋、滾筒、塞錢箱或刮刮樂 markup。新增場景時應新增獨立 component，再由 `DonateAnimationScene` 註冊，並保留 `--draw-duration` 與 reduced-motion fallback。
+
+需要離線素材時，請從「OBS 資產庫」上傳並使用資產頁提供的 UUID content URL。資產 metadata 位於 `obs-assets.yaml`，二進位檔位於 `obs-assets/`；系統會拒絕刪除仍被引用的資產，外部 URL 失效時 Donate 仍會顯示內建獎品名稱 fallback。
+
 ## 可及性與效能
 
 - `motion=reduce`：停用動畫與轉場，保留內容與階段順序，適合對動態敏感的觀眾。

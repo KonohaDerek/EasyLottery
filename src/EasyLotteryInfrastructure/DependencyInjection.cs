@@ -2,11 +2,13 @@ using EasyLotteryApplication.DonateActivities;
 using EasyLotteryApplication.Payments;
 using EasyLotteryApplication.Settings;
 using EasyLotteryApplication.Templates;
+using EasyLotteryApplication.ObsAssets;
 using EasyLotteryInfrastructure.DonateActivities;
 using EasyLotteryInfrastructure.Payments;
 using EasyLotteryInfrastructure.Settings;
 using EasyLotteryInfrastructure.Storage;
 using EasyLotteryInfrastructure.Templates;
+using EasyLotteryInfrastructure.ObsAssets;
 using EasyLotteryDomain.Services;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -41,6 +43,8 @@ public static class DependencyInjection
         services.AddSingleton<IPokeTemplateRepository, PokeTemplateRepository>();
         services.AddSingleton<IRouletteTemplateRepository, RouletteTemplateRepository>();
         services.AddSingleton<IActivityResultRepository, ActivityResultRepository>();
+        services.AddSingleton<YamlObsAssetRepository>();
+        services.AddSingleton<IObsAssetRepository>(sp => sp.GetRequiredService<YamlObsAssetRepository>());
         return services;
     }
 }

@@ -1,0 +1,173 @@
+@page "/system/obs-assets"
+@using EasyLotteryDomain.Models.Obs
+@using Microsoft.AspNetCore.Components.Forms
+@using EasyLotteryWasm.Services
+@inject ObsAssetApiClient AssetApi
+@inject IMessageService MessageService
+
+<PageTitle>OBS 資產庫</PageTitle>
+
+<div class="obs-assets-page">
+    <Card class="mb-4 obs-assets-hero">
+        <CardBody>
+            <div class="d-flex flex-column flex-lg-row justify-content-between gap-3 align-items-lg-center">
+                <div>
+                    <div class="obs-assets-eyebrow">OBS MEDIA LIBRARY</div>
+                    <h2 class="mb-2">OBS 資產庫</h2>
+                    <p class="mb-0">將動畫圖片、音效與模型保存到本機，OBS 使用資產 UUID URL，不依賴外部 hotlink。</p>
+                </div>
+                <Badge Color="Color.Info">@assets.Count 筆資產</Badge>
+            </div>
+        </CardBody>
+    </Card>
+
+    <Card class="mb-4">
+        <CardBody>
+            <h4>上傳資產</h4>
+            <div class="row g-3 align-items-end">
+                <div class="col-12 col-lg-5">
+                    <Field>
+                        <FieldLabel>檔案</FieldLabel>
+                        <InputFile OnChange="SelectFile" accept="image/*,audio/*,.json,.model3.json" />
+                    </Field>
+                </div>
+                <div class="col-12 col-lg-3">
+                    <Field>
+                        <FieldLabel>用途</FieldLabel>
+                        <select class="form-select" @bind="selectedKind">
+                            <option value="@ObsAssetKind.Image">圖片</option>
+                            <option value="@ObsAssetKind.Audio">音效</option>
+                            <option value="@ObsAssetKind.Model">Live2D 模型</option>
+                            <option value="@ObsAssetKind.Other">其他</option>
+                        </select>
+                    </Field>
+                </div>
+                <div class="col-12 col-lg-4">
+                    <Button Color="Color.Primary" Clicked="UploadAsync" Disabled="@(selectedFile is null || isUploading)">
+                        @(isUploading ? "上傳中…" : "上傳到本機資產庫")
+                    </Button>
+                    @if (selectedFile is not null)
+                    {
+                        <small class="d-block text-muted mt-2">@selectedFile.Name（@FormatSize(selectedFile.Size)）</small>
+                    }
+                </div>
+            </div>
+            <p class="text-muted mt-3 mb-0">單檔上限 10 MB。刪除前請先解除活動或音效模板中的引用。</p>
+        </CardBody>
+    </Card>
+
+    @if (isLoading)
+    {
+        <p>載入資產中…</p>
+    }
+    else if (assets.Count == 0)
+    {
+        <Card><CardBody><p class="mb-0 text-muted">尚未上傳資產。動畫會自動使用內建 CSS fallback。</p></CardBody></Card>
+    }
+    else
+    {
+        <div class="row g-3">
+            @foreach (var asset in assets)
+            {
+                <div class="col-12 col-md-6 col-xl-4" @key="asset.Id">
+                    <Card class="h-100 obs-asset-card">
+                        <CardBody>
+                            <div class="d-flex justify-content-between gap-2">
+                                <strong class="text-break">@asset.FileName</strong>
+                                <Badge Color="@AssetBadgeColor(asset.Kind)">@asset.Kind</Badge>
+                            </div>
+                            @if (asset.Kind == ObsAssetKind.Image)
+                            {
+                                <img class="obs-asset-preview" src="@AssetApi.GetContentUrl(asset.Id)" alt="@asset.FileName" loading="lazy" />
+                            }
+                            <dl class="small text-muted mt-3 mb-3">
+                                <dt>SHA-256</dt><dd class="text-break">@asset.Sha256</dd>
+                                <dt>大小</dt><dd>@FormatSize(asset.Length) @if (asset.Width is not null) { <span>（@asset.Width × @asset.Height）</span> }</dd>
+                                <dt>引用</dt><dd>@(asset.ReferencedBy.Count == 0 ? "未引用，可刪除" : string.Join("、", asset.ReferencedBy))</dd>
+                            </dl>
+                            <input class="form-control form-control-sm mb-3" value="@AssetApi.GetContentUrl(asset.Id)" readonly aria-label="@asset.FileName 的 OBS 資產 URL" />
+                            <Button Color="Color.Danger" Outline="true" Clicked="@(() => DeleteAsync(asset))" Disabled="@(asset.ReferencedBy.Count > 0)">刪除</Button>
+                        </CardBody>
+                    </Card>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private List<ObsAsset> assets = [];
+    private IBrowserFile? selectedFile;
+    private ObsAssetKind selectedKind = ObsAssetKind.Image;
+    private bool isLoading = true;
+    private bool isUploading;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await ReloadAsync();
+    }
+
+    private void SelectFile(InputFileChangeEventArgs args) => selectedFile = args.File;
+
+    private async Task UploadAsync()
+    {
+        if (selectedFile is null) return;
+        isUploading = true;
+        try
+        {
+            await using var stream = selectedFile.OpenReadStream(10 * 1024 * 1024);
+            await AssetApi.UploadAsync(selectedFile.Name, selectedFile.ContentType, selectedFile.Size, stream, selectedKind);
+            selectedFile = null;
+            await MessageService.Success("OBS 資產已上傳並可離線使用。");
+            await ReloadAsync();
+        }
+        catch (Exception exception)
+        {
+            await MessageService.Error($"資產上傳失敗：{exception.Message}");
+        }
+        finally { isUploading = false; }
+    }
+
+    private async Task DeleteAsync(ObsAsset asset)
+    {
+        if (asset.ReferencedBy.Count > 0) return;
+        try
+        {
+            await AssetApi.DeleteAsync(asset.Id);
+            await MessageService.Success("資產已刪除。");
+            await ReloadAsync();
+        }
+        catch (Exception exception) { await MessageService.Error($"資產刪除失敗：{exception.Message}"); }
+    }
+
+    private async Task ReloadAsync()
+    {
+        isLoading = true;
+        assets = (await AssetApi.ListAsync()).ToList();
+        isLoading = false;
+    }
+
+    private static string FormatSize(long bytes) => bytes switch
+    {
+        >= 1024 * 1024 => $"{bytes / 1024d / 1024d:0.##} MB",
+        >= 1024 => $"{bytes / 1024d:0.##} KB",
+        _ => $"{bytes} B"
+    };
+
+    private static Color AssetBadgeColor(ObsAssetKind kind) => kind switch
+    {
+        ObsAssetKind.Image => Color.Primary,
+        ObsAssetKind.Audio => Color.Success,
+        ObsAssetKind.Model => Color.Warning,
+        _ => Color.Secondary
+    };
+}
+
+<style>
+    .obs-assets-hero { border: 0; color: #fff; background: linear-gradient(135deg, #172554, #312e81 60%, #0f766e); }
+    .obs-assets-eyebrow { letter-spacing: .22em; font-size: .75rem; font-weight: 800; opacity: .75; }
+    .obs-asset-card { border: 1px solid rgba(100,116,139,.22); box-shadow: 0 12px 32px rgba(15,23,42,.08); }
+    .obs-asset-preview { display: block; width: 100%; height: 10rem; object-fit: contain; margin-top: 1rem; border-radius: .6rem; background: #eef2ff; }
+    .obs-asset-card dl { display: grid; grid-template-columns: 4.5rem 1fr; gap: .2rem .75rem; }
+    .obs-asset-card dt, .obs-asset-card dd { margin: 0; }
+</style>

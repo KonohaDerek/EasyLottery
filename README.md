@@ -66,7 +66,11 @@ EasyLottery 是一套以 **Blazor WebAssembly + Domain Service** 組成的直播
 - 最近活動時間
 - 每筆活動的摘要與明細
 
-### 6. 系統設定
+### 6. OBS 資產庫
+
+OBS 資產頁面（`/system/obs-assets`）可上傳圖片、音效與 Live2D 模型。系統會計算 SHA-256、記錄 MIME、尺寸與引用關係，內容保存於 `App_Data/obs-assets/`，metadata 保存於 `App_Data/obs-assets.yaml`。OBS 使用 UUID content URL，因此外部圖片失效時仍可使用本機資產；未引用的資產才允許刪除。
+
+### 7. 系統設定
 
 系統目前提供部分設定入口，例如：
 
@@ -87,7 +91,7 @@ EasyLottery 是一套以 **Blazor WebAssembly + Domain Service** 組成的直播
 
 ## 資料與儲存方式
 
-- 系統主要使用 YAML 作為設定資料來源，儲存於 Web Host 的 `App_Data/settings.yaml`
+- 系統主要使用分離的 YAML repository 作為資料來源：`settings.yaml`（系統設定）、`activities.yaml`（活動與模板）、`activity-results.yaml`（結果與 Donate 紀錄），另以 `obs-assets.yaml` 保存 OBS 資產 metadata
 - `EasyLotteryAPI` 提供同源 API，所有瀏覽器與 OBS 讀寫同一份 YAML
 - Domain 層負責模板、活動結果與抽獎邏輯
 - 模板與活動資料會在本地設定中持續保存
@@ -100,6 +104,7 @@ EasyLottery 是一套以 **Blazor WebAssembly + Domain Service** 組成的直播
 - `/roulette`：轉盤模板列表
 - `/system/youtube-login`：YouTube API Key
 - `/system/payment`：支付設定
+- `/system/obs-assets`：OBS 本機資產管理
 
 ## 技術堆疊
 

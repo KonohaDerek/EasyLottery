@@ -28,7 +28,8 @@ public static class NavigationCatalog
             [
                 new("OBS 版型", "system/obs-layouts", "▤", "設定 OBS 畫面版型"),
                 new("版面視覺", "system/visual-styles", "◈", "設定色彩與版面風格"),
-                new("音效模板", "system/sound-cues", "♫", "設定動畫音效模板")
+                new("音效模板", "system/sound-cues", "♫", "設定動畫音效模板"),
+                new("OBS 資產庫", "system/obs-assets", "▧", "上傳與管理 OBS 使用的圖片、音效與模型")
             ]),
         new(
             "results",
