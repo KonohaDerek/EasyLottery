@@ -8,6 +8,9 @@ using EasyLotteryApplication.Settings;
 using EasyLotteryInfrastructure.Storage;
 using EasyLotteryInfrastructure.Settings;
 using YamlDotNet.Serialization;
+using EasyLotteryInfrastructure.DonateActivities;
+using Microsoft.Extensions.Logging.Abstractions;
+using EasyLotteryApplication.DonateActivities;
 
 namespace EasyLotteryApiTests;
 
@@ -136,6 +139,163 @@ public sealed class SettingsFileStoreTests
         }
     }
 
+    [TestMethod]
+    public async Task BrowserSnapshot_RejectsStaleETag()
+    {
+        var directory = CreateTempDirectory();
+        try
+        {
+            var first = CreateStore(directory);
+            var second = CreateStore(directory);
+            var snapshot = await first.ReadForBrowserSnapshotAsync(CancellationToken.None);
+
+            await second.UpdateAsync(document =>
+            {
+                document.SystemSettings.ResultNotificationEmail = "changed@example.test";
+                return true;
+            }, CancellationToken.None);
+
+            await Assert.ThrowsExactlyAsync<ConfigurationConcurrencyException>(() =>
+                first.SaveBrowserUpdateAsync(snapshot.Yaml, snapshot.ETag, CancellationToken.None));
+        }
+        finally
+        {
+            DeleteTempDirectory(directory);
+        }
+    }
+
+    [TestMethod]
+    public async Task ReadAsync_MigratesVersionOneDocumentsAndPersistsDefaults()
+    {
+        var directory = CreateTempDirectory();
+        try
+        {
+            var activities = new ActivitiesYamlDocument
+            {
+                ConfigVersion = 1,
+                DonateLotteryActivities =
+                [
+                    new DonateLotteryActivity { Id = 7, Name = "舊活動", StartsAtUtc = DateTimeOffset.UtcNow.AddHours(-1), EndsAtUtc = DateTimeOffset.UtcNow.AddHours(1) }
+                ]
+            };
+            await File.WriteAllTextAsync(Path.Combine(directory, "activities.yaml"), Serialize(activities));
+            var store = CreateStore(directory);
+
+            var document = await store.ReadAsync(CancellationToken.None);
+            Assert.AreNotEqual(Guid.Empty, document.DonateLotteryActivities[0].PublicId);
+            Assert.AreEqual(2, Deserialize<ActivitiesYamlDocument>(await File.ReadAllTextAsync(store.ActivitiesPath)).ConfigVersion);
+            Assert.AreEqual("classic", document.DonateLotteryActivities[0].PolaroidTemplateKey);
+        }
+        finally
+        {
+            DeleteTempDirectory(directory);
+        }
+    }
+
+    [TestMethod]
+    public async Task ReadAsync_QuarantinesCorruptYamlInsteadOfReturningDefaults()
+    {
+        var directory = CreateTempDirectory();
+        try
+        {
+            var path = Path.Combine(directory, "settings.yaml");
+            await File.WriteAllTextAsync(path, "ConfigVersion: [broken");
+            var store = CreateStore(directory);
+
+            await Assert.ThrowsExactlyAsync<YamlStorageException>(() => store.ReadAsync(CancellationToken.None));
+            Assert.IsFalse(File.Exists(path));
+            Assert.IsTrue(Directory.EnumerateFiles(directory, "settings.yaml.corrupt.*").Any());
+        }
+        finally
+        {
+            DeleteTempDirectory(directory);
+        }
+    }
+
+    [TestMethod]
+    public async Task BackupSet_CanRestorePreviousCompleteConfiguration()
+    {
+        var directory = CreateTempDirectory();
+        try
+        {
+            var store = CreateStore(directory);
+            await store.UpdateAsync(document =>
+            {
+                document.SystemSettings.ResultNotificationEmail = "before@example.test";
+                return true;
+            }, CancellationToken.None);
+            await store.UpdateAsync(document =>
+            {
+                document.SystemSettings.ResultNotificationEmail = "after@example.test";
+                return true;
+            }, CancellationToken.None);
+
+            var backup = store.ListBackups().First();
+            await store.RestoreBackupAsync(backup.Id, CancellationToken.None);
+
+            var restored = await store.ReadAsync(CancellationToken.None);
+            Assert.AreEqual("before@example.test", restored.SystemSettings.ResultNotificationEmail);
+        }
+        finally
+        {
+            DeleteTempDirectory(directory);
+        }
+    }
+
+    [TestMethod]
+    public async Task DonateEventStore_QuarantinesInvalidLinesAndKeepsValidEvents()
+    {
+        var directory = CreateTempDirectory();
+        try
+        {
+            var configuration = new ConfigurationBuilder()
+                .AddInMemoryCollection(new Dictionary<string, string?> { ["Storage:Directory"] = directory })
+                .Build();
+            var environment = new TestEnvironment();
+            var eventStore = new YamlDonateActivityEventStore(configuration, environment, new StorageGateProvider(), NullLogger<YamlDonateActivityEventStore>.Instance);
+            await File.WriteAllTextAsync(eventStore.EventLogPath, "{\"type\":\"Saved\",\"activityId\":1}\nnot-json\n");
+
+            var events = await eventStore.ReadAllAsync(CancellationToken.None);
+
+            Assert.AreEqual(1, events.Count);
+            Assert.IsTrue(Directory.EnumerateFiles(directory, "donate-activity-events.jsonl.bad.*").Any());
+            Assert.IsFalse((await File.ReadAllTextAsync(eventStore.EventLogPath)).Contains("not-json", StringComparison.Ordinal));
+        }
+        finally
+        {
+            DeleteTempDirectory(directory);
+        }
+    }
+
+    [TestMethod]
+    public async Task ReadAsync_RecoversPreviousVersionWhenTransactionMarkerRemains()
+    {
+        var directory = CreateTempDirectory();
+        try
+        {
+            var store = CreateStore(directory);
+            await store.UpdateAsync(document =>
+            {
+                document.SystemSettings.ResultNotificationEmail = "stable@example.test";
+                return true;
+            }, CancellationToken.None);
+            var backup = store.ListBackups().First();
+            var activitiesPath = store.ActivitiesPath;
+            await File.WriteAllTextAsync(activitiesPath, "DonateLotteryActivities: []\nConfigVersion: 2\n");
+            var markerDirectory = Path.Combine(directory, "config-backups");
+            await File.WriteAllTextAsync(Path.Combine(markerDirectory, "pending-transaction"), backup.Id);
+
+            var recovered = await store.ReadAsync(CancellationToken.None);
+
+            Assert.AreEqual("", recovered.SystemSettings.ResultNotificationEmail);
+            Assert.IsFalse(File.Exists(Path.Combine(markerDirectory, "pending-transaction")));
+        }
+        finally
+        {
+            DeleteTempDirectory(directory);
+        }
+    }
+
     private static SettingsFileStore CreateStore(string directory)
     {
         var configuration = new ConfigurationBuilder()
@@ -144,10 +304,12 @@ public sealed class SettingsFileStoreTests
         var environment = new TestEnvironment();
         var storageGates = new StorageGateProvider();
         return new SettingsFileStore(
+            configuration,
             new ConfigSecretRedactor(),
             new YamlSettingsDocumentRepository(configuration, environment, storageGates),
             new YamlActivitiesDocumentRepository(configuration, environment, storageGates),
-            new YamlActivityResultsDocumentRepository(configuration, environment, storageGates));
+            new YamlActivityResultsDocumentRepository(configuration, environment, storageGates),
+            storageGates);
     }
 
     private static string CreateTempDirectory()

@@ -3,6 +3,7 @@ using EasyLotteryApplication.DonateActivities;
 using EasyLotteryInfrastructure.Storage;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 namespace EasyLotteryInfrastructure.DonateActivities;
 
@@ -14,11 +15,13 @@ public sealed class YamlDonateActivityEventStore : IDonateActivityEventStore
     };
 
     private readonly IStorageGateProvider _storageGates;
+    private readonly ILogger<YamlDonateActivityEventStore> _logger;
     public string EventLogPath { get; }
 
-    public YamlDonateActivityEventStore(IConfiguration configuration, IHostEnvironment environment, IStorageGateProvider storageGates)
+    public YamlDonateActivityEventStore(IConfiguration configuration, IHostEnvironment environment, IStorageGateProvider storageGates, ILogger<YamlDonateActivityEventStore> logger)
     {
         _storageGates = storageGates;
+        _logger = logger;
         var directory = configuration["Storage:Directory"] ?? Path.Combine(environment.ContentRootPath, "App_Data");
         Directory.CreateDirectory(directory);
         EventLogPath = Path.Combine(directory, "donate-activity-events.jsonl");
@@ -51,6 +54,7 @@ public sealed class YamlDonateActivityEventStore : IDonateActivityEventStore
 
         var lines = await File.ReadAllLinesAsync(EventLogPath, cancellationToken);
         var records = new List<DonateActivityEventRecord>(lines.Length);
+        var invalidLines = new List<string>();
         foreach (var line in lines)
         {
             if (string.IsNullOrWhiteSpace(line))
@@ -58,11 +62,32 @@ public sealed class YamlDonateActivityEventStore : IDonateActivityEventStore
                 continue;
             }
 
-            var record = JsonSerializer.Deserialize<DonateActivityEventRecord>(line, SerializerOptions);
-            if (record is not null)
+            try
             {
-                records.Add(record);
+                var record = JsonSerializer.Deserialize<DonateActivityEventRecord>(line, SerializerOptions);
+                if (record is not null && record.EventVersion <= 1)
+                {
+                    record.EventVersion = 1;
+                    records.Add(record);
+                }
+                else
+                    invalidLines.Add(line);
             }
+            catch (JsonException exception)
+            {
+                invalidLines.Add(line);
+                _logger.LogWarning(exception, "忽略 Donate 活動事件檔中的損壞資料列。檔案：{EventLogPath}", EventLogPath);
+            }
+        }
+
+        if (invalidLines.Count > 0)
+        {
+            var quarantinePath = $"{EventLogPath}.bad.{DateTimeOffset.UtcNow:yyyyMMddHHmmssfff}.{Guid.NewGuid():N}";
+            await File.WriteAllLinesAsync(quarantinePath, invalidLines, cancellationToken);
+            var temporaryPath = $"{EventLogPath}.{Guid.NewGuid():N}.tmp";
+            await File.WriteAllLinesAsync(temporaryPath, records.Select(record => JsonSerializer.Serialize(record, SerializerOptions)), cancellationToken);
+            File.Move(temporaryPath, EventLogPath, overwrite: true);
+            _logger.LogWarning("已將 {Count} 筆無法解析的 Donate 活動事件隔離至 {QuarantinePath}。", invalidLines.Count, quarantinePath);
         }
 
         return records;

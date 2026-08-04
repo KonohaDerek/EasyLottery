@@ -15,7 +15,11 @@ internal static class SettingsEndpoints
         {
             var adminDecision = sessionAccess.RequireAdmin(context.Request);
             if (adminDecision == ApiAccessDecision.Allowed)
-                return Results.Text(await settingsStore.ReadForBrowserAsync(context.RequestAborted), "text/yaml", Encoding.UTF8);
+            {
+                var snapshot = await settingsStore.ReadForBrowserSnapshotAsync(context.RequestAborted);
+                context.Response.Headers.ETag = snapshot.ETag;
+                return Results.Text(snapshot.Yaml, "text/yaml", Encoding.UTF8);
+            }
 
             var principal = sessionAccess.ReadPrincipal(context.Request);
             if (principal?.FindFirst("token_use")?.Value != ObsSessionTokenService.ObsUse) return Results.Unauthorized();
@@ -40,7 +44,10 @@ internal static class SettingsEndpoints
             var content = await HttpRequestBodyReader.ReadTextAsync(context.Request, context.RequestAborted);
             if (adminDecision == ApiAccessDecision.Allowed)
             {
-                await settingsStore.SaveBrowserUpdateAsync(content, context.RequestAborted);
+                var expectedETag = context.Request.Headers.IfMatch.FirstOrDefault();
+                await settingsStore.SaveBrowserUpdateAsync(content, expectedETag, context.RequestAborted);
+                var snapshot = await settingsStore.ReadForBrowserSnapshotAsync(context.RequestAborted);
+                context.Response.Headers.ETag = snapshot.ETag;
             }
             else
             {
@@ -55,5 +62,26 @@ internal static class SettingsEndpoints
         };
         app.MapPut("/settings", writeSettings).RequireRateLimiting("sensitive");
         app.MapPut("/easy-lottery-config.yaml", writeSettings).RequireRateLimiting("sensitive");
+
+        app.MapGet("/api/settings/backups", (HttpContext context, SettingsFileStore settingsStore, ObsSessionAccess sessionAccess) =>
+        {
+            var decision = sessionAccess.RequireAdmin(context.Request);
+            return decision switch
+            {
+                ApiAccessDecision.Allowed => Results.Ok(settingsStore.ListBackups()),
+                ApiAccessDecision.Unauthorized => Results.Unauthorized(),
+                _ => Results.StatusCode(StatusCodes.Status403Forbidden)
+            };
+        }).RequireRateLimiting("sensitive");
+
+        app.MapPost("/api/settings/backups/{id}/restore", async (string id, HttpContext context, SettingsFileStore settingsStore, ObsSessionAccess sessionAccess) =>
+        {
+            var decision = sessionAccess.RequireAdmin(context.Request);
+            if (decision != ApiAccessDecision.Allowed)
+                return decision == ApiAccessDecision.Unauthorized ? Results.Unauthorized() : Results.StatusCode(StatusCodes.Status403Forbidden);
+
+            await settingsStore.RestoreBackupAsync(id, context.RequestAborted);
+            return Results.NoContent();
+        }).RequireRateLimiting("sensitive");
     }
 }
