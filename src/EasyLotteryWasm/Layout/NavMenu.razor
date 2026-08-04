@@ -1,150 +1,186 @@
+@implements IDisposable
 @inject YouTubeServiceHelper youTubeServiceHelper
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JS
 
-<div class="top-row ps-3 navbar navbar-dark">
-    <div class="container-fluid">
-        <a class="navbar-brand" href="">抽獎系統</a>
-        <button title="Navigation menu" class="navbar-toggler" @onclick="ToggleNavMenu">
-            <span class="navbar-toggler-icon"></span>
-        </button>
+<div class="nav-menu-root @(sidebarCollapsed ? "is-collapsed" : string.Empty) @(mobileMenuOpen ? "mobile-open" : string.Empty)">
+    <div class="top-row ps-3 navbar navbar-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="" aria-label="抽獎系統首頁">
+                <span class="brand-full">抽獎系統</span>
+                <span class="brand-short" aria-hidden="true">EZ</span>
+            </a>
+            <button type="button" title="開啟或關閉導覽選單" class="navbar-toggler mobile-menu-toggle"
+                    aria-label="開啟或關閉導覽選單" aria-expanded="@mobileMenuOpen" @onclick="ToggleMobileMenu">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <button type="button" title="收合或展開側邊欄" class="navbar-toggler desktop-menu-toggle"
+                    aria-label="收合或展開側邊欄" aria-expanded="@(!sidebarCollapsed)" @onclick="ToggleDesktopSidebar">
+                <span class="sidebar-toggle-icon" aria-hidden="true">@(sidebarCollapsed ? "»" : "«")</span>
+            </button>
+        </div>
     </div>
-</div>
 
-<div class="@NavMenuCssClass nav-scrollable">
+    <div class="@NavMenuCssClass nav-scrollable">
+        <nav class="flex-column" aria-label="主要導覽">
+            <div class="nav-item px-3 nav-home-item">
+                <NavLink class="nav-link" href="" Match="NavLinkMatch.All" title="抽獎首頁／控制台" @onclick="CloseMobileMenu">
+                    <span class="nav-icon" aria-hidden="true">⌂</span>
+                    <span class="nav-label">抽獎首頁／控制台</span>
+                </NavLink>
+            </div>
 
-    <nav class="flex-column">
-        @* === 1. 抽獎 === *@
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> 抽獎
-            </NavLink>
-        </div>
-
-        @* === 2. 活動配置 === *@
-        <div class="nav-group-header px-3" @onclick="ToggleActivityGroup">
-            <span class="bi bi-grid-3x3-gap-fill" aria-hidden="true"></span>
-            <span class="nav-group-title">活動配置</span>
-            <span class="nav-group-chevron @(activityGroupExpanded ? "expanded" : "")">&#9656;</span>
-        </div>
-        @if(activityGroupExpanded)
-        {
-            <div class="nav-item px-3 nav-sub-item">
-                <NavLink class="nav-link" href="pokebox">
-                    戳戳樂
-                </NavLink>
-            </div>
-            <div class="nav-item px-3 nav-sub-item">
-                <NavLink class="nav-link" href="roulette">
-                    轉盤
-                </NavLink>
-            </div>
-            <div class="nav-item px-3 nav-sub-item"><NavLink class="nav-link" href="market">活動市集</NavLink></div>
-            <div class="nav-item px-3 nav-sub-item">
-                <NavLink class="nav-link" href="activity/overtime">
-                    加班台
-                </NavLink>
-            </div>
-            <div class="nav-item px-3 nav-sub-item">
-                <NavLink class="nav-link" href="donate-activities">
-                    Donate 活動
-                </NavLink>
-            </div>
-        }
-
-        <div class="nav-group-header px-3" @onclick="ToggleReportGroup">
-            <span class="bi bi-bar-chart-fill" aria-hidden="true"></span><span class="nav-group-title">Report</span>
-            <span class="nav-group-chevron @(reportGroupExpanded ? "expanded" : "")">&#9656;</span>
-        </div>
-        @if (reportGroupExpanded)
-        {
-            <div class="nav-item px-3 nav-sub-item"><NavLink class="nav-link" href="activity-results">活動與 Donate 結果</NavLink></div>
-        }
-
-        @* === 3. 系統配置 === *@
-        <div class="nav-group-header px-3" @onclick="ToggleSystemGroup">
-            <span class="bi bi-gear-nav-menu" aria-hidden="true"></span>
-            <span class="nav-group-title">系統配置</span>
-            <span class="nav-group-chevron @(systemGroupExpanded ? "expanded" : "")">&#9656;</span>
-        </div>
-        @if(systemGroupExpanded)
-        {
-            <div class="nav-item px-3 nav-sub-item">
-                <NavLink class="nav-link" href="system/payment">
-                    支付配置
-                </NavLink>
-            </div>
-            <div class="nav-item px-3 nav-sub-item">
-                <NavLink class="nav-link" href="system/youtube-login">
-                    YouTube API Key
-                </NavLink>
-            </div>
-            <div class="nav-item px-3 nav-sub-item">
-                <NavLink class="nav-link" href="system/obs-layouts">
-                    OBS 版型
-                </NavLink>
-            </div>
-            <div class="nav-item px-3 nav-sub-item">
-                <NavLink class="nav-link" href="system/visual-styles">
-                    版面視覺
-                </NavLink>
-            </div>
-            <div class="nav-item px-3 nav-sub-item">
-                <NavLink class="nav-link" href="system/sound-cues">
-                    音效模板
-                </NavLink>
-            </div>
-            <div class="nav-item px-3 nav-sub-item">
-                <NavLink class="nav-link" href="system/audit">
-                    審計紀錄
-                </NavLink>
-            </div>
-        }
-
-    </nav>
-</div>
-
-<div class="nav-login-status px-3">
-    <div class="status-indicator">
-        @if(hasYoutubeApiKey)
-        {
-            <span class="status-dot status-online"></span>
-            <span class="status-text">YT API Key 已設定</span>
-        }
-        else
-        {
-            <span class="status-dot status-offline"></span>
-            <span class="status-text">YT API Key 未設定</span>
-        }
+            @foreach (var group in NavigationCatalog.Groups)
+            {
+                var isExpanded = IsGroupExpanded(group);
+                var groupId = $"nav-group-{group.Id}";
+                <div class="nav-group">
+                    <button type="button" class="nav-group-header px-3 @(IsActiveGroup(group) ? "has-active-route" : string.Empty)"
+                            aria-expanded="@isExpanded" aria-controls="@groupId" @onclick="() => ToggleGroup(group.Id)">
+                        <span class="nav-group-icon" aria-hidden="true">@group.Icon</span>
+                        <span class="nav-group-title">@group.Label</span>
+                        <span class="nav-group-chevron @(isExpanded ? "expanded" : string.Empty)" aria-hidden="true">▸</span>
+                    </button>
+                    <div id="@groupId" class="nav-group-children @(isExpanded ? "expanded" : "collapsed")" role="region" aria-label="@group.Label">
+                        @foreach (var item in group.Items)
+                        {
+                            <div class="nav-item px-3 nav-sub-item">
+                                <NavLink class="nav-link" href="@item.Route" Match="NavLinkMatch.Prefix"
+                                         title="@item.Label" aria-label="@item.Description" @onclick="CloseMobileMenu">
+                                    <span class="nav-icon" aria-hidden="true">@item.Icon</span>
+                                    <span class="nav-label">@item.Label</span>
+                                </NavLink>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+        </nav>
     </div>
+
+    <div class="nav-login-status px-3">
+        <div class="status-indicator" title="YouTube API 設定狀態">
+            @if (hasYoutubeApiKey)
+            {
+                <span class="status-dot status-online" aria-hidden="true"></span>
+                <span class="status-text">YT API 已設定</span>
+            }
+            else
+            {
+                <span class="status-dot status-offline" aria-hidden="true"></span>
+                <span class="status-text">YT API 未設定</span>
+            }
+        </div>
+    </div>
+
+    @if (mobileMenuOpen)
+    {
+        <button type="button" class="nav-backdrop" aria-label="關閉導覽選單" @onclick="CloseMobileMenu"></button>
+    }
 </div>
 
 @code {
-    private bool collapseNavMenu = false;
-    private bool activityGroupExpanded = false;
-    private bool systemGroupExpanded = false;
-    private bool reportGroupExpanded = false;
-    private bool hasYoutubeApiKey = false;
+    private const string ExpandedGroupsStorageKey = "easylottery.navigation.expanded-groups";
 
-    private string? NavMenuCssClass => collapseNavMenu ? "collapse" : null;
+    private readonly HashSet<string> expandedGroups = new(StringComparer.OrdinalIgnoreCase);
+    private bool sidebarCollapsed;
+    private bool mobileMenuOpen;
+    private bool hasYoutubeApiKey;
+    private bool expandedStateLoaded;
+
+    private string? NavMenuCssClass => mobileMenuOpen ? "mobile-expanded" : "mobile-collapsed";
+
+    protected override void OnInitialized()
+    {
+        NavigationManager.LocationChanged += HandleLocationChanged;
+        EnsureActiveGroupExpanded();
+    }
 
     protected override async Task OnInitializedAsync()
     {
         hasYoutubeApiKey = await youTubeServiceHelper.HasConfiguredCredentialsAsync();
     }
 
-    private void ToggleNavMenu()
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        collapseNavMenu = !collapseNavMenu;
+        if (!firstRender || expandedStateLoaded)
+        {
+            return;
+        }
+
+        expandedStateLoaded = true;
+        try
+        {
+            var stored = await JS.InvokeAsync<string?>("localStorage.getItem", ExpandedGroupsStorageKey);
+            if (!string.IsNullOrWhiteSpace(stored))
+            {
+                var persisted = System.Text.Json.JsonSerializer.Deserialize<HashSet<string>>(stored);
+                if (persisted is not null)
+                {
+                    expandedGroups.UnionWith(persisted);
+                }
+            }
+        }
+        catch (JSException)
+        {
+            // Navigation should still work when storage is unavailable or blocked.
+        }
+
+        EnsureActiveGroupExpanded();
+        await InvokeAsync(StateHasChanged);
     }
 
-    private void ToggleActivityGroup()
+    private bool IsGroupExpanded(NavigationGroup group) => expandedGroups.Contains(group.Id);
+
+    private bool IsActiveGroup(NavigationGroup group) =>
+        string.Equals(NavigationCatalog.FindGroupId(CurrentPath()), group.Id, StringComparison.OrdinalIgnoreCase);
+
+    private string CurrentPath() => NavigationManager.ToBaseRelativePath(NavigationManager.Uri);
+
+    private void ToggleGroup(string groupId)
     {
-        activityGroupExpanded = !activityGroupExpanded;
+        if (!expandedGroups.Add(groupId))
+        {
+            expandedGroups.Remove(groupId);
+        }
+
+        _ = PersistExpandedGroupsAsync();
     }
 
-    private void ToggleSystemGroup()
-    {
-        systemGroupExpanded = !systemGroupExpanded;
-    }
-    private void ToggleReportGroup() => reportGroupExpanded = !reportGroupExpanded;
+    private void ToggleMobileMenu() => mobileMenuOpen = !mobileMenuOpen;
 
+    private void ToggleDesktopSidebar() => sidebarCollapsed = !sidebarCollapsed;
+
+    private void CloseMobileMenu() => mobileMenuOpen = false;
+
+    private void EnsureActiveGroupExpanded()
+    {
+        var activeGroupId = NavigationCatalog.FindGroupId(CurrentPath());
+        if (!string.IsNullOrWhiteSpace(activeGroupId) && activeGroupId != NavigationCatalog.HomeGroupId)
+        {
+            expandedGroups.Add(activeGroupId);
+        }
+    }
+
+    private async Task PersistExpandedGroupsAsync()
+    {
+        try
+        {
+            var serialized = System.Text.Json.JsonSerializer.Serialize(expandedGroups);
+            await JS.InvokeVoidAsync("localStorage.setItem", ExpandedGroupsStorageKey, serialized);
+        }
+        catch (JSException)
+        {
+            // Persistence is optional; keep the current UI state in memory.
+        }
+    }
+
+    private void HandleLocationChanged(object? sender, LocationChangedEventArgs args)
+    {
+        EnsureActiveGroupExpanded();
+        CloseMobileMenu();
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose() => NavigationManager.LocationChanged -= HandleLocationChanged;
 }
