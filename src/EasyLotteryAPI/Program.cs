@@ -19,6 +19,9 @@ builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblies(typeof(Get
 builder.Services.AddSingleton<ObsSessionTokenService>();
 builder.Services.AddSingleton<ObsSessionAccess>();
 builder.Services.AddSingleton<PaymentCallbackProcessor>();
+builder.Services.AddSingleton<PokeService>();
+builder.Services.AddSingleton<RouletteService>();
+builder.Services.AddSingleton<LiveDrawSessionService>();
 builder.Services.AddHttpClient();
 builder.Services.AddScoped<AiCongratulationProvider>();
 
@@ -58,7 +61,9 @@ app.MapPaymentEndpoints();
 app.MapDonateActivityEndpoints();
 app.MapResultNotificationEndpoints();
 app.MapTunnelEndpoints();
+app.MapLiveDrawSessionEndpoints();
 app.MapHub<OvertimeHub>("/hubs/overtime");
+app.MapHub<LiveDrawHub>("/hubs/live-draw");
 
 app.MapFallbackToFile("index.html");
 

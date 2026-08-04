@@ -1,5 +1,8 @@
 @page "/obs/roulette/{Id:int}"
+@page "/obs/roulette/{PublicId:guid}"
 @layout ObsLayout
+@implements IAsyncDisposable
+@using EasyLotteryDomain.Models
 @using EasyLotteryDomain.Models.Entities
 @using EasyLotteryDomain.Services
 @using EasyLotteryWasm.Layout
@@ -9,6 +12,7 @@
 @inject ResultNotificationService ResultNotificationService
 @inject RouletteService RouletteService
 @inject EasyLotteryWasm.Services.SoundCueService SoundCueService
+@inject EasyLotteryWasm.Services.LiveDrawSessionClient LiveDrawClient
 
 <PageTitle>轉盤 - OBS</PageTitle>
 
@@ -376,6 +380,7 @@ else
 
 @code {
     [Parameter] public int Id { get; set; }
+    [Parameter] public Guid PublicId { get; set; }
 
     private RouletteTemplate? template;
     private SpinResult? lastResult;
@@ -388,6 +393,7 @@ else
     private string? lastRecordedSignature;
     private string? statusMessage;
     private bool statusIsError;
+    private long appliedRevision;
 
     private const int PostSpinDelayMs = 300;
     private const int SpinCountdownSeconds = 3;
@@ -405,14 +411,24 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        template = await RouletteService.LoadTemplateAsync(Id);
+        template = PublicId == Guid.Empty
+            ? await RouletteService.LoadTemplateAsync(Id)
+            : await RouletteService.LoadTemplateAsync(PublicId);
         if (template == null)
         {
             await RouletteService.SeedDefaultTemplatesAsync();
-            template = await RouletteService.LoadTemplateAsync(Id);
+            template = PublicId == Guid.Empty
+                ? await RouletteService.LoadTemplateAsync(Id)
+                : await RouletteService.LoadTemplateAsync(PublicId);
         }
 
         isLoading = false;
+        if (PublicId != Guid.Empty && template is not null)
+        {
+            LiveDrawClient.StateChanged += ApplyLiveStateAsync;
+            var state = await LiveDrawClient.StartAsync("roulette", PublicId);
+            if (state is not null) await ApplyLiveStateAsync(state);
+        }
     }
 
     private async Task SpinWheel()
@@ -428,6 +444,20 @@ else
     private async Task StartSpinAsync(int? forced, bool useCountdown)
     {
         if (template == null || IsBusy) return;
+
+        if (PublicId != Guid.Empty)
+        {
+            try
+            {
+                await LiveDrawClient.SpinAsync(new RouletteLiveDrawCommand(forced, useCountdown ? SpinCountdownSeconds : 0));
+            }
+            catch (Exception exception)
+            {
+                Log.Error(exception, "Live roulette command failed.");
+                SetStatus(exception.Message, true);
+            }
+            return;
+        }
 
         lastResult = null;
         if (useCountdown)
@@ -502,6 +532,57 @@ else
         return $"M {cx.ToString("F2")} {cy.ToString("F2")} L {x1:F2} {y1:F2} A {r:F2} {r:F2} 0 {largeArc} 1 {x2:F2} {y2:F2} Z";
     }
 
+    private async Task ApplyLiveStateAsync(LiveDrawSessionState state)
+    {
+        if (state.PublicId != PublicId || state.Revision < appliedRevision) return;
+        appliedRevision = state.Revision;
+        flowPhase = state.Phase switch
+        {
+            LiveDrawSessionPhase.CountingDown => LiveDrawPhase.CountingDown,
+            LiveDrawSessionPhase.Animating => LiveDrawPhase.Spinning,
+            LiveDrawSessionPhase.ShowingResult => LiveDrawPhase.ShowingResult,
+            _ => LiveDrawPhase.Ready
+        };
+        countdownRemaining = state.Phase == LiveDrawSessionPhase.CountingDown && state.PhaseEndsAtUtc.HasValue
+            ? Math.Max(1, (int)Math.Ceiling((state.PhaseEndsAtUtc.Value - DateTimeOffset.UtcNow).TotalSeconds))
+            : null;
+        isSpinning = state.Phase == LiveDrawSessionPhase.Animating;
+        if (state.Phase is LiveDrawSessionPhase.Animating or LiveDrawSessionPhase.ShowingResult)
+        {
+            currentRotation = state.RouletteRotationDeg;
+        }
+        if (state.Phase == LiveDrawSessionPhase.ShowingResult && state.RouletteSegmentIndex.HasValue)
+        {
+            lastResult = new SpinResult
+            {
+                SegmentIndex = state.RouletteSegmentIndex.Value,
+                SegmentTitle = state.ResultTitle ?? "",
+                TotalRotationDeg = state.RouletteRotationDeg
+            };
+        }
+        else if (state.Phase != LiveDrawSessionPhase.ShowingResult)
+        {
+            lastResult = null;
+        }
+
+        var preset = SoundCueService.GetPreset(await SoundCueService.GetActivePresetKeyAsync());
+        if (state.Phase == LiveDrawSessionPhase.CountingDown) await SoundCueService.PlayCueAsync(preset.CountdownCue);
+        if (state.Phase == LiveDrawSessionPhase.Animating) await SoundCueService.PlayCueAsync(preset.SpinCue);
+        if (state.Phase == LiveDrawSessionPhase.ShowingResult) await SoundCueService.PlayCueAsync(preset.ResultCue);
+        await InvokeAsync(StateHasChanged);
+        if (countdownRemaining.HasValue) _ = TrackCountdownAsync(state.Revision, state.PhaseEndsAtUtc!.Value);
+    }
+
+    private async Task TrackCountdownAsync(long revision, DateTimeOffset endsAtUtc)
+    {
+        while (appliedRevision == revision && DateTimeOffset.UtcNow < endsAtUtc)
+        {
+            countdownRemaining = Math.Max(1, (int)Math.Ceiling((endsAtUtc - DateTimeOffset.UtcNow).TotalSeconds));
+            await InvokeAsync(StateHasChanged);
+            await Task.Delay(200);
+        }
+    }
+
     private string BuildRecordSignature()
     {
         if (template == null || lastResult == null)
@@ -516,5 +597,11 @@ else
     {
         statusMessage = message;
         statusIsError = isError;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        LiveDrawClient.StateChanged -= ApplyLiveStateAsync;
+        await LiveDrawClient.DisposeAsync();
     }
 }

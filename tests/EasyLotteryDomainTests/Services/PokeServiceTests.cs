@@ -40,7 +40,24 @@ namespace EasyLotteryDomainTests.Services
             var created = await svc.CreateTemplateAsync(template);
 
             Assert.IsTrue(created.Id > 0);
+            Assert.AreNotEqual(Guid.Empty, created.PublicId);
             Assert.AreEqual("Test", created.Name);
+        }
+
+        [TestMethod]
+        public async Task ListTemplates_AssignsAndPersistsMissingPublicId()
+        {
+            var store = new InMemoryEasyLotteryConfigStore();
+            var svc = new PokeService(store);
+            var created = await svc.CreateTemplateAsync(new PokeTemplate { Name = "Legacy" });
+            created.PublicId = Guid.Empty;
+
+            var migrated = (await svc.ListTemplatesAsync()).Single(template => template.Id == created.Id);
+            var reloaded = await svc.LoadTemplateAsync(migrated.PublicId);
+
+            Assert.AreNotEqual(Guid.Empty, migrated.PublicId);
+            Assert.IsNotNull(reloaded);
+            Assert.AreEqual(created.Id, reloaded.Id);
         }
 
         [TestMethod]
@@ -118,6 +135,7 @@ namespace EasyLotteryDomainTests.Services
 
             Assert.IsNotNull(loaded);
             Assert.AreNotEqual(created.Id, duplicate.Id);
+            Assert.AreNotEqual(created.PublicId, duplicate.PublicId);
             Assert.AreEqual("Original - 複製", duplicate.Name);
             Assert.IsFalse(duplicate.IsBuiltIn);
             Assert.AreEqual(TemplatePublicationStatus.Draft, duplicate.PublicationStatus);

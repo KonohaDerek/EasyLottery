@@ -274,7 +274,7 @@ else
 
     private string BuildObsUrl(PokeTemplate template, bool showControls = false)
     {
-        var baseUrl = NavigationManager.ToAbsoluteUri($"/obs/pokebox/{template.Id}").ToString();
+        var baseUrl = NavigationManager.ToAbsoluteUri($"/obs/pokebox/{template.PublicId:D}").ToString();
         var query = showControls ? "controls=1" : "";
         if (!string.IsNullOrWhiteSpace(sessionToken)) query = string.IsNullOrWhiteSpace(query) ? $"sessionToken={Uri.EscapeDataString(sessionToken)}" : $"{query}&sessionToken={Uri.EscapeDataString(sessionToken)}";
         return string.IsNullOrWhiteSpace(query) ? baseUrl : $"{baseUrl}?{query}";
@@ -284,7 +284,7 @@ else
 
     private static PokeTemplate Clone(PokeTemplate source) => new()
     {
-        Id = source.Id, Name = source.Name, Description = source.Description, GridRows = source.GridRows, GridColumns = source.GridColumns,
+        Id = source.Id, PublicId = source.PublicId, Name = source.Name, Description = source.Description, GridRows = source.GridRows, GridColumns = source.GridColumns,
         Mode = source.Mode, AllowRePoking = source.AllowRePoking, MaxPokeCount = source.MaxPokeCount, BackgroundImageUrl = source.BackgroundImageUrl,
         FontFamily = source.FontFamily, CongratulationMessage = source.CongratulationMessage, OverlayWidth = source.OverlayWidth,
         OverlayHeight = source.OverlayHeight, Animation = source.Animation, PokeSoundUrl = source.PokeSoundUrl, OpenSoundUrl = source.OpenSoundUrl,

@@ -28,6 +28,7 @@ namespace EasyLotteryDomain.Services
             template.CreatedAt = DateTime.UtcNow;
             template.UpdatedAt = DateTime.UtcNow;
             template.Id = document.IdSequence.NextPokeTemplateId++;
+            template.PublicId = Guid.NewGuid();
             PrepareTemplateForSave(template, document.IdSequence.NextPokeCellId);
             document.IdSequence.NextPokeCellId = Math.Max(document.IdSequence.NextPokeCellId, template.Cells.Select(c => c.Id).DefaultIfEmpty(document.IdSequence.NextPokeCellId - 1).Max() + 1);
             document.PokeTemplates.Add(template);
@@ -46,6 +47,9 @@ namespace EasyLotteryDomain.Services
                 ?? throw new InvalidOperationException($"Template {template.Id} not found.");
 
             template.CreatedAt = existing.CreatedAt;
+            template.PublicId = existing.PublicId != Guid.Empty
+                ? existing.PublicId
+                : template.PublicId != Guid.Empty ? template.PublicId : Guid.NewGuid();
             PrepareTemplateForSave(template, document.IdSequence.NextPokeCellId);
             document.IdSequence.NextPokeCellId = Math.Max(document.IdSequence.NextPokeCellId, template.Cells.Select(c => c.Id).DefaultIfEmpty(document.IdSequence.NextPokeCellId - 1).Max() + 1);
 
@@ -125,6 +129,12 @@ namespace EasyLotteryDomain.Services
             var document = await LoadDocumentAsync(ensureBuiltIns: true);
             return document.PokeTemplates
                 .FirstOrDefault(t => t.Id == id);
+        }
+
+        public async Task<PokeTemplate?> LoadTemplateAsync(Guid publicId)
+        {
+            var document = await LoadDocumentAsync(ensureBuiltIns: true);
+            return document.PokeTemplates.FirstOrDefault(t => t.PublicId == publicId);
         }
 
         public async Task<PokeTemplate> SetPublicationStatusAsync(int id, TemplatePublicationStatus status)
@@ -230,6 +240,7 @@ namespace EasyLotteryDomain.Services
 
             // Reset IDs so EF treats them as new records
             template.Id = 0;
+            template.PublicId = Guid.Empty;
             template.IsBuiltIn = false;
             template.PublicationStatus = TemplatePublicationStatus.Draft;
             foreach (var cell in template.Cells)
@@ -270,12 +281,31 @@ namespace EasyLotteryDomain.Services
         private async Task<EasyLotteryDomain.Models.Config.EasyLotteryConfigDocument> LoadDocumentAsync(bool ensureBuiltIns)
         {
             var document = await _configStore.LoadAsync();
+            var changed = false;
             if (ensureBuiltIns && EnsureBuiltInTemplates(document))
+            {
+                changed = true;
+            }
+            changed |= EnsurePublicIds(document);
+
+            if (changed)
             {
                 await _configStore.SaveAsync(document);
             }
 
             return document;
+        }
+
+        private static bool EnsurePublicIds(EasyLotteryDomain.Models.Config.EasyLotteryConfigDocument document)
+        {
+            var changed = false;
+            foreach (var template in document.PokeTemplates.Where(template => template.PublicId == Guid.Empty))
+            {
+                template.PublicId = Guid.NewGuid();
+                changed = true;
+            }
+
+            return changed;
         }
 
         private static bool EnsureBuiltInTemplates(EasyLotteryDomain.Models.Config.EasyLotteryConfigDocument document)
