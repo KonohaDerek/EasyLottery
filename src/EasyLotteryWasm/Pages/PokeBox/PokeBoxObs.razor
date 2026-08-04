@@ -25,7 +25,7 @@ else if (template == null)
 }
 else
 {
-    <div class="obs-poke-wrapper obs-layout-surface" style="@WrapperStyle">
+    <div class="obs-poke-wrapper obs-layout-surface @(IsOverlayIdle ? "obs-animation-idle" : "obs-animation-visible")" style="@WrapperStyle">
         <div class="obs-stage">
             <LiveDrawFlowGuide Title="戳戳樂流程"
                                Subtitle="@template.Name"
@@ -69,12 +69,12 @@ else
             <div class="obs-controls">
                 @if (template.Mode == PokeMode.Random)
                 {
-                    <button class="obs-poke-btn" @onclick="@PokeRandom">隨機戳一格</button>
+                    <button class="obs-poke-btn" @onclick="@PokeRandom" disabled="@IsDrawInProgress">隨機戳一格</button>
                 }
-                <button class="obs-record-btn" @onclick="@EndActivityAndRecord" disabled="@(!CanRecordCurrentActivity || isRecording)">
+                <button class="obs-record-btn" @onclick="@EndActivityAndRecord" disabled="@(!CanRecordCurrentActivity || isRecording || IsDrawInProgress)">
                     @(isRecording ? "記錄中…" : "結束本次活動並記錄")
                 </button>
-                <button class="obs-reset-btn" @onclick="@ResetTemplate">重設</button>
+                <button class="obs-reset-btn" @onclick="@ResetTemplate" disabled="@IsDrawInProgress">重設</button>
             </div>
 
             @if (!string.IsNullOrWhiteSpace(statusMessage))
@@ -101,6 +101,13 @@ else
         min-height: 100vh;
         padding: 24px;
         gap: 12px;
+    }
+
+    .obs-layout:not(.obs-controls-enabled) .obs-poke-wrapper.obs-animation-idle {
+        visibility: hidden;
+        opacity: 0;
+        background: transparent !important;
+        pointer-events: none;
     }
 
     .obs-layout-surface {
@@ -195,7 +202,7 @@ else
         border-radius: inherit;
         background: linear-gradient(135deg, rgba(255, 255, 255, 0.24), transparent 38%, rgba(255, 255, 255, 0.08));
         pointer-events: none;
-        animation: reveal-sheen 1.1s ease-out infinite;
+        animation: reveal-sheen 1.1s ease-out 1;
         mix-blend-mode: screen;
     }
 
@@ -207,7 +214,7 @@ else
         font-size: 0.9rem;
         color: rgba(255, 255, 255, 0.9);
         text-shadow: 0 0 10px var(--el-glow);
-        animation: reveal-star 1s ease-in-out infinite;
+        animation: reveal-star 1s ease-in-out 1;
         pointer-events: none;
     }
 
@@ -227,23 +234,42 @@ else
 
     /* Animation classes */
     .poke-cell.just-poked.anim-burst {
-        animation: burst 0.5s ease-out;
+        animation: burst var(--reveal-duration, 650ms) ease-out;
     }
 
     .poke-cell.just-poked.anim-bounce {
-        animation: bounce 0.5s ease-out;
+        animation: bounce var(--reveal-duration, 650ms) ease-out;
     }
 
     .poke-cell.just-poked.anim-flash {
-        animation: flash 0.5s ease-out;
+        animation: flash var(--reveal-duration, 650ms) ease-out;
     }
 
     .poke-cell.just-poked.anim-smoke {
-        animation: smoke 0.6s ease-out;
+        animation: smoke var(--reveal-duration, 650ms) ease-out;
     }
 
     .poke-cell.just-poked.anim-flip {
-        animation: flip 0.5s ease-out;
+        animation: flip var(--reveal-duration, 650ms) ease-out;
+    }
+
+    .obs-poke-wrapper.obs-animation-visible {
+        animation: obs-stage-enter 0.35s ease-out both;
+    }
+
+    @@media (prefers-reduced-motion: reduce) {
+        .obs-poke-wrapper,
+        .obs-poke-wrapper *,
+        .obs-poke-wrapper::before,
+        .obs-poke-wrapper::after {
+            animation: none !important;
+            transition: none !important;
+        }
+    }
+
+    @@keyframes obs-stage-enter {
+        from { opacity: 0; transform: scale(.98); }
+        to { opacity: 1; transform: scale(1); }
     }
 
     .poke-cell.revealed {
@@ -401,13 +427,13 @@ else
     private bool statusIsError;
     private long appliedRevision;
 
-    private const int AnimationDurationMs = 650;
     private const int RevealCountdownSeconds = 2;
-    private const int RevealHoldMs = 450;
 
     private int RevealedCount => template?.Cells.Count(c => c.IsRevealed) ?? 0;
     private bool CanRecordCurrentActivity => template != null && RevealedCount > 0 && BuildRecordSignature() != lastRecordedSignature;
     private bool IsBusy => countdownRemaining.HasValue || flowPhase == LiveDrawPhase.CountingDown || flowPhase == LiveDrawPhase.Spinning;
+    private bool IsDrawInProgress => IsBusy || flowPhase == LiveDrawPhase.ShowingResult;
+    private bool IsOverlayIdle => flowPhase == LiveDrawPhase.Ready && lastPokedIndex is null;
 
     private string FlowDetailText => flowPhase switch
     {
@@ -439,12 +465,13 @@ else
 
     private string CellStyle(PokeCell cell)
     {
+        var animationDuration = Math.Clamp(template?.AnimationDurationMs ?? 650, 300, 10000);
         if (cell.IsRevealed)
         {
             var bg = string.IsNullOrEmpty(cell.RevealedColor) ? "#cccccc" : cell.RevealedColor;
-            return $"background:{bg};color:var(--el-accent-contrast);border-color:{bg};";
+            return $"background:{bg};color:var(--el-accent-contrast);border-color:{bg};--reveal-duration:{animationDuration}ms;";
         }
-        return "";
+        return $"--reveal-duration:{animationDuration}ms;";
     }
 
     protected override async Task OnInitializedAsync()
@@ -556,7 +583,8 @@ else
 
     private async Task ClearAnimationAfterDelay()
     {
-        await Task.Delay(AnimationDurationMs);
+        var resultDuration = Math.Clamp(template?.ResultDisplayDurationSeconds ?? 8, 1, 300);
+        await Task.Delay(TimeSpan.FromSeconds(resultDuration));
         lastPokedIndex = null;
         StateHasChanged();
     }
@@ -626,7 +654,7 @@ else
 
     private async Task RunRevealSequenceAsync(Func<Task<PokeCell?>> revealAsync, Action<PokeCell> applyReveal)
     {
-        if (template == null || IsBusy)
+        if (template == null || IsDrawInProgress)
         {
             return;
         }
@@ -665,7 +693,6 @@ else
         SetStatus($"已揭露第 {poked.Index + 1} 格。", false);
         StateHasChanged();
 
-        await Task.Delay(RevealHoldMs);
         await ClearAnimationAfterDelay();
         flowPhase = LiveDrawPhase.Ready;
         StateHasChanged();

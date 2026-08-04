@@ -83,6 +83,7 @@ namespace EasyLotteryDomain.Services
                 Description = source.Description,
                 SegmentCount = source.SegmentCount,
                 SpinDurationSec = source.SpinDurationSec,
+                ResultDisplayDurationSeconds = source.ResultDisplayDurationSeconds,
                 EasingFunction = source.EasingFunction,
                 InitialAngleDeg = source.InitialAngleDeg,
                 CenterImageUrl = source.CenterImageUrl,
@@ -330,6 +331,8 @@ namespace EasyLotteryDomain.Services
 
         private static void PrepareTemplateForSave(RouletteTemplate template, int nextSegmentId)
         {
+            template.SpinDurationSec = Math.Clamp(template.SpinDurationSec, 1, 30);
+            template.ResultDisplayDurationSeconds = Math.Clamp(template.ResultDisplayDurationSeconds, 1, 300);
             var orderedSegments = template.Segments.OrderBy(s => s.Index).ToList();
             for (var index = 0; index < orderedSegments.Count; index++)
             {

@@ -23,6 +23,9 @@ namespace EasyLotteryDomain.Models.Entities
         /// <summary>Total spin duration in seconds</summary>
         public double SpinDurationSec { get; set; } = 5.0;
 
+        /// <summary>Result stage hold duration in seconds.</summary>
+        public int ResultDisplayDurationSeconds { get; set; } = 12;
+
         /// <summary>CSS easing function name, e.g. "ease-out-cubic"</summary>
         public string EasingFunction { get; set; } = "ease-out-cubic";
 

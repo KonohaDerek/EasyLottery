@@ -71,18 +71,21 @@ public sealed class LiveDrawSessionService
                 throw new InvalidOperationException("沒有可揭露的格子。");
             }
 
-            await PublishAsync(NewState(key, template.Id, LiveDrawSessionPhase.Animating, TimeSpan.FromMilliseconds(650)) with
+            var animationDuration = TimeSpan.FromMilliseconds(Math.Clamp(template.AnimationDurationMs, 300, 10000));
+            await PublishAsync(NewState(key, template.Id, LiveDrawSessionPhase.Animating, animationDuration) with
             {
                 PokeCellIndex = cell.Index,
                 ResultTitle = cell.Title
             }, cancellationToken);
-            await Task.Delay(650, cancellationToken);
+            await Task.Delay(animationDuration, cancellationToken);
 
-            return await PublishAsync(NewState(key, template.Id, LiveDrawSessionPhase.ShowingResult) with
+            await PublishAsync(NewState(key, template.Id, LiveDrawSessionPhase.ShowingResult) with
             {
                 PokeCellIndex = cell.Index,
                 ResultTitle = cell.Title
             }, cancellationToken);
+            await Task.Delay(TimeSpan.FromSeconds(Math.Clamp(template.ResultDisplayDurationSeconds, 1, 300)), cancellationToken);
+            return await PublishAsync(NewState(key, template.Id, LiveDrawSessionPhase.Ready), cancellationToken);
         }
         finally
         {
@@ -123,11 +126,16 @@ public sealed class LiveDrawSessionService
             }, cancellationToken);
             await Task.Delay(duration, cancellationToken);
 
-            return await PublishAsync(NewState(key, template.Id, LiveDrawSessionPhase.ShowingResult) with
+            await PublishAsync(NewState(key, template.Id, LiveDrawSessionPhase.ShowingResult) with
             {
                 RouletteSegmentIndex = result.SegmentIndex,
                 RouletteRotationDeg = targetRotation,
                 ResultTitle = result.SegmentTitle
+            }, cancellationToken);
+            await Task.Delay(TimeSpan.FromSeconds(Math.Clamp(template.ResultDisplayDurationSeconds, 1, 300)), cancellationToken);
+            return await PublishAsync(NewState(key, template.Id, LiveDrawSessionPhase.Ready) with
+            {
+                RouletteRotationDeg = targetRotation
             }, cancellationToken);
         }
         finally

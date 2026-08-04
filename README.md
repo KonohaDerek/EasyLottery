@@ -115,6 +115,8 @@ EasyLottery 是一套以 **Blazor WebAssembly + Domain Service** 組成的直播
 
 管理密碼、scoped OBS URL 與 Tunnel 公開部署前注意事項請先閱讀 [管理者與 OBS 權限](docs/security.md)。
 
+OBS 動畫階段、結果停留時間、透明背景與低動態／低效能選項請參閱 [OBS 動畫生命週期](docs/obs-animation-lifecycle.md)。
+
 ### 前置需求
 
 - .NET SDK 10.0

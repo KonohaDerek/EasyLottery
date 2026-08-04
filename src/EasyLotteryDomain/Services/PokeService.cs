@@ -90,6 +90,8 @@ namespace EasyLotteryDomain.Services
                 OverlayWidth = source.OverlayWidth,
                 OverlayHeight = source.OverlayHeight,
                 Animation = source.Animation,
+                AnimationDurationMs = source.AnimationDurationMs,
+                ResultDisplayDurationSeconds = source.ResultDisplayDurationSeconds,
                 PokeSoundUrl = source.PokeSoundUrl,
                 OpenSoundUrl = source.OpenSoundUrl,
                 IsBuiltIn = false,
@@ -328,6 +330,8 @@ namespace EasyLotteryDomain.Services
 
         private static void PrepareTemplateForSave(PokeTemplate template, int nextCellId)
         {
+            template.AnimationDurationMs = Math.Clamp(template.AnimationDurationMs, 300, 10000);
+            template.ResultDisplayDurationSeconds = Math.Clamp(template.ResultDisplayDurationSeconds, 1, 300);
             var orderedCells = template.Cells.OrderBy(c => c.Index).ToList();
             for (var index = 0; index < orderedCells.Count; index++)
             {

@@ -62,6 +62,22 @@ namespace EasyLotteryDomainTests.Services
         }
 
         [TestMethod]
+        public async Task CreateTemplate_ClampsPlaybackDurations()
+        {
+            var svc = new RouletteService(new InMemoryEasyLotteryConfigStore());
+
+            var created = await svc.CreateTemplateAsync(new RouletteTemplate
+            {
+                Name = "Playback",
+                SpinDurationSec = 99,
+                ResultDisplayDurationSeconds = 999
+            });
+
+            Assert.AreEqual(30, created.SpinDurationSec);
+            Assert.AreEqual(300, created.ResultDisplayDurationSeconds);
+        }
+
+        [TestMethod]
         public async Task ListTemplates_AssignsAndPersistsMissingPublicId()
         {
             var store = new InMemoryEasyLotteryConfigStore();
@@ -155,6 +171,7 @@ namespace EasyLotteryDomainTests.Services
             Assert.AreEqual(template.Description, duplicate.Description);
             Assert.AreEqual(template.SegmentCount, duplicate.SegmentCount);
             Assert.AreEqual(template.SpinDurationSec, duplicate.SpinDurationSec);
+            Assert.AreEqual(template.ResultDisplayDurationSeconds, duplicate.ResultDisplayDurationSeconds);
             Assert.AreEqual(template.EasingFunction, duplicate.EasingFunction);
             Assert.AreEqual(template.InitialAngleDeg, duplicate.InitialAngleDeg);
             Assert.AreEqual(template.CenterImageUrl, duplicate.CenterImageUrl);
