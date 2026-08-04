@@ -25,7 +25,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v6
         with:
-          dotnet-version: 8.0.x
+          dotnet-version: 10.0.x
 
       - name: Restore
         run: dotnet restore EasyLottery.generated.sln
@@ -35,3 +35,76 @@ jobs:
 
       - name: Test Domain
         run: dotnet test tests/EasyLotteryDomainTests/EasyLotteryDomainTests.csproj --configuration Release --no-build --logger "console;verbosity=normal" --logger "trx;LogFileName=domain-test-results.trx"
+
+      - name: Test API
+        run: dotnet test tests/EasyLotteryAPITests/EasyLotteryApiTests.csproj --configuration Release --no-build --logger "console;verbosity=normal" --logger "trx;LogFileName=api-test-results.trx"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          cache: npm
+          cache-dependency-path: tests/e2e/package-lock.json
+
+      - name: Install OpenSpec CLI
+        run: npm install --global @fission-ai/openspec@1.7.0
+
+      - name: Validate OpenSpec
+        run: openspec validate --all --strict
+
+      - name: Upload .NET test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dotnet-test-results
+          path: "**/TestResults/**/*.trx"
+          if-no-files-found: warn
+
+      - name: Install Playwright dependencies
+        working-directory: tests/e2e
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Start API for browser tests
+        env:
+          ASPNETCORE_ENVIRONMENT: Development
+          Security__AdminPassword: ci-admin-password
+          Storage__Directory: ${{ runner.temp }}/easy-lottery-e2e
+        run: |
+          mkdir -p "$Storage__Directory"
+          nohup dotnet run --project src/EasyLotteryAPI/EasyLotteryApi.csproj --configuration Release --no-build --no-launch-profile --urls http://127.0.0.1:18930 > "$RUNNER_TEMP/easy-lottery-api.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/easy-lottery-api.pid"
+          for attempt in {1..60}; do
+            if curl --fail --silent http://127.0.0.1:18930/ > /dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat "$RUNNER_TEMP/easy-lottery-api.log"
+          exit 1
+
+      - name: Run browser E2E
+        working-directory: tests/e2e
+        env:
+          BASE_URL: http://127.0.0.1:18930
+          EASYLOTTERY_ADMIN_PASSWORD: ci-admin-password
+        run: npm test
+
+      - name: Upload browser test artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-test-artifacts
+          path: |
+            tests/e2e/test-results
+            tests/e2e/playwright-report
+            ${{ runner.temp }}/easy-lottery-api.log
+          if-no-files-found: warn
+
+      - name: Stop API
+        if: always()
+        run: |
+          if [ -f "$RUNNER_TEMP/easy-lottery-api.pid" ]; then
+            kill "$(cat "$RUNNER_TEMP/easy-lottery-api.pid")" || true
+          fi
