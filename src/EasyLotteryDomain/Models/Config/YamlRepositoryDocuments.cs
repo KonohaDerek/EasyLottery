@@ -2,9 +2,19 @@ using EasyLotteryDomain.Models.Entities;
 
 namespace EasyLotteryDomain.Models.Config;
 
-public sealed class SettingsYamlDocument
+public static class YamlDocumentSchema
 {
-    public int ConfigVersion { get; set; } = 1;
+    public const int CurrentVersion = 2;
+}
+
+public interface IYamlVersionedDocument
+{
+    int ConfigVersion { get; set; }
+}
+
+public sealed class SettingsYamlDocument : IYamlVersionedDocument
+{
+    public int ConfigVersion { get; set; } = YamlDocumentSchema.CurrentVersion;
     public LotterySystemSettings SystemSettings { get; set; } = new();
     public LotteryIdSequence IdSequence { get; set; } = new();
     public List<DrawingRulePreset> DrawingRulePresets { get; set; } = [];
@@ -16,15 +26,17 @@ public sealed class SettingsYamlDocument
     public List<ChangeAuditRecord> AuditRecords { get; set; } = [];
 }
 
-public sealed class ActivitiesYamlDocument
+public sealed class ActivitiesYamlDocument : IYamlVersionedDocument
 {
+    public int ConfigVersion { get; set; } = YamlDocumentSchema.CurrentVersion;
     public List<PokeTemplate> PokeTemplates { get; set; } = [];
     public List<RouletteTemplate> RouletteTemplates { get; set; } = [];
     public List<DonateLotteryActivity> DonateLotteryActivities { get; set; } = [];
 }
 
-public sealed class ActivityResultsYamlDocument
+public sealed class ActivityResultsYamlDocument : IYamlVersionedDocument
 {
+    public int ConfigVersion { get; set; } = YamlDocumentSchema.CurrentVersion;
     public List<ActivityResultRecord> ActivityResults { get; set; } = [];
     public List<DonateLotteryDrawRecord> DonateLotteryDrawRecords { get; set; } = [];
     public List<string> ProcessedDonatePaymentIds { get; set; } = [];

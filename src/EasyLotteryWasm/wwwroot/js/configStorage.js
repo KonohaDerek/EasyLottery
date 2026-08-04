@@ -9,6 +9,7 @@
     let memoryFallback = "";
     let nextRemoteAttemptAt = 0;
     let sessionTokenPromise = null;
+    let remoteEtag = "";
 
     function readJwtPayload(token) {
         try {
@@ -142,6 +143,7 @@
                 const response = await fetch(remoteConfigUrl, { cache: "no-store", headers: await getSessionHeaders() });
                 if (response.ok) {
                     nextRemoteAttemptAt = 0;
+                    remoteEtag = response.headers.get("ETag") || "";
                     return cacheFallback(await response.text());
                 }
 
@@ -167,10 +169,14 @@
         const safeContent = getSafeContent(content);
 
         try {
+            const headers = { "Content-Type": "text/yaml; charset=utf-8", ...(await getSessionHeaders()) };
+            if (remoteEtag) {
+                headers["If-Match"] = remoteEtag;
+            }
             const response = await fetch(remoteConfigUrl, {
                 method: "PUT",
                 cache: "no-store",
-                headers: { "Content-Type": "text/yaml; charset=utf-8", ...(await getSessionHeaders()) },
+                headers,
                 body: safeContent
             });
 
@@ -180,6 +186,7 @@
 
             // Only update the browser cache after the shared YAML was written
             // successfully so the browser never becomes the source of truth.
+            remoteEtag = response.headers.get("ETag") || remoteEtag;
             cacheFallback(safeContent);
         } catch (error) {
             logError("write.fetch", error);

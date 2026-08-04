@@ -7,6 +7,8 @@ using EasyLotteryApi;
 using EasyLotteryApi.Payments;
 using EasyLotteryDomain.Services;
 using EasyLotteryApi.Endpoints;
+using EasyLotteryInfrastructure.Settings;
+using Microsoft.AspNetCore.Diagnostics;
 using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -43,6 +45,23 @@ var storageDirectory = builder.Configuration["Storage:Directory"]
 Directory.CreateDirectory(storageDirectory);
 
 var app = builder.Build();
+
+app.UseExceptionHandler(errorApp => errorApp.Run(async context =>
+{
+    var exception = context.Features.Get<IExceptionHandlerFeature>()?.Error;
+    var (statusCode, title, detail) = exception switch
+    {
+        ConfigurationConcurrencyException concurrency =>
+            (StatusCodes.Status409Conflict, "設定版本衝突", concurrency.Message),
+        YamlStorageException =>
+            (StatusCodes.Status503ServiceUnavailable, "設定儲存資料無法使用", "設定檔格式損壞或正在復原，請檢查儲存診斷與備份。"),
+        _ =>
+            (StatusCodes.Status500InternalServerError, "伺服器發生未預期錯誤", "請稍後再試，並檢查伺服器記錄。")
+    };
+
+    context.Response.StatusCode = statusCode;
+    await Results.Problem(statusCode: statusCode, title: title, detail: detail).ExecuteAsync(context);
+}));
 
 if (app.Environment.IsDevelopment())
 {

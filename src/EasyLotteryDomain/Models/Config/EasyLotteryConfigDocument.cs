@@ -5,7 +5,7 @@ namespace EasyLotteryDomain.Models.Config
 {
     public sealed class EasyLotteryConfigDocument
     {
-        public int ConfigVersion { get; set; } = 1;
+        public int ConfigVersion { get; set; } = YamlDocumentSchema.CurrentVersion;
 
         public LotterySystemSettings SystemSettings { get; set; } = new();
 

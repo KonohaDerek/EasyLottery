@@ -2,6 +2,7 @@ using EasyLotteryApplication.DonateActivities;
 using EasyLotteryDomain.Models.Config;
 using EasyLotteryDomain.Services;
 using EasyLotteryInfrastructure.Storage;
+using EasyLotteryInfrastructure.Settings;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using YamlDotNet.Serialization;
@@ -70,7 +71,17 @@ public sealed class YamlDonateActivityRepository : IDonateLotteryActivityReposit
         }
 
         var yaml = await File.ReadAllTextAsync(SnapshotPath, cancellationToken);
-        var activities = DeserializeActivities(yaml);
+        List<DonateLotteryActivity> activities;
+        try
+        {
+            if (string.IsNullOrWhiteSpace(yaml))
+                throw new InvalidDataException("YAML 文件是空的。");
+            activities = DeserializeActivities(yaml);
+        }
+        catch (Exception exception) when (exception is YamlDotNet.Core.YamlException or InvalidDataException or YamlStorageException)
+        {
+            throw QuarantineSnapshot("Donate 活動 YAML 格式損壞，已隔離檔案。", exception);
+        }
         var (normalized, changed) = NormalizeActivities(activities);
         if (changed)
         {
@@ -82,11 +93,25 @@ public sealed class YamlDonateActivityRepository : IDonateLotteryActivityReposit
 
     internal async Task WriteSnapshotUnsafeAsync(IReadOnlyList<DonateLotteryActivity> activities, CancellationToken cancellationToken = default)
     {
-        var document = File.Exists(SnapshotPath)
-            ? DeserializeActivitiesDocument(await File.ReadAllTextAsync(SnapshotPath, cancellationToken))
-            : new ActivitiesYamlDocument();
+        ActivitiesYamlDocument document;
+        if (File.Exists(SnapshotPath))
+        {
+            try
+            {
+                document = DeserializeActivitiesDocument(await File.ReadAllTextAsync(SnapshotPath, cancellationToken));
+            }
+            catch (Exception exception) when (exception is YamlDotNet.Core.YamlException or InvalidDataException or YamlStorageException)
+            {
+                throw QuarantineSnapshot("Donate 活動 YAML 格式損壞，已隔離檔案。", exception);
+            }
+        }
+        else
+        {
+            document = new ActivitiesYamlDocument();
+        }
         document.DonateLotteryActivities = activities.OrderByDescending(activity => activity.Id).ToList();
         Directory.CreateDirectory(Path.GetDirectoryName(SnapshotPath) ?? ".");
+        CreateBackup();
         var temporaryPath = $"{SnapshotPath}.{Guid.NewGuid():N}.tmp";
         await File.WriteAllTextAsync(temporaryPath, _serializer.Serialize(document), cancellationToken);
         File.Move(temporaryPath, SnapshotPath, overwrite: true);
@@ -106,11 +131,43 @@ public sealed class YamlDonateActivityRepository : IDonateLotteryActivityReposit
         catch (YamlDotNet.Core.YamlException)
         {
             // Snapshots produced before YAML repositories were split used a root list.
-            return new ActivitiesYamlDocument
+            try
             {
-                DonateLotteryActivities = _deserializer.Deserialize<List<DonateLotteryActivity>>(yaml) ?? []
-            };
+                return new ActivitiesYamlDocument
+                {
+                    DonateLotteryActivities = _deserializer.Deserialize<List<DonateLotteryActivity>>(yaml) ?? []
+                };
+            }
+            catch (Exception exception) when (exception is YamlDotNet.Core.YamlException or InvalidDataException)
+            {
+                throw new YamlStorageException("Donate 活動 YAML 無法解析。", SnapshotPath, innerException: exception);
+            }
         }
+    }
+
+    private void CreateBackup()
+    {
+        if (!File.Exists(SnapshotPath)) return;
+        var backupPath = $"{SnapshotPath}.bak.{DateTimeOffset.UtcNow:yyyyMMddHHmmssfff}.{Guid.NewGuid():N}";
+        File.Copy(SnapshotPath, backupPath, overwrite: false);
+        var directory = Path.GetDirectoryName(SnapshotPath) ?? ".";
+        foreach (var oldBackup in Directory.EnumerateFiles(directory, Path.GetFileName(SnapshotPath) + ".bak.*")
+                     .OrderByDescending(File.GetLastWriteTimeUtc).Skip(5))
+        {
+            try { File.Delete(oldBackup); } catch (IOException) { }
+        }
+    }
+
+    private YamlStorageException QuarantineSnapshot(string message, Exception exception)
+    {
+        string? quarantinedPath = null;
+        if (File.Exists(SnapshotPath))
+        {
+            quarantinedPath = $"{SnapshotPath}.corrupt.{DateTimeOffset.UtcNow:yyyyMMddHHmmssfff}.{Guid.NewGuid():N}";
+            File.Move(SnapshotPath, quarantinedPath, overwrite: false);
+        }
+
+        return new YamlStorageException(message, SnapshotPath, quarantinedPath, exception);
     }
 
     private static (List<DonateLotteryActivity> Activities, bool Changed) NormalizeActivities(IEnumerable<DonateLotteryActivity> activities)
