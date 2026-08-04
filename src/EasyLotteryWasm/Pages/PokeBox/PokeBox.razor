@@ -174,7 +174,7 @@ else
     private bool editorVisible;
     private string importJson = "";
     private string exportJson = "";
-    private string sessionToken = "";
+    private readonly Dictionary<(Guid PublicId, bool Control), string> obsTokens = new();
 
     private string EditorTitle => editing is null ? "戳戳樂模板" : editing.Id == 0 ? "新增戳戳樂模板" : $"編輯戳戳樂模板：{editing.Name}";
     private bool EditingIsPublished
@@ -185,11 +185,19 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        sessionToken = await ObsSessionService.GetSessionTokenAsync();
         await ReloadAsync();
     }
 
-    private async Task ReloadAsync() => templates = await PokeService.ListTemplatesAsync();
+    private async Task ReloadAsync()
+    {
+        templates = await PokeService.ListTemplatesAsync();
+        obsTokens.Clear();
+        foreach (var template in templates.Where(item => item.PublicId != Guid.Empty))
+        {
+            obsTokens[(template.PublicId, false)] = await ObsSessionService.CreateObsTokenAsync("pokebox", template.PublicId.ToString(), false);
+            obsTokens[(template.PublicId, true)] = await ObsSessionService.CreateObsTokenAsync("pokebox", template.PublicId.ToString(), true);
+        }
+    }
 
     private Task CreateAsync()
     {
@@ -276,8 +284,10 @@ else
     {
         var baseUrl = NavigationManager.ToAbsoluteUri($"/obs/pokebox/{template.PublicId:D}").ToString();
         var query = showControls ? "controls=1" : "";
-        if (!string.IsNullOrWhiteSpace(sessionToken)) query = string.IsNullOrWhiteSpace(query) ? $"sessionToken={Uri.EscapeDataString(sessionToken)}" : $"{query}&sessionToken={Uri.EscapeDataString(sessionToken)}";
-        return string.IsNullOrWhiteSpace(query) ? baseUrl : $"{baseUrl}?{query}";
+        var url = string.IsNullOrWhiteSpace(query) ? baseUrl : $"{baseUrl}?{query}";
+        return obsTokens.TryGetValue((template.PublicId, showControls), out var sessionToken)
+            ? $"{url}#sessionToken={Uri.EscapeDataString(sessionToken)}"
+            : url;
     }
 
     private static string GetAnimationName(PokeAnimation animation) => animation switch { PokeAnimation.Burst => "爆破", PokeAnimation.Smoke => "煙霧", PokeAnimation.Flash => "光芒", PokeAnimation.Bounce => "彈跳", PokeAnimation.Flip => "翻轉", _ => animation.ToString() };

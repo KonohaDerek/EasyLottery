@@ -134,7 +134,7 @@
     private IReadOnlyList<DonateLotteryActivity> activities = [];
     private DonateLotteryActivity? editing;
     private bool editorVisible;
-    private string sessionToken = "";
+    private readonly Dictionary<(Guid PublicId, bool Control), string> obsTokens = new();
     private string EditorTitle => editing is null
         ? "Donate 活動"
         : editing.Id == 0 ? "新增 Donate 活動" : $"編輯 Donate 活動：{editing.Name}";
@@ -143,11 +143,19 @@
 
     protected override async Task OnInitializedAsync()
     {
-        sessionToken = await ObsSessionService.GetSessionTokenAsync();
         await ReloadAsync();
     }
 
-    private async Task ReloadAsync() => activities = await DonateLotteryActivityApiClient.ListAsync();
+    private async Task ReloadAsync()
+    {
+        activities = await DonateLotteryActivityApiClient.ListAsync();
+        obsTokens.Clear();
+        foreach (var activity in activities.Where(item => item.PublicId != Guid.Empty))
+        {
+            obsTokens[(activity.PublicId, false)] = await ObsSessionService.CreateObsTokenAsync("donate", activity.PublicId.ToString(), false);
+            obsTokens[(activity.PublicId, true)] = await ObsSessionService.CreateObsTokenAsync("donate", activity.PublicId.ToString(), true);
+        }
+    }
     private decimal PrizeProbabilityTotal => editing?.Prizes.Sum(prize => prize.Probability) ?? 0m;
     private bool ProbabilityTotalExceeded => PrizeProbabilityTotal > 100m;
     private Task CreateAsync()
@@ -257,14 +265,10 @@
     {
         var baseUrl = NavigationManager.ToAbsoluteUri($"/obs/donate/{activity.PublicId}").ToString();
         var query = showControls ? "controls=1" : "";
-        if (!string.IsNullOrWhiteSpace(sessionToken))
-        {
-            query = string.IsNullOrWhiteSpace(query)
-                ? $"sessionToken={Uri.EscapeDataString(sessionToken)}"
-                : $"{query}&sessionToken={Uri.EscapeDataString(sessionToken)}";
-        }
-
-        return string.IsNullOrWhiteSpace(query) ? baseUrl : $"{baseUrl}?{query}";
+        var url = string.IsNullOrWhiteSpace(query) ? baseUrl : $"{baseUrl}?{query}";
+        return obsTokens.TryGetValue((activity.PublicId, showControls), out var sessionToken)
+            ? $"{url}#sessionToken={Uri.EscapeDataString(sessionToken)}"
+            : url;
     }
 
     private void ApplyDateInputs()

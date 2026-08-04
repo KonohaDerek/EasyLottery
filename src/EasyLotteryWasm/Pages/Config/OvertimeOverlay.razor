@@ -710,14 +710,14 @@ else
     private string sessionToken = "";
     private string OverlayUrl => string.IsNullOrWhiteSpace(sessionToken)
         ? NavigationManager.ToAbsoluteUri("/obs/overtime").ToString()
-        : $"{NavigationManager.ToAbsoluteUri("/obs/overtime").ToString()}?sessionToken={Uri.EscapeDataString(sessionToken)}";
+        : $"{NavigationManager.ToAbsoluteUri("/obs/overtime").ToString()}#sessionToken={Uri.EscapeDataString(sessionToken)}";
     private string PlannedEndAtInput { get; set; } = "";
 
     private OvertimeTextAnimationPreset SelectedTextAnimation => OvertimeTextAnimationPreset.GetByKey(selectedTextAnimationKey);
 
     protected override async Task OnInitializedAsync()
     {
-        sessionToken = await ObsSessionService.GetSessionTokenAsync();
+        sessionToken = await ObsSessionService.CreateObsTokenAsync("overtime", "default", false);
         document = await ConfigStore.LoadAsync();
         settings = document.OvertimeOverlay ?? new OvertimeOverlaySettings();
         settings.RewardRules ??= new List<OvertimeRewardRule>();

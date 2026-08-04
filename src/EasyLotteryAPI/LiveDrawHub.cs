@@ -10,7 +10,7 @@ public sealed class LiveDrawHub : Hub
 
     public Task JoinSession(string kind, Guid publicId, string sessionToken)
     {
-        if (!_tokens.IsValid(sessionToken))
+        if (!_tokens.CanAccessObs(sessionToken, kind, publicId.ToString(), "read"))
         {
             throw new HubException("OBS 工作階段憑證無效。");
         }

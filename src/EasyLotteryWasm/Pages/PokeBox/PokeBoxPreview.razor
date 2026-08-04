@@ -410,8 +410,9 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        sessionToken = await ObsSessionService.GetSessionTokenAsync();
         await LoadTemplate();
+        if (template is { PublicId: var publicId } && publicId != Guid.Empty)
+            sessionToken = await ObsSessionService.CreateObsTokenAsync("pokebox", publicId.ToString(), true);
     }
 
     private async Task LoadTemplate()
@@ -538,7 +539,7 @@ else
 
     private string ObsUrl => string.IsNullOrWhiteSpace(sessionToken)
         ? NavigationManager.ToAbsoluteUri($"/obs/pokebox/{Id}").ToString()
-        : $"{NavigationManager.ToAbsoluteUri($"/obs/pokebox/{Id}").ToString()}?sessionToken={Uri.EscapeDataString(sessionToken)}";
+        : $"{NavigationManager.ToAbsoluteUri($"/obs/pokebox/{Id}").ToString()}#sessionToken={Uri.EscapeDataString(sessionToken)}";
 
     private string BuildRecordSignature()
     {

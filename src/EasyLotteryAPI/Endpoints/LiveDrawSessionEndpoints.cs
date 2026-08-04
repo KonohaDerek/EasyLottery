@@ -9,7 +9,8 @@ internal static class LiveDrawSessionEndpoints
         app.MapGet("/api/live-draw/{kind}/{publicId:guid}", async (
             string kind, Guid publicId, HttpContext context, LiveDrawSessionService sessions, ObsSessionAccess access) =>
         {
-            if (!access.IsAuthorized(context.Request)) return Results.Unauthorized();
+            var denied = ObsSessionAccess.DeniedResult(access.RequireObs(context.Request, kind, publicId.ToString(), "read"));
+            if (denied is not null) return denied;
             if (!TryParseKind(kind, out var parsedKind)) return Results.BadRequest(new { error = "不支援的抽獎類型。" });
             var state = await sessions.GetAsync(parsedKind, publicId);
             return state is null ? Results.NotFound(new { error = "找不到即時抽獎工作階段。" }) : Results.Ok(state);
@@ -17,23 +18,29 @@ internal static class LiveDrawSessionEndpoints
 
         app.MapPost("/api/live-draw/pokebox/{publicId:guid}/poke", async (
             Guid publicId, PokeLiveDrawCommand command, HttpContext context, LiveDrawSessionService sessions, ObsSessionAccess access) =>
-            await ExecuteAsync(context, access, () => sessions.PokeAsync(publicId, command, CancellationToken.None)));
+            await ExecuteAsync(context, access, "pokebox", publicId, () => sessions.PokeAsync(publicId, command, CancellationToken.None)))
+            .RequireRateLimiting("sensitive");
 
         app.MapPost("/api/live-draw/pokebox/{publicId:guid}/reset", async (
             Guid publicId, HttpContext context, LiveDrawSessionService sessions, ObsSessionAccess access) =>
-            await ExecuteAsync(context, access, () => sessions.ResetPokeAsync(publicId, CancellationToken.None)));
+            await ExecuteAsync(context, access, "pokebox", publicId, () => sessions.ResetPokeAsync(publicId, CancellationToken.None)))
+            .RequireRateLimiting("sensitive");
 
         app.MapPost("/api/live-draw/roulette/{publicId:guid}/spin", async (
             Guid publicId, RouletteLiveDrawCommand command, HttpContext context, LiveDrawSessionService sessions, ObsSessionAccess access) =>
-            await ExecuteAsync(context, access, () => sessions.SpinAsync(publicId, command, CancellationToken.None)));
+            await ExecuteAsync(context, access, "roulette", publicId, () => sessions.SpinAsync(publicId, command, CancellationToken.None)))
+            .RequireRateLimiting("sensitive");
     }
 
     private static async Task<IResult> ExecuteAsync(
         HttpContext context,
         ObsSessionAccess access,
+        string kind,
+        Guid publicId,
         Func<Task<LiveDrawSessionState>> action)
     {
-        if (!access.IsAuthorized(context.Request)) return Results.Unauthorized();
+        var denied = ObsSessionAccess.DeniedResult(access.RequireObs(context.Request, kind, publicId.ToString(), "control"));
+        if (denied is not null) return denied;
         try
         {
             return Results.Ok(await action());

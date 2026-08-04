@@ -291,12 +291,15 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        sessionToken = await ObsSessionService.GetSessionTokenAsync();
         template = await RouletteService.LoadTemplateAsync(Id);
         if (template == null)
         {
             await MessageService.Error("找不到模板。");
             NavigationManager.NavigateTo("/roulette");
+        }
+        else if (template.PublicId != Guid.Empty)
+        {
+            sessionToken = await ObsSessionService.CreateObsTokenAsync("roulette", template.PublicId.ToString(), true);
         }
     }
 
@@ -389,7 +392,7 @@ else
 
     private string ObsUrl => string.IsNullOrWhiteSpace(sessionToken)
         ? NavigationManager.ToAbsoluteUri($"/obs/roulette/{Id}").ToString()
-        : $"{NavigationManager.ToAbsoluteUri($"/obs/roulette/{Id}").ToString()}?sessionToken={Uri.EscapeDataString(sessionToken)}";
+        : $"{NavigationManager.ToAbsoluteUri($"/obs/roulette/{Id}").ToString()}#sessionToken={Uri.EscapeDataString(sessionToken)}";
 
     private string BuildRecordSignature()
     {
