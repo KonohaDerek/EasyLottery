@@ -1,0 +1,19 @@
+.donate-animation-scene {
+    /* The host owns the timing variable; every animation child consumes it. */
+    contain: layout paint;
+    isolation: isolate;
+}
+
+.donate-animation-scene ::deep .chibi-actor,
+.donate-animation-scene ::deep .scratch-brush {
+    will-change: transform, opacity;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .donate-animation-scene,
+    .donate-animation-scene ::deep * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}

@@ -25,74 +25,7 @@
                 @if (!string.IsNullOrWhiteSpace(latestWin.PaymentMethod)) { <div class="donate-notice-payment">付款方式：@latestWin.PaymentMethod</div> }
             </section>
             <div class="donate-reveal-label">@(latestWin.IsWinning ? "DONATE RESULT" : "DONATE THANK YOU")</div>
-            <div class="draw-prop animation-@AnimationKey" aria-hidden="true">
-                @if (activity.Animation == DonateLotteryAnimation.IchibanKuji)
-                {
-                    <div class="ichiban-stage">
-                        <div class="ichiban-curtain ichiban-curtain-left"></div>
-                        <div class="ichiban-curtain ichiban-curtain-right"></div>
-                        <div class="ichiban-ribbon"></div>
-                        <div class="ichiban-box">一番賞</div>
-                        <div class="ichiban-hand ichiban-hand-left"></div><div class="ichiban-hand ichiban-hand-right"></div>
-                        <div class="ichiban-ticket">一番賞</div>
-                        <div class="chibi-actor ichiban-chibi"><i></i><b></b></div>
-                    </div>
-                }
-                else if (activity.Animation == DonateLotteryAnimation.Gacha)
-                {
-                    <div class="gacha-stage">
-                        <div class="gacha-halo"></div>
-                        <div class="gacha-machine">
-                            <div class="gacha-glass"></div>
-                            <div class="gacha-slot"></div>
-                            <div class="gacha-crank"></div>
-                            <div class="gacha-capsule"></div>
-                        </div>
-                        <div class="chibi-actor gacha-chibi"><i></i><b></b></div>
-                    </div>
-                }
-                else if (activity.Animation == DonateLotteryAnimation.Garagara)
-                {
-                    <div class="garagara-stage">
-                        <div class="chibi-actor garagara-chibi"><i></i><b></b></div>
-                        <div class="garagara-arm"></div>
-                        <div class="garagara-drum">
-                            <span></span><span></span><span></span><span></span>
-                        </div>
-                        <div class="garagara-rain">
-                            <span></span><span></span><span></span>
-                        </div>
-                        <div class="garagara-ball @GaragaraBallClass"></div>
-                    </div>
-                }
-                else if (activity.Animation == DonateLotteryAnimation.MoneyBox)
-                {
-                    <div class="moneybox-stage">
-                        <div class="coin coin-1">●</div>
-                        <div class="coin coin-2">●</div>
-                        <div class="coin coin-3">●</div>
-                        <div class="money-box">
-                            <div class="money-box-slot"></div>
-                            <div class="money-box-face"></div>
-                        </div>
-                        <div class="fortune-slip">御神籤</div>
-                    </div>
-                }
-                else if (activity.Animation == DonateLotteryAnimation.ScratchCard)
-                {
-                    <div class="scratch-stage">
-                        <div class="scratch-card">
-                            <div class="scratch-card-heading">LUCKY SCRATCH</div>
-                            <div class="scratch-card-result">@latestWin.PrizeName</div>
-                            <div class="scratch-silver"></div>
-                            <div class="scratch-brush"></div>
-                            <div class="scratch-spark scratch-spark-one"></div>
-                            <div class="scratch-spark scratch-spark-two"></div>
-                            <div class="scratch-spark scratch-spark-three"></div>
-                        </div>
-                    </div>
-                }
-            </div>
+            <DonateAnimationScene Animation="activity.Animation" PrizeName="latestWin.PrizeName" BallClass="@GaragaraBallClass" />
             <div class="donate-result-content">
             @if (!string.IsNullOrWhiteSpace(latestWin.PrizeImageUrl) && !prizeImageFailed)
             {
@@ -268,7 +201,6 @@ else
     private string RevealPhaseClass => revealState.Phase switch { DonateObsRevealPhase.Notification => "notification", DonateObsRevealPhase.Animation => "animation", _ => "reveal" };
     private DonateObsAnimationPresentation AnimationPresentation => DonateObsAnimationCatalog.Resolve(activity?.Animation ?? DonateLotteryAnimation.IchibanKuji);
     private string AnimationClass => AnimationPresentation.CssClass;
-    private string AnimationKey => AnimationPresentation.SceneKey;
     private string PolaroidTemplateClass => $"polaroid-template-{(string.IsNullOrWhiteSpace(activity?.PolaroidTemplateKey) ? "classic" : activity.PolaroidTemplateKey)}";
     private string PolaroidFallbackCongratulation => latestWin is null
         ? ""

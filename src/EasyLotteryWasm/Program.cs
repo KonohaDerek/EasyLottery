@@ -50,6 +50,7 @@ builder.Services.AddScoped<EasyLotteryAuditService>();
 builder.Services.AddScoped<YouTubeServiceHelper>();
 builder.Services.AddScoped<PokeTemplateApiClient>();
 builder.Services.AddScoped<RouletteTemplateApiClient>();
+builder.Services.AddScoped<ObsAssetApiClient>();
 
 builder.Services
     .AddBlazorise(options =>

@@ -1,0 +1,39 @@
+@using EasyLotteryDomain.Models.Config
+
+<div class="donate-animation-scene draw-prop animation-@SceneKey" aria-hidden="true">
+    @if (Animation == DonateLotteryAnimation.IchibanKuji)
+    {
+        <IchibanKujiAnimation />
+    }
+    else if (Animation == DonateLotteryAnimation.Gacha)
+    {
+        <GachaAnimation />
+    }
+    else if (Animation == DonateLotteryAnimation.Garagara)
+    {
+        <GaragaraAnimation BallClass="@BallClass" />
+    }
+    else if (Animation == DonateLotteryAnimation.MoneyBox)
+    {
+        <MoneyBoxAnimation />
+    }
+    else if (Animation == DonateLotteryAnimation.ScratchCard)
+    {
+        <ScratchCardAnimation PrizeName="@PrizeName" />
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public DonateLotteryAnimation Animation { get; set; }
+    [Parameter] public string PrizeName { get; set; } = "";
+    [Parameter] public string BallClass { get; set; } = "ball-white";
+
+    private string SceneKey => Animation switch
+    {
+        DonateLotteryAnimation.Gacha => "gacha",
+        DonateLotteryAnimation.Garagara => "garagara",
+        DonateLotteryAnimation.MoneyBox => "moneybox",
+        DonateLotteryAnimation.ScratchCard => "scratch-card",
+        _ => "ichiban"
+    };
+}
