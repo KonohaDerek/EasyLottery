@@ -180,6 +180,20 @@ html, body {
     min-height: 100%;
 }
 
+/* The navigation owns its collapsed state; the shell follows it without a
+   second state container in MainLayout. Chromium/WebView2 (the supported OBS
+   browser runtime) supports :has and keeps the main content width in sync. */
+@media (min-width: 641px) {
+    .sidebar:has(.nav-menu-root.is-collapsed) {
+        width: 4.75rem;
+        transition: width 0.2s ease;
+    }
+
+    .sidebar:not(:has(.nav-menu-root.is-collapsed)) {
+        transition: width 0.2s ease;
+    }
+}
+
 html {
     background: var(--el-page-bg);
 }

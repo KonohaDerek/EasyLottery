@@ -1,0 +1,85 @@
+@page "/about"
+@layout MainLayout
+
+<PageTitle>關於 EasyLottery</PageTitle>
+
+<section class="page-shell about-page" aria-labelledby="about-title">
+    <div class="page-heading">
+        <div>
+            <p class="eyebrow">EASYLOTTERY</p>
+            <h1 id="about-title">關於 EasyLottery</h1>
+            <p class="page-lead">把直播互動、抽獎活動與 OBS 呈現集中在同一個工作流程。</p>
+        </div>
+    </div>
+
+    <div class="about-grid">
+        <article class="about-card">
+            <span class="about-card-icon" aria-hidden="true">✦</span>
+            <h2>為直播而設計</h2>
+            <p>用 Donate、戳戳樂、轉盤與加班台建立可重複使用的直播互動體驗。</p>
+        </article>
+        <article class="about-card">
+            <span class="about-card-icon" aria-hidden="true">▣</span>
+            <h2>OBS 友善</h2>
+            <p>每個呈現畫面都能以透明背景嵌入 OBS，並可用專屬網址隔離不同活動。</p>
+        </article>
+        <article class="about-card">
+            <span class="about-card-icon" aria-hidden="true">◈</span>
+            <h2>可控且可追溯</h2>
+            <p>活動設定、抽獎結果與稽核紀錄分離保存，方便管理、備份與日後擴充。</p>
+        </article>
+    </div>
+</section>
+
+<style>
+    .about-page {
+        max-width: 1100px;
+        margin: 0 auto;
+    }
+
+    .about-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 1.25rem;
+        margin-top: 2rem;
+    }
+
+    .about-card {
+        min-height: 12rem;
+        padding: 1.5rem;
+        background: var(--el-surface-strong);
+        border: 1px solid var(--el-border);
+        border-radius: 1rem;
+        box-shadow: var(--el-shadow);
+    }
+
+    .about-card-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 2.5rem;
+        height: 2.5rem;
+        margin-bottom: 1rem;
+        color: var(--el-accent);
+        background: var(--el-surface-soft);
+        border-radius: 0.75rem;
+        font-size: 1.35rem;
+    }
+
+    .about-card h2 {
+        margin: 0 0 0.65rem;
+        font-size: 1.15rem;
+    }
+
+    .about-card p {
+        margin: 0;
+        color: var(--el-text-muted);
+        line-height: 1.7;
+    }
+
+    @@media (max-width: 768px) {
+        .about-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
