@@ -98,6 +98,7 @@ namespace EasyLotteryDomain.Services
                 ActivityType = ActivityResultType.PokeBox,
                 ActivityName = template.Name,
                 TemplateId = template.Id,
+                TemplatePublicId = template.PublicId,
                 ActivityDateUtc = now,
                 Summary = $"已揭曉 {revealedCells.Count} / {template.Cells.Count} 格",
                 Items = revealedCells
@@ -140,6 +141,7 @@ namespace EasyLotteryDomain.Services
                 ActivityType = ActivityResultType.Roulette,
                 ActivityName = template.Name,
                 TemplateId = template.Id,
+                TemplatePublicId = template.PublicId,
                 ActivityDateUtc = DateTime.UtcNow,
                 Summary = $"中獎項目：{segmentTitle}",
                 Items = new List<ActivityResultItem>

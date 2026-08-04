@@ -34,7 +34,7 @@ builder.Services.AddScoped<IOvertimeFeedStore, BrowserOvertimeFeedStore>();
 builder.Services.AddScoped<SystemSettingsService>();
 builder.Services.AddScoped<ObsLayoutService>();
 builder.Services.AddScoped<SoundCueService>();
-builder.Services.AddScoped<ActivityResultService>();
+builder.Services.AddScoped<ActivityResultApiClient>();
 builder.Services.AddScoped<DonateLotteryActivityApiClient>();
 builder.Services.AddScoped<ObsSessionService>();
 builder.Services.AddScoped<AiCongratulationClient>();
@@ -48,8 +48,8 @@ builder.Services.AddScoped<EasyLotteryAuditService>();
 
 // 添加服務
 builder.Services.AddScoped<YouTubeServiceHelper>();
-builder.Services.AddScoped<PokeService>();
-builder.Services.AddScoped<RouletteService>();
+builder.Services.AddScoped<PokeTemplateApiClient>();
+builder.Services.AddScoped<RouletteTemplateApiClient>();
 
 builder.Services
     .AddBlazorise(options =>

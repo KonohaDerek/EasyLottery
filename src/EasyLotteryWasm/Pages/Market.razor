@@ -1,8 +1,9 @@
 @page "/market"
 @using EasyLotteryDomain.Models.Entities
 @using EasyLotteryDomain.Services
-@inject PokeService PokeService
-@inject RouletteService RouletteService
+@using EasyLotteryWasm.Services
+@inject PokeTemplateApiClient PokeService
+@inject RouletteTemplateApiClient RouletteService
 @inject IMessageService MessageService
 @inject NavigationManager Navigation
 

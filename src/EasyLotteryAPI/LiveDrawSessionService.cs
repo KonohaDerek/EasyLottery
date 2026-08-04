@@ -1,6 +1,6 @@
 using System.Collections.Concurrent;
 using EasyLotteryDomain.Models;
-using EasyLotteryDomain.Services;
+using EasyLotteryApplication.Templates;
 using Microsoft.AspNetCore.SignalR;
 
 namespace EasyLotteryApi;
@@ -9,14 +9,14 @@ public sealed class LiveDrawSessionService
 {
     public const string StateChangedEvent = "LiveDrawStateChanged";
 
-    private readonly PokeService _pokeService;
-    private readonly RouletteService _rouletteService;
+    private readonly IPokeTemplateRepository _pokeService;
+    private readonly IRouletteTemplateRepository _rouletteService;
     private readonly IHubContext<LiveDrawHub> _hub;
     private readonly ConcurrentDictionary<(LiveDrawSessionKind Kind, Guid PublicId), LiveDrawSessionState> _states = new();
     private readonly ConcurrentDictionary<(LiveDrawSessionKind Kind, Guid PublicId), SemaphoreSlim> _sessionGates = new();
     private readonly SemaphoreSlim _persistenceGate = new(1, 1);
 
-    public LiveDrawSessionService(PokeService pokeService, RouletteService rouletteService, IHubContext<LiveDrawHub> hub)
+    public LiveDrawSessionService(IPokeTemplateRepository pokeService, IRouletteTemplateRepository rouletteService, IHubContext<LiveDrawHub> hub)
     {
         _pokeService = pokeService;
         _rouletteService = rouletteService;
@@ -44,7 +44,7 @@ public sealed class LiveDrawSessionService
 
         try
         {
-            var template = await _pokeService.LoadTemplateAsync(publicId)
+            var template = await _pokeService.GetByPublicIdAsync(publicId)
                 ?? throw new KeyNotFoundException("找不到戳戳樂模板。");
             var countdown = Math.Clamp(command.CountdownSeconds, 0, 10);
             if (countdown > 0)
@@ -58,8 +58,8 @@ public sealed class LiveDrawSessionService
             try
             {
                 cell = command.CellIndex.HasValue
-                    ? await _pokeService.PokeCellByIndexAsync(template.Id, command.CellIndex.Value)
-                    : await _pokeService.PokeRandomCellAsync(template.Id);
+                    ? await _pokeService.PokeCellAsync(template.Id, command.CellIndex.Value, cancellationToken)
+                    : await _pokeService.PokeRandomAsync(template.Id, cancellationToken);
             }
             finally
             {
@@ -104,7 +104,7 @@ public sealed class LiveDrawSessionService
 
         try
         {
-            var template = await _rouletteService.LoadTemplateAsync(publicId)
+            var template = await _rouletteService.GetByPublicIdAsync(publicId)
                 ?? throw new KeyNotFoundException("找不到轉盤模板。");
             var countdown = Math.Clamp(command.CountdownSeconds, 0, 10);
             if (countdown > 0)
@@ -114,7 +114,7 @@ public sealed class LiveDrawSessionService
             }
 
             var currentRotation = _states.TryGetValue(key, out var previous) ? previous.RouletteRotationDeg : 0;
-            var result = RouletteService.Spin(template, command.ForceIndex, currentRotation);
+            var result = await _rouletteService.SpinAsync(template.Id, command.ForceIndex, currentRotation, cancellationToken);
             var targetRotation = currentRotation + result.TotalRotationDeg;
             var duration = TimeSpan.FromSeconds(Math.Clamp(template.SpinDurationSec, 0.1, 30));
 
@@ -146,12 +146,12 @@ public sealed class LiveDrawSessionService
 
     public async Task<LiveDrawSessionState> ResetPokeAsync(Guid publicId, CancellationToken cancellationToken)
     {
-        var template = await _pokeService.LoadTemplateAsync(publicId)
+            var template = await _pokeService.GetByPublicIdAsync(publicId)
             ?? throw new KeyNotFoundException("找不到戳戳樂模板。");
         await _persistenceGate.WaitAsync(cancellationToken);
         try
         {
-            await _pokeService.ResetTemplateAsync(template.Id);
+            await _pokeService.ResetAsync(template.Id, cancellationToken);
         }
         finally
         {
@@ -165,8 +165,8 @@ public sealed class LiveDrawSessionService
     {
         var templateId = kind switch
         {
-            LiveDrawSessionKind.PokeBox => (await _pokeService.LoadTemplateAsync(publicId))?.Id,
-            LiveDrawSessionKind.Roulette => (await _rouletteService.LoadTemplateAsync(publicId))?.Id,
+            LiveDrawSessionKind.PokeBox => (await _pokeService.GetByPublicIdAsync(publicId))?.Id,
+            LiveDrawSessionKind.Roulette => (await _rouletteService.GetByPublicIdAsync(publicId))?.Id,
             _ => null
         };
         if (!templateId.HasValue)

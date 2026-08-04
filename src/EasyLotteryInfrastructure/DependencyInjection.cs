@@ -1,10 +1,12 @@
 using EasyLotteryApplication.DonateActivities;
 using EasyLotteryApplication.Payments;
 using EasyLotteryApplication.Settings;
+using EasyLotteryApplication.Templates;
 using EasyLotteryInfrastructure.DonateActivities;
 using EasyLotteryInfrastructure.Payments;
 using EasyLotteryInfrastructure.Settings;
 using EasyLotteryInfrastructure.Storage;
+using EasyLotteryInfrastructure.Templates;
 using EasyLotteryDomain.Services;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -35,6 +37,10 @@ public static class DependencyInjection
         services.AddSingleton<SettingsFileStore>();
         services.AddSingleton<IEasyLotteryConfigRepository>(sp => sp.GetRequiredService<SettingsFileStore>());
         services.AddSingleton<IEasyLotteryConfigStore>(sp => sp.GetRequiredService<SettingsFileStore>());
+        services.AddSingleton<ActivityResultService>();
+        services.AddSingleton<IPokeTemplateRepository, PokeTemplateRepository>();
+        services.AddSingleton<IRouletteTemplateRepository, RouletteTemplateRepository>();
+        services.AddSingleton<IActivityResultRepository, ActivityResultRepository>();
         return services;
     }
 }

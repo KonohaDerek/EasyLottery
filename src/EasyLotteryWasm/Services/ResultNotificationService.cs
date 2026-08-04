@@ -8,14 +8,10 @@ namespace EasyLotteryWasm.Services
     {
         private readonly IJSRuntime _jsRuntime;
         private readonly ILogger<ResultNotificationService> _logger;
-        private readonly IEasyLotteryConfigStore _configStore;
-
         public ResultNotificationService(
-            IEasyLotteryConfigStore configStore,
             IJSRuntime jsRuntime,
             ILogger<ResultNotificationService> logger)
         {
-            _configStore = configStore;
             _jsRuntime = jsRuntime;
             _logger = logger;
         }
@@ -29,11 +25,8 @@ namespace EasyLotteryWasm.Services
 
             try
             {
-                var document = await _configStore.LoadAsync(cancellationToken);
                 var resourceKind = record.ActivityType == ActivityResultType.PokeBox ? "pokebox" : "roulette";
-                var resourceId = record.ActivityType == ActivityResultType.PokeBox
-                    ? document.PokeTemplates.FirstOrDefault(item => item.Id == record.TemplateId)?.PublicId.ToString()
-                    : document.RouletteTemplates.FirstOrDefault(item => item.Id == record.TemplateId)?.PublicId.ToString();
+                var resourceId = record.TemplatePublicId == Guid.Empty ? "" : record.TemplatePublicId.ToString();
                 if (string.IsNullOrWhiteSpace(resourceId)) return;
 
                 var request = new EmailRequest
