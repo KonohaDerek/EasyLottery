@@ -15,7 +15,7 @@
     <Modal Visible="@pickerVisible" VisibleChanged="OnPickerVisibleChanged" Class="wide-asset-picker-modal" Size="ModalSize.ExtraLarge" Centered Scrollable ShowBackdrop>
         <ModalContent Class="obs-asset-picker-dialog">
             <ModalHeader>
-                <ModalTitle>選擇@(Kind == ObsAssetKind.Image ? "圖片" : Kind == ObsAssetKind.Audio ? "音效" : "OBS 資產")</ModalTitle>
+                <ModalTitle>選擇@(Kind == ObsAssetKind.Image ? "圖片" : Kind == ObsAssetKind.Audio ? "音效" : Kind == ObsAssetKind.Video ? "WebM 動畫" : "OBS 資產")</ModalTitle>
                 <CloseButton Clicked="CloseAsync" />
             </ModalHeader>
             <ModalBody>
@@ -44,6 +44,10 @@
                                 else if (asset.Kind == ObsAssetKind.Audio)
                                 {
                                     <span class="obs-asset-audio-icon" aria-hidden="true">♫</span>
+                                }
+                                else if (asset.Kind == ObsAssetKind.Video)
+                                {
+                                    <video src="@AssetApi.GetContentUrl(asset.Id)" muted preload="metadata" aria-label="@asset.FileName" />
                                 }
                                 else
                                 {

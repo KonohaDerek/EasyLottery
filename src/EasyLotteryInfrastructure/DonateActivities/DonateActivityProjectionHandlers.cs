@@ -69,6 +69,10 @@ public sealed class DonateActivityProjectionHandlers :
             ShowDonateInformation = source.ShowDonateInformation,
             ResultDisplayDurationSeconds = source.ResultDisplayDurationSeconds,
             AnimationDurationSeconds = source.AnimationDurationSeconds,
+            UseWebmAnimation = source.UseWebmAnimation,
+            WebmAnimationUrl = source.WebmAnimationUrl,
+            WebmPosterUrl = source.WebmPosterUrl,
+            WebmAnimationLoop = source.WebmAnimationLoop,
             IsEnabled = source.IsEnabled,
             Prizes = source.Prizes.Select(prize => new EasyLotteryDomain.Models.Config.DonateLotteryPrize
             {

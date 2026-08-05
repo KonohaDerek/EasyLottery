@@ -28,7 +28,8 @@ public static class DonateObsRevealLifecycle
         DonateObsRevealState state,
         DonateLotteryActivity? activity,
         DonateLotteryDrawRecord? newestResult,
-        DateTimeOffset nowUtc)
+        DateTimeOffset nowUtc,
+        bool animationCompleted = true)
     {
         if (!state.IsInitialized)
         {
@@ -81,13 +82,32 @@ public static class DonateObsRevealLifecycle
 
         if (state.Phase == DonateObsRevealPhase.Animation)
         {
-            state.Phase = DonateObsRevealPhase.Reveal;
-            state.PhaseExpiresAtUtc = null;
-            state.ResultExpiresAtUtc = nowUtc.AddSeconds(GetResultDisplayDurationSeconds(activity));
-            return new DonateObsRevealTransition(IsNewResult: false, EnteredReveal: true, Cleared: false);
+            if (!animationCompleted)
+            {
+                return default;
+            }
+
+            return CompleteAnimation(state, activity, nowUtc);
         }
 
         return default;
+    }
+
+    /// <summary>由非時間驅動的動畫（例如 WebM）在播放完畢時立即進入結果階段。</summary>
+    public static DonateObsRevealTransition CompleteAnimation(
+        DonateObsRevealState state,
+        DonateLotteryActivity activity,
+        DateTimeOffset nowUtc)
+    {
+        if (state.CurrentResult is null || state.Phase != DonateObsRevealPhase.Animation)
+        {
+            return default;
+        }
+
+        state.Phase = DonateObsRevealPhase.Reveal;
+        state.PhaseExpiresAtUtc = null;
+        state.ResultExpiresAtUtc = nowUtc.AddSeconds(GetResultDisplayDurationSeconds(activity));
+        return new DonateObsRevealTransition(IsNewResult: false, EnteredReveal: true, Cleared: false);
     }
 
     private static int GetAnimationDurationSeconds(DonateLotteryActivity activity) =>

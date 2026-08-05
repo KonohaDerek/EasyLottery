@@ -82,6 +82,7 @@ internal static class ObsAssetEndpoints
         {
             var value when value?.StartsWith("image/", StringComparison.Ordinal) == true => ObsAssetKind.Image,
             var value when value?.StartsWith("audio/", StringComparison.Ordinal) == true => ObsAssetKind.Audio,
+            "video/webm" => ObsAssetKind.Video,
             _ => ObsAssetKind.Other
         };
 

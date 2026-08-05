@@ -184,6 +184,7 @@ public sealed class YamlObsAssetRepository : IObsAssetRepository
         {
             ObsAssetKind.Image => normalized.StartsWith("image/", StringComparison.Ordinal),
             ObsAssetKind.Audio => normalized.StartsWith("audio/", StringComparison.Ordinal),
+            ObsAssetKind.Video => normalized == "video/webm",
             ObsAssetKind.Model => normalized is "model/gltf+json" or "model/gltf-binary" or "application/octet-stream" or "application/json" || normalized.EndsWith("+json", StringComparison.Ordinal),
             _ => normalized.Length > 0
         };

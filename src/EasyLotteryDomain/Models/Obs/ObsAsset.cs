@@ -3,10 +3,11 @@ namespace EasyLotteryDomain.Models.Obs;
 /// <summary>媒體資產在 OBS 中的用途。實際檔案由 Infrastructure 負責保存。</summary>
 public enum ObsAssetKind
 {
-    Image,
-    Audio,
-    Model,
-    Other
+    Image = 0,
+    Audio = 1,
+    Model = 2,
+    Other = 3,
+    Video = 4
 }
 
 /// <summary>

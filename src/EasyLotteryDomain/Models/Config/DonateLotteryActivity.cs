@@ -34,6 +34,14 @@ public sealed class DonateLotteryActivity
     public int ResultDisplayDurationSeconds { get; set; } = 15;
     /// <summary>Donate 抽獎動畫在揭曉前播放的秒數。</summary>
     public int AnimationDurationSeconds { get; set; } = 8;
+    /// <summary>是否優先播放透明背景 WebM；載入失敗時回退至 Animation 對應的 CSS 場景。</summary>
+    public bool UseWebmAnimation { get; set; }
+    /// <summary>WebM 動畫 URL，可使用 OBS 資產庫提供的本機 URL。</summary>
+    public string WebmAnimationUrl { get; set; } = "";
+    /// <summary>WebM 載入期間顯示的 poster 圖片 URL。</summary>
+    public string WebmPosterUrl { get; set; } = "";
+    /// <summary>需要循環播放的 WebM 使用此設定；循環影片由動畫秒數控制結束。</summary>
+    public bool WebmAnimationLoop { get; set; }
     public bool IsEnabled { get; set; }
     public List<DonateLotteryPrize> Prizes { get; set; } = [];
 }

@@ -40,6 +40,8 @@ internal static class YamlDocumentMigrations
                     : activity.PolaroidTemplateKey.Trim().ToLowerInvariant();
                 activity.ResultDisplayDurationSeconds = activity.ResultDisplayDurationSeconds <= 0 ? 15 : activity.ResultDisplayDurationSeconds;
                 activity.AnimationDurationSeconds = activity.AnimationDurationSeconds <= 0 ? 8 : activity.AnimationDurationSeconds;
+                activity.WebmAnimationUrl ??= "";
+                activity.WebmPosterUrl ??= "";
                 activity.Prizes ??= [];
             }
         }

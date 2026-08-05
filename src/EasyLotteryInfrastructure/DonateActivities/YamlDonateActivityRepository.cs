@@ -199,6 +199,18 @@ public sealed class YamlDonateActivityRepository : IDonateLotteryActivityReposit
                 changed = true;
             }
 
+            if (activity.WebmAnimationUrl is null)
+            {
+                activity.WebmAnimationUrl = "";
+                changed = true;
+            }
+
+            if (activity.WebmPosterUrl is null)
+            {
+                activity.WebmPosterUrl = "";
+                changed = true;
+            }
+
             return activity;
         }).ToList();
 

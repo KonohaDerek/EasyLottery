@@ -38,6 +38,14 @@
     background: #eef2ff;
 }
 
+.obs-asset-choice video {
+    width: 100%;
+    height: 5.5rem;
+    object-fit: contain;
+    border-radius: .4rem;
+    background: #0f172a;
+}
+
 .obs-asset-audio-icon {
     display: grid;
     height: 5.5rem;

@@ -14,7 +14,7 @@
                 <div>
                     <div class="obs-assets-eyebrow">OBS MEDIA LIBRARY</div>
                     <h2 class="mb-2">OBS 資產庫</h2>
-                    <p class="mb-0">將動畫圖片、音效與模型保存到本機，OBS 使用資產 UUID URL，不依賴外部 hotlink。</p>
+                    <p class="mb-0">將動畫圖片、WebM 影片、音效與模型保存到本機，OBS 使用資產 UUID URL，不依賴外部 hotlink。</p>
                 </div>
                 <Badge Color="Color.Info">@assets.Count 筆資產</Badge>
             </div>
@@ -28,7 +28,7 @@
                 <div class="col-12 col-lg-5">
                     <Field>
                         <FieldLabel>檔案</FieldLabel>
-                        <InputFile OnChange="SelectFile" accept="image/*,audio/*,.json,.model3.json" />
+                        <InputFile OnChange="SelectFile" accept="image/*,audio/*,video/webm,.webm,.json,.model3.json" />
                     </Field>
                 </div>
                 <div class="col-12 col-lg-3">
@@ -37,6 +37,7 @@
                         <select class="form-select" @bind="selectedKind">
                             <option value="@ObsAssetKind.Image">圖片</option>
                             <option value="@ObsAssetKind.Audio">音效</option>
+                            <option value="@ObsAssetKind.Video">WebM 動畫</option>
                             <option value="@ObsAssetKind.Model">Live2D 模型</option>
                             <option value="@ObsAssetKind.Other">其他</option>
                         </select>
@@ -79,6 +80,10 @@
                             @if (asset.Kind == ObsAssetKind.Image)
                             {
                                 <img class="obs-asset-preview" src="@AssetApi.GetContentUrl(asset.Id)" alt="@asset.FileName" loading="lazy" />
+                            }
+                            else if (asset.Kind == ObsAssetKind.Video)
+                            {
+                                <video class="obs-asset-preview" src="@AssetApi.GetContentUrl(asset.Id)" controls muted preload="metadata"></video>
                             }
                             <dl class="small text-muted mt-3 mb-3">
                                 <dt>SHA-256</dt><dd class="text-break">@asset.Sha256</dd>
@@ -158,6 +163,7 @@
     {
         ObsAssetKind.Image => Color.Primary,
         ObsAssetKind.Audio => Color.Success,
+        ObsAssetKind.Video => Color.Info,
         ObsAssetKind.Model => Color.Warning,
         _ => Color.Secondary
     };
