@@ -25,7 +25,7 @@ else
 {
     <div class="obs-roulette-wrapper obs-layout-surface @(IsOverlayIdle ? "obs-animation-idle" : "obs-animation-visible")" style="@WrapperStyle">
         <div class="obs-stage">
-            <div class="roulette-container">
+            <div class="roulette-container" role="button" tabindex="0" aria-label="點擊轉盤開始抽獎" title="點擊轉盤開始抽獎" @onclick="SpinWheelWithCountdown" @onkeydown="HandleWheelKeyDown">
                 @if (isSpinning)
                 {
                     <div class="roulette-spinning-aura"></div>
@@ -95,7 +95,7 @@ else
                 }
             </div>
 
-            <div class="obs-controls">
+            <div class="obs-controls" @onclick:stopPropagation="true" @onkeydown:stopPropagation="true">
                 <button class="obs-spin-btn" @onclick="@SpinWheelWithCountdown" disabled="@IsDrawInProgress">
                     @((IsBusy && flowPhase == LiveDrawPhase.CountingDown) ? $"倒數中… {countdownRemaining}" : "⏳ 倒數 3 秒後轉動")
                 </button>
@@ -200,6 +200,7 @@ else
         align-items: center;
         position: relative;
         gap: 10px;
+        cursor: pointer;
     }
 
     .roulette-spinning-aura,
@@ -474,6 +475,11 @@ else
     private async Task SpinWheelWithCountdown()
     {
         await StartSpinAsync(null, true);
+    }
+
+    private async Task HandleWheelKeyDown(KeyboardEventArgs args)
+    {
+        if (args.Key is "Enter" or " ") await SpinWheelWithCountdown();
     }
 
     private async Task StartSpinAsync(int? forced, bool useCountdown)
