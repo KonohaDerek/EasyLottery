@@ -226,6 +226,8 @@ namespace EasyLotteryWasm.Services
                 activity.PolaroidTemplateKey = string.IsNullOrWhiteSpace(activity.PolaroidTemplateKey) ? "classic" : activity.PolaroidTemplateKey.Trim().ToLowerInvariant();
                 activity.ResultDisplayDurationSeconds = activity.ResultDisplayDurationSeconds <= 0 ? 15 : activity.ResultDisplayDurationSeconds;
                 activity.AnimationDurationSeconds = activity.AnimationDurationSeconds <= 0 ? 8 : activity.AnimationDurationSeconds;
+                activity.WebmAnimationUrl ??= "";
+                activity.WebmPosterUrl ??= "";
                 activity.Name ??= "";
                 activity.Prizes ??= [];
                 foreach (var prize in activity.Prizes)

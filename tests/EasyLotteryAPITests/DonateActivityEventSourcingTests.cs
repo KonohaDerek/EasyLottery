@@ -92,7 +92,9 @@ public sealed class DonateActivityEventSourcingTests
         {
             Id = saved.Id, PublicId = saved.PublicId, Name = saved.Name, MinimumDonationAmount = 100m,
             StartsAtUtc = expectedStart, EndsAtUtc = expectedEnd, Animation = DonateLotteryAnimation.ScratchCard,
-            ResultDisplayDurationSeconds = 45, AnimationDurationSeconds = 12, ShowDonateInformation = false
+            ResultDisplayDurationSeconds = 45, AnimationDurationSeconds = 12, ShowDonateInformation = false,
+            UseWebmAnimation = true, WebmAnimationUrl = " /api/obs-assets/video/content ",
+            WebmPosterUrl = "https://example.com/poster.png", WebmAnimationLoop = true
         }));
 
         Assert.IsFalse(savedUpdate.ShowDonateInformation);
@@ -104,6 +106,10 @@ public sealed class DonateActivityEventSourcingTests
         Assert.AreEqual(45, updated.ResultDisplayDurationSeconds);
         Assert.AreEqual(12, updated.AnimationDurationSeconds);
         Assert.IsFalse(updated.ShowDonateInformation);
+        Assert.IsTrue(updated.UseWebmAnimation);
+        Assert.AreEqual("/api/obs-assets/video/content", updated.WebmAnimationUrl);
+        Assert.AreEqual("https://example.com/poster.png", updated.WebmPosterUrl);
+        Assert.IsTrue(updated.WebmAnimationLoop);
     }
 
     [TestMethod]
@@ -126,6 +132,9 @@ public sealed class DonateActivityEventSourcingTests
         Assert.AreEqual(15, activities[0].ResultDisplayDurationSeconds);
         Assert.AreEqual(8, activities[0].AnimationDurationSeconds);
         Assert.IsTrue(activities[0].ShowDonateInformation);
+        Assert.IsFalse(activities[0].UseWebmAnimation);
+        Assert.AreEqual("", activities[0].WebmAnimationUrl);
+        Assert.AreEqual("", activities[0].WebmPosterUrl);
     }
 
     [TestMethod]

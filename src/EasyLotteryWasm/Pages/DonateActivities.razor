@@ -44,6 +44,13 @@
                     <div class="col-md-2"><Field><FieldLabel>顯示 Donate 資訊</FieldLabel><Switch TValue="bool" @bind-Value="editing.ShowDonateInformation" /><div class="form-text">關閉時會直接播放抽獎動畫。</div></Field></div>
                     <div class="col-md-2"><Field><FieldLabel>結果顯示秒數</FieldLabel><NumericInput TValue="int" @bind-Value="editing.ResultDisplayDurationSeconds" Min="3" Max="300" /><div class="form-text">3–300 秒；到期後 OBS 會回到透明待機。</div></Field></div>
                     <div class="col-md-2"><Field><FieldLabel>抽獎動畫秒數</FieldLabel><NumericInput TValue="int" @bind-Value="editing.AnimationDurationSeconds" Min="3" Max="30" /><div class="form-text">依設定顯示通知後播放動畫再揭曉。</div></Field></div>
+                    <div class="col-md-3"><Field><FieldLabel>使用 WebM 動畫</FieldLabel><Switch TValue="bool" @bind-Value="editing.UseWebmAnimation" /><div class="form-text">載入失敗時會自動使用 CSS 動畫。</div></Field></div>
+                    @if (editing.UseWebmAnimation)
+                    {
+                        <div class="col-md-5"><Field><FieldLabel>WebM 動畫 URL</FieldLabel><ObsAssetUrlPicker @bind-Value="editing.WebmAnimationUrl" Kind="ObsAssetKind.Video" Label="WebM 動畫 URL" Placeholder="WebM URL 或本機資產" /><div class="form-text">請使用透明背景的 video/webm；影片長度應與動畫秒數一致。</div></Field></div>
+                        <div class="col-md-4"><Field><FieldLabel>WebM Poster URL（選填）</FieldLabel><ObsAssetUrlPicker @bind-Value="editing.WebmPosterUrl" Kind="ObsAssetKind.Image" Label="WebM Poster URL" Placeholder="Poster 圖片 URL" /></Field></div>
+                        <div class="col-md-3"><Field><FieldLabel>循環播放</FieldLabel><Switch TValue="bool" @bind-Value="editing.WebmAnimationLoop" /><div class="form-text">循環影片會依動畫秒數結束。</div></Field></div>
+                    }
                     <div class="col-md-4"><Field><FieldLabel>開始時間（本地時區）</FieldLabel><input class="form-control" type="datetime-local" value="@startDateInput" @oninput="OnStartDateInput" /></Field></div>
                     <div class="col-md-4"><Field><FieldLabel>結束時間（本地時區）</FieldLabel><input class="form-control" type="datetime-local" value="@endDateInput" @oninput="OnEndDateInput" /></Field></div>
                     <div class="col-md-2"><Field><FieldLabel>啟用</FieldLabel><Switch TValue="bool" @bind-Value="editing.IsEnabled" /></Field></div>
@@ -187,6 +194,10 @@
             ShowDonateInformation = activity.ShowDonateInformation,
             ResultDisplayDurationSeconds = activity.ResultDisplayDurationSeconds <= 0 ? 15 : activity.ResultDisplayDurationSeconds,
             AnimationDurationSeconds = activity.AnimationDurationSeconds <= 0 ? 8 : activity.AnimationDurationSeconds,
+            UseWebmAnimation = activity.UseWebmAnimation,
+            WebmAnimationUrl = activity.WebmAnimationUrl,
+            WebmPosterUrl = activity.WebmPosterUrl,
+            WebmAnimationLoop = activity.WebmAnimationLoop,
             MinimumDonationAmount = activity.MinimumDonationAmount,
             StartsAtUtc = activity.StartsAtUtc,
             EndsAtUtc = activity.EndsAtUtc,

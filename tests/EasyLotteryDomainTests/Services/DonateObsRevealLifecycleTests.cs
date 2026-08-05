@@ -69,6 +69,35 @@ public sealed class DonateObsRevealLifecycleTests
         Assert.IsNull(state.CurrentResult);
     }
 
+    [TestMethod]
+    public void Advance_WhenAnimationIsWaitingForVideoCompletion_DoesNotRevealAtConfiguredTimeout()
+    {
+        var activity = CreateActivity(showDonateInformation: false, animationDurationSeconds: 8);
+        var state = Initialize(activity);
+        var result = CreateResult(id: 6, isWinning: true);
+
+        DonateObsRevealLifecycle.Advance(state, activity, result, Start);
+        var transition = DonateObsRevealLifecycle.Advance(state, activity, result, Start.AddSeconds(8), animationCompleted: false);
+
+        Assert.IsFalse(transition.EnteredReveal);
+        Assert.AreEqual(DonateObsRevealPhase.Animation, state.Phase);
+    }
+
+    [TestMethod]
+    public void CompleteAnimation_EntersRevealImmediatelyWhenVideoEnds()
+    {
+        var activity = CreateActivity(showDonateInformation: false, animationDurationSeconds: 20, resultDisplayDurationSeconds: 9);
+        var state = Initialize(activity);
+        var result = CreateResult(id: 7, isWinning: true);
+
+        DonateObsRevealLifecycle.Advance(state, activity, result, Start);
+        var transition = DonateObsRevealLifecycle.CompleteAnimation(state, activity, Start.AddSeconds(4));
+
+        Assert.IsTrue(transition.EnteredReveal);
+        Assert.AreEqual(DonateObsRevealPhase.Reveal, state.Phase);
+        Assert.AreEqual(Start.AddSeconds(13), state.ResultExpiresAtUtc);
+    }
+
     private static DonateObsRevealState Initialize(DonateLotteryActivity activity)
     {
         var state = new DonateObsRevealState();

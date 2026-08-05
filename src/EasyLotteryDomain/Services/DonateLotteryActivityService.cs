@@ -18,6 +18,8 @@ public sealed class DonateLotteryActivityService
     {
         var document = await _configStore.LoadAsync(cancellationToken);
         activity.Name = activity.Name?.Trim() ?? "";
+        activity.WebmAnimationUrl = activity.WebmAnimationUrl?.Trim() ?? "";
+        activity.WebmPosterUrl = activity.WebmPosterUrl?.Trim() ?? "";
         if (string.IsNullOrWhiteSpace(activity.Name)) throw new InvalidOperationException("請輸入活動名稱。");
         if (activity.MinimumDonationAmount <= 0m) throw new InvalidOperationException("最低贊助金額必須大於 0。");
         if (activity.EndsAtUtc <= activity.StartsAtUtc) throw new InvalidOperationException("活動結束時間必須晚於開始時間。");

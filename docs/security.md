@@ -16,6 +16,8 @@ API 重啟會重新產生簽章金鑰，先前的 token 會失效；重新載入
 - token 綁定單一 resource kind 與 GUID，不能讀取其他活動或完整設定。
 - token 放在 URL fragment（`#sessionToken=...`），fragment 不會送進 HTTP access log；WASM 啟動後會立即移除 fragment 並存入 session storage。
 
+WebM 動畫與 poster URL 建議使用 OBS 資產庫提供的 UUID content URL；影片內容 endpoint 僅提供資產讀取與 range processing，不會把管理 session token 放進影片 URL。
+
 舊的 query-string token 僅保留讀取相容性，請從管理頁重新複製新 URL。
 
 ## Tunnel 注意事項

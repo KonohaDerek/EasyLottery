@@ -4,6 +4,46 @@
     isolation: isolate;
 }
 
+.donate-animation-video,
+.donate-animation-css-fallback {
+    grid-area: 1 / 1;
+    width: min(90vw, 42rem);
+    max-height: min(34vh, 22rem);
+    object-fit: contain;
+    transition: opacity .18s ease;
+}
+
+.donate-animation-video {
+    opacity: 0;
+    pointer-events: none;
+    background: transparent;
+}
+
+.donate-animation-scene.has-video {
+    display: grid;
+    place-items: center;
+}
+
+.donate-animation-scene.video-ready .donate-animation-video {
+    opacity: 1;
+}
+
+.donate-animation-scene.video-ready .donate-animation-css-fallback {
+    opacity: 0;
+    visibility: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .donate-animation-scene.has-video .donate-animation-video {
+        display: none;
+    }
+
+    .donate-animation-scene.has-video .donate-animation-css-fallback {
+        opacity: 1;
+        visibility: visible;
+    }
+}
+
 .donate-animation-scene ::deep .chibi-actor,
 .donate-animation-scene ::deep .scratch-brush {
     will-change: transform, opacity;

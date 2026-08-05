@@ -8,6 +8,8 @@
 @inject AiCongratulationClient AiCongratulationClient
 @inject HttpClient HttpClient
 @inject EasyLotteryWasm.Services.ObsSessionService ObsSessionService
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
 @using System.Net.Http.Json
 @implements IAsyncDisposable
 
@@ -25,7 +27,18 @@
                 @if (!string.IsNullOrWhiteSpace(latestWin.PaymentMethod)) { <div class="donate-notice-payment">付款方式：@latestWin.PaymentMethod</div> }
             </section>
             <div class="donate-reveal-label">@(latestWin.IsWinning ? "DONATE RESULT" : "DONATE THANK YOU")</div>
-            <DonateAnimationScene Animation="activity.Animation" PrizeName="latestWin.PrizeName" BallClass="@GaragaraBallClass" />
+            <DonateAnimationScene Animation="activity.Animation"
+                                  PrizeName="latestWin.PrizeName"
+                                  BallClass="@GaragaraBallClass"
+                                  UseWebmAnimation="activity.UseWebmAnimation"
+                                  WebmAnimationUrl="activity.WebmAnimationUrl"
+                                  WebmPosterUrl="activity.WebmPosterUrl"
+                                  WebmAnimationLoop="activity.WebmAnimationLoop"
+                                  IsAnimationActive="revealState.Phase == DonateObsRevealPhase.Animation"
+                                  ReducedMotion="IsReducedMotion"
+                                  VideoReady="HandleAnimationVideoReady"
+                                  VideoFailed="HandleAnimationVideoFailed"
+                                  VideoEnded="HandleAnimationVideoEnded" />
             <div class="donate-result-content">
             @if (!string.IsNullOrWhiteSpace(latestWin.PrizeImageUrl) && !prizeImageFailed)
             {
@@ -189,6 +202,10 @@ else
     private int? queueActivityId;
     private int? lastSeenRecordId;
     private bool prizeImageFailed;
+    private bool animationVideoReady;
+    private bool animationVideoFailed;
+    private bool animationVideoEnded;
+    private bool systemMotionReduced;
     private bool testPanelOpen;
     private string testDonorName = "測試贊助者";
     private decimal testAmount = 100m;
@@ -211,10 +228,21 @@ else
             .Replace("{prize}", latestWin.PrizeName, StringComparison.Ordinal);
     private bool IsGrandPrize => latestWin is not null && activity?.Prizes.Any(prize => prize.IsGrandPrize && string.Equals(prize.Name, latestWin.PrizeName, StringComparison.Ordinal)) == true;
     private string GaragaraBallClass => $"ball-{ResolveGaragaraBallColor()}";
+    private bool IsReducedMotion => systemMotionReduced || NavigationManager.ToAbsoluteUri(NavigationManager.Uri).Query.Contains("motion=reduce", StringComparison.OrdinalIgnoreCase);
+    private bool ShouldWaitForAnimationVideo => revealState.Phase == DonateObsRevealPhase.Animation
+        && activity?.UseWebmAnimation == true
+        && !activity.WebmAnimationLoop
+        && !string.IsNullOrWhiteSpace(activity.WebmAnimationUrl)
+        && !IsReducedMotion
+        && animationVideoReady
+        && !animationVideoFailed
+        && !animationVideoEnded;
     private readonly CancellationTokenSource cancellation = new();
 
     protected override async Task OnInitializedAsync()
     {
+        try { systemMotionReduced = await JSRuntime.InvokeAsync<bool>("easyLotteryObs.prefersReducedMotion"); }
+        catch (Exception exception) { Log.Debug(exception, "Unable to read reduced-motion preference for Donate OBS."); }
         await RefreshAsync();
         _ = PollAsync();
     }
@@ -297,12 +325,21 @@ else
             var nextResult = revealState.CurrentResult is null && pendingResults.Count > 0
                 ? pendingResults.Dequeue()
                 : null;
-            transition = DonateObsRevealLifecycle.Advance(revealState, activity, nextResult, DateTimeOffset.UtcNow);
+            transition = DonateObsRevealLifecycle.Advance(revealState, activity, nextResult, DateTimeOffset.UtcNow, !ShouldWaitForAnimationVideo);
         }
+        await ApplyTransitionAsync(transition);
+        isLoading = false;
+    }
+
+    private async Task ApplyTransitionAsync(DonateObsRevealTransition transition)
+    {
         if (transition.IsNewResult)
         {
             prizeImageFailed = false;
             aiCongratulation = null;
+            animationVideoReady = false;
+            animationVideoFailed = false;
+            animationVideoEnded = false;
         }
         else if (transition.EnteredReveal && latestWin is not null)
         {
@@ -314,8 +351,32 @@ else
         else if (transition.Cleared)
         {
             aiCongratulation = null;
+            animationVideoReady = false;
+            animationVideoFailed = false;
+            animationVideoEnded = false;
         }
-        isLoading = false;
+    }
+
+    private Task HandleAnimationVideoReady()
+    {
+        animationVideoReady = true;
+        return Task.CompletedTask;
+    }
+
+    private Task HandleAnimationVideoFailed()
+    {
+        animationVideoFailed = true;
+        animationVideoReady = false;
+        return InvokeAsync(StateHasChanged);
+    }
+
+    private async Task HandleAnimationVideoEnded()
+    {
+        animationVideoEnded = true;
+        if (activity is null) return;
+        var transition = DonateObsRevealLifecycle.CompleteAnimation(revealState, activity, DateTimeOffset.UtcNow);
+        await ApplyTransitionAsync(transition);
+        if (transition.EnteredReveal) await InvokeAsync(StateHasChanged);
     }
 
     public ValueTask DisposeAsync() { cancellation.Cancel(); cancellation.Dispose(); return ValueTask.CompletedTask; }

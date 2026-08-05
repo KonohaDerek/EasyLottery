@@ -1,32 +1,73 @@
 @using EasyLotteryDomain.Models.Config
 
-<div class="donate-animation-scene draw-prop animation-@SceneKey" aria-hidden="true">
-    @if (Animation == DonateLotteryAnimation.IchibanKuji)
+<div class="donate-animation-scene draw-prop animation-@SceneKey @(IsVideoConfigured ? "has-video" : "") @(videoReady ? "video-ready" : "")" aria-hidden="true">
+    @if (IsVideoConfigured)
     {
-        <IchibanKujiAnimation />
+        <video class="donate-animation-video" autoplay muted playsinline preload="auto" loop="@VideoLoop" poster="@VideoPosterUrl"
+               aria-hidden="true" @oncanplay="HandleVideoReady" @onerror="HandleVideoError" @onended="HandleVideoEnded">
+            <source src="@VideoUrl" type="video/webm" />
+        </video>
     }
-    else if (Animation == DonateLotteryAnimation.Gacha)
-    {
-        <GachaAnimation />
-    }
-    else if (Animation == DonateLotteryAnimation.Garagara)
-    {
-        <GaragaraAnimation BallClass="@BallClass" />
-    }
-    else if (Animation == DonateLotteryAnimation.MoneyBox)
-    {
-        <MoneyBoxAnimation />
-    }
-    else if (Animation == DonateLotteryAnimation.ScratchCard)
-    {
-        <ScratchCardAnimation PrizeName="@PrizeName" />
-    }
+
+    <div class="donate-animation-css-fallback">
+        @if (Animation == DonateLotteryAnimation.IchibanKuji)
+        {
+            <IchibanKujiAnimation />
+        }
+        else if (Animation == DonateLotteryAnimation.Gacha)
+        {
+            <GachaAnimation />
+        }
+        else if (Animation == DonateLotteryAnimation.Garagara)
+        {
+            <GaragaraAnimation BallClass="@BallClass" />
+        }
+        else if (Animation == DonateLotteryAnimation.MoneyBox)
+        {
+            <MoneyBoxAnimation />
+        }
+        else if (Animation == DonateLotteryAnimation.ScratchCard)
+        {
+            <ScratchCardAnimation PrizeName="@PrizeName" />
+        }
+    </div>
 </div>
 
 @code {
     [Parameter, EditorRequired] public DonateLotteryAnimation Animation { get; set; }
     [Parameter] public string PrizeName { get; set; } = "";
     [Parameter] public string BallClass { get; set; } = "ball-white";
+    [Parameter] public bool UseWebmAnimation { get; set; }
+    [Parameter] public string WebmAnimationUrl { get; set; } = "";
+    [Parameter] public string WebmPosterUrl { get; set; } = "";
+    [Parameter] public bool WebmAnimationLoop { get; set; }
+    [Parameter] public bool IsAnimationActive { get; set; }
+    [Parameter] public bool ReducedMotion { get; set; }
+    [Parameter] public EventCallback VideoReady { get; set; }
+    [Parameter] public EventCallback VideoFailed { get; set; }
+    [Parameter] public EventCallback VideoEnded { get; set; }
+
+    private bool videoReady;
+    private bool videoFailed;
+    private bool previousVideoActive;
+    private string previousVideoUrl = "";
+    private bool IsVideoConfigured => IsAnimationActive && UseWebmAnimation && !ReducedMotion && !videoFailed && !string.IsNullOrWhiteSpace(WebmAnimationUrl);
+    private string VideoUrl => WebmAnimationUrl?.Trim() ?? "";
+    private string VideoPosterUrl => WebmPosterUrl?.Trim() ?? "";
+    private bool VideoLoop => WebmAnimationLoop;
+
+    protected override void OnParametersSet()
+    {
+        var videoActive = IsAnimationActive && UseWebmAnimation && !ReducedMotion && !string.IsNullOrWhiteSpace(WebmAnimationUrl);
+        if (!videoActive || !previousVideoActive || !string.Equals(previousVideoUrl, VideoUrl, StringComparison.Ordinal))
+        {
+            videoReady = false;
+            videoFailed = false;
+        }
+
+        previousVideoActive = videoActive;
+        previousVideoUrl = VideoUrl;
+    }
 
     private string SceneKey => Animation switch
     {
@@ -36,4 +77,19 @@
         DonateLotteryAnimation.ScratchCard => "scratch-card",
         _ => "ichiban"
     };
+
+    private async Task HandleVideoReady()
+    {
+        videoReady = true;
+        await VideoReady.InvokeAsync();
+    }
+
+    private async Task HandleVideoError()
+    {
+        videoFailed = true;
+        videoReady = false;
+        await VideoFailed.InvokeAsync();
+    }
+
+    private Task HandleVideoEnded() => VideoLoop ? Task.CompletedTask : VideoEnded.InvokeAsync();
 }

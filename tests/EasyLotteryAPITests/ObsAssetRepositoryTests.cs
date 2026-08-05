@@ -62,6 +62,44 @@ public sealed class ObsAssetRepositoryTests
         finally { DeleteTempDirectory(directory); }
     }
 
+    [TestMethod]
+    public async Task SaveAsync_AcceptsWebmVideoAssets()
+    {
+        var directory = CreateTempDirectory();
+        try
+        {
+            var repository = CreateRepository(directory);
+            var saved = await repository.SaveAsync(new ObsAsset
+            {
+                FileName = "ichiban.webm",
+                ContentType = "video/webm",
+                Kind = ObsAssetKind.Video
+            }, new MemoryStream([1, 2, 3, 4]));
+
+            Assert.AreEqual(ObsAssetKind.Video, saved.Kind);
+            Assert.AreEqual("video/webm", saved.ContentType);
+            Assert.IsNotNull(await repository.OpenReadAsync(saved.Id));
+        }
+        finally { DeleteTempDirectory(directory); }
+    }
+
+    [TestMethod]
+    public async Task SaveAsync_RejectsNonWebmVideoAssets()
+    {
+        var directory = CreateTempDirectory();
+        try
+        {
+            var repository = CreateRepository(directory);
+            await Assert.ThrowsExactlyAsync<InvalidOperationException>(() => repository.SaveAsync(new ObsAsset
+            {
+                FileName = "animation.mp4",
+                ContentType = "video/mp4",
+                Kind = ObsAssetKind.Video
+            }, new MemoryStream([1, 2, 3])));
+        }
+        finally { DeleteTempDirectory(directory); }
+    }
+
     private static YamlObsAssetRepository CreateRepository(string directory)
     {
         var configuration = new ConfigurationBuilder()

@@ -38,6 +38,8 @@ public static class DonateActivityRules
         }
 
         var normalized = Clone(activity);
+        normalized.WebmAnimationUrl = normalized.WebmAnimationUrl?.Trim() ?? "";
+        normalized.WebmPosterUrl = normalized.WebmPosterUrl?.Trim() ?? "";
         normalized.PolaroidTemplateKey = string.IsNullOrWhiteSpace(normalized.PolaroidTemplateKey)
             ? "classic"
             : normalized.PolaroidTemplateKey.Trim().ToLowerInvariant();
@@ -96,6 +98,10 @@ public static class DonateActivityRules
             ShowDonateInformation = source.ShowDonateInformation,
             ResultDisplayDurationSeconds = source.ResultDisplayDurationSeconds,
             AnimationDurationSeconds = source.AnimationDurationSeconds,
+            UseWebmAnimation = source.UseWebmAnimation,
+            WebmAnimationUrl = source.WebmAnimationUrl,
+            WebmPosterUrl = source.WebmPosterUrl,
+            WebmAnimationLoop = source.WebmAnimationLoop,
             IsEnabled = source.IsEnabled,
             Prizes = source.Prizes?.Select(prize => new DonateLotteryPrize
             {
