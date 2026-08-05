@@ -498,7 +498,14 @@ else
     private async Task OnCellClick(PokeCell cell)
     {
         if (template == null) return;
-        if (template.Mode != PokeMode.Manual) return;
+        // Random templates use the same direct interaction as manual templates:
+        // clicking any unrevealed area starts a random draw instead of requiring
+        // the auxiliary control bar to be visible.
+        if (template.Mode == PokeMode.Random)
+        {
+            await PokeRandom();
+            return;
+        }
         if (cell.IsRevealed && !template.AllowRePoking) return;
 
         if (ActivePublicId != Guid.Empty)

@@ -15,7 +15,7 @@
 <Card class="mb-4">
     <CardHeader><CardTitle>轉盤模板</CardTitle></CardHeader>
     <CardBody>
-        <CardText>建立轉盤項目、機率與旋轉效果，儲存後可直接開啟正式或測試 OBS 畫面。</CardText>
+        <CardText>建立轉盤項目、機率與旋轉效果，儲存後可開啟測試 OBS；點擊轉盤即可開始抽獎。</CardText>
         <div class="d-flex gap-2 flex-wrap">
             <Button Color="Color.Primary" Clicked="CreateAsync">新增模板</Button>
             <Button Color="Color.Secondary" Clicked="SeedDefaultsAsync">載入預設模板</Button>
@@ -145,12 +145,11 @@ else
                             <Button Color="Color.Secondary" Size="Size.Small" Clicked="() => Edit(template)">編輯</Button>
                             @if (template.PublicationStatus == TemplatePublicationStatus.Published)
                             {
-                                <a class="btn btn-outline-primary btn-sm" href="@BuildObsUrl(template)" target="_blank" rel="noopener noreferrer">開啟 OBS URL</a>
-                                <a class="btn btn-outline-secondary btn-sm" href="@BuildObsUrl(template, true)" target="_blank" rel="noopener noreferrer">開啟測試 OBS</a>
+                                <a class="btn btn-outline-primary btn-sm" href="@BuildObsUrl(template)" target="_blank" rel="noopener noreferrer">開啟測試 OBS</a>
                             }
                             else
                             {
-                                <Button Color="Color.Secondary" Size="Size.Small" Disabled>開啟 OBS URL</Button>
+                                <Button Color="Color.Secondary" Size="Size.Small" Disabled>開啟測試 OBS</Button>
                             }
                             <Button Color="Color.Primary" Size="Size.Small" Clicked="() => DuplicateAsync(template.Id)">複製</Button>
                             <Button Color="Color.Info" Size="Size.Small" Clicked="() => ExportAsync(template.Id)">匯出</Button>
@@ -183,7 +182,7 @@ else
     private bool editorVisible;
     private string importJson = "";
     private string exportJson = "";
-    private readonly Dictionary<(Guid PublicId, bool Control), string> obsTokens = new();
+    private readonly Dictionary<Guid, string> obsTokens = new();
 
     private string EditorTitle => editing is null ? "轉盤模板" : editing.Id == 0 ? "新增轉盤模板" : $"編輯轉盤模板：{editing.Name}";
     private double ProbabilityTotal => editing?.Segments.Sum(segment => segment.Probability) ?? 0;
@@ -205,8 +204,7 @@ else
         obsTokens.Clear();
         foreach (var template in templates.Where(item => item.PublicId != Guid.Empty))
         {
-            obsTokens[(template.PublicId, false)] = await ObsSessionService.CreateObsTokenAsync("roulette", template.PublicId.ToString(), false);
-            obsTokens[(template.PublicId, true)] = await ObsSessionService.CreateObsTokenAsync("roulette", template.PublicId.ToString(), true);
+            obsTokens[template.PublicId] = await ObsSessionService.CreateObsTokenAsync("roulette", template.PublicId.ToString(), true);
         }
     }
 
@@ -306,12 +304,10 @@ else
         catch (Exception exception) { Log.Error(exception, "Failed to import roulette template JSON."); await MessageService.Error($"匯入失敗：{exception.Message}"); }
     }
 
-    private string BuildObsUrl(RouletteTemplate template, bool showControls = false)
+    private string BuildObsUrl(RouletteTemplate template)
     {
-        var baseUrl = NavigationManager.ToAbsoluteUri($"/obs/roulette/{template.PublicId:D}").ToString();
-        var query = showControls ? "controls=1" : "";
-        var url = string.IsNullOrWhiteSpace(query) ? baseUrl : $"{baseUrl}?{query}";
-        return obsTokens.TryGetValue((template.PublicId, showControls), out var sessionToken)
+        var url = NavigationManager.ToAbsoluteUri($"/obs/roulette/{template.PublicId:D}?controls=1").ToString();
+        return obsTokens.TryGetValue(template.PublicId, out var sessionToken)
             ? $"{url}#sessionToken={Uri.EscapeDataString(sessionToken)}"
             : url;
     }

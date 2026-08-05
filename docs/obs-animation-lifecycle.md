@@ -4,14 +4,14 @@
 
 ## 階段
 
-1. `Idle`：沒有事件時，正式 OBS URL 不渲染可見內容，背景透明。
+1. `Idle`：沒有事件時，OBS 頁面不渲染可見內容，背景透明。
 2. `Notification`：Donate 活動可先顯示贊助者、金額、留言與付款方式；可在活動設定關閉此階段。
 3. `CountingDown`：需要倒數的活動先播放倒數提示。
 4. `Animating`：播放活動設定的動畫。Donate 的動畫時間可在活動設定中調整；戳戳樂與轉盤也有各自的播放節奏設定。
 5. `ShowingResult`：顯示獎品圖片／名稱或「銘謝惠顧」。未中獎不會使用「恭喜」文案。
 6. `Hold`：依設定保留結果一段時間，之後自動回到 `Idle`。
 
-Donate 的新事件會依序排隊處理，不會因為上一個動畫尚未結束而遺失。正式 OBS 頁面不提供操作按鈕；若要手動預覽或測試，請在網址加上 `controls=1`。
+Donate 的新事件會依序排隊處理，不會因為上一個動畫尚未結束而遺失。管理頁目前統一提供「開啟測試 OBS」入口，會產生帶 `controls=1` 與 control token 的 URL。實況主可先在該頁測試動畫與直接點擊操作，再用 OBS 瀏覽器來源擷取需要的區域；不再另外維護功能重疊且容易失效的正式 URL 入口。
 
 Donate 的動畫場景位於 `EasyLotteryWasm/Components/ObsAnimations`，主頁只負責生命週期與資料，不直接包含一番賞、扭蛋、滾筒、塞錢箱或刮刮樂 markup。新增場景時應新增獨立 component，再由 `DonateAnimationScene` 註冊，並保留 `--draw-duration` 與 reduced-motion fallback。
 
@@ -30,4 +30,4 @@ Donate 的動畫場景位於 `EasyLotteryWasm/Components/ObsAnimations`，主頁
 /obs/roulette/{public-id}?controls=1
 ```
 
-OBS 建議使用「瀏覽器」來源載入正式 URL；測試或調整動畫時才使用 `controls=1` 預覽控制介面。
+OBS 建議使用「瀏覽器」來源載入管理頁產生的測試 OBS URL，先完成測試後再擷取需要的區域。

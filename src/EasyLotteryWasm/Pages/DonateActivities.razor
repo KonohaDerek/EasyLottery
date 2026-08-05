@@ -118,12 +118,11 @@
                 <Button Color="Color.Secondary" Size="Size.Small" Clicked="() => Edit(activity)">編輯</Button>
                 @if (activity.IsEnabled)
                 {
-                    <a class="btn btn-outline-primary btn-sm" href="@BuildObsUrl(activity)" target="_blank" rel="noopener noreferrer">開啟 OBS URL</a>
-                    <a class="btn btn-outline-secondary btn-sm" href="@BuildObsUrl(activity, showControls: true)" target="_blank" rel="noopener noreferrer">開啟測試 OBS</a>
+                    <a class="btn btn-outline-primary btn-sm" href="@BuildObsUrl(activity)" target="_blank" rel="noopener noreferrer">開啟測試 OBS</a>
                 }
                 else
                 {
-                    <Button Color="Color.Secondary" Size="Size.Small" Disabled>開啟 OBS URL</Button>
+                    <Button Color="Color.Secondary" Size="Size.Small" Disabled>開啟測試 OBS</Button>
                 }
                 <Button Color="Color.Danger" Size="Size.Small" Clicked="() => DeleteAsync(activity)">刪除</Button>
             </td>
@@ -136,7 +135,7 @@
     private IReadOnlyList<DonateLotteryActivity> activities = [];
     private DonateLotteryActivity? editing;
     private bool editorVisible;
-    private readonly Dictionary<(Guid PublicId, bool Control), string> obsTokens = new();
+    private readonly Dictionary<Guid, string> obsTokens = new();
     private string EditorTitle => editing is null
         ? "Donate 活動"
         : editing.Id == 0 ? "新增 Donate 活動" : $"編輯 Donate 活動：{editing.Name}";
@@ -154,8 +153,7 @@
         obsTokens.Clear();
         foreach (var activity in activities.Where(item => item.PublicId != Guid.Empty))
         {
-            obsTokens[(activity.PublicId, false)] = await ObsSessionService.CreateObsTokenAsync("donate", activity.PublicId.ToString(), false);
-            obsTokens[(activity.PublicId, true)] = await ObsSessionService.CreateObsTokenAsync("donate", activity.PublicId.ToString(), true);
+            obsTokens[activity.PublicId] = await ObsSessionService.CreateObsTokenAsync("donate", activity.PublicId.ToString(), true);
         }
     }
     private decimal PrizeProbabilityTotal => editing?.Prizes.Sum(prize => prize.Probability) ?? 0m;
@@ -263,12 +261,10 @@
         catch (Exception exception) { await MessageService.Error(exception.Message); }
     }
 
-    private string BuildObsUrl(DonateLotteryActivity activity, bool showControls = false)
+    private string BuildObsUrl(DonateLotteryActivity activity)
     {
-        var baseUrl = NavigationManager.ToAbsoluteUri($"/obs/donate/{activity.PublicId}").ToString();
-        var query = showControls ? "controls=1" : "";
-        var url = string.IsNullOrWhiteSpace(query) ? baseUrl : $"{baseUrl}?{query}";
-        return obsTokens.TryGetValue((activity.PublicId, showControls), out var sessionToken)
+        var url = NavigationManager.ToAbsoluteUri($"/obs/donate/{activity.PublicId}?controls=1").ToString();
+        return obsTokens.TryGetValue(activity.PublicId, out var sessionToken)
             ? $"{url}#sessionToken={Uri.EscapeDataString(sessionToken)}"
             : url;
     }

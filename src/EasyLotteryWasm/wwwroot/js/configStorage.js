@@ -74,7 +74,7 @@
                 if (!expired) return cached;
                 window.sessionStorage.removeItem(sessionTokenKey);
                 if (payload?.token_use === "obs") {
-                    throw new Error("OBS token 已過期，請從管理頁重新開啟 OBS URL。");
+                    throw new Error("OBS token 已過期，請從管理頁重新開啟測試 OBS。");
                 }
             }
         } catch (error) {

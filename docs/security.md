@@ -10,9 +10,8 @@ API 重啟會重新產生簽章金鑰，先前的 token 會失效；重新載入
 
 ## OBS URL
 
-管理頁為每個 Donate、戳戳樂、轉盤或加班台資源簽發獨立 OBS token：
+管理頁為每個 Donate、戳戳樂、轉盤或加班台資源簽發獨立 OBS token。管理列表目前只提供「開啟測試 OBS」入口，使用同一個頁面完成測試與 OBS 擷取：
 
-- 正式 OBS：`read` scope。
 - 測試 OBS：`read`、`control` scope。
 - token 綁定單一 resource kind 與 GUID，不能讀取其他活動或完整設定。
 - token 放在 URL fragment（`#sessionToken=...`），fragment 不會送進 HTTP access log；WASM 啟動後會立即移除 fragment 並存入 session storage。
@@ -24,4 +23,4 @@ API 重啟會重新產生簽章金鑰，先前的 token 會失效；重新載入
 - Tunnel 啟動、停止與狀態 API 只接受 admin token。
 - 支付 callback 不接受 admin／OBS token取代金流 provider signature。
 - storage YAML／JSON、Tunnel credentials 與可取得管理 session 的網站都必須留在可信任環境。
-- 公開直播前請以無痕視窗測試正式 OBS URL，確認無法修改設定或操作其他活動。
+- 公開直播前請先在測試 OBS 頁面確認動畫，再用 OBS 瀏覽器來源擷取需要的區域；token 仍只允許目前資源的讀取與控制操作。
