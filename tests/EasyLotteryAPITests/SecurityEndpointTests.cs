@@ -30,6 +30,71 @@ public sealed class SecurityEndpointTests
     }
 
     [TestMethod]
+    public async Task PublicMode_WithoutAllowlist_DeniesAdminSessionToken()
+    {
+        await using var factory = CreateFactory(new Dictionary<string, string?>
+        {
+            ["Security:AdminToken:Mode"] = AdminTokenSecurityOptions.PublicMode
+        });
+        using var client = factory.CreateClient();
+
+        using var response = await client.GetAsync("/api/session-token");
+
+        Assert.AreEqual(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [TestMethod]
+    public async Task PublicMode_AllowsOnlyAllowlistedClient()
+    {
+        await using var factory = CreateFactory(new Dictionary<string, string?>
+        {
+            ["Security:AdminToken:Mode"] = AdminTokenSecurityOptions.PublicMode,
+            ["Security:AdminToken:AllowedClientIps:0"] = "loopback"
+        });
+        using var client = factory.CreateClient();
+
+        using var response = await client.GetAsync("/api/session-token");
+
+        Assert.AreEqual(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [TestMethod]
+    public async Task PublicMode_DoesNotTrustUnconfiguredForwardedForHeader()
+    {
+        await using var factory = CreateFactory(new Dictionary<string, string?>
+        {
+            ["Security:AdminToken:Mode"] = AdminTokenSecurityOptions.PublicMode,
+            ["Security:AdminToken:AllowedClientIps:0"] = "203.0.113.10"
+        });
+        using var client = factory.CreateClient();
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/api/session-token");
+        request.Headers.TryAddWithoutValidation("X-Forwarded-For", "203.0.113.10");
+
+        using var response = await client.SendAsync(request);
+
+        Assert.AreEqual(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [TestMethod]
+    public async Task ConfiguredAdminLifetime_IsReturnedBySessionEndpoint()
+    {
+        await using var factory = CreateFactory(new Dictionary<string, string?>
+        {
+            ["Security:AdminToken:LifetimeMinutes"] = "5"
+        });
+        using var client = factory.CreateClient();
+        var before = DateTimeOffset.UtcNow;
+
+        using var response = await client.GetAsync("/api/session-token");
+        var token = await response.Content.ReadFromJsonAsync<TokenResponse>();
+
+        Assert.AreEqual(HttpStatusCode.OK, response.StatusCode);
+        Assert.IsNotNull(token);
+        Assert.IsTrue(token!.ExpiresAtUtc >= before.AddMinutes(4));
+        Assert.IsTrue(token.ExpiresAtUtc <= before.AddMinutes(6));
+    }
+
+    [TestMethod]
     public async Task ObsToken_CannotWriteSettingsOrManageTunnel()
     {
         await using var factory = CreateFactory();
@@ -116,12 +181,21 @@ public sealed class SecurityEndpointTests
         Assert.AreEqual(HttpStatusCode.RequestEntityTooLarge, response.StatusCode);
     }
 
-    private static WebApplicationFactory<Program> CreateFactory() =>
-        new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.ConfigureAppConfiguration((_, configuration) =>
-            configuration.AddInMemoryCollection(new Dictionary<string, string?>
+    private static WebApplicationFactory<Program> CreateFactory(IReadOnlyDictionary<string, string?>? settings = null) =>
+        new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
+        {
+            var values = new Dictionary<string, string?>
             {
                 ["Storage:Directory"] = Path.Combine(Path.GetTempPath(), $"easy-lottery-security-tests-{Guid.NewGuid():N}")
-            })));
+            };
+            if (settings is not null)
+            {
+                foreach (var setting in settings) values[setting.Key] = setting.Value;
+            }
+
+            foreach (var setting in values) builder.UseSetting(setting.Key, setting.Value);
+            builder.ConfigureAppConfiguration((_, configuration) => configuration.AddInMemoryCollection(values));
+        });
 
     private static async Task<string> LoginAsync(HttpClient client)
     {

@@ -131,11 +131,7 @@ OBS 動畫階段、結果停留時間、透明背景與低動態／低效能選�
 
 ### 執行 Web Host
 
-Docker 部署前必須設定一組隨機管理權杖；它用於保護系統設定與付款訂單管理 API，請勿使用可預測值或提交至版本控制：
-
-```bash
-export EASYLOTTERY_ADMIN_TOKEN="$(openssl rand -hex 32)"
-```
+本機執行預設使用 `local` 管理 Session 模式：API 會在每次啟動時產生新的簽章金鑰，瀏覽器從同源 `/api/session-token` 取得短效 admin JWT。系統不再讀取或需要固定的 `EASYLOTTERY_ADMIN_TOKEN`。
 
 ```bash
 dotnet run --project src/EasyLotteryAPI/EasyLotteryApi.csproj --launch-profile EasyLotteryAPI
@@ -148,6 +144,26 @@ docker compose up --build
 ```
 
 設定資料會保存於 Docker volume `easy_lottery_data`。
+
+若要公開部署，請先設定管理 Token 的來源 IP allowlist；未設定 allowlist 時公開模式會拒絕簽發 admin token：
+
+```yaml
+services:
+  api:
+    environment:
+      Security__AdminToken__Mode: public
+      Security__AdminToken__AllowedClientIps__0: 203.0.113.10
+      Security__AdminToken__LifetimeMinutes: 60
+      Security__ObsToken__LifetimeMinutes: 360
+```
+
+若 API 位於反向代理後方，另外設定受信任代理 IP，系統只會接受該代理轉送的 `X-Forwarded-For`：
+
+```yaml
+      Security__AdminToken__TrustedProxyIps__0: 10.0.0.10
+```
+
+請勿直接把管理端點暴露到未限制的公開網路；OBS URL 應使用管理頁簽發的 scoped OBS token。
 
 ### 執行測試
 

@@ -9,6 +9,7 @@ using EasyLotteryDomain.Services;
 using EasyLotteryApi.Endpoints;
 using EasyLotteryInfrastructure.Settings;
 using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.AspNetCore.HttpOverrides;
 using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -19,6 +20,9 @@ builder.Services.AddSingleton<IPaymentProvider, NewebPayDonationPaymentProvider>
 builder.Services.AddSingleton<PaymentProviderFactory>();
 builder.Services.AddEasyLotteryInfrastructure();
 builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblies(typeof(GetDonateActivitiesQuery).Assembly, typeof(DependencyInjection).Assembly));
+var adminTokenOptions = AdminTokenSecurityOptions.Load(builder.Configuration);
+builder.Services.AddSingleton(adminTokenOptions);
+builder.Services.AddSingleton<AdminTokenIssuancePolicy>();
 builder.Services.AddSingleton<ObsSessionTokenService>();
 builder.Services.AddSingleton<ObsSessionAccess>();
 builder.Services.AddSingleton<ObsSettingsProjectionService>();
@@ -42,6 +46,17 @@ builder.Services.AddScoped<AiCongratulationProvider>();
 var storageDirectory = builder.Configuration["Storage:Directory"]
     ?? Path.Combine(builder.Environment.ContentRootPath, "App_Data");
 Directory.CreateDirectory(storageDirectory);
+
+var forwardedHeadersOptions = new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+};
+forwardedHeadersOptions.KnownIPNetworks.Clear();
+forwardedHeadersOptions.KnownProxies.Clear();
+foreach (var trustedProxy in adminTokenOptions.TrustedProxyIps)
+{
+    forwardedHeadersOptions.KnownProxies.Add(trustedProxy);
+}
 
 var app = builder.Build();
 
@@ -82,6 +97,10 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseBlazorFrameworkFiles();
+if (adminTokenOptions.TrustedProxyIps.Count > 0)
+{
+    app.UseForwardedHeaders(forwardedHeadersOptions);
+}
 app.UseStaticFiles();
 app.Use(async (context, next) =>
 {
