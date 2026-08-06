@@ -129,6 +129,7 @@ app.Use(async (context, next) =>
 app.UseRateLimiter();
 
 app.MapSettingsEndpoints();
+app.MapSettingsResourceEndpoints();
 app.MapObsSessionEndpoints();
 app.MapAiCongratulationEndpoints();
 app.MapOvertimeFeedEndpoints();

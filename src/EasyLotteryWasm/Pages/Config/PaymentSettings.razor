@@ -2,7 +2,7 @@
 @using EasyLotteryDomain.Models.Config
 @using Serilog
 
-@inject SystemSettingsService SystemSettingsService
+@inject SettingsResourceApiClient SettingsResourceApiClient
 @inject IMessageService MessageService
 @inject TunnelRuntimeClient TunnelRuntimeClient
 
@@ -324,7 +324,8 @@
 </Card>
 
 @code {
-    private LotterySystemSettings? settings;
+    private PaymentSettingsResource? settings;
+    private string settingsETag = "";
     private TunnelRuntimeStatus tunnelStatus = new();
     private bool isStartingTunnel;
 
@@ -354,7 +355,9 @@
 
     protected override async Task OnInitializedAsync()
     {
-        settings = await SystemSettingsService.GetSettingsAsync();
+        var snapshot = await SettingsResourceApiClient.GetPaymentsAsync();
+        settings = snapshot.Value;
+        settingsETag = snapshot.ETag;
 
         // Tunnel detection may wait for a local tunnel process. It is optional
         // metadata and must never prevent the payment settings from rendering.
@@ -389,8 +392,9 @@
             return;
         }
 
-        await SystemSettingsService.SaveSettingsAsync(settings);
-        settings = await SystemSettingsService.GetSettingsAsync();
+        var snapshot = await SettingsResourceApiClient.SavePaymentsAsync(settings, settingsETag);
+        settings = snapshot.Value;
+        settingsETag = snapshot.ETag;
         await MessageService.Success("已儲存支付配置。");
     }
 
@@ -408,7 +412,9 @@
             if (tunnelStatus.State == "running" && !string.IsNullOrWhiteSpace(tunnelStatus.PublicBaseUrl))
             {
                 settings.PublicCallback.ActivePublicBaseUrl = tunnelStatus.PublicBaseUrl;
-                await SystemSettingsService.SaveSettingsAsync(settings);
+                var snapshot = await SettingsResourceApiClient.SavePaymentsAsync(settings, settingsETag);
+                settings = snapshot.Value;
+                settingsETag = snapshot.ETag;
                 await MessageService.Success("Tunnel 已啟動，Notify URL 已更新。");
             }
             else
@@ -436,7 +442,9 @@
             if (settings is not null)
             {
                 settings.PublicCallback.ActivePublicBaseUrl = "";
-                await SystemSettingsService.SaveSettingsAsync(settings);
+                var snapshot = await SettingsResourceApiClient.SavePaymentsAsync(settings, settingsETag);
+                settings = snapshot.Value;
+                settingsETag = snapshot.ETag;
             }
             await MessageService.Success("Tunnel 已停止，公開網址已清除。");
         }

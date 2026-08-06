@@ -36,6 +36,9 @@ public static class DependencyInjection
         services.AddSingleton<YamlActivityResultsDocumentRepository>();
         services.AddSingleton<IActivityResultsYamlDocumentRepository>(sp => sp.GetRequiredService<YamlActivityResultsDocumentRepository>());
         services.AddSingleton<ConfigSecretRedactor>();
+        services.AddSingleton<SettingsSectionRules>();
+        services.AddSingleton<YamlSettingsSectionRepository>();
+        services.AddSingleton<ISettingsSectionRepository>(sp => sp.GetRequiredService<YamlSettingsSectionRepository>());
         services.AddSingleton<SettingsFileStore>();
         services.AddSingleton<IEasyLotteryConfigRepository>(sp => sp.GetRequiredService<SettingsFileStore>());
         services.AddSingleton<IEasyLotteryConfigStore>(sp => sp.GetRequiredService<SettingsFileStore>());

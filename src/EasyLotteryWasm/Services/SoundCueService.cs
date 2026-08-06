@@ -7,17 +7,18 @@ namespace EasyLotteryWasm.Services
 {
     public sealed class SoundCueService
     {
-        private readonly IEasyLotteryConfigStore _configStore;
+        private readonly SettingsResourceApiClient _settingsApi;
         private readonly IJSRuntime _jsRuntime;
         private readonly ILogger<SoundCueService> _logger;
         private string? _activePresetKey;
+        private string _etag = "";
 
         public SoundCueService(
-            IEasyLotteryConfigStore configStore,
+            SettingsResourceApiClient settingsApi,
             IJSRuntime jsRuntime,
             ILogger<SoundCueService> logger)
         {
-            _configStore = configStore;
+            _settingsApi = settingsApi;
             _jsRuntime = jsRuntime;
             _logger = logger;
         }
@@ -31,8 +32,9 @@ namespace EasyLotteryWasm.Services
                 return _activePresetKey;
             }
 
-            var document = await _configStore.LoadAsync(cancellationToken);
-            _activePresetKey = SoundCuePreset.NormalizeKey(document.SoundCue?.ActivePresetKey);
+            var snapshot = await _settingsApi.GetSoundCueAsync(cancellationToken);
+            _etag = snapshot.ETag;
+            _activePresetKey = SoundCuePreset.NormalizeKey(snapshot.Value.ActivePresetKey);
             return _activePresetKey;
         }
 
@@ -41,10 +43,8 @@ namespace EasyLotteryWasm.Services
         public async Task<SoundCuePreset> SetActivePresetAsync(string key, CancellationToken cancellationToken = default)
         {
             var normalized = SoundCuePreset.NormalizeKey(key);
-            var document = await _configStore.LoadAsync(cancellationToken);
-            document.SoundCue ??= new SoundCueSettings();
-            document.SoundCue.ActivePresetKey = normalized;
-            await _configStore.SaveAsync(document, cancellationToken);
+            var snapshot = await _settingsApi.SaveSoundCueAsync(new SoundCueSettings { ActivePresetKey = normalized }, _etag, cancellationToken);
+            _etag = snapshot.ETag;
             _activePresetKey = normalized;
             return SoundCuePreset.GetByKey(normalized);
         }

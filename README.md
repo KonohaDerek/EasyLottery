@@ -124,6 +124,8 @@ OBS 動畫階段、結果停留時間、透明背景與低動態／低效能選�
 
 版本驗證、Docker 發布與桌面封裝現況請參閱 [發布策略](docs/release.md)。目前不提供 Tauri 桌面安裝包。
 
+設定資源 API 與 `/settings` 相容端點的遷移方式請參閱 [設定資源 API](docs/settings-api.md)。
+
 ### 前置需求
 
 - .NET SDK 10.0

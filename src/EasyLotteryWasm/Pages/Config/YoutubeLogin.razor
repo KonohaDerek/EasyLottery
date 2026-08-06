@@ -1,7 +1,7 @@
 @page "/system/youtube-login"
 @using EasyLotteryDomain.Models.Config
 
-@inject SystemSettingsService SystemSettingsService
+@inject SettingsResourceApiClient SettingsResourceApiClient
 @inject IMessageService MessageService
 
 <PageTitle>YouTube API Key</PageTitle>
@@ -56,11 +56,14 @@
 </Card>
 
 @code {
-    private LotterySystemSettings? settings;
+    private PaymentSettingsResource? settings;
+    private string settingsETag = "";
 
     protected override async Task OnInitializedAsync()
     {
-        settings = await SystemSettingsService.GetSettingsAsync();
+        var snapshot = await SettingsResourceApiClient.GetPaymentsAsync();
+        settings = snapshot.Value;
+        settingsETag = snapshot.ETag;
     }
 
     private async Task SaveAsync()
@@ -70,8 +73,9 @@
             return;
         }
 
-        await SystemSettingsService.SaveSettingsAsync(settings);
-        settings = await SystemSettingsService.GetSettingsAsync();
+        var snapshot = await SettingsResourceApiClient.SavePaymentsAsync(settings, settingsETag);
+        settings = snapshot.Value;
+        settingsETag = snapshot.ETag;
         await MessageService.Success("已儲存 YouTube API Key。");
     }
 }

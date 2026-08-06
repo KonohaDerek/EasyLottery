@@ -1,0 +1,5 @@
+- [x] 建立五個設定資源的 REST GET/PUT 路由
+- [x] 以 MediatR Query/Command 實作讀寫流程
+- [x] 建立 YAML section repository、ETag 與版本衝突處理
+- [x] 加入付款敏感資訊遮罩與密鑰保留
+- [x] 更新管理頁 client、文件與 API 回歸測試

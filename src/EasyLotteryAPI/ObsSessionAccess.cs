@@ -34,6 +34,22 @@ public sealed class ObsSessionAccess
             : ApiAccessDecision.Forbidden;
     }
 
+    /// <summary>
+    /// Allows OBS overlays to read non-secret presentation settings without
+    /// granting them access to the administrative settings surface.
+    /// </summary>
+    public ApiAccessDecision RequireObsRead(HttpRequest request)
+    {
+        var token = ReadAnyToken(request);
+        var principal = _tokens.Validate(token);
+        if (principal is null) return ApiAccessDecision.Unauthorized;
+        if (principal.FindFirst("token_use")?.Value != ObsSessionTokenService.ObsUse)
+            return ApiAccessDecision.Forbidden;
+        return principal.FindAll("scope").Any(claim => claim.Value == "read")
+            ? ApiAccessDecision.Allowed
+            : ApiAccessDecision.Forbidden;
+    }
+
     public ClaimsPrincipal? ReadPrincipal(HttpRequest request) => _tokens.Validate(ReadAnyToken(request));
 
     public static IResult? DeniedResult(ApiAccessDecision decision) => decision switch
