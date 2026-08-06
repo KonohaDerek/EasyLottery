@@ -7,7 +7,7 @@ using Microsoft.Extensions.Hosting;
 
 namespace EasyLotteryInfrastructure.Payments;
 
-public sealed class JsonOvertimeFeedRepository : IOvertimeFeedRepository
+public sealed class JsonOvertimeFeedRepository : IOvertimeFeedRepository, IOvertimeFeedMutationRepository
 {
     private readonly IStorageGateProvider _storageGates;
     public string StoragePath { get; }
@@ -29,6 +29,15 @@ public sealed class JsonOvertimeFeedRepository : IOvertimeFeedRepository
     public async Task SaveAsync(IReadOnlyList<OvertimeSupportEvent> events, CancellationToken cancellationToken = default)
     {
         await using var gate = await _storageGates.AcquireAsync(cancellationToken, StoragePath);
+        await WriteUnsafeAsync(events, cancellationToken);
+    }
+
+    public async Task MutateAsync(Func<List<OvertimeSupportEvent>, Task> mutation, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(mutation);
+        await using var gate = await _storageGates.AcquireAsync(cancellationToken, StoragePath);
+        var events = (await ReadUnsafeAsync(cancellationToken)).ToList();
+        await mutation(events);
         await WriteUnsafeAsync(events, cancellationToken);
     }
 
