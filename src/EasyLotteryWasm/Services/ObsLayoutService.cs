@@ -6,12 +6,13 @@ namespace EasyLotteryWasm.Services
 {
     public sealed class ObsLayoutService
     {
-        private readonly IEasyLotteryConfigStore _configStore;
+        private readonly SettingsResourceApiClient _settingsApi;
         private string? _activeLayoutKey;
+        private string _etag = "";
 
-        public ObsLayoutService(IEasyLotteryConfigStore configStore)
+        public ObsLayoutService(SettingsResourceApiClient settingsApi)
         {
-            _configStore = configStore;
+            _settingsApi = settingsApi;
         }
 
         public IReadOnlyList<ObsLayoutPreset> Presets => ObsLayoutCatalog.All;
@@ -23,8 +24,9 @@ namespace EasyLotteryWasm.Services
                 return _activeLayoutKey;
             }
 
-            var document = await _configStore.LoadAsync(cancellationToken);
-            _activeLayoutKey = ObsLayoutCatalog.NormalizeKey(document.ObsLayout?.ActiveLayoutKey);
+            var snapshot = await _settingsApi.GetObsLayoutAsync(cancellationToken);
+            _etag = snapshot.ETag;
+            _activeLayoutKey = ObsLayoutCatalog.NormalizeKey(snapshot.Value.ActiveLayoutKey);
             return _activeLayoutKey;
         }
 
@@ -33,10 +35,8 @@ namespace EasyLotteryWasm.Services
         public async Task<ObsLayoutPreset> SetActiveLayoutAsync(string key, CancellationToken cancellationToken = default)
         {
             var normalized = ObsLayoutCatalog.NormalizeKey(key);
-            var document = await _configStore.LoadAsync(cancellationToken);
-            document.ObsLayout ??= new ObsLayoutSettings();
-            document.ObsLayout.ActiveLayoutKey = normalized;
-            await _configStore.SaveAsync(document, cancellationToken);
+            var snapshot = await _settingsApi.SaveObsLayoutAsync(new ObsLayoutSettings { ActiveLayoutKey = normalized }, _etag, cancellationToken);
+            _etag = snapshot.ETag;
             _activeLayoutKey = normalized;
             return ObsLayoutCatalog.GetByKey(normalized);
         }

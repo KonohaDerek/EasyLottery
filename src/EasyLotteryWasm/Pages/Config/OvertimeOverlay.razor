@@ -5,7 +5,7 @@
 @using EasyLotteryDomain.Services
 @using EasyLotteryWasm.Models
 @using EasyLotteryWasm.Services
-@inject IEasyLotteryConfigStore ConfigStore
+@inject SettingsResourceApiClient SettingsResourceApiClient
 @inject IMessageService MessageService
 @inject NavigationManager NavigationManager
 @inject IJSRuntime JSRuntime
@@ -703,8 +703,8 @@ else
     private const string PlannedEndMarkerLabel = "預計關台時間";
 
     private bool isLoading = true;
-    private EasyLotteryConfigDocument document = new();
     private OvertimeOverlaySettings settings = new();
+    private string settingsETag = "";
     private IReadOnlyList<OvertimeTextAnimationPreset> textAnimationPresets = OvertimeTextAnimationPreset.Catalog;
     private string selectedTextAnimationKey = OvertimeTextAnimationPreset.Catalog[0].Key;
     private string sessionToken = "";
@@ -718,8 +718,9 @@ else
     protected override async Task OnInitializedAsync()
     {
         sessionToken = await ObsSessionService.CreateObsTokenAsync("overtime", "default", false);
-        document = await ConfigStore.LoadAsync();
-        settings = document.OvertimeOverlay ?? new OvertimeOverlaySettings();
+        var snapshot = await SettingsResourceApiClient.GetOvertimeAsync();
+        settings = snapshot.Value;
+        settingsETag = snapshot.ETag;
         settings.RewardRules ??= new List<OvertimeRewardRule>();
         settings.DemoSuperChatAmount = Math.Max(0, settings.DemoSuperChatAmount);
         settings.DemoEcpayAmount = Math.Max(0, settings.DemoEcpayAmount);
@@ -778,8 +779,9 @@ else
         PlannedEndAtInput = await JSRuntime.InvokeAsync<string>("easyLotteryDom.getValue", ".overtime-datetime-input");
         selectedTextAnimationKey = await JSRuntime.InvokeAsync<string>("easyLotteryDom.getValue", ".overtime-animation-select");
         settings.PlannedEndAtUtc = ParseDateTimeLocal(PlannedEndAtInput);
-        var latestDocument = await ConfigStore.LoadAsync();
-        var latestSession = latestDocument.OvertimeOverlay;
+        var latestSnapshot = await SettingsResourceApiClient.GetOvertimeAsync();
+        var latestSession = latestSnapshot.Value;
+        settingsETag = latestSnapshot.ETag;
         if (latestSession is not null)
         {
             // The OBS page owns the live session controls.  Preserve its state when
@@ -790,10 +792,10 @@ else
             settings.CompletedAtUtc = latestSession.CompletedAtUtc;
         }
 
-        document = latestDocument;
-        document.OvertimeOverlay = settings;
-        document.OvertimeOverlay.TextAnimationKey = selectedTextAnimationKey;
-        await ConfigStore.SaveAsync(document);
+        settings.TextAnimationKey = selectedTextAnimationKey;
+        var saved = await SettingsResourceApiClient.SaveOvertimeAsync(settings, settingsETag);
+        settings = saved.Value;
+        settingsETag = saved.ETag;
 
         if (!await IsSessionStartedAsync())
         {
@@ -891,14 +893,16 @@ else
 
     private async Task<bool> IsSessionStartedAsync()
     {
-        var latestDocument = await ConfigStore.LoadAsync();
-        return latestDocument.OvertimeOverlay?.SessionState == OvertimeSessionStates.Running;
+        var latest = await SettingsResourceApiClient.GetOvertimeAsync();
+        settingsETag = latest.ETag;
+        return latest.Value.SessionState == OvertimeSessionStates.Running;
     }
 
     private async Task<DateTimeOffset?> GetCurrentSessionEndAtAsync()
     {
-        var latestDocument = await ConfigStore.LoadAsync();
-        return latestDocument.OvertimeOverlay?.PlannedEndAtUtc ?? settings.PlannedEndAtUtc;
+        var latest = await SettingsResourceApiClient.GetOvertimeAsync();
+        settingsETag = latest.ETag;
+        return latest.Value.PlannedEndAtUtc ?? settings.PlannedEndAtUtc;
     }
 
     private async Task UpdateCurrentSessionEndAsync(DateTimeOffset? plannedEndAtUtc)
@@ -906,13 +910,11 @@ else
         // Settings pages can remain open while OBS controls a session in another
         // browser. Only update the end time on the current document so a demo
         // donation cannot reset StreamStartedAtUtc or SessionState.
-        var latestDocument = await ConfigStore.LoadAsync();
-        latestDocument.OvertimeOverlay ??= new OvertimeOverlaySettings();
-        latestDocument.OvertimeOverlay.PlannedEndAtUtc = plannedEndAtUtc;
-        await ConfigStore.SaveAsync(latestDocument);
-
-        document = latestDocument;
-        settings = latestDocument.OvertimeOverlay;
+        var latest = await SettingsResourceApiClient.GetOvertimeAsync();
+        latest.Value.PlannedEndAtUtc = plannedEndAtUtc;
+        var saved = await SettingsResourceApiClient.SaveOvertimeAsync(latest.Value, latest.ETag);
+        settingsETag = saved.ETag;
+        settings = saved.Value;
     }
 
     private async Task PublishPlannedEndMarkerAsync(DateTimeOffset? plannedEndAtUtc)

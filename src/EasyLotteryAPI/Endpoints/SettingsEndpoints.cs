@@ -13,6 +13,7 @@ internal static class SettingsEndpoints
     {
         Func<HttpContext, IEasyLotteryConfigRepository, ObsSettingsProjectionService, ObsSessionAccess, Task<IResult>> readSettings = async (context, settingsStore, projection, sessionAccess) =>
         {
+            MarkCompatibilityEndpoint(context);
             var adminDecision = sessionAccess.RequireAdmin(context.Request);
             if (adminDecision == ApiAccessDecision.Allowed)
             {
@@ -34,6 +35,7 @@ internal static class SettingsEndpoints
 
         Func<HttpContext, IHubContext<OvertimeHub>, IEasyLotteryConfigRepository, ObsSettingsProjectionService, ObsSessionAccess, Task<IResult>> writeSettings = async (context, hub, settingsStore, projection, sessionAccess) =>
         {
+            MarkCompatibilityEndpoint(context);
             var adminDecision = sessionAccess.RequireAdmin(context.Request);
             var principal = adminDecision == ApiAccessDecision.Allowed ? null : sessionAccess.ReadPrincipal(context.Request);
             var isObsControl = principal?.FindFirst("token_use")?.Value == ObsSessionTokenService.ObsUse
@@ -83,5 +85,12 @@ internal static class SettingsEndpoints
             await settingsStore.RestoreBackupAsync(id, context.RequestAborted);
             return Results.NoContent();
         }).RequireRateLimiting("sensitive");
+    }
+
+    private static void MarkCompatibilityEndpoint(HttpContext context)
+    {
+        context.Response.Headers["Deprecation"] = "true";
+        context.Response.Headers["Sunset"] = "Wed, 31 Dec 2026 00:00:00 GMT";
+        context.Response.Headers["Link"] = "</api/settings/obs-layout>; rel=successor-version";
     }
 }

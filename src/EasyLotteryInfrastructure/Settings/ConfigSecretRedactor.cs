@@ -56,6 +56,84 @@ public sealed class ConfigSecretRedactor
         return _serializer.Serialize(submitted);
     }
 
+    /// <summary>
+    /// Returns a payment settings copy safe to send to a browser. Provider
+    /// credentials are replaced by the unchanged-secret marker, so a client can
+    /// round-trip the resource without ever receiving the actual secret.
+    /// </summary>
+    public DonationIntegrationSettings RedactPaymentSettings(DonationIntegrationSettings settings)
+    {
+        var document = new EasyLotteryConfigDocument
+        {
+            SystemSettings = new LotterySystemSettings { DonationIntegration = settings }
+        };
+        var redacted = Deserialize(RedactForBrowser(_serializer.Serialize(document)));
+        return redacted.SystemSettings.DonationIntegration;
+    }
+
+    /// <summary>Preserves credentials when a section update contains the mask.</summary>
+    public DonationIntegrationSettings MergePaymentSettings(
+        DonationIntegrationSettings existing,
+        DonationIntegrationSettings submitted)
+    {
+        var existingDocument = new EasyLotteryConfigDocument
+        {
+            SystemSettings = new LotterySystemSettings { DonationIntegration = existing }
+        };
+        var submittedDocument = new EasyLotteryConfigDocument
+        {
+            SystemSettings = new LotterySystemSettings { DonationIntegration = submitted }
+        };
+        MergeSecrets(existingDocument.SystemSettings.DonationIntegration, submittedDocument.SystemSettings.DonationIntegration);
+        return submittedDocument.SystemSettings.DonationIntegration;
+    }
+
+    public PaymentSettingsResource RedactPaymentResource(LotterySystemSettings settings)
+    {
+        var document = new EasyLotteryConfigDocument
+        {
+            SystemSettings = settings
+        };
+        var redacted = Deserialize(RedactForBrowser(_serializer.Serialize(document))).SystemSettings;
+        return ToPaymentResource(redacted);
+    }
+
+    public PaymentSettingsResource MergePaymentResource(
+        LotterySystemSettings existing,
+        PaymentSettingsResource submitted)
+    {
+        var existingDocument = Deserialize(_serializer.Serialize(new EasyLotteryConfigDocument
+        {
+            SystemSettings = existing
+        }));
+        var submittedDocument = Deserialize(_serializer.Serialize(new EasyLotteryConfigDocument
+        {
+            SystemSettings = new LotterySystemSettings
+            {
+                DonationIntegration = submitted.DonationIntegration,
+                PublicCallback = submitted.PublicCallback,
+                MailDelivery = submitted.MailDelivery,
+                YouTube = submitted.YouTube,
+                EnableYouTubeSuperChat = submitted.EnableYouTubeSuperChat,
+                ResultNotificationEmail = submitted.ResultNotificationEmail
+            }
+        }));
+
+        MergeSecrets(existingDocument.SystemSettings.DonationIntegration, submittedDocument.SystemSettings.DonationIntegration);
+        MergeSystemSecrets(existingDocument.SystemSettings, submittedDocument.SystemSettings);
+        return ToPaymentResource(submittedDocument.SystemSettings);
+    }
+
+    private static PaymentSettingsResource ToPaymentResource(LotterySystemSettings settings) => new()
+    {
+        DonationIntegration = settings.DonationIntegration,
+        PublicCallback = settings.PublicCallback,
+        MailDelivery = settings.MailDelivery,
+        YouTube = settings.YouTube,
+        EnableYouTubeSuperChat = settings.EnableYouTubeSuperChat,
+        ResultNotificationEmail = settings.ResultNotificationEmail
+    };
+
     private EasyLotteryConfigDocument Deserialize(string yaml) =>
         _deserializer.Deserialize<EasyLotteryConfigDocument>(yaml) ?? new EasyLotteryConfigDocument();
 
