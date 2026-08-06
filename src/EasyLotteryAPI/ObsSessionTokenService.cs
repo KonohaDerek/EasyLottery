@@ -15,11 +15,23 @@ public sealed class ObsSessionTokenService
     private readonly JwtSecurityTokenHandler _handler = new();
     private readonly SigningCredentials _credentials;
     private readonly TokenValidationParameters _validation;
+    private readonly TimeSpan _adminTokenLifetime;
+    private readonly TimeSpan _obsTokenLifetime;
     private readonly HashSet<string> _revokedTokenIds = new(StringComparer.Ordinal);
     private readonly object _revocationLock = new();
 
-    public ObsSessionTokenService()
+    public ObsSessionTokenService(AdminTokenSecurityOptions? options = null)
     {
+        options ??= new AdminTokenSecurityOptions
+        {
+            Mode = AdminTokenSecurityOptions.LocalMode,
+            AllowedClientIps = [],
+            TrustedProxyIps = [],
+            AdminTokenLifetime = TimeSpan.FromMinutes(AdminTokenSecurityOptions.DefaultAdminLifetimeMinutes),
+            ObsTokenLifetime = TimeSpan.FromMinutes(AdminTokenSecurityOptions.DefaultObsLifetimeMinutes)
+        };
+        _adminTokenLifetime = options.AdminTokenLifetime;
+        _obsTokenLifetime = options.ObsTokenLifetime;
         var key = new SymmetricSecurityKey(RandomNumberGenerator.GetBytes(64)) { KeyId = Guid.NewGuid().ToString("N") };
         _credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
         _validation = new TokenValidationParameters
@@ -36,13 +48,13 @@ public sealed class ObsSessionTokenService
     }
 
     public SessionToken IssueAdminToken(TimeSpan? lifetime = null) =>
-        Issue(AdminUse, lifetime ?? TimeSpan.FromHours(4), []);
+        Issue(AdminUse, lifetime ?? _adminTokenLifetime, []);
 
     public SessionToken IssueObsToken(string resourceKind, string resourceId, IEnumerable<string> scopes, TimeSpan? lifetime = null)
     {
         var normalizedScopes = scopes.Select(Normalize).Where(scope => scope.Length > 0).Distinct(StringComparer.Ordinal).ToArray();
         if (normalizedScopes.Length == 0) throw new ArgumentException("OBS token 至少需要一個 scope。", nameof(scopes));
-        return Issue(ObsUse, lifetime ?? TimeSpan.FromHours(6),
+        return Issue(ObsUse, lifetime ?? _obsTokenLifetime,
         [
             new Claim("resource_kind", Normalize(resourceKind)),
             new Claim("resource_id", NormalizeResourceId(resourceId)),

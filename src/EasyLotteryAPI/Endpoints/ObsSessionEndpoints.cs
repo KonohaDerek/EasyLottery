@@ -4,8 +4,13 @@ internal static class ObsSessionEndpoints
 {
     public static void MapObsSessionEndpoints(this WebApplication app)
     {
-        app.MapGet("/api/session-token", (ObsSessionTokenService tokens) =>
+        app.MapGet("/api/session-token", (HttpContext context, ObsSessionTokenService tokens, AdminTokenIssuancePolicy policy) =>
         {
+            if (!policy.CanIssue(context))
+            {
+                return Results.StatusCode(StatusCodes.Status403Forbidden);
+            }
+
             var issued = tokens.IssueAdminToken();
             return Results.Ok(new SessionTokenResponse(issued.Token, issued.ExpiresAtUtc));
         }).RequireRateLimiting("authentication");

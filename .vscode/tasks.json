@@ -32,7 +32,7 @@
       "command": "bash",
       "args": [
         "-lc",
-        "set -euo pipefail; env_file=.env.local; if [ ! -f \"$env_file\" ] || ! grep -q '^EASYLOTTERY_ADMIN_TOKEN=' \"$env_file\"; then printf 'EASYLOTTERY_ADMIN_TOKEN=%s\\n' \"$(openssl rand -hex 32)\" > \"$env_file\"; fi; docker compose --env-file \"$env_file\" down --remove-orphans >/dev/null 2>&1 || true; pids=$(lsof -tiTCP:18930 -sTCP:LISTEN || true); if [ -n \"$pids\" ]; then kill $pids; fi"
+        "set -euo pipefail; docker compose down --remove-orphans >/dev/null 2>&1 || true; pids=$(lsof -tiTCP:18930 -sTCP:LISTEN || true); if [ -n \"$pids\" ]; then kill $pids; fi"
       ],
       "problemMatcher": []
     },
@@ -74,7 +74,7 @@
       "command": "bash",
       "args": [
         "-lc",
-        "set -euo pipefail; env_file=.env.local; if [ ! -f \"$env_file\" ] || ! grep -q '^EASYLOTTERY_ADMIN_TOKEN=' \"$env_file\"; then printf 'EASYLOTTERY_ADMIN_TOKEN=%s\\n' \"$(openssl rand -hex 32)\" > \"$env_file\"; fi; docker compose --env-file \"$env_file\" up -d --build api"
+        "set -euo pipefail; docker compose up -d --build api"
       ],
       "problemMatcher": []
     },
@@ -84,7 +84,7 @@
       "command": "bash",
       "args": [
         "-lc",
-        "set -euo pipefail; env_file=.env.local; if [ ! -f \"$env_file\" ] || ! grep -q '^EASYLOTTERY_ADMIN_TOKEN=' \"$env_file\"; then printf 'EASYLOTTERY_ADMIN_TOKEN=%s\\n' \"$(openssl rand -hex 32)\" > \"$env_file\"; fi; docker compose --env-file \"$env_file\" build --no-cache api && docker compose --env-file \"$env_file\" up -d api"
+        "set -euo pipefail; docker compose build --no-cache api && docker compose up -d api"
       ],
       "problemMatcher": []
     },
@@ -94,7 +94,7 @@
       "command": "bash",
       "args": [
         "-lc",
-        "set -euo pipefail; env_file=.env.local; if [ ! -f \"$env_file\" ] || ! grep -q '^EASYLOTTERY_ADMIN_TOKEN=' \"$env_file\"; then printf 'EASYLOTTERY_ADMIN_TOKEN=%s\\n' \"$(openssl rand -hex 32)\" > \"$env_file\"; fi; docker compose --env-file \"$env_file\" down --remove-orphans"
+        "set -euo pipefail; docker compose down --remove-orphans"
       ],
       "problemMatcher": []
     }
