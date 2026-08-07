@@ -23,6 +23,7 @@ public static class DependencyInjection
             .BindConfiguration(StorageProviderOptions.SectionName)
             .Validate(options => { options.Validate(); return true; }, "Storage provider 設定無效")
             .ValidateOnStart();
+        services.AddHostedService<SqliteSchemaMigrator>();
         services.AddSingleton<IStorageGateProvider, StorageGateProvider>();
         services.AddSingleton<YamlDonateActivityEventStore>();
         services.AddSingleton<IDonateActivityEventStore>(sp => sp.GetRequiredService<YamlDonateActivityEventStore>());
