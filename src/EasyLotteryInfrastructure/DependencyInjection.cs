@@ -28,7 +28,14 @@ public static class DependencyInjection
         services.AddSingleton<YamlDonateActivityEventStore>();
         services.AddSingleton<IDonateActivityEventStore>(sp => sp.GetRequiredService<YamlDonateActivityEventStore>());
         services.AddSingleton<YamlDonateActivityRepository>();
-        services.AddSingleton<IDonateLotteryActivityRepository>(sp => sp.GetRequiredService<YamlDonateActivityRepository>());
+        services.AddSingleton<SqliteDonateActivityRepository>();
+        services.AddSingleton<IDonateLotteryActivityRepository>(sp =>
+        {
+            var provider = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<StorageProviderOptions>>().Value.NormalizedProvider;
+            return provider == "sqlite"
+                ? sp.GetRequiredService<SqliteDonateActivityRepository>()
+                : sp.GetRequiredService<YamlDonateActivityRepository>();
+        });
         services.AddSingleton<JsonPaymentEventRepository>();
         services.AddSingleton<IPaymentEventRepository>(sp => sp.GetRequiredService<JsonPaymentEventRepository>());
         services.AddSingleton<JsonPaymentOrderRepository>();
