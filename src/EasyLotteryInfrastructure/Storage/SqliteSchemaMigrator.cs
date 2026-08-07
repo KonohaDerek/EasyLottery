@@ -23,6 +23,11 @@ public sealed class SqliteSchemaMigrator(
                 version INTEGER PRIMARY KEY,
                 applied_at_utc TEXT NOT NULL
             );
+            CREATE TABLE IF NOT EXISTS config_documents (
+                id INTEGER PRIMARY KEY CHECK (id = 1),
+                payload_json TEXT NOT NULL,
+                updated_at_utc TEXT NOT NULL
+            );
             CREATE TABLE IF NOT EXISTS donate_activities (
                 id INTEGER PRIMARY KEY,
                 public_id TEXT NOT NULL UNIQUE,
