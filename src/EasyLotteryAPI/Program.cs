@@ -41,6 +41,8 @@ builder.Services.AddSingleton<PokeService>();
 builder.Services.AddSingleton<RouletteService>();
 builder.Services.AddSingleton<LiveDrawSessionService>();
 builder.Services.AddHttpClient();
+builder.Services.AddHealthChecks()
+    .AddCheck<StorageHealthCheck>("storage", tags: ["ready"]);
 builder.Services.AddScoped<AiCongratulationProvider>();
 
 var storageDirectory = builder.Configuration["Storage:Directory"]
@@ -127,6 +129,15 @@ app.Use(async (context, next) =>
     }
 });
 app.UseRateLimiter();
+
+app.MapHealthChecks("/health/live", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+{
+    Predicate = _ => false
+});
+app.MapHealthChecks("/health/ready", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+{
+    Predicate = check => check.Tags.Contains("ready")
+});
 
 app.MapSettingsEndpoints();
 app.MapSettingsResourceEndpoints();
