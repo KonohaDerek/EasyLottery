@@ -139,6 +139,7 @@ app.MapPokeTemplateEndpoints();
 app.MapRouletteTemplateEndpoints();
 app.MapActivityResultEndpoints();
 app.MapObsAssetEndpoints();
+app.MapStorageEndpoints();
 app.MapResultNotificationEndpoints();
 app.MapTunnelEndpoints();
 app.MapLiveDrawSessionEndpoints();
