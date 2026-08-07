@@ -11,6 +11,7 @@ using EasyLotteryInfrastructure.Templates;
 using EasyLotteryInfrastructure.ObsAssets;
 using EasyLotteryDomain.Services;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 namespace EasyLotteryInfrastructure;
 
@@ -18,6 +19,10 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddEasyLotteryInfrastructure(this IServiceCollection services)
     {
+        services.AddOptions<StorageProviderOptions>()
+            .BindConfiguration(StorageProviderOptions.SectionName)
+            .Validate(options => { options.Validate(); return true; }, "Storage provider 設定無效")
+            .ValidateOnStart();
         services.AddSingleton<IStorageGateProvider, StorageGateProvider>();
         services.AddSingleton<YamlDonateActivityEventStore>();
         services.AddSingleton<IDonateActivityEventStore>(sp => sp.GetRequiredService<YamlDonateActivityEventStore>());
