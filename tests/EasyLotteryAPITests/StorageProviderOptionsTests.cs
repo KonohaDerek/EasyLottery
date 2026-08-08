@@ -21,4 +21,12 @@ public sealed class StorageProviderOptionsTests
         var options = new StorageProviderOptions { Provider = "sqlite" };
         Assert.Throws<InvalidOperationException>(() => options.Validate());
     }
+
+    [TestMethod]
+    public void ValidateAdapterAvailability_rejects_unregistered_postgresql_adapter()
+    {
+        var options = new StorageProviderOptions { Provider = "postgresql" };
+
+        Assert.Throws<InvalidOperationException>(() => options.ValidateAdapterAvailability());
+    }
 }

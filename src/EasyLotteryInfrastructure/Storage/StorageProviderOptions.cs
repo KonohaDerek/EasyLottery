@@ -20,4 +20,10 @@ public sealed class StorageProviderOptions
         if (NormalizedProvider == "sqlite" && string.IsNullOrWhiteSpace(ConnectionString))
             throw new InvalidOperationException("使用 sqlite 儲存提供者時必須設定 Storage:ConnectionString。");
     }
+
+    public void ValidateAdapterAvailability()
+    {
+        if (NormalizedProvider == "postgresql")
+            throw new InvalidOperationException("Storage:Provider=postgresql 尚未註冊 adapter；目前可用 provider 為 yaml 與 sqlite。");
+    }
 }

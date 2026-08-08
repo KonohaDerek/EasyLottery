@@ -14,6 +14,10 @@ curl --fail http://localhost:18930/health/ready
 
 部署前先備份 `Storage__Directory`。YAML provider 請一併保留 `*.yaml`、`*.json`、`.bak.*` 與 `config-backups/`；SQLite provider 請備份 SQLite database 檔案。還原時停止 API、還原檔案後再啟動，避免寫入競爭。
 
+## Storage provider
+
+`Storage:Provider` 目前可用 `yaml`（預設）與 `sqlite`。`postgresql` 保留為未來 adapter 的 provider 名稱，尚未註冊 adapter 時會在啟動驗證階段直接拒絕，不會靜默退回 YAML。新增 PostgreSQL 支援時，需同步註冊 Repository adapter 與 migration hosted service。
+
 ## 升級
 
 1. 先執行 readiness probe，確認舊版本健康。

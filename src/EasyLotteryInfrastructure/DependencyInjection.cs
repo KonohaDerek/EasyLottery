@@ -21,7 +21,7 @@ public static class DependencyInjection
     {
         services.AddOptions<StorageProviderOptions>()
             .BindConfiguration(StorageProviderOptions.SectionName)
-            .Validate(options => { options.Validate(); return true; }, "Storage provider 設定無效")
+            .Validate(options => { options.Validate(); options.ValidateAdapterAvailability(); return true; }, "Storage provider 設定無效")
             .ValidateOnStart();
         services.AddHostedService<SqliteSchemaMigrator>();
         services.AddSingleton<IStorageGateProvider, StorageGateProvider>();
