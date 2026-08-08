@@ -149,6 +149,8 @@ docker compose up --build
 
 部署後可用以下端點檢查服務：`GET /health/live` 只確認程序存活；`GET /health/ready` 會確認資料目錄可建立、讀取與寫入。反向代理與容器編排應將 readiness probe 指向 `/health/ready`。
 
+如需進行容器 smoke test，可執行：`bash tests/smoke-health.sh`。
+
 若要公開部署，請將環境設為 `Production`，並設定管理 Session 的來源 IP allowlist；未設定 allowlist 時公開模式會拒絕簽發 admin session：
 
 ```yaml
