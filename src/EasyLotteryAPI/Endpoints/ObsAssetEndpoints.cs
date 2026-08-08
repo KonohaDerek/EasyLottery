@@ -1,5 +1,7 @@
+using System.Text.Json;
 using EasyLotteryApplication.ObsAssets;
 using EasyLotteryDomain.Models.Obs;
+using EasyLotteryDomain.Services;
 using MediatR;
 
 namespace EasyLotteryApi.Endpoints;
@@ -8,12 +10,48 @@ internal static class ObsAssetEndpoints
 {
     public static void MapObsAssetEndpoints(this WebApplication app)
     {
-        app.MapGet("/api/obs-assets", async (HttpContext context, IMediator mediator, ObsSessionAccess access) =>
+        app.MapGet("/api/obs-assets", async (HttpContext context, IMediator mediator, IEasyLotteryConfigStore configStore, ObsSessionAccess access) =>
         {
             var denied = ObsSessionAccess.DeniedResult(access.RequireAdmin(context.Request));
             if (denied is not null) return denied;
-            return Results.Ok(await mediator.Send(new ListObsAssetsQuery(), context.RequestAborted));
+            var assets = await mediator.Send(new ListObsAssetsQuery(), context.RequestAborted);
+            return Results.Ok(await AddConfiguredReferencesAsync(assets, configStore, context.RequestAborted));
         });
+
+        app.MapGet("/api/obs-assets/unused", async (HttpContext context, IObsAssetRepository repository, IEasyLotteryConfigStore configStore, ObsSessionAccess access) =>
+        {
+            var denied = ObsSessionAccess.DeniedResult(access.RequireAdmin(context.Request));
+            if (denied is not null) return denied;
+            var assets = await AddConfiguredReferencesAsync(await repository.ListAsync(context.RequestAborted), configStore, context.RequestAborted);
+            return Results.Ok(assets.Where(asset => asset.ReferencedBy.Count == 0).ToList());
+        });
+
+        app.MapGet("/api/obs-assets/export", async (HttpContext context, IObsAssetRepository repository, ObsSessionAccess access) =>
+        {
+            var denied = ObsSessionAccess.DeniedResult(access.RequireAdmin(context.Request));
+            if (denied is not null) return denied;
+            var package = await repository.ExportPackageAsync(context.RequestAborted);
+            return Results.File(package, "application/zip", $"obs-assets-{DateTime.UtcNow:yyyyMMdd-HHmmss}.zip");
+        });
+
+        app.MapPost("/api/obs-assets/import", async (HttpContext context, IObsAssetRepository repository, ObsSessionAccess access) =>
+        {
+            var denied = ObsSessionAccess.DeniedResult(access.RequireAdmin(context.Request));
+            if (denied is not null) return denied;
+            try
+            {
+                var imported = await repository.ImportPackageAsync(context.Request.Body, context.RequestAborted);
+                return Results.Ok(imported);
+            }
+            catch (InvalidDataException exception)
+            {
+                return Results.BadRequest(new { error = exception.Message });
+            }
+            catch (InvalidOperationException exception)
+            {
+                return Results.BadRequest(new { error = exception.Message });
+            }
+        }).RequireRateLimiting("sensitive");
 
         app.MapGet("/api/obs-assets/{id:guid}", async (Guid id, HttpContext context, IMediator mediator, ObsSessionAccess access) =>
         {
@@ -60,12 +98,16 @@ internal static class ObsAssetEndpoints
             }
         }).RequireRateLimiting("sensitive");
 
-        app.MapDelete("/api/obs-assets/{id:guid}", async (Guid id, HttpContext context, IMediator mediator, ObsSessionAccess access) =>
+        app.MapDelete("/api/obs-assets/{id:guid}", async (Guid id, HttpContext context, IMediator mediator, IObsAssetRepository repository, IEasyLotteryConfigStore configStore, ObsSessionAccess access) =>
         {
             var denied = ObsSessionAccess.DeniedResult(access.RequireAdmin(context.Request));
             if (denied is not null) return denied;
             try
             {
+                var asset = (await AddConfiguredReferencesAsync(await repository.ListAsync(context.RequestAborted), configStore, context.RequestAborted))
+                    .FirstOrDefault(item => item.Id == id);
+                if (asset?.ReferencedBy.Count > 0)
+                    return Results.Conflict(new { error = "資產仍被使用中，請先移除活動或模板引用後再刪除。" });
                 return await mediator.Send(new DeleteObsAssetCommand(id), context.RequestAborted)
                     ? Results.NoContent()
                     : Results.NotFound();
@@ -75,6 +117,24 @@ internal static class ObsAssetEndpoints
                 return Results.Conflict(new { error = exception.Message });
             }
         }).RequireRateLimiting("sensitive");
+    }
+
+    private static async Task<List<ObsAsset>> AddConfiguredReferencesAsync(
+        IReadOnlyList<ObsAsset> assets,
+        IEasyLotteryConfigStore configStore,
+        CancellationToken cancellationToken)
+    {
+        var document = await configStore.LoadAsync(cancellationToken);
+        var configuration = JsonSerializer.Serialize(document);
+        foreach (var asset in assets)
+        {
+            if (configuration.Contains(asset.Id.ToString("D"), StringComparison.OrdinalIgnoreCase)
+                && !asset.ReferencedBy.Contains("config:活動或模板", StringComparer.OrdinalIgnoreCase))
+            {
+                asset.ReferencedBy.Add("config:活動或模板");
+            }
+        }
+        return assets.ToList();
     }
 
     private static ObsAssetKind InferKind(string? contentType) =>

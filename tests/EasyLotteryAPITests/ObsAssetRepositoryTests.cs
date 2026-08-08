@@ -1,5 +1,7 @@
 using System.Buffers.Binary;
+using System.IO.Compression;
 using System.Security.Cryptography;
+using System.Text.Json;
 using EasyLotteryApplication.ObsAssets;
 using EasyLotteryDomain.Models.Obs;
 using EasyLotteryInfrastructure.ObsAssets;
@@ -100,6 +102,80 @@ public sealed class ObsAssetRepositoryTests
         finally { DeleteTempDirectory(directory); }
     }
 
+    [TestMethod]
+    public async Task ExportAndImportPackage_RoundTripsMetadataAndContent()
+    {
+        var sourceDirectory = CreateTempDirectory();
+        var targetDirectory = CreateTempDirectory();
+        try
+        {
+            var source = CreateRepository(sourceDirectory);
+            var saved = await source.SaveAsync(new ObsAsset
+            {
+                FileName = "poster.png",
+                ContentType = "image/png",
+                Kind = ObsAssetKind.Image,
+                ReferencedBy = ["template:7"]
+            }, new MemoryStream(CreatePngHeader(64, 32)));
+
+            await using var package = await source.ExportPackageAsync();
+            var target = CreateRepository(targetDirectory);
+            var imported = await target.ImportPackageAsync(package);
+
+            Assert.AreEqual(1, imported.Count);
+            Assert.AreEqual(saved.Id, imported[0].Id);
+            Assert.AreEqual(saved.Sha256, imported[0].Sha256);
+            CollectionAssert.AreEqual(CreatePngHeader(64, 32), await ReadBytesAsync(target, saved.Id));
+            CollectionAssert.AreEqual(new[] { "template:7" }, imported[0].ReferencedBy);
+        }
+        finally
+        {
+            DeleteTempDirectory(sourceDirectory);
+            DeleteTempDirectory(targetDirectory);
+        }
+    }
+
+    [TestMethod]
+    public async Task ImportPackage_RejectsChecksumMismatchWithoutChangingRepository()
+    {
+        var directory = CreateTempDirectory();
+        try
+        {
+            var repository = CreateRepository(directory);
+            var existing = await repository.SaveAsync(new ObsAsset { FileName = "existing.bin" }, new MemoryStream([1, 2, 3]));
+            var importedId = Guid.NewGuid();
+            using var package = new MemoryStream();
+            using (var archive = new ZipArchive(package, ZipArchiveMode.Create, leaveOpen: true))
+            {
+                var manifest = new
+                {
+                    version = 1,
+                    assets = new[]
+                    {
+                        new
+                        {
+                            asset = new ObsAsset { Id = importedId, FileName = "new.bin", Length = 3, Sha256 = "bad", ContentType = "application/octet-stream" },
+                            entry = $"assets/{importedId:N}.bin"
+                        }
+                    }
+                };
+                await using (var manifestWriter = new StreamWriter(archive.CreateEntry("manifest.json").Open()))
+                {
+                    await manifestWriter.WriteAsync(JsonSerializer.Serialize(manifest));
+                }
+                await using var content = archive.CreateEntry($"assets/{importedId:N}.bin").Open();
+                await content.WriteAsync(new byte[] { 4, 5, 6 });
+            }
+            package.Position = 0;
+
+            await Assert.ThrowsExactlyAsync<InvalidDataException>(() => repository.ImportPackageAsync(package));
+            Assert.AreEqual(1, (await repository.ListAsync()).Count);
+            Assert.IsNotNull(await repository.GetAsync(existing.Id));
+            Assert.IsNull(await repository.GetAsync(importedId));
+        }
+        finally { DeleteTempDirectory(directory); }
+    }
+
     private static YamlObsAssetRepository CreateRepository(string directory)
     {
         var configuration = new ConfigurationBuilder()
@@ -127,6 +203,14 @@ public sealed class ObsAssetRepositoryTests
     private static void DeleteTempDirectory(string directory)
     {
         if (Directory.Exists(directory)) Directory.Delete(directory, recursive: true);
+    }
+
+    private static async Task<byte[]> ReadBytesAsync(YamlObsAssetRepository repository, Guid id)
+    {
+        await using var content = await repository.OpenReadAsync(id);
+        using var copy = new MemoryStream();
+        await content!.CopyToAsync(copy);
+        return copy.ToArray();
     }
 
     private sealed class TestEnvironment : IHostEnvironment

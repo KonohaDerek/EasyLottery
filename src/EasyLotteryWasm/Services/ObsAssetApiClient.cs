@@ -14,6 +14,32 @@ public sealed class ObsAssetApiClient(HttpClient client, ObsSessionService sessi
         return await response.Content.ReadFromJsonAsync<List<ObsAsset>>(cancellationToken: cancellationToken) ?? [];
     }
 
+    public async Task<IReadOnlyList<ObsAsset>> ListUnusedAsync(CancellationToken cancellationToken = default)
+    {
+        using var request = await CreateRequestAsync(HttpMethod.Get, "api/obs-assets/unused", cancellationToken);
+        using var response = await client.SendAsync(request, cancellationToken);
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<List<ObsAsset>>(cancellationToken: cancellationToken) ?? [];
+    }
+
+    public async Task<byte[]> ExportPackageAsync(CancellationToken cancellationToken = default)
+    {
+        using var request = await CreateRequestAsync(HttpMethod.Get, "api/obs-assets/export", cancellationToken);
+        using var response = await client.SendAsync(request, cancellationToken);
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadAsByteArrayAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<ObsAsset>> ImportPackageAsync(Stream package, CancellationToken cancellationToken = default)
+    {
+        using var request = await CreateRequestAsync(HttpMethod.Post, "api/obs-assets/import", cancellationToken);
+        request.Content = new StreamContent(package);
+        request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/zip");
+        using var response = await client.SendAsync(request, cancellationToken);
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<List<ObsAsset>>(cancellationToken: cancellationToken) ?? [];
+    }
+
     public async Task<ObsAsset> UploadAsync(string fileName, string contentType, long length, Stream content, ObsAssetKind kind, CancellationToken cancellationToken = default)
     {
         using var request = await CreateRequestAsync(HttpMethod.Post, "api/obs-assets", cancellationToken);

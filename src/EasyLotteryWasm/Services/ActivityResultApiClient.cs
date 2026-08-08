@@ -33,6 +33,9 @@ public sealed class ActivityResultApiClient(HttpClient client, ObsSessionService
 
     public string SerializeActivityResults(IEnumerable<ActivityResultRecord> records) =>
         EasyLotteryDomain.Services.ActivityResultService.SerializeActivityResults(records);
+
+    public string SerializeActivityResultsCsv(IEnumerable<ActivityResultRecord> records) =>
+        EasyLotteryDomain.Services.ActivityResultService.SerializeActivityResultsCsv(records);
     private async Task<HttpResponseMessage> SendAsync(HttpMethod method, string path, object? body, CancellationToken ct)
     {
         var request = new HttpRequestMessage(method, path);

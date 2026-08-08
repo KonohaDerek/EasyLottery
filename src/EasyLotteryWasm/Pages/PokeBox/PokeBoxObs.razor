@@ -35,8 +35,10 @@ else
             <div class="poke-grid" style="@GridStyle">
                 @foreach (var cell in template.Cells.OrderBy(c => c.Index))
                 {
-                    <div class="poke-cell @(cell.IsRevealed ? "revealed " + AnimationClass : "") @(lastPokedIndex == cell.Index ? "just-poked" : "")"
+                    <button type="button" class="poke-cell @(cell.IsRevealed ? "revealed " + AnimationClass : "") @(lastPokedIndex == cell.Index ? "just-poked" : "")"
                          style="@CellStyle(cell)"
+                         aria-label="@GetCellAriaLabel(cell)"
+                         disabled="@(IsDrawInProgress || (cell.IsRevealed && !template.AllowRePoking && template.Mode != PokeMode.Random))"
                          @onclick="@(() => OnCellClick(cell))">
                         @if (cell.IsRevealed)
                         {
@@ -61,7 +63,7 @@ else
                                 <span class="poke-icon">👆</span>
                             }
                         }
-                    </div>
+                    </button>
                 }
             </div>
 
@@ -78,7 +80,7 @@ else
 
             @if (!string.IsNullOrWhiteSpace(statusMessage))
             {
-                <div class="obs-feedback @(statusIsError ? "obs-feedback-error" : "obs-feedback-success")">@statusMessage</div>
+                <ObsStatusAnnouncement Message="@statusMessage" IsError="@statusIsError" />
             }
         </div>
     </div>
@@ -183,6 +185,9 @@ else
         border: 2px solid var(--el-border-strong);
         user-select: none;
         overflow: hidden;
+        appearance: none;
+        width: 100%;
+        font-family: inherit;
     }
 
     .poke-cell:hover:not(.revealed) {
@@ -471,6 +476,10 @@ else
         }
         return $"--reveal-duration:{animationDuration}ms;";
     }
+
+    private static string GetCellAriaLabel(PokeCell cell) => cell.IsRevealed
+        ? $"第 {cell.Index + 1} 格，已揭露：{cell.Title}"
+        : $"第 {cell.Index + 1} 格，尚未揭露";
 
     protected override async Task OnInitializedAsync()
     {

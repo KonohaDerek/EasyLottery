@@ -45,6 +45,7 @@ namespace EasyLotteryDomain.Services
             var existing = document.PokeTemplates
                 .FirstOrDefault(t => t.Id == template.Id)
                 ?? throw new InvalidOperationException($"Template {template.Id} not found.");
+            var beforeJson = EasyLotteryAuditService.Snapshot(existing);
 
             template.CreatedAt = existing.CreatedAt;
             template.PublicId = existing.PublicId != Guid.Empty
@@ -56,7 +57,7 @@ namespace EasyLotteryDomain.Services
             var existingIndex = document.PokeTemplates.FindIndex(t => t.Id == template.Id);
             document.PokeTemplates[existingIndex] = template;
             await _configStore.SaveAsync(document);
-            await RecordAuditAsync(document, "更新戳戳樂模板", template.Name, $"模板 ID {template.Id}");
+            await RecordAuditAsync(document, "更新戳戳樂模板", template.Name, $"模板 ID {template.Id}", beforeJson, EasyLotteryAuditService.Snapshot(template));
         }
 
         public async Task DeleteTemplateAsync(int id)
@@ -371,11 +372,11 @@ namespace EasyLotteryDomain.Services
             return candidate;
         }
 
-        private async Task RecordAuditAsync(EasyLotteryDomain.Models.Config.EasyLotteryConfigDocument document, string action, string targetName, string details)
+        private async Task RecordAuditAsync(EasyLotteryDomain.Models.Config.EasyLotteryConfigDocument document, string action, string targetName, string details, string? beforeJson = null, string? afterJson = null)
         {
             if (_auditService != null)
             {
-                await _auditService.RecordAsync("Template", action, targetName, details, changedBy: document.SystemSettings.Audit.ActorName);
+                await _auditService.RecordAsync("Template", action, targetName, details, changedBy: document.SystemSettings.Audit.ActorName, beforeJson: beforeJson, afterJson: afterJson);
             }
         }
 

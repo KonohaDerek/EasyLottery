@@ -4,6 +4,7 @@
 @using EasyLotteryWasm.Services
 @inject ObsAssetApiClient AssetApi
 @inject IMessageService MessageService
+@inject IJSRuntime JSRuntime
 
 <PageTitle>OBS 資產庫</PageTitle>
 
@@ -16,7 +17,12 @@
                     <h2 class="mb-2">OBS 資產庫</h2>
                     <p class="mb-0">將動畫圖片、WebM 影片、音效與模型保存到本機，OBS 使用資產 UUID URL，不依賴外部 hotlink。</p>
                 </div>
-                <Badge Color="Color.Info">@assets.Count 筆資產</Badge>
+                <div class="d-flex flex-wrap gap-2 align-items-center">
+                    <Button Color="Color.Secondary" Size="Size.Small" Clicked="ReloadAsync">全部資產</Button>
+                    <Button Color="Color.Warning" Size="Size.Small" Clicked="ScanUnusedAsync">掃描未使用</Button>
+                    <Button Color="Color.Info" Size="Size.Small" Clicked="ExportPackageAsync">匯出資產包</Button>
+                    <Badge Color="Color.Info">@assets.Count 筆資產</Badge>
+                </div>
             </div>
         </CardBody>
     </Card>
@@ -54,6 +60,13 @@
                 </div>
             </div>
             <p class="text-muted mt-3 mb-0">單檔上限 10 MB。刪除前請先解除活動或音效模板中的引用。</p>
+            <div class="mt-3">
+                <Field>
+                    <FieldLabel>匯入資產包</FieldLabel>
+                    <InputFile OnChange="SelectPackage" accept=".zip,application/zip" />
+                </Field>
+                <Button Color="Color.Secondary" Clicked="ImportPackageAsync" Disabled="@(packageFile is null || isUploading)">匯入並驗證資產包</Button>
+            </div>
         </CardBody>
     </Card>
 
@@ -103,6 +116,7 @@
 @code {
     private List<ObsAsset> assets = [];
     private IBrowserFile? selectedFile;
+    private IBrowserFile? packageFile;
     private ObsAssetKind selectedKind = ObsAssetKind.Image;
     private bool isLoading = true;
     private bool isUploading;
@@ -113,6 +127,7 @@
     }
 
     private void SelectFile(InputFileChangeEventArgs args) => selectedFile = args.File;
+    private void SelectPackage(InputFileChangeEventArgs args) => packageFile = args.File;
 
     private async Task UploadAsync()
     {
@@ -143,6 +158,43 @@
             await ReloadAsync();
         }
         catch (Exception exception) { await MessageService.Error($"資產刪除失敗：{exception.Message}"); }
+    }
+
+    private async Task ScanUnusedAsync()
+    {
+        try
+        {
+            assets = (await AssetApi.ListUnusedAsync()).ToList();
+            await MessageService.Info($"找到 {assets.Count} 筆未使用資產。");
+        }
+        catch (Exception exception) { await MessageService.Error($"掃描未使用資產失敗：{exception.Message}"); }
+    }
+
+    private async Task ExportPackageAsync()
+    {
+        try
+        {
+            var bytes = await AssetApi.ExportPackageAsync();
+            await JSRuntime.InvokeVoidAsync("easyLotteryDownload.downloadBytes", $"obs-assets-{DateTime.UtcNow:yyyyMMdd-HHmmss}.zip", bytes, "application/zip");
+            await MessageService.Success("資產包已匯出。");
+        }
+        catch (Exception exception) { await MessageService.Error($"匯出資產包失敗：{exception.Message}"); }
+    }
+
+    private async Task ImportPackageAsync()
+    {
+        if (packageFile is null) return;
+        isUploading = true;
+        try
+        {
+            await using var stream = packageFile.OpenReadStream(100 * 1024 * 1024);
+            await AssetApi.ImportPackageAsync(stream);
+            packageFile = null;
+            await MessageService.Success("資產包已完成校驗並匯入。");
+            await ReloadAsync();
+        }
+        catch (Exception exception) { await MessageService.Error($"匯入資產包失敗：{exception.Message}"); }
+        finally { isUploading = false; }
     }
 
     private async Task ReloadAsync()

@@ -1,3 +1,5 @@
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using EasyLotteryDomain.Models.Config;
 
 namespace EasyLotteryDomain.Services
@@ -28,6 +30,8 @@ namespace EasyLotteryDomain.Services
             string targetName,
             string details = "",
             string? changedBy = null,
+            string? beforeJson = null,
+            string? afterJson = null,
             CancellationToken cancellationToken = default)
         {
             var document = await _configStore.LoadAsync(cancellationToken);
@@ -43,7 +47,9 @@ namespace EasyLotteryDomain.Services
                 Category = category.Trim(),
                 Action = action.Trim(),
                 TargetName = targetName.Trim(),
-                Details = details.Trim()
+                Details = details.Trim(),
+                BeforeJson = beforeJson,
+                AfterJson = afterJson
             };
 
             document.AuditRecords.Add(record);
@@ -59,6 +65,38 @@ namespace EasyLotteryDomain.Services
             }
 
             await _configStore.SaveAsync(document, cancellationToken);
+        }
+
+        public static string Snapshot(object value)
+        {
+            var node = JsonSerializer.SerializeToNode(value);
+            RedactSecrets(node);
+            return node?.ToJsonString() ?? "null";
+        }
+
+        private static void RedactSecrets(JsonNode? node)
+        {
+            if (node is JsonObject jsonObject)
+            {
+                foreach (var property in jsonObject.ToList())
+                {
+                    if (property.Key.Contains("key", StringComparison.OrdinalIgnoreCase)
+                        || property.Key.Contains("password", StringComparison.OrdinalIgnoreCase)
+                        || property.Key.Contains("secret", StringComparison.OrdinalIgnoreCase)
+                        || property.Key.Contains("token", StringComparison.OrdinalIgnoreCase))
+                    {
+                        jsonObject[property.Key] = "[REDACTED]";
+                    }
+                    else
+                    {
+                        RedactSecrets(property.Value);
+                    }
+                }
+            }
+            else if (node is JsonArray jsonArray)
+            {
+                foreach (var item in jsonArray) RedactSecrets(item);
+            }
         }
     }
 }

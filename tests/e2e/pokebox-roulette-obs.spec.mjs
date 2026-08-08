@@ -52,7 +52,8 @@ test("戳戳樂 supports direct cell interaction, shared OBS state, and reset", 
 
     await control.goto(obsUrl(baseURL, "pokebox", template.publicId, controlToken, true));
     await expect(control.getByRole("button", { name: "重設" })).toBeVisible();
-    await control.locator(".poke-cell").first().click();
+    await control.locator(".poke-cell").first().focus();
+    await control.locator(".poke-cell").first().press("Enter");
     await expect(formal.locator(".cell-title").first()).toContainText("CI 戳戳獎品", { timeout: 10_000 });
 
     await control.getByRole("button", { name: "重設" }).click();

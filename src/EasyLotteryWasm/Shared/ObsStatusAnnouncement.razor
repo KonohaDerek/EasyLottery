@@ -1,0 +1,27 @@
+@if (!string.IsNullOrWhiteSpace(Message))
+{
+    <div class="obs-feedback @(IsError ? "obs-feedback-error" : "obs-feedback-success")"
+         role="status"
+         aria-live="polite"
+         aria-atomic="true">@Message</div>
+}
+
+@code {
+    [Parameter] public string? Message { get; set; }
+    [Parameter] public bool IsError { get; set; }
+}
+
+<style>
+    .obs-feedback {
+        margin-top: 10px;
+        padding: 8px 12px;
+        border-radius: 8px;
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: var(--el-text);
+        background: rgba(15, 23, 42, 0.72);
+    }
+
+    .obs-feedback-success { border: 1px solid rgba(74, 222, 128, 0.5); }
+    .obs-feedback-error { border: 1px solid rgba(248, 113, 113, 0.5); }
+</style>

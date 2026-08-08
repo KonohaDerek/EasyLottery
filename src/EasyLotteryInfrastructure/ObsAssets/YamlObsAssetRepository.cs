@@ -1,4 +1,6 @@
 using System.Security.Cryptography;
+using System.IO.Compression;
+using System.Text.Json;
 using EasyLotteryApplication.ObsAssets;
 using EasyLotteryDomain.Models.Obs;
 using EasyLotteryDomain.Services;
@@ -16,6 +18,18 @@ public sealed class YamlObsAssetRepository : IObsAssetRepository
     {
         public int Version { get; set; } = 1;
         public List<ObsAsset> Assets { get; set; } = [];
+    }
+
+    private sealed class PackageManifest
+    {
+        public int Version { get; set; } = 1;
+        public List<PackageAsset> Assets { get; set; } = [];
+    }
+
+    private sealed class PackageAsset
+    {
+        public ObsAsset Asset { get; set; } = new();
+        public string Entry { get; set; } = "";
     }
 
     private readonly IStorageGateProvider _storageGates;
@@ -133,6 +147,146 @@ public sealed class YamlObsAssetRepository : IObsAssetRepository
         var path = GetContentPath(id);
         if (File.Exists(path)) File.Delete(path);
         return true;
+    }
+
+    public async Task<Stream> ExportPackageAsync(CancellationToken cancellationToken = default)
+    {
+        await using var gate = await _storageGates.AcquireAsync(cancellationToken, MetadataPath);
+        var document = await ReadUnsafeAsync(cancellationToken);
+        var package = new MemoryStream();
+        using (var archive = new ZipArchive(package, ZipArchiveMode.Create, leaveOpen: true))
+        {
+            var manifest = new PackageManifest();
+            foreach (var asset in document.Assets)
+            {
+                var path = GetContentPath(asset.Id);
+                if (!File.Exists(path)) throw new InvalidDataException($"找不到資產內容：{asset.Id:D}。");
+                var entryName = $"assets/{asset.Id:N}.bin";
+                var entry = archive.CreateEntry(entryName, CompressionLevel.Optimal);
+                await using (var source = File.OpenRead(path))
+                await using (var target = entry.Open())
+                    await source.CopyToAsync(target, cancellationToken);
+                manifest.Assets.Add(new PackageAsset { Asset = asset, Entry = entryName });
+            }
+
+            var manifestEntry = archive.CreateEntry("manifest.json", CompressionLevel.Fastest);
+            await using var manifestStream = new StreamWriter(manifestEntry.Open());
+            await manifestStream.WriteAsync(JsonSerializer.Serialize(manifest).AsMemory(), cancellationToken);
+        }
+
+        package.Position = 0;
+        return package;
+    }
+
+    public async Task<IReadOnlyList<ObsAsset>> ImportPackageAsync(Stream package, CancellationToken cancellationToken = default)
+    {
+        var imported = await ReadPackageAsync(package, cancellationToken);
+        if (imported.Count == 0) return [];
+
+        await using var gate = await _storageGates.AcquireAsync(
+            cancellationToken,
+            new[] { MetadataPath }.Concat(imported.Select(item => GetContentPath(item.Asset.Id))).ToArray());
+        var stagingDirectory = Path.Combine(AssetDirectory, $".import-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(stagingDirectory);
+        var backups = new Dictionary<string, string>();
+        var metadataBackup = Path.Combine(stagingDirectory, "metadata.yaml");
+        try
+        {
+            File.Copy(MetadataPath, metadataBackup, overwrite: true);
+            foreach (var item in imported)
+            {
+                var target = GetContentPath(item.Asset.Id);
+                if (File.Exists(target))
+                {
+                    var backup = Path.Combine(stagingDirectory, $"{item.Asset.Id:N}.bak");
+                    File.Copy(target, backup, overwrite: false);
+                    backups[target] = backup;
+                }
+
+                var staged = Path.Combine(stagingDirectory, $"{item.Asset.Id:N}.bin");
+                await File.WriteAllBytesAsync(staged, item.Content, cancellationToken);
+                item.StagedPath = staged;
+            }
+
+            var document = await ReadUnsafeAsync(cancellationToken);
+            foreach (var item in imported)
+            {
+                var target = GetContentPath(item.Asset.Id);
+                File.Move(item.StagedPath!, target, overwrite: true);
+                item.Asset.Length = item.Content.LongLength;
+                item.Asset.Sha256 = Convert.ToHexString(SHA256.HashData(item.Content)).ToLowerInvariant();
+                item.Asset.FileName = SanitizeFileName(item.Asset.FileName);
+                item.Asset.UpdatedAtUtc = DateTimeOffset.UtcNow;
+                if (item.Asset.Kind == ObsAssetKind.Image)
+                    (item.Asset.Width, item.Asset.Height) = ImageDimensions.TryRead(target);
+                document.Assets.RemoveAll(asset => asset.Id == item.Asset.Id);
+                document.Assets.Add(item.Asset);
+            }
+
+            await WriteUnsafeAsync(document, cancellationToken);
+            return imported.Select(item => item.Asset).ToList();
+        }
+        catch
+        {
+            if (File.Exists(metadataBackup)) File.Copy(metadataBackup, MetadataPath, overwrite: true);
+            foreach (var item in imported)
+            {
+                var target = GetContentPath(item.Asset.Id);
+                if (backups.TryGetValue(target, out var backup)) File.Copy(backup, target, overwrite: true);
+                else if (File.Exists(target)) File.Delete(target);
+            }
+            throw;
+        }
+        finally
+        {
+            if (Directory.Exists(stagingDirectory)) Directory.Delete(stagingDirectory, recursive: true);
+        }
+    }
+
+    private async Task<List<ImportedAsset>> ReadPackageAsync(Stream package, CancellationToken cancellationToken)
+    {
+        using var archive = new ZipArchive(package, ZipArchiveMode.Read, leaveOpen: true);
+        var manifestEntry = archive.GetEntry("manifest.json") ?? throw new InvalidDataException("資產包缺少 manifest.json。");
+        PackageManifest? manifest;
+        await using (var manifestStream = manifestEntry.Open())
+            manifest = await JsonSerializer.DeserializeAsync<PackageManifest>(manifestStream, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }, cancellationToken);
+        if (manifest is null || manifest.Version != 1 || manifest.Assets is null) throw new InvalidDataException("不支援的資產包格式。");
+        if (manifest.Assets.Count > 100) throw new InvalidDataException("資產包最多只能包含 100 筆資產。");
+
+        var imported = new List<ImportedAsset>();
+        var ids = new HashSet<Guid>();
+        long totalBytes = 0;
+        foreach (var packageAsset in manifest.Assets)
+        {
+            if (packageAsset is null) throw new InvalidDataException("資產包包含空的資產項目。");
+            var asset = packageAsset.Asset ?? throw new InvalidDataException("資產包包含空的資產描述。");
+            if (asset.Id == Guid.Empty || !ids.Add(asset.Id)) throw new InvalidDataException("資產包包含重複或無效的資產 UUID。");
+            if (string.IsNullOrWhiteSpace(asset.FileName)) throw new InvalidDataException("資產包包含無效的檔名。");
+            var expectedEntry = $"assets/{asset.Id:N}.bin";
+            if (!string.Equals(packageAsset.Entry, expectedEntry, StringComparison.Ordinal)) throw new InvalidDataException("資產內容路徑無效。");
+            ValidateContentType(asset.Kind, asset.ContentType);
+            var entry = archive.GetEntry(expectedEntry) ?? throw new InvalidDataException($"找不到資產內容：{asset.Id:D}。");
+            if (entry.Length <= 0 || entry.Length > _maxAssetBytes || (totalBytes += entry.Length) > 100 * 1024 * 1024)
+                throw new InvalidDataException("資產包超過大小限制。");
+            await using var entryStream = entry.Open();
+            using var content = new MemoryStream();
+            await entryStream.CopyToAsync(content, cancellationToken);
+            var bytes = content.ToArray();
+            var hash = Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
+            if (!string.Equals(hash, asset.Sha256, StringComparison.OrdinalIgnoreCase) || asset.Length != bytes.LongLength)
+                throw new InvalidDataException($"資產校驗失敗：{asset.FileName}。");
+            asset.ReferencedBy = (asset.ReferencedBy ?? []).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            imported.Add(new ImportedAsset(asset, bytes));
+        }
+
+        return imported;
+    }
+
+    private sealed class ImportedAsset(ObsAsset asset, byte[] content)
+    {
+        public ObsAsset Asset { get; } = asset;
+        public byte[] Content { get; } = content;
+        public string? StagedPath { get; set; }
     }
 
     private async Task<Document> ReadUnsafeAsync(CancellationToken cancellationToken)
