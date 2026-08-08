@@ -104,6 +104,38 @@ public sealed class SettingsFileStoreTests
     }
 
     [TestMethod]
+    public async Task Constructor_MigratesLegacySingleSettingsDocument()
+    {
+        var directory = CreateTempDirectory();
+        try
+        {
+            var legacy = new EasyLotteryConfigDocument
+            {
+                SystemSettings = { ResultNotificationEmail = "legacy@example.test" },
+                PokeTemplates = [new EasyLotteryDomain.Models.Entities.PokeTemplate { Id = 3, Name = "舊戳戳樂" }],
+                ActivityResults = [new ActivityResultRecord { Id = 7, ActivityName = "舊結果" }],
+                ProcessedDonatePaymentIds = ["legacy-payment"]
+            };
+            await File.WriteAllTextAsync(Path.Combine(directory, "settings.yaml"), Serialize(legacy));
+            await File.WriteAllTextAsync(Path.Combine(directory, "activities.yaml"), Serialize(new ActivitiesYamlDocument()));
+            await File.WriteAllTextAsync(Path.Combine(directory, "activity-results.yaml"), Serialize(new ActivityResultsYamlDocument()));
+
+            var store = CreateStore(directory);
+            var merged = await store.ReadAsync(CancellationToken.None);
+
+            Assert.AreEqual("legacy@example.test", merged.SystemSettings.ResultNotificationEmail);
+            Assert.AreEqual("舊戳戳樂", merged.PokeTemplates[0].Name);
+            Assert.AreEqual(7, merged.ActivityResults[0].Id);
+            CollectionAssert.Contains(merged.ProcessedDonatePaymentIds, "legacy-payment");
+            Assert.IsTrue(Directory.EnumerateFiles(directory, "settings.yaml.legacy.*.bak").Any());
+        }
+        finally
+        {
+            DeleteTempDirectory(directory);
+        }
+    }
+
+    [TestMethod]
     public async Task UpdateAsync_WritesChangesToTheSplitFiles()
     {
         var directory = CreateTempDirectory();

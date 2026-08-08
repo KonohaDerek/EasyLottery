@@ -158,6 +158,90 @@ public sealed class YamlSettingsDocumentRepository : YamlDocumentRepositoryBase<
     public YamlSettingsDocumentRepository(IConfiguration configuration, IHostEnvironment environment, IStorageGateProvider storageGates)
         : base(configuration, environment, storageGates, "settings.yaml")
     {
+        MigrateLegacyDocumentIfNeeded();
+    }
+
+    private void MigrateLegacyDocumentIfNeeded()
+    {
+        var directory = Path.GetDirectoryName(StoragePath) ?? ".";
+        var activitiesPath = Path.Combine(directory, "activities.yaml");
+        var resultsPath = Path.Combine(directory, "activity-results.yaml");
+        if (!File.Exists(StoragePath)) return;
+
+        EasyLotteryConfigDocument legacy;
+        try
+        {
+            var yaml = File.ReadAllText(StoragePath);
+            legacy = YamlSerialization.CreateDeserializerBuilder().Build().Deserialize<EasyLotteryConfigDocument>(yaml)
+                ?? new EasyLotteryConfigDocument();
+        }
+        catch (YamlDotNet.Core.YamlException)
+        {
+            return;
+        }
+
+        if (!HasLegacyActivityData(legacy)) return;
+
+        if (!TryReadExisting(activitiesPath, out ActivitiesYamlDocument existingActivities) ||
+            !TryReadExisting(resultsPath, out ActivityResultsYamlDocument existingResults)) return;
+
+        var parts = YamlRepositoryMapper.Split(legacy);
+        var backupPath = $"{StoragePath}.legacy.{DateTimeOffset.UtcNow:yyyyMMddHHmmssfff}.{Guid.NewGuid():N}.bak";
+        File.Copy(StoragePath, backupPath, overwrite: false);
+        if (!HasActivityData(existingActivities)) WriteAtomically(activitiesPath, YamlSerialization.CreateSerializerBuilder().Build().Serialize(parts.Activities));
+        if (!HasResultData(existingResults)) WriteAtomically(resultsPath, YamlSerialization.CreateSerializerBuilder().Build().Serialize(parts.Results));
+        WriteAtomically(StoragePath, YamlSerialization.CreateSerializerBuilder().Build().Serialize(parts.Settings));
+    }
+
+    private static bool HasLegacyActivityData(EasyLotteryConfigDocument document) =>
+        document.PokeTemplates is { Count: > 0 } ||
+        document.RouletteTemplates is { Count: > 0 } ||
+        document.DonateLotteryActivities is { Count: > 0 } ||
+        document.ActivityResults is { Count: > 0 } ||
+        document.DonateLotteryDrawRecords is { Count: > 0 } ||
+        document.ProcessedDonatePaymentIds is { Count: > 0 };
+
+    private static bool HasActivityData(ActivitiesYamlDocument document) =>
+        document.PokeTemplates is { Count: > 0 } ||
+        document.RouletteTemplates is { Count: > 0 } ||
+        document.DonateLotteryActivities is { Count: > 0 };
+
+    private static bool HasResultData(ActivityResultsYamlDocument document) =>
+        document.ActivityResults is { Count: > 0 } ||
+        document.DonateLotteryDrawRecords is { Count: > 0 } ||
+        document.ProcessedDonatePaymentIds is { Count: > 0 };
+
+    private static bool TryReadExisting<T>(string path, out T document) where T : class, new()
+    {
+        document = new T();
+        if (!File.Exists(path)) return true;
+
+        var yaml = File.ReadAllText(path);
+        if (string.IsNullOrWhiteSpace(yaml)) return true;
+
+        try
+        {
+            document = YamlSerialization.CreateDeserializerBuilder().Build().Deserialize<T>(yaml) ?? new T();
+            return true;
+        }
+        catch (YamlDotNet.Core.YamlException)
+        {
+            return false;
+        }
+    }
+
+    private static void WriteAtomically(string path, string content)
+    {
+        var temporaryPath = $"{path}.{Guid.NewGuid():N}.migration.tmp";
+        try
+        {
+            File.WriteAllText(temporaryPath, content);
+            File.Move(temporaryPath, path, overwrite: true);
+        }
+        finally
+        {
+            if (File.Exists(temporaryPath)) File.Delete(temporaryPath);
+        }
     }
 }
 
