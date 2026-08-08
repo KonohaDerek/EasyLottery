@@ -6,6 +6,8 @@ COPY EasyLottery.generated.sln ./
 COPY global.json ./
 COPY src/EasyLotteryAPI/EasyLotteryApi.csproj src/EasyLotteryAPI/
 COPY src/EasyLotteryDomain/EasyLotteryDomain.csproj src/EasyLotteryDomain/
+COPY src/EasyLotteryApplication/EasyLotteryApplication.csproj src/EasyLotteryApplication/
+COPY src/EasyLotteryInfrastructure/EasyLotteryInfrastructure.csproj src/EasyLotteryInfrastructure/
 COPY src/EasyLotteryWasm/EasyLotteryWasm.csproj src/EasyLotteryWasm/
 RUN dotnet restore src/EasyLotteryAPI/EasyLotteryApi.csproj
 
