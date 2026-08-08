@@ -4,7 +4,7 @@ services:
       context: .
       dockerfile: src/EasyLotteryAPI/Dockerfile
     environment:
-      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_ENVIRONMENT: Production
       Storage__Directory: /data
     ports:
       - "18930:18930"
