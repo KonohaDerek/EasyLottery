@@ -246,9 +246,11 @@ else
                 </div>
                 <div class="overtime-links-list">
                     <div class="overtime-link-row">
-                        <div class="overtime-link-label">OBS 來源網址</div>
-                        <input class="overtime-link-value" value="@OverlayUrl" readonly />
-                        <Button Size="Size.Small" Color="Color.Primary" Clicked="@CopyOverlayUrlAsync">複製</Button>
+                        <div class="overtime-link-label">OBS 來源</div>
+                        <div class="overtime-link-actions">
+                            <a class="btn btn-outline-primary btn-sm" href="@OverlayUrl" target="_blank" rel="noopener noreferrer">開啟 OBS</a>
+                            <Button Size="Size.Small" Color="Color.Primary" Clicked="@CopyOverlayUrlAsync">複製連結</Button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -652,7 +654,7 @@ else
 
     .overtime-link-row {
         display: grid;
-        grid-template-columns: 180px minmax(0, 1fr) auto;
+        grid-template-columns: 180px minmax(0, 1fr);
         gap: 12px;
         align-items: center;
         padding: 14px 16px;
@@ -666,21 +668,10 @@ else
         font-weight: 800;
     }
 
-    .overtime-link-value {
-        width: 100%;
-        min-width: 0;
-        border: 1px solid rgba(148, 163, 184, 0.35);
-        border-radius: 12px;
-        padding: 10px 12px;
-        background: #fff;
-        color: #0f172a;
-        font-size: 0.95rem;
-        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
-    }
-
-    .overtime-link-value:focus {
-        outline: 3px solid rgba(37, 99, 235, 0.18);
-        border-color: rgba(37, 99, 235, 0.55);
+    .overtime-link-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
     }
 
     @@media (max-width: 767.98px) {
@@ -688,13 +679,12 @@ else
             grid-template-columns: 1fr;
         }
 
-        .overtime-link-value {
-            order: 2;
+        .overtime-link-actions {
+            width: 100%;
         }
 
-        .overtime-link-row .btn {
-            width: 100%;
-            order: 3;
+        .overtime-link-actions .btn {
+            flex: 1 1 auto;
         }
     }
 </style>
@@ -709,8 +699,8 @@ else
     private string selectedTextAnimationKey = OvertimeTextAnimationPreset.Catalog[0].Key;
     private string sessionToken = "";
     private string OverlayUrl => string.IsNullOrWhiteSpace(sessionToken)
-        ? NavigationManager.ToAbsoluteUri("/obs/overtime").ToString()
-        : $"{NavigationManager.ToAbsoluteUri("/obs/overtime").ToString()}#sessionToken={Uri.EscapeDataString(sessionToken)}";
+        ? NavigationManager.ToAbsoluteUri("/obs/overtime?controls=1").ToString()
+        : $"{NavigationManager.ToAbsoluteUri("/obs/overtime?controls=1").ToString()}#sessionToken={Uri.EscapeDataString(sessionToken)}";
     private string PlannedEndAtInput { get; set; } = "";
 
     private OvertimeTextAnimationPreset SelectedTextAnimation => OvertimeTextAnimationPreset.GetByKey(selectedTextAnimationKey);
