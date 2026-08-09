@@ -39,7 +39,7 @@
                                   VideoReady="HandleAnimationVideoReady"
                                   VideoFailed="HandleAnimationVideoFailed"
                                   VideoEnded="HandleAnimationVideoEnded" />
-            <div class="donate-result-content">
+            <div class="donate-result-content" role="status" aria-live="polite" aria-atomic="true">
             @if (!string.IsNullOrWhiteSpace(latestWin.PrizeImageUrl) && !prizeImageFailed)
             {
                 <img class="donate-reveal-image" src="@latestWin.PrizeImageUrl" alt="@latestWin.PrizeName" @onerror="() => prizeImageFailed = true" />

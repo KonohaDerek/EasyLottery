@@ -51,5 +51,28 @@ namespace EasyLotteryDomainTests.Services
             Assert.AreEqual(200, document.AuditRecords.Count);
             Assert.AreEqual("動作 204", document.AuditRecords.Last().Action);
         }
+
+        [TestMethod]
+        public async Task RecordAsync_PersistsBeforeAndAfterSnapshots()
+        {
+            var store = new InMemoryEasyLotteryConfigStore();
+            var service = new EasyLotteryAuditService(store);
+
+            await service.RecordAsync("Template", "更新模板", "模板", beforeJson: "{\"name\":\"舊\"}", afterJson: "{\"name\":\"新\"}");
+
+            var record = (await store.LoadAsync()).AuditRecords.Single();
+            Assert.AreEqual("{\"name\":\"舊\"}", record.BeforeJson);
+            Assert.AreEqual("{\"name\":\"新\"}", record.AfterJson);
+        }
+
+        [TestMethod]
+        public void Snapshot_RedactsSecretValues()
+        {
+            var snapshot = EasyLotteryAuditService.Snapshot(new { ApiKey = "do-not-store", Name = "safe" });
+
+            Assert.IsFalse(snapshot.Contains("do-not-store"));
+            Assert.IsTrue(snapshot.Contains("REDACTED"));
+            Assert.IsTrue(snapshot.Contains("safe"));
+        }
     }
 }

@@ -88,7 +88,7 @@ else
                 @if (lastResult != null && !IsBusy)
                 {
                     <div class="roulette-result-flare"></div>
-                    <div class="obs-win-result @(IsMissResult ? "miss-result" : "win-result")">
+                    <div class="obs-win-result @(IsMissResult ? "miss-result" : "win-result")" role="status" aria-live="polite" aria-atomic="true">
                         <span class="win-label">@(IsMissResult ? "結果：" : "🎉 中獎：")</span>
                         <span class="win-title">@lastResult.SegmentTitle</span>
                     </div>
@@ -109,7 +109,7 @@ else
 
             @if (!string.IsNullOrWhiteSpace(statusMessage))
             {
-                <div class="obs-feedback @(statusIsError ? "obs-feedback-error" : "obs-feedback-success")">@statusMessage</div>
+                <ObsStatusAnnouncement Message="@statusMessage" IsError="@statusIsError" />
             }
         </div>
     </div>

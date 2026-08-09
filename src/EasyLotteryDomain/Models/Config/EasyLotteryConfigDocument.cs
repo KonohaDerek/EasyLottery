@@ -321,5 +321,9 @@ namespace EasyLotteryDomain.Models.Config
         public string TargetName { get; set; } = "";
 
         public string Details { get; set; } = "";
+
+        public string? BeforeJson { get; set; }
+
+        public string? AfterJson { get; set; }
     }
 }

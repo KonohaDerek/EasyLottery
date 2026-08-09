@@ -1,0 +1,104 @@
+@page "/system/backups"
+@using System.Net.Http.Json
+@using EasyLotteryWasm.Services
+@inject HttpClient Http
+@inject ObsSessionService Session
+@inject IMessageService MessageService
+
+<PageTitle>設定備份與回復</PageTitle>
+
+<Card>
+    <CardHeader><CardTitle>設定備份與回復</CardTitle></CardHeader>
+    <CardBody>
+        <p class="text-muted">每次設定、活動或結果變更前會建立完整快照，可回復活動與模板的上一個版本。</p>
+        @if (isLoading)
+        {
+            <p>載入備份中…</p>
+        }
+        else if (backups.Count == 0)
+        {
+            <p class="text-muted mb-0">目前沒有可回復的備份。</p>
+        }
+        else
+        {
+            <Table Responsive Striped Hoverable>
+                <TableHeader>
+                    <TableRow>
+                        <TableHeaderCell>建立時間</TableHeaderCell>
+                        <TableHeaderCell>大小</TableHeaderCell>
+                        <TableHeaderCell>操作</TableHeaderCell>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    @foreach (var backup in backups)
+                    {
+                        <TableRow>
+                            <TableRowCell>@backup.CreatedAtUtc.ToLocalTime().ToString("yyyy/MM/dd HH:mm:ss")</TableRowCell>
+                            <TableRowCell>@FormatSize(backup.Length)</TableRowCell>
+                            <TableRowCell><Button Color="Color.Warning" Size="Size.Small" Clicked="@(() => RestoreAsync(backup.Id))" Disabled="@isRestoring">回復此版本</Button></TableRowCell>
+                        </TableRow>
+                    }
+                </TableBody>
+            </Table>
+        }
+    </CardBody>
+</Card>
+
+@code {
+    private List<BackupEntry> backups = [];
+    private bool isLoading = true;
+    private bool isRestoring;
+
+    protected override async Task OnInitializedAsync() => await ReloadAsync();
+
+    private async Task ReloadAsync()
+    {
+        isLoading = true;
+        try
+        {
+            using var request = await CreateRequestAsync(HttpMethod.Get, "api/settings/backups");
+            using var response = await Http.SendAsync(request);
+            response.EnsureSuccessStatusCode();
+            backups = await response.Content.ReadFromJsonAsync<List<BackupEntry>>() ?? [];
+        }
+        catch (Exception exception) { await MessageService.Error($"讀取備份失敗：{exception.Message}"); }
+        finally { isLoading = false; }
+    }
+
+    private async Task RestoreAsync(string id)
+    {
+        isRestoring = true;
+        try
+        {
+            using var request = await CreateRequestAsync(HttpMethod.Post, $"api/settings/backups/{Uri.EscapeDataString(id)}/restore");
+            using var response = await Http.SendAsync(request);
+            response.EnsureSuccessStatusCode();
+            await MessageService.Success("設定、活動與結果已回復到所選版本。");
+            await ReloadAsync();
+        }
+        catch (Exception exception) { await MessageService.Error($"回復備份失敗：{exception.Message}"); }
+        finally { isRestoring = false; }
+    }
+
+    private async Task<HttpRequestMessage> CreateRequestAsync(HttpMethod method, string path)
+    {
+        var request = new HttpRequestMessage(method, path);
+        var token = await Session.GetSessionTokenAsync();
+        if (!string.IsNullOrWhiteSpace(token)) request.Headers.Add("X-EasyLottery-Session-Token", token);
+        return request;
+    }
+
+    private static string FormatSize(long bytes) => bytes switch
+    {
+        >= 1024 * 1024 => $"{bytes / 1024d / 1024d:0.##} MB",
+        >= 1024 => $"{bytes / 1024d:0.##} KB",
+        _ => $"{bytes} B"
+    };
+
+    private sealed class BackupEntry
+    {
+        public string Id { get; set; } = "";
+        public DateTimeOffset CreatedAtUtc { get; set; }
+        public long Length { get; set; }
+    }
+}

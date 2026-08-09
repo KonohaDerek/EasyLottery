@@ -738,10 +738,10 @@
             return;
         }
 
-        var json = ActivityResultService.SerializeActivityResults(filtered);
-        var fileName = $"activity-results-{DateTime.UtcNow:yyyyMMdd-HHmmss}.json";
-        await JSRuntime.InvokeVoidAsync("easyLotteryDownload.downloadText", fileName, json, "application/json;charset=utf-8");
-        await MessageService.Success("已匯出活動結果 JSON。");
+        var csv = ActivityResultService.SerializeActivityResultsCsv(filtered);
+        var fileName = $"activity-results-{DateTime.UtcNow:yyyyMMdd-HHmmss}.csv";
+        await JSRuntime.InvokeVoidAsync("easyLotteryDownload.downloadText", fileName, csv, "text/csv;charset=utf-8");
+        await MessageService.Success("已匯出活動結果 CSV。");
     }
 
     private void ClearFilters()

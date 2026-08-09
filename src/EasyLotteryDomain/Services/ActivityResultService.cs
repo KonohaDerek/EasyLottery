@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.Json;
 using EasyLotteryDomain.Models.Config;
 using EasyLotteryDomain.Models.Entities;
@@ -66,6 +67,29 @@ namespace EasyLotteryDomain.Services
         public static string SerializeActivityResults(IEnumerable<ActivityResultRecord> records)
         {
             return JsonSerializer.Serialize(records, ExportJsonOptions);
+        }
+
+        public static string SerializeActivityResultsCsv(IEnumerable<ActivityResultRecord> records)
+        {
+            var builder = new StringBuilder("活動 ID,活動類型,活動名稱,活動時間 UTC,摘要,結果順序,獎項,說明,結果時間 UTC\r\n");
+            foreach (var record in records ?? Enumerable.Empty<ActivityResultRecord>())
+            {
+                foreach (var item in record.Items.OrderBy(item => item.Order))
+                {
+                    builder.AppendJoin(',',
+                        Csv(record.Id.ToString()),
+                        Csv(record.ActivityType.ToString()),
+                        Csv(record.ActivityName),
+                        Csv(record.ActivityDateUtc.ToString("O")),
+                        Csv(record.Summary),
+                        Csv(item.Order.ToString()),
+                        Csv(item.Name),
+                        Csv(item.Description),
+                        Csv(item.ResultedAtUtc?.ToString("O")));
+                    builder.Append("\r\n");
+                }
+            }
+            return "\uFEFF" + builder;
         }
 
         public async Task<ActivityResultRecord?> LoadActivityResultAsync(int id, CancellationToken cancellationToken = default)
@@ -182,5 +206,7 @@ namespace EasyLotteryDomain.Services
             return !string.IsNullOrWhiteSpace(source) &&
                    source.Contains(searchText, StringComparison.OrdinalIgnoreCase);
         }
+
+        private static string Csv(string? value) => $"\"{(value ?? "").Replace("\"", "\"\"")}\"";
     }
 }

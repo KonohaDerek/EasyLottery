@@ -151,5 +151,24 @@ namespace EasyLotteryDomainTests.Services
             Assert.IsTrue(json.Contains("\"ActivityName\""));
             Assert.IsTrue(json.Contains("\n"));
         }
+
+        [TestMethod]
+        public void SerializeActivityResultsCsv_EscapesValuesAndIncludesResultRows()
+        {
+            var csv = ActivityResultService.SerializeActivityResultsCsv(
+                new[]
+                {
+                    new ActivityResultRecord
+                    {
+                        Id = 1,
+                        ActivityName = "六月,活動",
+                        Items = [new ActivityResultItem { Order = 1, Name = "頭獎\"特別" }]
+                    }
+                });
+
+            Assert.IsTrue(csv.StartsWith("\uFEFF活動 ID,活動類型"));
+            Assert.IsTrue(csv.Contains("\"六月,活動\""));
+            Assert.IsTrue(csv.Contains("\"頭獎\"\"特別\""));
+        }
     }
 }

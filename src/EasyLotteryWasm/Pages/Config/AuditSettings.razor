@@ -14,6 +14,7 @@
     <CardBody>
         <CardText>
             <p>這裡會記錄模板與設定的變更，方便追蹤誰在什麼時間改了什麼。</p>
+            <a href="/system/backups">前往設定備份與回復</a>
         </CardText>
 
         <Row>
@@ -67,7 +68,14 @@
                             <TableRowCell>@record.Category</TableRowCell>
                             <TableRowCell>@record.Action</TableRowCell>
                             <TableRowCell>@record.TargetName</TableRowCell>
-                            <TableRowCell>@record.Details</TableRowCell>
+                            <TableRowCell>
+                                @record.Details
+                                @if (!string.IsNullOrWhiteSpace(record.BeforeJson) || !string.IsNullOrWhiteSpace(record.AfterJson))
+                                {
+                                    <details class="mt-2"><summary>查看前後差異</summary><pre class="audit-diff">前：@record.BeforeJson
+後：@record.AfterJson</pre></details>
+                                }
+                            </TableRowCell>
                         </TableRow>
                     }
                 </TableBody>
@@ -102,3 +110,7 @@
         return local.ToString("yyyy/MM/dd HH:mm:ss");
     }
 }
+
+<style>
+    .audit-diff { max-width: 38rem; max-height: 12rem; overflow: auto; white-space: pre-wrap; font-size: .72rem; }
+</style>
