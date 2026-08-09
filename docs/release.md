@@ -27,4 +27,19 @@ docker compose build api
 docker compose up -d api
 ```
 
-目前沒有自動推送 registry 或建立桌面安裝包的流程。若未來需要 Tauri、原生桌面封裝或 registry release，請另開 issue，先加入可建置且可驗證的 project，再新增對應 workflow。
+建立 `v*` release tag 後，GitHub Actions 會自動將 Docker image 發佈到 GitHub Container Registry（GHCR）。例如：
+
+```bash
+git tag v1.2.3
+git push origin v1.2.3
+```
+
+Workflow 會發佈以下 image tags：
+
+- `ghcr.io/konohaderek/easylottery:v1.2.3`
+- `ghcr.io/konohaderek/easylottery:1.2.3`
+- `ghcr.io/konohaderek/easylottery:1.2`
+- `ghcr.io/konohaderek/easylottery:latest`（穩定版 tag；含 `-rc`、`-beta` 等 pre-release tag 不會更新 `latest`）
+- `ghcr.io/konohaderek/easylottery:sha-<commit>`
+
+GHCR image 使用 workflow 內建的 `GITHUB_TOKEN`，不需要額外建立 registry 密碼；首次發佈後可在 GitHub repository 的 Packages 設定調整可見性與存取權限。
