@@ -707,7 +707,7 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        sessionToken = await ObsSessionService.CreateObsTokenAsync("overtime", "default", false);
+        sessionToken = await ObsSessionService.CreateObsTokenAsync("overtime", "default", true);
         var snapshot = await SettingsResourceApiClient.GetOvertimeAsync();
         settings = snapshot.Value;
         settingsETag = snapshot.ETag;
@@ -964,7 +964,7 @@ else
 
         if (!DateTime.TryParseExact(
                 value.Trim(),
-                "yyyy-MM-ddTHH:mm",
+                new[] { "yyyy-MM-ddTHH:mm:ss", "yyyy-MM-ddTHH:mm" },
                 CultureInfo.InvariantCulture,
                 DateTimeStyles.None,
                 out var parsed))
