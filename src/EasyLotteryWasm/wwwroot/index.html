@@ -51,7 +51,13 @@
 
                 const start = Number(panel.dataset.startMs || 0);
                 const end = Number(panel.dataset.endMs || 0);
-                if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return;
+                if (!Number.isFinite(start) || !Number.isFinite(end) || start <= 0 || end <= start) {
+                    const fill = document.getElementById("overtime-progress-fill");
+                    const value = document.getElementById("overtime-progress-value");
+                    if (fill) fill.style.width = "0%";
+                    if (value) value.textContent = "0.00%";
+                    return;
+                }
 
                 const paused = panel.dataset.isPaused === "true";
                 const pausedAt = Number(panel.dataset.pausedAtMs || 0);

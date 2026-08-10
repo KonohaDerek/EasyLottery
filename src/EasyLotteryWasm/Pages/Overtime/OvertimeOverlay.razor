@@ -41,7 +41,11 @@
                             </div>
                         </div>
                         <div class="overtime-standby-actions overtime-obs-controls">
-                            @if (IsRunning)
+                            @if (!IsRunning && !IsPaused)
+                            {
+                                <Button Color="Color.Primary" Disabled="@(!CanStartCountdown)" Clicked="@StartCountdownAsync">開始加班</Button>
+                            }
+                            else if (IsRunning)
                             {
                                 <Button Color="Color.Warning" Clicked="@PauseCountdownAsync">暫停加班</Button>
                             }
@@ -292,6 +296,13 @@
         justify-content: center;
         gap: 10px;
         flex-wrap: wrap;
+    }
+
+    .overtime-standby-actions.overtime-obs-controls {
+        position: static;
+        top: auto;
+        right: auto;
+        z-index: auto;
     }
 
     .overtime-obs-controls {
@@ -1016,6 +1027,7 @@
     private bool IsCompleted => settings.SessionState == OvertimeSessionStates.Completed;
     private bool IsEnded => settings.SessionState == OvertimeSessionStates.Ended;
     private bool ShowObsControls => NavigationManager.ToAbsoluteUri(NavigationManager.Uri).Query.Contains("controls=1", StringComparison.OrdinalIgnoreCase);
+    private bool CanStartCountdown => (PlannedEndMarker?.SessionEndAtUtc ?? settings.PlannedEndAtUtc) is { } plannedEndAtUtc && plannedEndAtUtc > DateTimeOffset.UtcNow;
     private string PlannedCloseText => BuildPlannedCloseText(PlannedEndMarker?.SessionEndAtUtc ?? settings.PlannedEndAtUtc);
     private string RemainingTimeText => BuildRemainingTimeText(SessionEndAtUtc, SessionClockUtc);
     private double ProgressPercent => OvertimeSessionTimeCalculator.CalculateProgressPercent(settings.StreamStartedAtUtc, SessionEndAtUtc, SessionClockUtc) ?? 0d;
