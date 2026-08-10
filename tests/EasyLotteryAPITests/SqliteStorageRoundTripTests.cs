@@ -3,6 +3,7 @@ using EasyLotteryDomain.Models.Entities;
 using EasyLotteryInfrastructure.DonateActivities;
 using EasyLotteryInfrastructure.Settings;
 using EasyLotteryInfrastructure.Storage;
+using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
@@ -64,6 +65,27 @@ public sealed class SqliteStorageRoundTripTests
             Assert.IsNotNull(restored);
             Assert.AreEqual("SQLite Donate", restored.Name);
             Assert.AreEqual(3, restored.Prizes.Single().RemainingQuantity);
+        }
+        finally
+        {
+            DeleteDatabase(databasePath);
+        }
+    }
+
+    [TestMethod]
+    public async Task SchemaMigration_RecordsCurrentVersion()
+    {
+        var databasePath = CreateDatabasePath();
+        try
+        {
+            var options = CreateOptions(databasePath);
+            await CreateSchemaAsync(options);
+            await using var connection = new SqliteConnection(options.Value.ConnectionString);
+            await connection.OpenAsync();
+            await using var command = connection.CreateCommand();
+            command.CommandText = "SELECT MAX(version) FROM schema_migrations";
+
+            Assert.AreEqual(2L, (long)(await command.ExecuteScalarAsync())!);
         }
         finally
         {

@@ -37,11 +37,32 @@ public static class DependencyInjection
                 : sp.GetRequiredService<YamlDonateActivityRepository>();
         });
         services.AddSingleton<JsonPaymentEventRepository>();
-        services.AddSingleton<IPaymentEventRepository>(sp => sp.GetRequiredService<JsonPaymentEventRepository>());
+        services.AddSingleton<SqlitePaymentEventRepository>();
+        services.AddSingleton<IPaymentEventRepository>(sp =>
+        {
+            var provider = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<StorageProviderOptions>>().Value.NormalizedProvider;
+            return provider == "sqlite"
+                ? sp.GetRequiredService<SqlitePaymentEventRepository>()
+                : sp.GetRequiredService<JsonPaymentEventRepository>();
+        });
         services.AddSingleton<JsonPaymentOrderRepository>();
-        services.AddSingleton<IPaymentOrderRepository>(sp => sp.GetRequiredService<JsonPaymentOrderRepository>());
+        services.AddSingleton<SqlitePaymentOrderRepository>();
+        services.AddSingleton<IPaymentOrderRepository>(sp =>
+        {
+            var provider = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<StorageProviderOptions>>().Value.NormalizedProvider;
+            return provider == "sqlite"
+                ? sp.GetRequiredService<SqlitePaymentOrderRepository>()
+                : sp.GetRequiredService<JsonPaymentOrderRepository>();
+        });
         services.AddSingleton<JsonOvertimeFeedRepository>();
-        services.AddSingleton<IOvertimeFeedRepository>(sp => sp.GetRequiredService<JsonOvertimeFeedRepository>());
+        services.AddSingleton<SqliteOvertimeFeedRepository>();
+        services.AddSingleton<IOvertimeFeedRepository>(sp =>
+        {
+            var provider = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<StorageProviderOptions>>().Value.NormalizedProvider;
+            return provider == "sqlite"
+                ? sp.GetRequiredService<SqliteOvertimeFeedRepository>()
+                : sp.GetRequiredService<JsonOvertimeFeedRepository>();
+        });
         services.AddSingleton<YamlSettingsDocumentRepository>();
         services.AddSingleton<ISettingsYamlDocumentRepository>(sp => sp.GetRequiredService<YamlSettingsDocumentRepository>());
         services.AddSingleton<YamlActivitiesDocumentRepository>();
@@ -51,10 +72,24 @@ public static class DependencyInjection
         services.AddSingleton<ConfigSecretRedactor>();
         services.AddSingleton<SettingsSectionRules>();
         services.AddSingleton<YamlSettingsSectionRepository>();
-        services.AddSingleton<ISettingsSectionRepository>(sp => sp.GetRequiredService<YamlSettingsSectionRepository>());
+        services.AddSingleton<SqliteSettingsSectionRepository>();
+        services.AddSingleton<ISettingsSectionRepository>(sp =>
+        {
+            var provider = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<StorageProviderOptions>>().Value.NormalizedProvider;
+            return provider == "sqlite"
+                ? sp.GetRequiredService<SqliteSettingsSectionRepository>()
+                : sp.GetRequiredService<YamlSettingsSectionRepository>();
+        });
         services.AddSingleton<SettingsFileStore>();
         services.AddSingleton<SqliteConfigStore>();
-        services.AddSingleton<IEasyLotteryConfigRepository>(sp => sp.GetRequiredService<SettingsFileStore>());
+        services.AddSingleton<SqliteConfigRepository>();
+        services.AddSingleton<IEasyLotteryConfigRepository>(sp =>
+        {
+            var provider = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<StorageProviderOptions>>().Value.NormalizedProvider;
+            return provider == "sqlite"
+                ? sp.GetRequiredService<SqliteConfigRepository>()
+                : sp.GetRequiredService<SettingsFileStore>();
+        });
         services.AddSingleton<IEasyLotteryConfigStore>(sp =>
         {
             var provider = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<StorageProviderOptions>>().Value.NormalizedProvider;
@@ -67,7 +102,14 @@ public static class DependencyInjection
         services.AddSingleton<IRouletteTemplateRepository, RouletteTemplateRepository>();
         services.AddSingleton<IActivityResultRepository, ActivityResultRepository>();
         services.AddSingleton<YamlObsAssetRepository>();
-        services.AddSingleton<IObsAssetRepository>(sp => sp.GetRequiredService<YamlObsAssetRepository>());
+        services.AddSingleton<SqliteObsAssetRepository>();
+        services.AddSingleton<IObsAssetRepository>(sp =>
+        {
+            var provider = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<StorageProviderOptions>>().Value.NormalizedProvider;
+            return provider == "sqlite"
+                ? sp.GetRequiredService<SqliteObsAssetRepository>()
+                : sp.GetRequiredService<YamlObsAssetRepository>();
+        });
         return services;
     }
 }

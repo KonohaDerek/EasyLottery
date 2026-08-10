@@ -2,7 +2,6 @@ using System.Text;
 using EasyLotteryApplication.Settings;
 using EasyLotteryApi;
 using EasyLotteryDomain.Services;
-using EasyLotteryInfrastructure.Settings;
 using Microsoft.AspNetCore.SignalR;
 
 namespace EasyLotteryApi.Endpoints;
@@ -65,7 +64,7 @@ internal static class SettingsEndpoints
         app.MapPut("/settings", writeSettings).RequireRateLimiting("sensitive");
         app.MapPut("/easy-lottery-config.yaml", writeSettings).RequireRateLimiting("sensitive");
 
-        app.MapGet("/api/settings/backups", (HttpContext context, SettingsFileStore settingsStore, ObsSessionAccess sessionAccess) =>
+        app.MapGet("/api/settings/backups", (HttpContext context, IEasyLotteryConfigRepository settingsStore, ObsSessionAccess sessionAccess) =>
         {
             var decision = sessionAccess.RequireAdmin(context.Request);
             return decision switch
@@ -76,7 +75,7 @@ internal static class SettingsEndpoints
             };
         }).RequireRateLimiting("sensitive");
 
-        app.MapPost("/api/settings/backups/{id}/restore", async (string id, HttpContext context, SettingsFileStore settingsStore, ObsSessionAccess sessionAccess) =>
+        app.MapPost("/api/settings/backups/{id}/restore", async (string id, HttpContext context, IEasyLotteryConfigRepository settingsStore, ObsSessionAccess sessionAccess) =>
         {
             var decision = sessionAccess.RequireAdmin(context.Request);
             if (decision != ApiAccessDecision.Allowed)
