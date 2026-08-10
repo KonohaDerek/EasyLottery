@@ -18,6 +18,16 @@ curl --fail http://localhost:18930/health/ready
 
 `Storage:Provider` 目前可用 `yaml`（預設）與 `sqlite`。`postgresql` 保留為未來 adapter 的 provider 名稱，尚未註冊 adapter 時會在啟動驗證階段直接拒絕，不會靜默退回 YAML。新增 PostgreSQL 支援時，需同步註冊 Repository adapter 與 migration hosted service。
 
+SQLite 範例：
+
+```bash
+Storage__Provider=sqlite
+Storage__ConnectionString='Data Source=/data/easylottery.sqlite'
+Storage__Directory=/data
+```
+
+啟動 SQLite 後，使用管理員 session 呼叫 `POST /api/storage/import-yaml`，將目前 YAML 設定一次性匯入；回應會包含各類資料筆數。備份與回復請保留 SQLite database 檔案，或使用 `/api/settings/backups` API。
+
 ## 升級
 
 1. 先執行 readiness probe，確認舊版本健康。

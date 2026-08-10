@@ -1,4 +1,5 @@
 using System.Text.Json;
+using EasyLotteryInfrastructure.DonateActivities;
 using EasyLotteryDomain.Models.Config;
 using EasyLotteryDomain.Services;
 using EasyLotteryInfrastructure.Storage;
@@ -7,7 +8,9 @@ using Microsoft.Extensions.Options;
 
 namespace EasyLotteryInfrastructure.Settings;
 
-public sealed class SqliteConfigStore(IOptions<StorageProviderOptions> options) : IEasyLotteryConfigStore
+public sealed class SqliteConfigStore(
+    IOptions<StorageProviderOptions> options,
+    SqliteDonateActivityRepository? donateRepository = null) : IEasyLotteryConfigStore
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -30,6 +33,8 @@ public sealed class SqliteConfigStore(IOptions<StorageProviderOptions> options) 
         command.Parameters.AddWithValue("$payload", JsonSerializer.Serialize(document, JsonOptions));
         command.Parameters.AddWithValue("$updated", DateTimeOffset.UtcNow.ToString("O"));
         await command.ExecuteNonQueryAsync(cancellationToken);
+        if (donateRepository is not null)
+            await donateRepository.SaveSnapshotAsync(document.DonateLotteryActivities, cancellationToken);
     }
 
     private async Task<SqliteConnection> OpenAsync(CancellationToken cancellationToken)

@@ -23,6 +23,8 @@ public sealed class SqliteSchemaMigrator(
                 version INTEGER PRIMARY KEY,
                 applied_at_utc TEXT NOT NULL
             );
+            INSERT OR IGNORE INTO schema_migrations (version, applied_at_utc)
+            VALUES (1, CURRENT_TIMESTAMP);
             CREATE TABLE IF NOT EXISTS config_documents (
                 id INTEGER PRIMARY KEY CHECK (id = 1),
                 payload_json TEXT NOT NULL,

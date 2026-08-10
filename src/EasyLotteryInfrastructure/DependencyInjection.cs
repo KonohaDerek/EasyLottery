@@ -51,10 +51,24 @@ public static class DependencyInjection
         services.AddSingleton<ConfigSecretRedactor>();
         services.AddSingleton<SettingsSectionRules>();
         services.AddSingleton<YamlSettingsSectionRepository>();
-        services.AddSingleton<ISettingsSectionRepository>(sp => sp.GetRequiredService<YamlSettingsSectionRepository>());
+        services.AddSingleton<SqliteSettingsSectionRepository>();
+        services.AddSingleton<ISettingsSectionRepository>(sp =>
+        {
+            var provider = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<StorageProviderOptions>>().Value.NormalizedProvider;
+            return provider == "sqlite"
+                ? sp.GetRequiredService<SqliteSettingsSectionRepository>()
+                : sp.GetRequiredService<YamlSettingsSectionRepository>();
+        });
         services.AddSingleton<SettingsFileStore>();
         services.AddSingleton<SqliteConfigStore>();
-        services.AddSingleton<IEasyLotteryConfigRepository>(sp => sp.GetRequiredService<SettingsFileStore>());
+        services.AddSingleton<SqliteConfigRepository>();
+        services.AddSingleton<IEasyLotteryConfigRepository>(sp =>
+        {
+            var provider = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<StorageProviderOptions>>().Value.NormalizedProvider;
+            return provider == "sqlite"
+                ? sp.GetRequiredService<SqliteConfigRepository>()
+                : sp.GetRequiredService<SettingsFileStore>();
+        });
         services.AddSingleton<IEasyLotteryConfigStore>(sp =>
         {
             var provider = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<StorageProviderOptions>>().Value.NormalizedProvider;
