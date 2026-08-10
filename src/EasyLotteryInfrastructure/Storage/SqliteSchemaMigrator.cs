@@ -25,6 +25,8 @@ public sealed class SqliteSchemaMigrator(
             );
             INSERT OR IGNORE INTO schema_migrations (version, applied_at_utc)
             VALUES (1, CURRENT_TIMESTAMP);
+            INSERT OR IGNORE INTO schema_migrations (version, applied_at_utc)
+            VALUES (2, CURRENT_TIMESTAMP);
             CREATE TABLE IF NOT EXISTS config_documents (
                 id INTEGER PRIMARY KEY CHECK (id = 1),
                 payload_json TEXT NOT NULL,
@@ -67,6 +69,28 @@ public sealed class SqliteSchemaMigrator(
                 source_id INTEGER NOT NULL,
                 created_at_utc TEXT NOT NULL,
                 payload_json TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS payment_events (
+                provider_id TEXT NOT NULL,
+                external_id TEXT NOT NULL,
+                payload_json TEXT NOT NULL,
+                PRIMARY KEY (provider_id, external_id)
+            );
+            CREATE TABLE IF NOT EXISTS payment_orders (
+                provider_id TEXT NOT NULL,
+                merchant_order_no TEXT NOT NULL,
+                payload_json TEXT NOT NULL,
+                PRIMARY KEY (provider_id, merchant_order_no)
+            );
+            CREATE TABLE IF NOT EXISTS overtime_feed (
+                id TEXT PRIMARY KEY,
+                occurred_at_utc TEXT NOT NULL,
+                payload_json TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS obs_assets (
+                id TEXT PRIMARY KEY,
+                payload_json TEXT NOT NULL,
+                content BLOB NOT NULL
             );
             """;
         await command.ExecuteNonQueryAsync(cancellationToken);
