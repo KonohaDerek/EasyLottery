@@ -27,6 +27,8 @@ namespace EasyLotteryDomain.Models.Entities
 
         public Guid PublicId { get; set; }
 
+        public Guid MarketSourcePublicId { get; set; }
+
         [Required]
         public string Name { get; set; } = "";
 

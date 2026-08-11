@@ -310,7 +310,7 @@ else
 
     private static PokeTemplate Clone(PokeTemplate source) => new()
     {
-        Id = source.Id, PublicId = source.PublicId, Name = source.Name, Description = source.Description, GridRows = source.GridRows, GridColumns = source.GridColumns,
+        Id = source.Id, PublicId = source.PublicId, MarketSourcePublicId = source.MarketSourcePublicId, Name = source.Name, Description = source.Description, GridRows = source.GridRows, GridColumns = source.GridColumns,
         Mode = source.Mode, AllowRePoking = source.AllowRePoking, MaxPokeCount = source.MaxPokeCount, BackgroundImageUrl = source.BackgroundImageUrl,
         FontFamily = source.FontFamily, CongratulationMessage = source.CongratulationMessage, OverlayWidth = source.OverlayWidth,
         OverlayHeight = source.OverlayHeight, Animation = source.Animation, AnimationDurationMs = source.AnimationDurationMs,

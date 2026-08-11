@@ -314,7 +314,7 @@ else
 
     private static RouletteTemplate Clone(RouletteTemplate source) => new()
     {
-        Id = source.Id, PublicId = source.PublicId, Name = source.Name, Description = source.Description, SegmentCount = source.SegmentCount, SpinDurationSec = source.SpinDurationSec,
+        Id = source.Id, PublicId = source.PublicId, MarketSourcePublicId = source.MarketSourcePublicId, Name = source.Name, Description = source.Description, SegmentCount = source.SegmentCount, SpinDurationSec = source.SpinDurationSec,
         ResultDisplayDurationSeconds = source.ResultDisplayDurationSeconds,
         EasingFunction = source.EasingFunction, InitialAngleDeg = source.InitialAngleDeg, CenterImageUrl = source.CenterImageUrl,
         BackgroundImageUrl = source.BackgroundImageUrl, PointerImageUrl = source.PointerImageUrl, SpinSoundUrl = source.SpinSoundUrl,
