@@ -1,0 +1,64 @@
+@inject PasskeyAuthService Auth
+
+<main class="container py-5" aria-labelledby="admin-login-title">
+    <div class="mx-auto" style="max-width: 34rem;">
+        <h1 id="admin-login-title" class="h3">管理員 Passkey 登入</h1>
+        <p class="text-muted">EasyLottery 只允許設定的管理員 email 使用。Passkey 私鑰會留在你的裝置或密碼管理器。</p>
+
+        <div class="mb-3">
+            <label class="form-label" for="admin-email">管理員 email</label>
+            <input id="admin-email" class="form-control" type="email" autocomplete="username" @bind="email" disabled="@busy" />
+        </div>
+
+        <div class="d-flex flex-wrap gap-2">
+            <button class="btn btn-primary" type="button" @onclick="LoginAsync" disabled="@busy">
+                @(busy ? "處理中…" : "使用 Passkey 登入")
+            </button>
+            <button class="btn btn-outline-primary" type="button" @onclick="RegisterAsync" disabled="@busy">
+                註冊第一個 Passkey
+            </button>
+        </div>
+
+        <p class="small text-muted mt-3 mb-0">第一次使用請按「註冊第一個 Passkey」；註冊完成後即可使用同一個 Passkey 登入。</p>
+        @if (!string.IsNullOrWhiteSpace(error))
+        {
+            <div class="alert alert-warning mt-3" role="alert">@error</div>
+        }
+    </div>
+</main>
+
+@code {
+    [Parameter] public EventCallback OnAuthenticated { get; set; }
+
+    private string email = "admin@example.com";
+    private string? error;
+    private bool busy;
+
+    private Task LoginAsync() => AuthenticateAsync("login");
+    private Task RegisterAsync() => AuthenticateAsync("register");
+
+    private async Task AuthenticateAsync(string flow)
+    {
+        error = null;
+        busy = true;
+        try
+        {
+            await Auth.LoginAsync(email, flow);
+            await OnAuthenticated.InvokeAsync();
+        }
+        catch (PasskeyRequestException exception)
+        {
+            error = exception.Code == "registration_required"
+                ? "尚未註冊 Passkey，請先按「註冊第一個 Passkey」。"
+                : exception.Message;
+        }
+        catch (Exception exception)
+        {
+            error = exception.Message;
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+}

@@ -8,7 +8,6 @@
     const sessionTokenKey = "easy-lottery.session-token";
     let memoryFallback = "";
     let nextRemoteAttemptAt = 0;
-    let sessionTokenPromise = null;
     let remoteEtag = "";
 
     function readJwtPayload(token) {
@@ -28,6 +27,18 @@
         } catch (logErrorFailure) {
             console.warn("[easyLotteryConfig] failed to emit console error", logErrorFailure);
         }
+    }
+
+    function logSessionError(scope, error) {
+        const message = error?.message ?? "";
+        if (/Unable to obtain a session token \((401|403|429)\)\./.test(message)
+            || message === "Admin session temporarily unavailable; retry later."
+            || message === "Admin login required.") {
+            console.warn(`[easyLotteryConfig] ${scope}`, error);
+            return;
+        }
+
+        logError(scope, error);
     }
 
     function bootstrapSessionTokenFromQuery() {
@@ -81,37 +92,7 @@
             logError("ensureSessionToken.sessionStorage.getItem", error);
         }
 
-        if (!sessionTokenPromise) {
-            sessionTokenPromise = (async () => {
-                const response = await fetch("/api/session-token", {
-                    method: "GET",
-                    cache: "no-store",
-                });
-                if (!response.ok) {
-                    throw new Error(`Unable to obtain a session token (${response.status}).`);
-                }
-
-                const payload = await response.json();
-                const token = (typeof payload === "string"
-                    ? payload
-                    : payload?.token ?? payload?.Token ?? payload?.sessionToken ?? payload?.SessionToken ?? "").toString().trim();
-                if (!token) {
-                    throw new Error("The session token endpoint returned an empty token.");
-                }
-
-                try {
-                    window.sessionStorage.setItem(sessionTokenKey, token);
-                } catch (error) {
-                    logError("ensureSessionToken.sessionStorage.setItem", error);
-                }
-
-                return token;
-            })().finally(() => {
-                sessionTokenPromise = null;
-            });
-        }
-
-        return sessionTokenPromise;
+        throw new Error("Admin login required.");
     }
 
     async function getSessionHeaders() {
@@ -119,13 +100,76 @@
             const token = await ensureSessionToken();
             return token ? { "X-EasyLottery-Session-Token": token } : {};
         } catch (error) {
-            logError("getSessionHeaders", error);
+            logSessionError("getSessionHeaders", error);
             return {};
         }
     }
 
     bootstrapSessionTokenFromQuery();
-    void ensureSessionToken().catch(error => logError("ensureSessionToken.bootstrap", error));
+
+    function base64UrlToBytes(value) {
+        const normalized = String(value || "").replace(/-/g, "+").replace(/_/g, "/");
+        const binary = atob(normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "="));
+        return Uint8Array.from(binary, character => character.charCodeAt(0));
+    }
+
+    function bytesToBase64Url(value) {
+        const bytes = new Uint8Array(value);
+        let binary = "";
+        for (const byte of bytes) binary += String.fromCharCode(byte);
+        return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+    }
+
+    function clonePublicKeyOptions(options) {
+        const publicKey = structuredClone(options?.publicKey ?? options);
+        publicKey.challenge = base64UrlToBytes(publicKey.challenge);
+        if (publicKey.user?.id) publicKey.user.id = base64UrlToBytes(publicKey.user.id);
+        for (const item of [...(publicKey.allowCredentials || []), ...(publicKey.excludeCredentials || [])]) {
+            item.id = base64UrlToBytes(item.id);
+        }
+        return publicKey;
+    }
+
+    function serializeCredential(credential) {
+        const response = credential.response;
+        const result = {
+            id: credential.id,
+            rawId: bytesToBase64Url(credential.rawId),
+            type: credential.type,
+            authenticatorAttachment: credential.authenticatorAttachment || null,
+            response: {
+                clientDataJSON: bytesToBase64Url(response.clientDataJSON)
+            }
+        };
+        if (response instanceof AuthenticatorAttestationResponse) {
+            result.response.attestationObject = bytesToBase64Url(response.attestationObject);
+            result.response.transports = response.getTransports?.() || [];
+        } else {
+            result.response.authenticatorData = bytesToBase64Url(response.authenticatorData);
+            result.response.signature = bytesToBase64Url(response.signature);
+            result.response.userHandle = response.userHandle ? bytesToBase64Url(response.userHandle) : null;
+        }
+        result.clientExtensionResults = credential.getClientExtensionResults?.() || {};
+        return result;
+    }
+
+    async function createPasskey(options) {
+        if (!window.isSecureContext || !window.PublicKeyCredential) {
+            throw new Error("目前網址或瀏覽器不支援 Passkey，請使用 HTTPS 與支援 WebAuthn 的瀏覽器。");
+        }
+        const credential = await navigator.credentials.create({ publicKey: clonePublicKeyOptions(options) });
+        if (!credential) throw new Error("Passkey 註冊已取消。");
+        return serializeCredential(credential);
+    }
+
+    async function getPasskey(options) {
+        if (!window.isSecureContext || !window.PublicKeyCredential) {
+            throw new Error("目前網址或瀏覽器不支援 Passkey，請使用 HTTPS 與支援 WebAuthn 的瀏覽器。");
+        }
+        const credential = await navigator.credentials.get({ publicKey: clonePublicKeyOptions(options) });
+        if (!credential) throw new Error("Passkey 登入已取消。");
+        return serializeCredential(credential);
+    }
 
     async function read() {
         const now = Date.now();
@@ -191,9 +235,23 @@
         read,
         write,
         getSessionToken: async () => await ensureSessionToken(),
+        setSessionToken: token => {
+            const value = String(token || "").trim();
+            if (!value) throw new Error("Cannot store an empty session token.");
+            window.sessionStorage.setItem(sessionTokenKey, value);
+        },
+        clearSessionToken: () => window.sessionStorage.removeItem(sessionTokenKey),
+        createPasskey,
+        getPasskey,
         hasSessionToken: () => {
             try {
-                return !!window.sessionStorage.getItem(sessionTokenKey);
+                const token = window.sessionStorage.getItem(sessionTokenKey);
+                const payload = readJwtPayload(token || "");
+                if (!token || !payload?.exp || payload.exp * 1000 <= Date.now() + 5_000) {
+                    window.sessionStorage.removeItem(sessionTokenKey);
+                    return false;
+                }
+                return true;
             } catch (error) {
                 logError("hasSessionToken", error);
                 return false;

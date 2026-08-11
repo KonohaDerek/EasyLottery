@@ -4,6 +4,7 @@ using EasyLotteryApi;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using EasyLotteryDomain.Models.Config;
 using EasyLotteryDomain.Services;
 
@@ -13,24 +14,18 @@ namespace EasyLotteryApiTests;
 public sealed class SecurityEndpointTests
 {
     [TestMethod]
-    public async Task SessionTokenEndpoint_IssuesAdminTokenWithoutPassword()
+    public async Task LegacySessionTokenEndpoint_DoesNotIssueAdminToken()
     {
         await using var factory = CreateFactory();
         using var client = factory.CreateClient();
 
-        var first = await client.GetAsync("/api/session-token");
-        var second = await client.GetAsync("/api/session-token");
+        using var response = await client.GetAsync("/api/session-token");
 
-        Assert.AreEqual(HttpStatusCode.OK, first.StatusCode);
-        Assert.AreEqual(HttpStatusCode.OK, second.StatusCode);
-        var firstToken = (await first.Content.ReadFromJsonAsync<TokenResponse>())!;
-        var secondToken = (await second.Content.ReadFromJsonAsync<TokenResponse>())!;
-        Assert.IsFalse(string.IsNullOrWhiteSpace(firstToken.Token));
-        Assert.AreNotEqual(firstToken.Token, secondToken.Token);
+        Assert.AreEqual(HttpStatusCode.NotFound, response.StatusCode);
     }
 
     [TestMethod]
-    public async Task PublicMode_WithoutAllowlist_DeniesAdminSessionToken()
+    public async Task PasskeyRegistration_PublicModeWithoutAllowlist_IsDenied()
     {
         await using var factory = CreateFactory(new Dictionary<string, string?>
         {
@@ -38,13 +33,15 @@ public sealed class SecurityEndpointTests
         });
         using var client = factory.CreateClient();
 
-        using var response = await client.GetAsync("/api/session-token");
+        using var response = await client.PostAsJsonAsync(
+            "/api/auth/passkey/options",
+            new { email = "admin@example.com", flow = "register" });
 
         Assert.AreEqual(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
     [TestMethod]
-    public async Task PublicMode_AllowsOnlyAllowlistedClient()
+    public async Task PasskeyRegistration_PublicMode_AllowsAllowlistedClient()
     {
         await using var factory = CreateFactory(new Dictionary<string, string?>
         {
@@ -53,7 +50,9 @@ public sealed class SecurityEndpointTests
         });
         using var client = factory.CreateClient();
 
-        using var response = await client.GetAsync("/api/session-token");
+        using var response = await client.PostAsJsonAsync(
+            "/api/auth/passkey/options",
+            new { email = "admin@example.com", flow = "register" });
 
         Assert.AreEqual(HttpStatusCode.OK, response.StatusCode);
     }
@@ -67,7 +66,10 @@ public sealed class SecurityEndpointTests
             ["Security:AdminToken:AllowedClientIps:0"] = "203.0.113.10"
         });
         using var client = factory.CreateClient();
-        using var request = new HttpRequestMessage(HttpMethod.Get, "/api/session-token");
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/api/auth/passkey/options")
+        {
+            Content = JsonContent.Create(new { email = "admin@example.com", flow = "register" })
+        };
         request.Headers.TryAddWithoutValidation("X-Forwarded-For", "203.0.113.10");
 
         using var response = await client.SendAsync(request);
@@ -76,22 +78,246 @@ public sealed class SecurityEndpointTests
     }
 
     [TestMethod]
-    public async Task ConfiguredAdminLifetime_IsReturnedBySessionEndpoint()
+    public async Task PasskeyLogin_WithoutRegisteredCredential_RequiresRegistration()
+    {
+        await using var factory = CreateFactory();
+        using var client = factory.CreateClient();
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/auth/passkey/options",
+            new { email = "admin@example.com", flow = "login" });
+
+        Assert.AreEqual(HttpStatusCode.Conflict, response.StatusCode);
+        var error = await response.Content.ReadFromJsonAsync<ErrorResponse>();
+        Assert.AreEqual("registration_required", error!.Code);
+    }
+
+    [TestMethod]
+    public async Task PasskeyEndpoints_RejectNonAdminEmail()
+    {
+        await using var factory = CreateFactory();
+        using var client = factory.CreateClient();
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/auth/passkey/options",
+            new { email = "other@example.com", flow = "login" });
+
+        Assert.AreEqual(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [TestMethod]
+    public async Task PasskeyOptions_RejectsInvalidFlow()
+    {
+        await using var factory = CreateFactory();
+        using var client = factory.CreateClient();
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/auth/passkey/options",
+            new { email = "admin@example.com", flow = "reset" });
+
+        Assert.AreEqual(HttpStatusCode.BadRequest, response.StatusCode);
+        var error = await response.Content.ReadFromJsonAsync<ErrorResponse>();
+        Assert.AreEqual("invalid_flow", error!.Code);
+    }
+
+    [TestMethod]
+    public async Task PasskeyVerify_WithoutChallenge_IsRejected()
+    {
+        await using var factory = CreateFactory();
+        using var client = factory.CreateClient();
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/auth/passkey/verify",
+            new { email = "admin@example.com", flow = "register", credential = new { } });
+
+        Assert.AreEqual(HttpStatusCode.Unauthorized, response.StatusCode);
+        var error = await response.Content.ReadFromJsonAsync<ErrorResponse>();
+        Assert.AreEqual("challenge_invalid", error!.Code);
+    }
+
+    [TestMethod]
+    public async Task PasskeyVerify_ConsumesChallengeBeforeInvalidCredentialCanBeReplayed()
+    {
+        await using var factory = CreateFactory();
+        using var client = factory.CreateClient();
+        using var options = await client.PostAsJsonAsync(
+            "/api/auth/passkey/options",
+            new { email = "admin@example.com", flow = "register" });
+        options.EnsureSuccessStatusCode();
+
+        var invalidCredential = new { email = "admin@example.com", flow = "register", credential = new { } };
+        using var firstAttempt = await client.PostAsJsonAsync("/api/auth/passkey/verify", invalidCredential);
+        using var replayAttempt = await client.PostAsJsonAsync("/api/auth/passkey/verify", invalidCredential);
+
+        Assert.AreNotEqual(HttpStatusCode.OK, firstAttempt.StatusCode);
+        Assert.AreEqual(HttpStatusCode.Unauthorized, replayAttempt.StatusCode);
+        var error = await replayAttempt.Content.ReadFromJsonAsync<ErrorResponse>();
+        Assert.AreEqual("challenge_invalid", error!.Code);
+    }
+
+    [TestMethod]
+    public async Task PasskeyRegistration_RejectsSecondCredentialAfterFirstRegistration()
+    {
+        await using var factory = CreateFactory();
+        var store = factory.Services.GetRequiredService<PasskeyStateStore>();
+        await store.SaveCredentialAsync(new PasskeyCredentialRecord
+        {
+            CredentialId = [1, 2, 3],
+            PublicKey = [4, 5, 6],
+            UserHandle = [7, 8, 9],
+            SignatureCounter = 1
+        });
+        using var client = factory.CreateClient();
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/auth/passkey/options",
+            new { email = "admin@example.com", flow = "register" });
+
+        Assert.AreEqual(HttpStatusCode.Conflict, response.StatusCode);
+        var error = await response.Content.ReadFromJsonAsync<ErrorResponse>();
+        Assert.AreEqual("passkey_already_registered", error!.Code);
+    }
+
+    [TestMethod]
+    public async Task AdminEndpoints_RequireHeaderIndependentAdminSession()
+    {
+        await using var factory = CreateFactory();
+        using var client = factory.CreateClient();
+        var adminToken = LoginAsync(factory);
+
+        using var withoutHeader = await client.GetAsync("/api/settings/visual-style");
+        using var queryToken = await client.GetAsync($"/api/settings/visual-style?sessionToken={Uri.EscapeDataString(adminToken)}");
+
+        Assert.AreEqual(HttpStatusCode.Unauthorized, withoutHeader.StatusCode);
+        Assert.AreEqual(HttpStatusCode.Forbidden, queryToken.StatusCode);
+    }
+
+    [TestMethod]
+    public async Task SessionEndpoint_RevokesAdminJwt()
+    {
+        await using var factory = CreateFactory();
+        using var client = factory.CreateClient();
+        var adminToken = LoginAsync(factory);
+        using var revoke = new HttpRequestMessage(HttpMethod.Delete, "/api/session");
+        revoke.Headers.Add(ObsSessionTokenService.HeaderName, adminToken);
+
+        using var revoked = await client.SendAsync(revoke);
+        using var afterRevoke = new HttpRequestMessage(HttpMethod.Get, "/api/settings/visual-style");
+        afterRevoke.Headers.Add(ObsSessionTokenService.HeaderName, adminToken);
+        using var rejected = await client.SendAsync(afterRevoke);
+
+        Assert.AreEqual(HttpStatusCode.NoContent, revoked.StatusCode);
+        Assert.AreEqual(HttpStatusCode.Unauthorized, rejected.StatusCode);
+    }
+
+    [TestMethod]
+    public async Task TestSessionTokenEndpoint_IsDisabledUnlessExplicitlyEnabled()
+    {
+        await using var disabledFactory = CreateFactory();
+        using var disabledClient = disabledFactory.CreateClient();
+        using var disabled = await disabledClient.GetAsync("/api/test/session-token");
+
+        await using var enabledFactory = CreateFactory(new Dictionary<string, string?>
+        {
+            ["Testing:EnableAdminSessionToken"] = "true"
+        });
+        using var enabledClient = enabledFactory.CreateClient();
+        using var enabled = await enabledClient.GetAsync("/api/test/session-token");
+
+        Assert.AreEqual(HttpStatusCode.NotFound, disabled.StatusCode);
+        Assert.AreEqual(HttpStatusCode.OK, enabled.StatusCode);
+        var token = await enabled.Content.ReadFromJsonAsync<TokenResponse>();
+        Assert.IsFalse(string.IsNullOrWhiteSpace(token!.Token));
+        Assert.IsTrue(token.ExpiresAtUtc > DateTimeOffset.UtcNow);
+
+        await using var productionFactory = CreateFactory(new Dictionary<string, string?>
+        {
+            ["Testing:EnableAdminSessionToken"] = "true"
+        }, "Production");
+        using var productionClient = productionFactory.CreateClient();
+        using var production = await productionClient.GetAsync("/api/test/session-token");
+
+        Assert.AreEqual(HttpStatusCode.NotFound, production.StatusCode);
+    }
+
+    [TestMethod]
+    public async Task PasskeyStateStore_TakesPendingChallengeOnlyOnce()
+    {
+        await using var factory = CreateFactory();
+        var store = factory.Services.GetRequiredService<PasskeyStateStore>();
+        await store.SetPendingAsync(AdminPasskeyOptions.RegisterFlow, new PasskeyPendingCeremony
+        {
+            Email = AdminPasskeyOptions.DefaultEmail,
+            OptionsJson = "{}",
+            ExpiresAtUtc = DateTimeOffset.UtcNow.AddMinutes(1)
+        });
+
+        var first = await store.TakePendingAsync(AdminPasskeyOptions.RegisterFlow);
+        var second = await store.TakePendingAsync(AdminPasskeyOptions.RegisterFlow);
+
+        Assert.IsNotNull(first);
+        Assert.IsNull(second);
+    }
+
+    [TestMethod]
+    public async Task PasskeyStateStore_DoesNotReturnExpiredChallenge()
+    {
+        await using var factory = CreateFactory();
+        var store = factory.Services.GetRequiredService<PasskeyStateStore>();
+        await store.SetPendingAsync(AdminPasskeyOptions.LoginFlow, new PasskeyPendingCeremony
+        {
+            Email = AdminPasskeyOptions.DefaultEmail,
+            OptionsJson = "{}",
+            ExpiresAtUtc = DateTimeOffset.UtcNow.AddSeconds(-1)
+        });
+
+        var pending = await store.TakePendingAsync(AdminPasskeyOptions.LoginFlow);
+
+        Assert.IsNull(pending);
+    }
+
+    [TestMethod]
+    public async Task PasskeyStateStore_UpdatesMatchingCounterMonotonically()
+    {
+        await using var factory = CreateFactory();
+        var store = factory.Services.GetRequiredService<PasskeyStateStore>();
+        await store.SaveCredentialAsync(new PasskeyCredentialRecord
+        {
+            CredentialId = [1, 2, 3],
+            PublicKey = [4, 5, 6],
+            UserHandle = [7, 8, 9],
+            SignatureCounter = 10
+        });
+
+        var wrongCredential = await store.UpdateCounterAsync([9, 9, 9], 100);
+        var increased = await store.UpdateCounterAsync([1, 2, 3], 20);
+        var decreased = await store.UpdateCounterAsync([1, 2, 3], 5);
+        var state = await store.ReadAsync();
+
+        Assert.IsFalse(wrongCredential);
+        Assert.IsTrue(increased);
+        Assert.IsTrue(decreased);
+        Assert.AreEqual((uint)20, state.Credential!.SignatureCounter);
+    }
+
+    [TestMethod]
+    public async Task PasskeyOptions_UsesConfiguredAdminEmail()
     {
         await using var factory = CreateFactory(new Dictionary<string, string?>
         {
-            ["Security:AdminToken:LifetimeMinutes"] = "5"
+            ["admin.email"] = "owner@example.com"
         });
         using var client = factory.CreateClient();
-        var before = DateTimeOffset.UtcNow;
 
-        using var response = await client.GetAsync("/api/session-token");
-        var token = await response.Content.ReadFromJsonAsync<TokenResponse>();
+        using var allowed = await client.PostAsJsonAsync(
+            "/api/auth/passkey/options",
+            new { email = "OWNER@example.com", flow = "register" });
+        using var denied = await client.PostAsJsonAsync(
+            "/api/auth/passkey/options",
+            new { email = "admin@example.com", flow = "register" });
 
-        Assert.AreEqual(HttpStatusCode.OK, response.StatusCode);
-        Assert.IsNotNull(token);
-        Assert.IsTrue(token!.ExpiresAtUtc >= before.AddMinutes(4));
-        Assert.IsTrue(token.ExpiresAtUtc <= before.AddMinutes(6));
+        Assert.AreEqual(HttpStatusCode.OK, allowed.StatusCode);
+        Assert.AreEqual(HttpStatusCode.Forbidden, denied.StatusCode);
     }
 
     [TestMethod]
@@ -99,7 +325,7 @@ public sealed class SecurityEndpointTests
     {
         await using var factory = CreateFactory();
         using var client = factory.CreateClient();
-        var adminToken = await LoginAsync(client);
+        var adminToken = LoginAsync(factory);
         using var issue = new HttpRequestMessage(HttpMethod.Post, "/api/obs-sessions")
         {
             Content = JsonContent.Create(new { resourceKind = "donate", resourceId = Guid.NewGuid().ToString(), scopes = new[] { "read", "control" } })
@@ -124,7 +350,7 @@ public sealed class SecurityEndpointTests
     {
         await using var factory = CreateFactory();
         using var client = factory.CreateClient();
-        var adminToken = await LoginAsync(client);
+        var adminToken = LoginAsync(factory);
         var firstId = Guid.NewGuid();
         var secondId = Guid.NewGuid();
         var document = new EasyLotteryConfigDocument
@@ -155,7 +381,7 @@ public sealed class SecurityEndpointTests
     }
 
     [TestMethod]
-    public async Task SessionTokenRateLimit_ReturnsTooManyRequests()
+    public async Task PasskeyOptionsRateLimit_ReturnsTooManyRequests()
     {
         await using var factory = CreateFactory();
         using var client = factory.CreateClient();
@@ -163,7 +389,9 @@ public sealed class SecurityEndpointTests
         for (var attempt = 0; attempt < 6; attempt++)
         {
             response?.Dispose();
-            response = await client.GetAsync("/api/session-token");
+            response = await client.PostAsJsonAsync(
+                "/api/auth/passkey/options",
+                new { email = "admin@example.com", flow = "login" });
         }
 
         using (response)
@@ -181,9 +409,12 @@ public sealed class SecurityEndpointTests
         Assert.AreEqual(HttpStatusCode.RequestEntityTooLarge, response.StatusCode);
     }
 
-    private static WebApplicationFactory<Program> CreateFactory(IReadOnlyDictionary<string, string?>? settings = null) =>
+    private static WebApplicationFactory<Program> CreateFactory(
+        IReadOnlyDictionary<string, string?>? settings = null,
+        string environment = "Development") =>
         new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
         {
+            builder.UseEnvironment(environment);
             var values = new Dictionary<string, string?>
             {
                 ["Storage:Directory"] = Path.Combine(Path.GetTempPath(), $"easy-lottery-security-tests-{Guid.NewGuid():N}")
@@ -197,12 +428,8 @@ public sealed class SecurityEndpointTests
             builder.ConfigureAppConfiguration((_, configuration) => configuration.AddInMemoryCollection(values));
         });
 
-    private static async Task<string> LoginAsync(HttpClient client)
-    {
-        using var response = await client.GetAsync("/api/session-token");
-        response.EnsureSuccessStatusCode();
-        return (await response.Content.ReadFromJsonAsync<TokenResponse>())!.Token;
-    }
+    private static string LoginAsync(WebApplicationFactory<Program> factory) =>
+        factory.Services.GetRequiredService<ObsSessionTokenService>().IssueAdminToken().Token;
 
     private static async Task<string> IssueObsTokenAsync(HttpClient client, string adminToken, string kind, string resourceId, string[] scopes)
     {
@@ -217,4 +444,5 @@ public sealed class SecurityEndpointTests
     }
 
     private sealed record TokenResponse(string Token, DateTimeOffset ExpiresAtUtc);
+    private sealed record ErrorResponse(string? Error, string? Code);
 }

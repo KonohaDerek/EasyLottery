@@ -1,18 +1,19 @@
 @page "/system/access"
 
-<PageTitle>OBS Session 狀態</PageTitle>
+<PageTitle>管理員 Passkey 狀態</PageTitle>
 <Card>
-    <CardHeader><CardTitle>OBS Session 狀態</CardTitle></CardHeader>
+    <CardHeader><CardTitle>管理員 Passkey 狀態</CardTitle></CardHeader>
     <CardBody>
         <CardText>
-            EasyLottery 不需要管理密碼或手動輸入管理權杖。
-            系統會在 WASM 啟動時自動取得短期 session token，並在開啟 OBS / 設定頁面時自動帶入。
+            管理頁只接受設定的 admin email 與 Passkey 登入。Passkey 驗證成功後，API
+            會簽發短期 JWT，並透過 <code>X-EasyLottery-Session-Token</code> header 驗證管理操作。
         </CardText>
         <CardText class="text-muted">
-            如果你想更新目前的 session，請重新整理頁面即可；重新整理後會重新取得一組新的 session token。
+            第一次使用請回到登入畫面註冊 Passkey。Passkey credential 只保存公鑰與簽章計數，
+            私鑰會留在瀏覽器、裝置或密碼管理器。
         </CardText>
         <CardText class="text-muted">
-            這個頁面只保留作為說明與除錯入口，不需要再輸入任何額外資料。
+            OBS URL 仍使用資源限定的 scoped token，不會把 admin JWT 放進 URL。
         </CardText>
     </CardBody>
 </Card>

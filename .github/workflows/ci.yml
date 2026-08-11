@@ -73,6 +73,7 @@ jobs:
         env:
           ASPNETCORE_ENVIRONMENT: Development
           Storage__Directory: ${{ runner.temp }}/easy-lottery-e2e
+          Testing__EnableAdminSessionToken: true
         run: |
           mkdir -p "$Storage__Directory"
           nohup dotnet run --project src/EasyLotteryAPI/EasyLotteryApi.csproj --configuration Release --no-build --no-launch-profile --urls http://127.0.0.1:18930 > "$RUNNER_TEMP/easy-lottery-api.log" 2>&1 &

@@ -1,27 +1,104 @@
-﻿@inject NavigationManager NavigationManager
+@inject NavigationManager NavigationManager
 @inject EasyLotteryWasm.Services.VisualStyleService VisualStyleService
+@inject ILogger<App> Logger
+@inject PasskeyAuthService PasskeyAuth
 
-<Router AppAssembly="@typeof(App).Assembly">
-    <Found Context="routeData">
-        <RouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)" />
-        <FocusOnNavigate RouteData="@routeData" Selector="h1" />
-    </Found>
-    <NotFound>
-        <PageTitle>Not found</PageTitle>
-        <LayoutView Layout="@typeof(MainLayout)">
-            <p role="alert">Sorry, there's nothing at this address.</p>
-        </LayoutView>
-    </NotFound>
-</Router>
+@if (!sessionChecked)
+{
+    <div class="container py-5 text-center">正在檢查管理 Session…</div>
+}
+else if (!hasSession && RequiresAdminLogin)
+{
+    <AdminLogin OnAuthenticated="HandleAuthenticatedAsync" />
+}
+else
+{
+    @if (bootstrapError is not null)
+    {
+        <div class="alert alert-warning m-3" role="alert">@bootstrapError</div>
+    }
+
+    <ErrorBoundary>
+        <ChildContent>
+            <Router AppAssembly="@typeof(App).Assembly">
+                <Found Context="routeData">
+                    <RouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)" />
+                    <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+                </Found>
+                <NotFound>
+                    <PageTitle>Not found</PageTitle>
+                    <LayoutView Layout="@typeof(MainLayout)">
+                        <p role="alert">Sorry, there's nothing at this address.</p>
+                    </LayoutView>
+                </NotFound>
+            </Router>
+        </ChildContent>
+        <ErrorContent>
+            <div class="container py-4">
+                <div class="alert alert-warning" role="alert">
+                    <h1 class="h4">頁面無法載入</h1>
+                    <p class="mb-0">無法取得管理 Session，請重新使用管理員 Passkey 登入。</p>
+                </div>
+            </div>
+        </ErrorContent>
+    </ErrorBoundary>
+}
 
 @code {
+    private bool sessionChecked;
+    private bool hasSession;
+    private bool visualStyleInitialized;
+    private string? bootstrapError;
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (!firstRender)
+        if (firstRender)
+        {
+            hasSession = await PasskeyAuth.HasSessionTokenAsync();
+            sessionChecked = true;
+            await InvokeAsync(StateHasChanged);
+            return;
+        }
+
+        if (!sessionChecked || visualStyleInitialized || (!hasSession && !IsObsRoute))
         {
             return;
         }
 
-        await VisualStyleService.InitializeAsync();
+        visualStyleInitialized = true;
+        try
+        {
+            await VisualStyleService.InitializeAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Unable to initialize shared visual style settings.");
+            bootstrapError = "網站設定尚未載入，請確認 API 與儲存設定。";
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private bool RequiresAdminLogin
+    {
+        get
+        {
+            var path = CurrentPath;
+            return path.Length == 0
+                || !(path.Equals("about", StringComparison.OrdinalIgnoreCase)
+                    || path.Equals("privacy-policy", StringComparison.OrdinalIgnoreCase)
+                    || IsObsRoute);
+        }
+    }
+
+    private bool IsObsRoute => CurrentPath.StartsWith("obs/", StringComparison.OrdinalIgnoreCase);
+
+    private string CurrentPath => NavigationManager.ToBaseRelativePath(NavigationManager.Uri)
+        .Split(['?', '#'], 2)[0]
+        .Trim('/');
+
+    private async Task HandleAuthenticatedAsync()
+    {
+        hasSession = await PasskeyAuth.HasSessionTokenAsync();
+        await InvokeAsync(StateHasChanged);
     }
 }

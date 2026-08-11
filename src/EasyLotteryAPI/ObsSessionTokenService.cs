@@ -47,8 +47,13 @@ public sealed class ObsSessionTokenService
         };
     }
 
-    public SessionToken IssueAdminToken(TimeSpan? lifetime = null) =>
-        Issue(AdminUse, lifetime ?? _adminTokenLifetime, []);
+    public SessionToken IssueAdminToken(string? adminEmail = null, TimeSpan? lifetime = null) =>
+        Issue(
+            AdminUse,
+            lifetime ?? _adminTokenLifetime,
+            string.IsNullOrWhiteSpace(adminEmail)
+                ? []
+                : [new Claim("admin_email", adminEmail.Trim().ToLowerInvariant())]);
 
     public SessionToken IssueObsToken(string resourceKind, string resourceId, IEnumerable<string> scopes, TimeSpan? lifetime = null)
     {

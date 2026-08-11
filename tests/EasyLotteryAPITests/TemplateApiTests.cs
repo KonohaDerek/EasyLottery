@@ -5,6 +5,7 @@ using EasyLotteryDomain.Models.Entities;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace EasyLotteryApiTests;
 
@@ -16,7 +17,7 @@ public sealed class TemplateApiTests
     {
         await using var factory = CreateFactory();
         using var client = factory.CreateClient();
-        var token = await LoginAsync(client);
+        var token = LoginAsync(factory);
         AddToken(client, token);
 
         using var created = await client.PostAsJsonAsync("/api/poke-templates", new PokeTemplate { Name = "REST 戳戳樂" });
@@ -38,7 +39,7 @@ public sealed class TemplateApiTests
     {
         await using var factory = CreateFactory();
         using var client = factory.CreateClient();
-        var adminToken = await LoginAsync(client);
+        var adminToken = LoginAsync(factory);
         AddToken(client, adminToken);
         using var created = await client.PostAsJsonAsync("/api/roulette-templates", new RouletteTemplate { Name = "REST 轉盤" });
         var template = (await created.Content.ReadFromJsonAsync<RouletteTemplate>())!;
@@ -63,7 +64,7 @@ public sealed class TemplateApiTests
     {
         await using var factory = CreateFactory();
         using var client = factory.CreateClient();
-        AddToken(client, await LoginAsync(client));
+        AddToken(client, LoginAsync(factory));
         using var response = await client.GetAsync("/api/activity-results");
         Assert.AreEqual(HttpStatusCode.OK, response.StatusCode);
         Assert.IsNotNull(await response.Content.ReadFromJsonAsync<List<object>>());
@@ -76,12 +77,8 @@ public sealed class TemplateApiTests
                 ["Storage:Directory"] = Path.Combine(Path.GetTempPath(), $"easy-lottery-template-tests-{Guid.NewGuid():N}")
             })));
 
-    private static async Task<string> LoginAsync(HttpClient client)
-    {
-        using var response = await client.GetAsync("/api/session-token");
-        response.EnsureSuccessStatusCode();
-        return (await response.Content.ReadFromJsonAsync<TokenResponse>())!.Token;
-    }
+    private static string LoginAsync(WebApplicationFactory<Program> factory) =>
+        factory.Services.GetRequiredService<ObsSessionTokenService>().IssueAdminToken().Token;
 
     private static async Task<string> IssueObsTokenAsync(HttpClient client, string adminToken, string kind, string resourceId, string[] scopes)
     {

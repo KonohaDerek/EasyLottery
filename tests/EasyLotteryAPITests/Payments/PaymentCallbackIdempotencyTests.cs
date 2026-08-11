@@ -10,6 +10,7 @@ using EasyLotteryDomain.Services;
 using EasyLotteryInfrastructure.Settings;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace EasyLotteryApiTests.Payments;
 
@@ -25,7 +26,7 @@ public sealed class PaymentCallbackIdempotencyTests
     {
         await using var factory = CreateFactory();
         using var client = factory.CreateClient();
-        var adminToken = await LoginAsync(client);
+        var adminToken = LoginAsync(factory);
         await SaveSettingsAsync(client, adminToken);
 
         using var first = CreateNotifyRequest();
@@ -54,13 +55,8 @@ public sealed class PaymentCallbackIdempotencyTests
                 ["Storage:Directory"] = Path.Combine(Path.GetTempPath(), $"easy-lottery-payment-api-tests-{Guid.NewGuid():N}")
             })));
 
-    private static async Task<string> LoginAsync(HttpClient client)
-    {
-        using var response = await client.GetAsync("/api/session-token");
-        response.EnsureSuccessStatusCode();
-        var token = await response.Content.ReadFromJsonAsync<TokenResponse>();
-        return token!.Token;
-    }
+    private static string LoginAsync(WebApplicationFactory<Program> factory) =>
+        factory.Services.GetRequiredService<ObsSessionTokenService>().IssueAdminToken().Token;
 
     private static async Task SaveSettingsAsync(HttpClient client, string adminToken)
     {

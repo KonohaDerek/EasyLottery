@@ -47,8 +47,16 @@ namespace EasyLotteryDomain.Services
                 return bundledSettings;
             }
 
-            var persistedSettings = await systemSettingsService.GetYouTubeSettingsAsync();
-            return MergeYouTubeSettings(bundledSettings, persistedSettings);
+            try
+            {
+                var persistedSettings = await systemSettingsService.GetYouTubeSettingsAsync();
+                return MergeYouTubeSettings(bundledSettings, persistedSettings);
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Unable to load persisted YouTube settings; using bundled settings.");
+                return bundledSettings;
+            }
         }
 
         private YouTubeApiSettings GetBundledYouTubeSettings()
