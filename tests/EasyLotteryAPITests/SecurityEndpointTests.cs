@@ -1,8 +1,10 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using EasyLotteryApi;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using EasyLotteryDomain.Models.Config;
@@ -176,6 +178,89 @@ public sealed class SecurityEndpointTests
         Assert.AreEqual(HttpStatusCode.Conflict, response.StatusCode);
         var error = await response.Content.ReadFromJsonAsync<ErrorResponse>();
         Assert.AreEqual("passkey_already_registered", error!.Code);
+    }
+
+    [TestMethod]
+    public async Task AdminPasskeyManagement_ListsAndProtectsLastCredential()
+    {
+        await using var factory = CreateFactory();
+        var store = factory.Services.GetRequiredService<PasskeyStateStore>();
+        await store.SaveCredentialAsync(CreateCredential([1, 2, 3], "Main Mac"));
+        using var client = factory.CreateClient();
+
+        using var withoutHeader = await client.GetAsync("/api/admin/passkeys");
+        Assert.AreEqual(HttpStatusCode.Unauthorized, withoutHeader.StatusCode);
+
+        using var list = new HttpRequestMessage(HttpMethod.Get, "/api/admin/passkeys");
+        list.Headers.Add(ObsSessionTokenService.HeaderName, LoginAsync(factory));
+        using var listed = await client.SendAsync(list);
+        Assert.AreEqual(HttpStatusCode.OK, listed.StatusCode);
+        var passkeys = await listed.Content.ReadFromJsonAsync<List<PasskeyDeviceResponse>>();
+        Assert.AreEqual(1, passkeys!.Count);
+        Assert.AreEqual("Main Mac", passkeys[0].Name);
+
+        using var remove = new HttpRequestMessage(
+            HttpMethod.Delete,
+            $"/api/admin/passkeys/{WebEncoders.Base64UrlEncode([1, 2, 3])}");
+        remove.Headers.Add(ObsSessionTokenService.HeaderName, LoginAsync(factory));
+        using var removed = await client.SendAsync(remove);
+        Assert.AreEqual(HttpStatusCode.Conflict, removed.StatusCode);
+        var error = await removed.Content.ReadFromJsonAsync<ErrorResponse>();
+        Assert.AreEqual("last_passkey", error!.Code);
+    }
+
+    [TestMethod]
+    public async Task AdminPasskeyManagement_BeginAddRequiresAdminSession()
+    {
+        await using var factory = CreateFactory();
+        var store = factory.Services.GetRequiredService<PasskeyStateStore>();
+        await store.SaveCredentialAsync(CreateCredential([1, 2, 3], "Main Mac"));
+        using var client = factory.CreateClient();
+
+        using var withoutHeader = await client.PostAsJsonAsync(
+            "/api/admin/passkeys/options",
+            new { name = "Backup iPhone" });
+        Assert.AreEqual(HttpStatusCode.Unauthorized, withoutHeader.StatusCode);
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/api/admin/passkeys/options")
+        {
+            Content = JsonContent.Create(new { name = "Backup iPhone" })
+        };
+        request.Headers.Add(ObsSessionTokenService.HeaderName, LoginAsync(factory));
+        using var response = await client.SendAsync(request);
+        Assert.AreEqual(HttpStatusCode.OK, response.StatusCode);
+        var options = await response.Content.ReadFromJsonAsync<PasskeyBeginResult>();
+        Assert.AreEqual(AdminPasskeyOptions.AddFlow, options!.Flow);
+    }
+
+    [TestMethod]
+    public async Task PasskeyStateStore_SupportsMultipleCredentialsWithoutRemovingLast()
+    {
+        await using var factory = CreateFactory();
+        var store = factory.Services.GetRequiredService<PasskeyStateStore>();
+        await store.SaveCredentialAsync(CreateCredential([1, 2, 3], "Main Mac"));
+        await store.SaveCredentialAsync(CreateCredential([4, 5, 6], "Backup iPhone"));
+
+        var state = await store.ReadAsync();
+        Assert.AreEqual(2, state.Credentials.Count);
+        Assert.AreEqual(PasskeyRemoveResult.Removed, await store.RemoveCredentialAsync([1, 2, 3]));
+        Assert.AreEqual(PasskeyRemoveResult.LastCredential, await store.RemoveCredentialAsync([4, 5, 6]));
+    }
+
+    [TestMethod]
+    public async Task PasskeyStateStore_MigratesLegacySingleCredential()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), $"easy-lottery-legacy-passkey-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(directory);
+        await File.WriteAllTextAsync(
+            Path.Combine(directory, "admin-passkey.json"),
+            JsonSerializer.Serialize(new { Credential = CreateCredential([1, 2, 3], "Legacy Mac") }));
+
+        await using var factory = CreateFactory(new Dictionary<string, string?> { ["Storage:Directory"] = directory });
+        var state = await factory.Services.GetRequiredService<PasskeyStateStore>().ReadAsync();
+
+        Assert.AreEqual(1, state.Credentials.Count);
+        Assert.AreEqual("Legacy Mac", state.Credentials[0].Name);
     }
 
     [TestMethod]
@@ -430,6 +515,16 @@ public sealed class SecurityEndpointTests
 
     private static string LoginAsync(WebApplicationFactory<Program> factory) =>
         factory.Services.GetRequiredService<ObsSessionTokenService>().IssueAdminToken().Token;
+
+    private static PasskeyCredentialRecord CreateCredential(byte[] id, string name) => new()
+    {
+        CredentialId = id,
+        PublicKey = [4, 5, 6],
+        UserHandle = [7, 8, 9],
+        SignatureCounter = 1,
+        Name = name,
+        CreatedAtUtc = DateTimeOffset.UtcNow
+    };
 
     private static async Task<string> IssueObsTokenAsync(HttpClient client, string adminToken, string kind, string resourceId, string[] scopes)
     {

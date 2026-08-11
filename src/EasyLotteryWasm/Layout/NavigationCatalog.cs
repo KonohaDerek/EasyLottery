@@ -51,7 +51,7 @@ public static class NavigationCatalog
             "系統設定",
             "⚙",
             [
-                new("Session 存取狀態", "system/access", "♙", "檢視網站與 OBS 的 Session 存取狀態"),
+                new("Passkey 管理", "system/access", "♙", "新增與移除管理員 Passkey 裝置"),
                 new("審計紀錄", "system/audit", "☷", "檢視系統安全稽核紀錄"),
                 new("隱私權政策", "privacy-policy", "▤", "檢視 EasyLottery 隱私權政策"),
                 new("關於 EasyLottery", "about", "ⓘ", "檢視 EasyLottery 產品資訊")

@@ -7,6 +7,7 @@ public sealed class AdminPasskeyOptions
     public const string DefaultEmail = "admin@example.com";
     public const string RegisterFlow = "register";
     public const string LoginFlow = "login";
+    public const string AddFlow = "add";
 
     public required string Email { get; init; }
     public required string RpId { get; init; }

@@ -1,19 +1,163 @@
 @page "/system/access"
+@inject PasskeyAuthService Auth
+@inject IJSRuntime JS
 
-<PageTitle>管理員 Passkey 狀態</PageTitle>
+<PageTitle>管理員 Passkey 管理</PageTitle>
+
 <Card>
-    <CardHeader><CardTitle>管理員 Passkey 狀態</CardTitle></CardHeader>
+    <CardHeader><CardTitle>管理員 Passkey 管理</CardTitle></CardHeader>
     <CardBody>
         <CardText>
-            管理頁只接受設定的 admin email 與 Passkey 登入。Passkey 驗證成功後，API
-            會簽發短期 JWT，並透過 <code>X-EasyLottery-Session-Token</code> header 驗證管理操作。
+            目前登入的管理員可以在這裡新增或移除 Passkey 裝置。Passkey 私鑰只會留在裝置或密碼管理器，API 只保存公開金鑰與簽章計數。
         </CardText>
-        <CardText class="text-muted">
-            第一次使用請回到登入畫面註冊 Passkey。Passkey credential 只保存公鑰與簽章計數，
-            私鑰會留在瀏覽器、裝置或密碼管理器。
-        </CardText>
-        <CardText class="text-muted">
-            OBS URL 仍使用資源限定的 scoped token，不會把 admin JWT 放進 URL。
+        <CardText class="text-muted mb-0">
+            至少保留一個 Passkey，避免移除最後一個裝置後無法登入。
         </CardText>
     </CardBody>
 </Card>
+
+<Card class="mt-3">
+    <CardHeader><CardTitle>新增 Passkey 裝置</CardTitle></CardHeader>
+    <CardBody>
+        <div class="row g-3 align-items-end">
+            <div class="col-12 col-md-8">
+                <label class="form-label" for="passkey-name">裝置名稱</label>
+                <input id="passkey-name" class="form-control" @bind="newPasskeyName" maxlength="80"
+                       placeholder="例如：Office MacBook 或 iPhone" disabled="@busy" />
+            </div>
+            <div class="col-12 col-md-4">
+                <Button Color="Color.Primary" Clicked="AddAsync" Disabled="@busy">
+                    @(busy ? "處理中…" : "新增 Passkey")
+                </Button>
+            </div>
+        </div>
+    </CardBody>
+</Card>
+
+<Card class="mt-3">
+    <CardHeader>
+        <CardTitle>已註冊的 Passkey</CardTitle>
+    </CardHeader>
+    <CardBody>
+        @if (loading)
+        {
+            <p class="text-muted mb-0">載入中…</p>
+        }
+        else if (passkeys.Count == 0)
+        {
+            <p class="text-muted mb-0">目前沒有 Passkey。</p>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th scope="col">裝置</th>
+                            <th scope="col">建立時間</th>
+                            <th scope="col" class="text-end">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var passkey in passkeys)
+                        {
+                            <tr>
+                                <td>@passkey.Name</td>
+                                <td>@passkey.CreatedAtUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</td>
+                                <td class="text-end">
+                                    <Button Color="Color.Danger"
+                                            Clicked="@(() => RemoveAsync(passkey))"
+                                            Disabled="@(busy || passkeys.Count <= 1)">
+                                        移除
+                                    </Button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(error))
+        {
+            <div class="alert alert-warning mt-3 mb-0" role="alert">@error</div>
+        }
+    </CardBody>
+</Card>
+
+@code {
+    private readonly List<PasskeyDevice> passkeys = [];
+    private string newPasskeyName = "Admin Passkey";
+    private string? error;
+    private bool loading = true;
+    private bool busy;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        loading = true;
+        error = null;
+        try
+        {
+            passkeys.Clear();
+            passkeys.AddRange(await Auth.ListPasskeysAsync());
+        }
+        catch (Exception exception)
+        {
+            error = exception.Message;
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private async Task AddAsync()
+    {
+        error = null;
+        busy = true;
+        try
+        {
+            await Auth.AddPasskeyAsync(newPasskeyName);
+            newPasskeyName = "Admin Passkey";
+            await LoadAsync();
+        }
+        catch (Exception exception)
+        {
+            error = exception.Message;
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private async Task RemoveAsync(PasskeyDevice passkey)
+    {
+        if (passkeys.Count <= 1
+            || !await JS.InvokeAsync<bool>("confirm", $"確定要移除「{passkey.Name}」嗎？"))
+        {
+            return;
+        }
+
+        error = null;
+        busy = true;
+        try
+        {
+            await Auth.RemovePasskeyAsync(passkey.Id);
+            await LoadAsync();
+        }
+        catch (Exception exception)
+        {
+            error = exception.Message;
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+}
