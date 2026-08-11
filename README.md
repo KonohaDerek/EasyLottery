@@ -133,7 +133,7 @@ OBS 動畫階段、結果停留時間、透明背景與低動態／低效能選�
 
 ### 執行 Web Host
 
-本機執行使用 Passkey 管理登入：預設管理員為 `admin@example.com`，第一次登入需註冊 Passkey，之後由 WebAuthn assertion 驗證後取得短效 JWT。管理 API 只接受 `X-EasyLottery-Session-Token` header，不再由 `/api/session-token` 無條件發 token。Passkey 私鑰不會送到 API；API 只保存 credential 公鑰、ID 與 signature counter。
+本機執行使用 Passkey 管理登入：預設管理員為 `admin@example.com`，登入頁只有一個 Passkey 按鈕；第一次按下會註冊目前裝置，之後由 WebAuthn assertion 驗證後取得短效 JWT。登入後可在 Passkey 管理頁新增或移除裝置。管理 API 只接受 `X-EasyLottery-Session-Token` header，不再由 `/api/session-token` 無條件發 token。Passkey 私鑰不會送到 API；API 只保存 credential 公鑰、ID、名稱與 signature counter。
 
 ```bash
 dotnet run --project src/EasyLotteryAPI/EasyLotteryApi.csproj --launch-profile EasyLotteryAPI

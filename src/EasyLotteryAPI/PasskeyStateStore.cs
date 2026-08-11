@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using EasyLotteryInfrastructure.Storage;
 
 namespace EasyLotteryApi;
@@ -27,8 +28,18 @@ public sealed class PasskeyStateStore
     {
         await using var gate = await _storageGates.AcquireAsync(cancellationToken, _path);
         var state = await ReadUnsafeAsync(cancellationToken);
-        if (flow == AdminPasskeyOptions.RegisterFlow) state.Registration = pending;
-        else state.Authentication = pending;
+        switch (flow)
+        {
+            case AdminPasskeyOptions.RegisterFlow:
+                state.Registration = pending;
+                break;
+            case AdminPasskeyOptions.AddFlow:
+                state.Addition = pending;
+                break;
+            default:
+                state.Authentication = pending;
+                break;
+        }
         await WriteUnsafeAsync(state, cancellationToken);
     }
 
@@ -36,19 +47,36 @@ public sealed class PasskeyStateStore
     {
         await using var gate = await _storageGates.AcquireAsync(cancellationToken, _path);
         var state = await ReadUnsafeAsync(cancellationToken);
-        var pending = flow == AdminPasskeyOptions.RegisterFlow ? state.Registration : state.Authentication;
-        if (flow == AdminPasskeyOptions.RegisterFlow) state.Registration = null;
-        else state.Authentication = null;
+        PasskeyPendingCeremony? pending;
+        switch (flow)
+        {
+            case AdminPasskeyOptions.RegisterFlow:
+                pending = state.Registration;
+                state.Registration = null;
+                break;
+            case AdminPasskeyOptions.AddFlow:
+                pending = state.Addition;
+                state.Addition = null;
+                break;
+            default:
+                pending = state.Authentication;
+                state.Authentication = null;
+                break;
+        }
         await WriteUnsafeAsync(state, cancellationToken);
         return pending is not null && pending.ExpiresAtUtc > DateTimeOffset.UtcNow ? pending : null;
     }
 
     public async Task SaveCredentialAsync(PasskeyCredentialRecord credential, CancellationToken cancellationToken = default)
+        => await AddCredentialAsync(credential, cancellationToken);
+
+    public async Task AddCredentialAsync(PasskeyCredentialRecord credential, CancellationToken cancellationToken = default)
     {
         await using var gate = await _storageGates.AcquireAsync(cancellationToken, _path);
         var state = await ReadUnsafeAsync(cancellationToken);
-        if (state.Credential is not null) throw new InvalidOperationException("Admin Passkey 已經註冊。");
-        state.Credential = credential;
+        if (state.Credentials.Any(item => item.CredentialId.SequenceEqual(credential.CredentialId)))
+            throw new InvalidOperationException("Admin Passkey 已經註冊。");
+        state.Credentials.Add(credential);
         await WriteUnsafeAsync(state, cancellationToken);
     }
 
@@ -56,17 +84,33 @@ public sealed class PasskeyStateStore
     {
         await using var gate = await _storageGates.AcquireAsync(cancellationToken, _path);
         var state = await ReadUnsafeAsync(cancellationToken);
-        if (state.Credential is null || !state.Credential.CredentialId.SequenceEqual(credentialId)) return false;
-        state.Credential.SignatureCounter = Math.Max(state.Credential.SignatureCounter, counter);
+        var credential = state.Credentials.FirstOrDefault(item => item.CredentialId.SequenceEqual(credentialId));
+        if (credential is null) return false;
+        credential.SignatureCounter = Math.Max(credential.SignatureCounter, counter);
         await WriteUnsafeAsync(state, cancellationToken);
         return true;
+    }
+
+    public async Task<PasskeyRemoveResult> RemoveCredentialAsync(byte[] credentialId, CancellationToken cancellationToken = default)
+    {
+        await using var gate = await _storageGates.AcquireAsync(cancellationToken, _path);
+        var state = await ReadUnsafeAsync(cancellationToken);
+        var index = state.Credentials.FindIndex(item => item.CredentialId.SequenceEqual(credentialId));
+        if (index < 0) return PasskeyRemoveResult.NotFound;
+        if (state.Credentials.Count == 1) return PasskeyRemoveResult.LastCredential;
+
+        state.Credentials.RemoveAt(index);
+        await WriteUnsafeAsync(state, cancellationToken);
+        return PasskeyRemoveResult.Removed;
     }
 
     private async Task<PasskeyState> ReadUnsafeAsync(CancellationToken cancellationToken)
     {
         if (!File.Exists(_path)) return new PasskeyState();
         await using var stream = File.OpenRead(_path);
-        return await JsonSerializer.DeserializeAsync<PasskeyState>(stream, JsonOptions, cancellationToken) ?? new PasskeyState();
+        var state = await JsonSerializer.DeserializeAsync<PasskeyState>(stream, JsonOptions, cancellationToken) ?? new PasskeyState();
+        state.NormalizeLegacyCredential();
+        return state;
     }
 
     private async Task WriteUnsafeAsync(PasskeyState state, CancellationToken cancellationToken)
@@ -82,9 +126,44 @@ public sealed class PasskeyStateStore
 
 public sealed class PasskeyState
 {
-    public PasskeyCredentialRecord? Credential { get; set; }
+    public List<PasskeyCredentialRecord> Credentials { get; set; } = [];
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    [JsonPropertyName("Credential")]
+    public PasskeyCredentialRecord? LegacyCredential { get; set; }
+
+    [JsonIgnore]
+    public PasskeyCredentialRecord? Credential
+    {
+        get => Credentials.FirstOrDefault();
+        set
+        {
+            Credentials.Clear();
+            if (value is not null) Credentials.Add(value);
+        }
+    }
+
     public PasskeyPendingCeremony? Registration { get; set; }
     public PasskeyPendingCeremony? Authentication { get; set; }
+    public PasskeyPendingCeremony? Addition { get; set; }
+
+    public void NormalizeLegacyCredential()
+    {
+        Credentials ??= [];
+        if (Credentials.Count == 0 && LegacyCredential is not null)
+        {
+            Credentials.Add(LegacyCredential);
+        }
+
+        LegacyCredential = null;
+    }
+}
+
+public enum PasskeyRemoveResult
+{
+    NotFound,
+    LastCredential,
+    Removed
 }
 
 public sealed class PasskeyPendingCeremony
@@ -92,6 +171,7 @@ public sealed class PasskeyPendingCeremony
     public required string Email { get; init; }
     public required string OptionsJson { get; init; }
     public required DateTimeOffset ExpiresAtUtc { get; init; }
+    public string? Name { get; init; }
 }
 
 public sealed class PasskeyCredentialRecord
@@ -100,4 +180,6 @@ public sealed class PasskeyCredentialRecord
     public required byte[] PublicKey { get; init; }
     public required byte[] UserHandle { get; init; }
     public uint SignatureCounter { get; set; }
+    public string Name { get; init; } = "Admin Passkey";
+    public DateTimeOffset CreatedAtUtc { get; init; } = DateTimeOffset.UtcNow;
 }
