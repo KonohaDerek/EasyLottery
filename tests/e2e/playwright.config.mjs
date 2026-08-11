@@ -5,6 +5,7 @@ export default defineConfig({
   testMatch: "**/*.spec.mjs",
   timeout: 60_000,
   expect: { timeout: 15_000 },
+  workers: 1,
   fullyParallel: false,
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [["line"], ["html", { outputFolder: "playwright-report", open: "never" }]] : "list",

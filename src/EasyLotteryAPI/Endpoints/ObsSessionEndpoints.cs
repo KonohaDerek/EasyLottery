@@ -4,16 +4,8 @@ internal static class ObsSessionEndpoints
 {
     public static void MapObsSessionEndpoints(this WebApplication app)
     {
-        app.MapGet("/api/session-token", (HttpContext context, ObsSessionTokenService tokens, AdminTokenIssuancePolicy policy) =>
-        {
-            if (!policy.CanIssue(context))
-            {
-                return Results.StatusCode(StatusCodes.Status403Forbidden);
-            }
-
-            var issued = tokens.IssueAdminToken();
-            return Results.Ok(new SessionTokenResponse(issued.Token, issued.ExpiresAtUtc));
-        }).RequireRateLimiting("authentication");
+        // Keep the old route explicit so the SPA fallback cannot turn an auth API typo into HTML.
+        app.MapGet("/api/session-token", () => Results.NotFound());
 
         app.MapPost("/api/obs-sessions", (ObsTokenRequest request, HttpContext context, ObsSessionAccess access, ObsSessionTokenService tokens) =>
         {

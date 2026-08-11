@@ -21,10 +21,14 @@ builder.Services.AddSingleton<PaymentProviderFactory>();
 builder.Services.AddEasyLotteryInfrastructure();
 builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblies(typeof(GetDonateActivitiesQuery).Assembly, typeof(DependencyInjection).Assembly));
 var adminTokenOptions = AdminTokenSecurityOptions.Load(builder.Configuration);
+var adminPasskeyOptions = AdminPasskeyOptions.Load(builder.Configuration);
 builder.Services.AddSingleton(adminTokenOptions);
+builder.Services.AddSingleton(adminPasskeyOptions);
 builder.Services.AddSingleton<AdminTokenIssuancePolicy>();
 builder.Services.AddSingleton<ObsSessionTokenService>();
 builder.Services.AddSingleton<ObsSessionAccess>();
+builder.Services.AddSingleton<PasskeyStateStore>();
+builder.Services.AddSingleton<PasskeyAuthenticationService>();
 builder.Services.AddSingleton<ObsSettingsProjectionService>();
 builder.Services.AddRateLimiter(options =>
 {
@@ -141,6 +145,7 @@ app.MapHealthChecks("/health/ready", new Microsoft.AspNetCore.Diagnostics.Health
 
 app.MapSettingsEndpoints();
 app.MapSettingsResourceEndpoints();
+app.MapPasskeyEndpoints();
 app.MapObsSessionEndpoints();
 app.MapAiCongratulationEndpoints();
 app.MapOvertimeFeedEndpoints();
@@ -156,6 +161,18 @@ app.MapTunnelEndpoints();
 app.MapLiveDrawSessionEndpoints();
 app.MapHub<OvertimeHub>("/hubs/overtime");
 app.MapHub<LiveDrawHub>("/hubs/live-draw");
+
+app.MapGet("/api/test/session-token", (IHostEnvironment environment, IConfiguration configuration, ObsSessionTokenService tokens) =>
+{
+    if (!environment.IsDevelopment() || !configuration.GetValue<bool>("Testing:EnableAdminSessionToken"))
+    {
+        return Results.NotFound();
+    }
+
+    // Test-only bridge for browser E2E setup; never issues tokens in production.
+    var issued = tokens.IssueAdminToken();
+    return Results.Ok(new SessionTokenResponse(issued.Token, issued.ExpiresAtUtc));
+});
 
 app.MapFallbackToFile("index.html");
 

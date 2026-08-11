@@ -133,7 +133,7 @@ OBS 動畫階段、結果停留時間、透明背景與低動態／低效能選�
 
 ### 執行 Web Host
 
-本機執行預設使用 `local` 管理 Session 模式：API 會在每次啟動時產生新的簽章金鑰，瀏覽器從同源 `/api/session-token` 取得短效 admin JWT。系統不再讀取或需要固定的 `EASYLOTTERY_ADMIN_TOKEN`。
+本機執行使用 Passkey 管理登入：預設管理員為 `admin@example.com`，第一次登入需註冊 Passkey，之後由 WebAuthn assertion 驗證後取得短效 JWT。管理 API 只接受 `X-EasyLottery-Session-Token` header，不再由 `/api/session-token` 無條件發 token。Passkey 私鑰不會送到 API；API 只保存 credential 公鑰、ID 與 signature counter。
 
 ```bash
 dotnet run --project src/EasyLotteryAPI/EasyLotteryApi.csproj --launch-profile EasyLotteryAPI
@@ -151,7 +151,7 @@ docker compose up --build
 
 如需進行容器 smoke test，可執行：`bash tests/smoke-health.sh`。
 
-若要公開部署，請將環境設為 `Production`，並設定管理 Session 的來源 IP allowlist；未設定 allowlist 時公開模式會拒絕簽發 admin session：
+若要公開部署，請將環境設為 `Production`，設定 admin email、WebAuthn RP ID／Origin，並以既有來源 allowlist 限制首次 Passkey 註冊：
 
 ```yaml
 services:
@@ -159,8 +159,9 @@ services:
     environment:
       Security__AdminToken__Mode: public
       Security__AdminToken__AllowedClientIps__0: 203.0.113.10
-      Security__AdminToken__LifetimeMinutes: 60
-      Security__ObsToken__LifetimeMinutes: 360
+      Admin__Email: admin@example.com
+      Admin__Passkey__RpId: easylotter.example.com
+      Admin__Passkey__Origins__0: https://easylotter.example.com
 ```
 
 若 API 位於反向代理後方，另外設定受信任代理 IP，系統只會接受該代理轉送的 `X-Forwarded-For`：
@@ -170,6 +171,8 @@ services:
 ```
 
 請勿直接把管理端點暴露到未限制的公開網路；OBS URL 應使用管理頁簽發的 scoped OBS token。
+
+首次註冊只允許 `Security__AdminToken__Mode` 所允許的來源；註冊完成後，登入改由 Passkey 驗證，不需再依賴來源 IP。反向代理必須正確轉送 HTTPS scheme，並設定 `Security__AdminToken__TrustedProxyIps__0`。
 
 ### 執行測試
 

@@ -35,6 +35,17 @@ Storage__Directory=/data
 3. 更新 image 或執行檔並重啟。
 4. 等待 `/health/ready` 成功，再開放流量。
 
-## Session 與網路安全
+## Passkey 與網路安全
 
-系統不使用固定 `EASYLOTTERY_ADMIN_TOKEN`。正式環境使用啟動時產生的簽章金鑰與短效 session；若啟用 public 模式，必須設定 `Security__AdminToken__AllowedClientIps__*`，並在反向代理環境設定 trusted proxy allowlist。
+正式環境使用 Passkey 驗證後簽發短效 JWT。至少設定：
+
+```yaml
+Admin__Email: admin@example.com
+Admin__Passkey__RpId: easylotter.k-derek.synology.me
+Admin__Passkey__Origins__0: https://easylotter.k-derek.synology.me
+Security__AdminToken__Mode: public
+Security__AdminToken__AllowedClientIps__0: <首次註冊管理員的固定 IP 或 CIDR>
+Security__AdminToken__TrustedProxyIps__0: <反向代理固定 IP>
+```
+
+首次註冊完成後，請保留 credential 儲存檔 `admin-passkey.json` 與其他資料一併備份；遺失時需要從允許來源重新初始化部署資料。API 不會保存 Passkey 私鑰。

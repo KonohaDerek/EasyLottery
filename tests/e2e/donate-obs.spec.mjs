@@ -1,7 +1,7 @@
 import { expect, test } from "./fixtures.mjs";
 
 async function login(request) {
-  const response = await request.get("/api/session-token");
+  const response = await request.get("/api/test/session-token");
   expect(response.ok()).toBeTruthy();
   return (await response.json()).token;
 }

@@ -1,18 +1,24 @@
 # Session 與 OBS 權限
 
-## 自動取得 Session
+## Passkey 管理登入
 
-EasyLottery 網站不需要管理密碼。WASM 啟動時會呼叫同源的 `GET /api/session-token`，由目前 API 執行個體簽發短期 admin JWT，並只保存於瀏覽器的 `sessionStorage`。重新整理或重新開啟瀏覽器後，系統會自動取得新的 token。
+EasyLottery 只允許設定的單一管理員 email 登入，預設為 `admin@example.com`。環境變數使用 ASP.NET Core 格式：
 
-預設 `Security:AdminToken:Mode` 為 `local`：只有 loopback（或 TestServer 的本機傳輸）可以取得 admin token。公開部署必須明確切換為 `public` 並設定 `Security:AdminToken:AllowedClientIps`，否則 `/api/session-token` 會回傳 `403`。allowlist 支援單一 IP、CIDR（例如 `192.168.1.0/24`）與 `loopback`。
+```yaml
+Admin__Email: admin@example.com
+Admin__Passkey__RpId: easylotter.example.com
+Admin__Passkey__Origins__0: https://easylotter.example.com
+```
 
-管理 Token 預設有效期為 60 分鐘，可用 `Security:AdminToken:LifetimeMinutes` 設定（5 分鐘至 24 小時）；OBS Token 預設有效期為 360 分鐘，可用 `Security:ObsToken:LifetimeMinutes` 設定。`DELETE /api/session` 可撤銷目前的 session token；API 重啟後簽章金鑰會更換，所有舊 token 立即失效。
+第一次登入若沒有 credential，畫面會引導註冊第一個 Passkey。伺服器會真正驗證 WebAuthn registration／assertion，只保存 credential ID、公鑰與 signature counter；Passkey 私鑰只留在裝置或密碼管理器。註冊 challenge 有效期且只能使用一次。
 
-若 API 位於反向代理後方，請將代理的固定 IP 放入 `Security:AdminToken:TrustedProxyIps`。程式只會從受信任代理接受 `X-Forwarded-For`，未列入 allowlist 的直接來源仍無法取得 admin token。
+驗證成功後 API 簽發短效 JWT，管理 API 只接受 `X-EasyLottery-Session-Token` header。`GET /api/session-token` 已停用；`DELETE /api/session` 可撤銷目前的 JWT。API 重啟後簽章金鑰會更換，舊 JWT 立即失效。
 
-API 重啟會重新產生簽章金鑰，先前的 token 會失效；重新載入網站即可恢復。網站仍應放在可信任的 localhost、內網或已限制存取的 Tunnel 後方，因為沒有帳號登入時，能開啟網站的人也能取得管理 session。
+預設 `Security:AdminToken:Mode` 為 `local`。首次註冊會沿用這個來源政策；公開部署必須設定 `public`、`Security:AdminToken:AllowedClientIps`，並在反向代理環境設定 `Security:AdminToken:TrustedProxyIps`。登入本身由 Passkey 保護，不應把 allowlist 當成唯一登入因素。
 
-設定寫入、活動 CRUD、Tunnel、測試支付與其他敏感命令仍要求有效的 admin session，並套用速率限制及 1 MiB request body 上限。
+WebAuthn 只在 HTTPS secure context（localhost 除外）可用；`Admin__Passkey__RpId` 必須符合網域，`Admin__Passkey__Origins__*` 必須包含瀏覽器實際 origin。設定錯誤時，瀏覽器會拒絕 credential。
+
+設定寫入、活動 CRUD、Tunnel、測試支付與其他敏感命令仍要求有效的 admin JWT，並套用速率限制及 1 MiB request body 上限。
 
 ## OBS URL
 

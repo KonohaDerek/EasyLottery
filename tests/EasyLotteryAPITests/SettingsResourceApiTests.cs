@@ -17,7 +17,7 @@ public sealed class SettingsResourceApiTests
     {
         await using var factory = CreateFactory();
         using var client = factory.CreateClient();
-        AddToken(client, await LoginAsync(client));
+        AddToken(client, LoginAsync(factory));
 
         using var read = await client.GetAsync("/api/settings/obs-layout");
         Assert.AreEqual(HttpStatusCode.OK, read.StatusCode);
@@ -42,7 +42,7 @@ public sealed class SettingsResourceApiTests
     {
         await using var factory = CreateFactory();
         using var client = factory.CreateClient();
-        AddToken(client, await LoginAsync(client));
+        AddToken(client, LoginAsync(factory));
 
         using var initial = await client.GetAsync("/api/settings/sound-cues");
         var tag = initial.Headers.ETag!.Tag;
@@ -73,7 +73,7 @@ public sealed class SettingsResourceApiTests
         var databasePath = Path.Combine(Path.GetTempPath(), $"easy-lottery-settings-{Guid.NewGuid():N}.db");
         await using var factory = CreateSqliteFactory(databasePath);
         using var client = factory.CreateClient();
-        AddToken(client, await LoginAsync(client));
+        AddToken(client, LoginAsync(factory));
 
         using var read = await client.GetAsync("/api/settings/obs-layout");
         var tag = read.Headers.ETag!.Tag;
@@ -117,7 +117,7 @@ public sealed class SettingsResourceApiTests
         await yamlStore.SaveAsync(document);
 
         using var client = factory.CreateClient();
-        AddToken(client, await LoginAsync(client));
+        AddToken(client, LoginAsync(factory));
         using var import = await client.PostAsync("/api/storage/import-yaml", content: null);
         Assert.AreEqual(HttpStatusCode.OK, import.StatusCode);
 
@@ -133,7 +133,7 @@ public sealed class SettingsResourceApiTests
         var databasePath = Path.Combine(Path.GetTempPath(), $"easy-lottery-donate-{Guid.NewGuid():N}.db");
         await using var factory = CreateSqliteFactory(databasePath);
         using var client = factory.CreateClient();
-        AddToken(client, await LoginAsync(client));
+        AddToken(client, LoginAsync(factory));
 
         using var create = await client.PostAsJsonAsync("/api/donate-activities", new DonateLotteryActivity
         {
@@ -155,7 +155,7 @@ public sealed class SettingsResourceApiTests
     {
         await using var factory = CreateFactory();
         using var client = factory.CreateClient();
-        var token = await LoginAsync(client);
+        var token = LoginAsync(factory);
         AddToken(client, token);
 
         using var seed = new HttpRequestMessage(HttpMethod.Put, "/settings")
@@ -192,7 +192,7 @@ public sealed class SettingsResourceApiTests
     {
         await using var factory = CreateFactory();
         using var client = factory.CreateClient();
-        AddToken(client, await LoginAsync(client));
+        AddToken(client, LoginAsync(factory));
 
         using var response = await client.GetAsync("/settings");
 
@@ -206,7 +206,7 @@ public sealed class SettingsResourceApiTests
     {
         await using var factory = CreateFactory();
         using var client = factory.CreateClient();
-        var adminToken = await LoginAsync(client);
+        var adminToken = LoginAsync(factory);
         var obsToken = await IssueObsTokenAsync(client, adminToken, "roulette", Guid.NewGuid().ToString(), ["read"]);
 
         using var presentation = new HttpRequestMessage(HttpMethod.Get, "/api/settings/sound-cues");
@@ -236,12 +236,8 @@ public sealed class SettingsResourceApiTests
                 ["Storage:Directory"] = directory ?? Path.GetDirectoryName(databasePath)!
             })));
 
-    private static async Task<string> LoginAsync(HttpClient client)
-    {
-        using var response = await client.GetAsync("/api/session-token");
-        response.EnsureSuccessStatusCode();
-        return (await response.Content.ReadFromJsonAsync<TokenResponse>())!.Token;
-    }
+    private static string LoginAsync(WebApplicationFactory<Program> factory) =>
+        factory.Services.GetRequiredService<ObsSessionTokenService>().IssueAdminToken().Token;
 
     private static void AddToken(HttpClient client, string token) => client.DefaultRequestHeaders.Add(ObsSessionTokenService.HeaderName, token);
 
