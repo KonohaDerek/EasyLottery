@@ -179,6 +179,19 @@ namespace EasyLotteryDomainTests.Services
         }
 
         [TestMethod]
+        public async Task DuplicateBuiltInTemplate_TracksMarketSource()
+        {
+            var svc = new PokeService(new InMemoryEasyLotteryConfigStore());
+
+            var builtIn = (await svc.ListTemplatesAsync()).First(template => template.IsBuiltIn);
+            var duplicate = await svc.DuplicateTemplateAsync(builtIn.Id);
+            var similarlyNamedCustom = await svc.CreateTemplateAsync(new PokeTemplate { Name = $"{builtIn.Name} - 自訂" });
+
+            Assert.AreEqual(builtIn.PublicId, duplicate.MarketSourcePublicId);
+            Assert.AreEqual(Guid.Empty, similarlyNamedCustom.MarketSourcePublicId);
+        }
+
+        [TestMethod]
         public async Task SetPublicationStatus_UpdatesTemplateStatus()
         {
             var svc = new PokeService(new InMemoryEasyLotteryConfigStore());

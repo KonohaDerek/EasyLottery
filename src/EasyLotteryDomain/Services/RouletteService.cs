@@ -53,6 +53,7 @@ namespace EasyLotteryDomain.Services
             template.PublicId = existing.PublicId != Guid.Empty
                 ? existing.PublicId
                 : template.PublicId != Guid.Empty ? template.PublicId : Guid.NewGuid();
+            template.MarketSourcePublicId = existing.MarketSourcePublicId;
             PrepareTemplateForSave(template, document.IdSequence.NextRouletteSegmentId);
             document.IdSequence.NextRouletteSegmentId = Math.Max(document.IdSequence.NextRouletteSegmentId, template.Segments.Select(s => s.Id).DefaultIfEmpty(document.IdSequence.NextRouletteSegmentId - 1).Max() + 1);
 
@@ -92,6 +93,7 @@ namespace EasyLotteryDomain.Services
                 PointerImageUrl = source.PointerImageUrl,
                 SpinSoundUrl = source.SpinSoundUrl,
                 WinSoundUrl = source.WinSoundUrl,
+                MarketSourcePublicId = source.IsBuiltIn ? source.PublicId : Guid.Empty,
                 IsBuiltIn = false,
                 PublicationStatus = TemplatePublicationStatus.Draft,
                 Segments = source.Segments

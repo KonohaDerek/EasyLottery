@@ -51,6 +51,7 @@ namespace EasyLotteryDomain.Services
             template.PublicId = existing.PublicId != Guid.Empty
                 ? existing.PublicId
                 : template.PublicId != Guid.Empty ? template.PublicId : Guid.NewGuid();
+            template.MarketSourcePublicId = existing.MarketSourcePublicId;
             PrepareTemplateForSave(template, document.IdSequence.NextPokeCellId);
             document.IdSequence.NextPokeCellId = Math.Max(document.IdSequence.NextPokeCellId, template.Cells.Select(c => c.Id).DefaultIfEmpty(document.IdSequence.NextPokeCellId - 1).Max() + 1);
 
@@ -95,6 +96,7 @@ namespace EasyLotteryDomain.Services
                 ResultDisplayDurationSeconds = source.ResultDisplayDurationSeconds,
                 PokeSoundUrl = source.PokeSoundUrl,
                 OpenSoundUrl = source.OpenSoundUrl,
+                MarketSourcePublicId = source.IsBuiltIn ? source.PublicId : Guid.Empty,
                 IsBuiltIn = false,
                 PublicationStatus = TemplatePublicationStatus.Draft,
                 Cells = source.Cells
