@@ -9,6 +9,7 @@ services:
       Admin__Email: ${EASYLOTTERY_ADMIN_EMAIL:-admin@example.com}
       Admin__Passkey__RpId: ${EASYLOTTERY_PASSKEY_RP_ID:-localhost}
       Admin__Passkey__Origins__0: ${EASYLOTTERY_PASSKEY_ORIGIN:-http://localhost:18930}
+      Security__AdminToken__SigningKey: ${EASYLOTTERY_ADMIN_TOKEN_SIGNING_KEY-}
     ports:
       - "18930:18930"
     volumes:

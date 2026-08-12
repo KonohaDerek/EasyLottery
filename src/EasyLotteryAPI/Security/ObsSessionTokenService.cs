@@ -32,7 +32,7 @@ public sealed class ObsSessionTokenService
         };
         _adminTokenLifetime = options.AdminTokenLifetime;
         _obsTokenLifetime = options.ObsTokenLifetime;
-        var key = new SymmetricSecurityKey(RandomNumberGenerator.GetBytes(64)) { KeyId = Guid.NewGuid().ToString("N") };
+        var key = new SymmetricSecurityKey(ReadSigningKey(options.SigningKey)) { KeyId = Guid.NewGuid().ToString("N") };
         _credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
         _validation = new TokenValidationParameters
         {
@@ -125,6 +125,22 @@ public sealed class ObsSessionTokenService
             expires: expires.UtcDateTime,
             signingCredentials: _credentials);
         return new SessionToken(_handler.WriteToken(jwt), expires);
+    }
+
+    private static byte[] ReadSigningKey(string? configuredKey)
+    {
+        if (string.IsNullOrWhiteSpace(configuredKey)) return RandomNumberGenerator.GetBytes(64);
+
+        try
+        {
+            var key = Convert.FromBase64String(configuredKey);
+            if (key.Length < 32) throw new InvalidOperationException("Security:AdminToken:SigningKey 必須至少包含 32 bytes。");
+            return key;
+        }
+        catch (FormatException exception)
+        {
+            throw new InvalidOperationException("Security:AdminToken:SigningKey 必須是 Base64。", exception);
+        }
     }
 
     private static string Normalize(string value) => value.Trim().ToLowerInvariant();

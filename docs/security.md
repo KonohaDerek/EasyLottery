@@ -12,7 +12,7 @@ Admin__Passkey__Origins__0: https://easylotter.example.com
 
 登入頁只有一個 Passkey 按鈕：若沒有 credential，按下後會直接註冊目前裝置並登入；已有 credential 則直接進行 assertion 驗證。登入後可在管理頁新增或移除 Passkey 裝置，但至少會保留一個。伺服器會真正驗證 WebAuthn registration／assertion，只保存 credential ID、公鑰、名稱與 signature counter；Passkey 私鑰只留在裝置或密碼管理器。註冊 challenge 有效期且只能使用一次。
 
-驗證成功後 API 簽發短效 JWT，管理 API 只接受 `X-EasyLottery-Session-Token` header。`GET /api/session-token` 已停用；`DELETE /api/session` 可撤銷目前的 JWT。API 重啟後簽章金鑰會更換，舊 JWT 立即失效。
+驗證成功後 API 簽發短效 JWT，管理 API 只接受 `X-EasyLottery-Session-Token` header。`GET /api/session-token` 已停用；`DELETE /api/session` 可撤銷目前的 JWT。未設定 `Security__AdminToken__SigningKey` 時，每次 API 啟動會產生新的隨機簽章金鑰；要讓重啟或多副本保留既有 JWT，請設定固定的 Base64 key（至少 32 bytes）並妥善保管。
 
 預設 `Security:AdminToken:Mode` 為 `local`。首次註冊會沿用這個來源政策；公開部署必須設定 `public`、`Security:AdminToken:AllowedClientIps`，並在反向代理環境設定 `Security:AdminToken:TrustedProxyIps`。登入本身由 Passkey 保護，不應把 allowlist 當成唯一登入因素。
 
