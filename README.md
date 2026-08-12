@@ -142,8 +142,13 @@ dotnet run --project src/EasyLotteryAPI/EasyLotteryApi.csproj --launch-profile E
 ### 以 Docker 執行
 
 ```bash
+export EASYLOTTERY_ADMIN_EMAIL=admin@example.com
+export EASYLOTTERY_PASSKEY_RP_ID=easylotter.example.com
+export EASYLOTTERY_PASSKEY_ORIGIN=https://easylotter.example.com
 docker compose up --build
 ```
+
+Production compose 需要明確設定管理員 email、Passkey RP ID 與 Origin；容器 port 預設只暴露到本機 loopback。
 
 設定資料會保存於 Docker volume `easy_lottery_data`。
 
