@@ -17,8 +17,13 @@ RUN dotnet publish src/EasyLotteryAPI/EasyLotteryApi.csproj -c Release -o /app/p
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
 
+ENV APP_UID=1654
 ENV ASPNETCORE_URLS=http://+:18930
 EXPOSE 18930
 
 COPY --from=build /app/publish .
+RUN mkdir -p /data \
+    && chown -R $APP_UID:$APP_UID /app /data
+USER $APP_UID
+
 ENTRYPOINT ["dotnet", "EasyLotteryApi.dll"]
