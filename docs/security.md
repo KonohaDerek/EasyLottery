@@ -18,6 +18,8 @@ Admin__Passkey__Origins__0: https://easylotter.example.com
 
 WebAuthn 只在 HTTPS secure context（localhost 除外）可用；`Admin__Passkey__RpId` 必須符合網域，`Admin__Passkey__Origins__*` 必須包含瀏覽器實際 origin。設定錯誤時，瀏覽器會拒絕 credential。
 
+本機若使用非 `18930` 的埠號，請同步設定 `Admin__Passkey__Origins__0=http://localhost:<埠號>`；不要依賴 Production fallback，也不要使用 wildcard origin。
+
 設定寫入、活動 CRUD、Tunnel、測試支付與其他敏感命令仍要求有效的 admin JWT，並套用速率限制及 1 MiB request body 上限。
 
 ## OBS URL
