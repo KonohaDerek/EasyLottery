@@ -21,10 +21,5 @@ public sealed class PaymentProviderFactory
     public IReadOnlyCollection<PaymentProviderDescriptor> AvailableProviders =>
         _providers.Values.Select(provider => provider.Descriptor).ToArray();
 
-    private static string NormalizeProviderId(string providerId) => providerId.Trim().ToLowerInvariant() switch
-    {
-        "ecpay" => PaymentProviderIds.EcpayBroadcaster,
-        "newebpay" => PaymentProviderIds.NewebPayDonation,
-        _ => providerId
-    };
+    private static string NormalizeProviderId(string providerId) => PaymentProviderAliases.Normalize(providerId);
 }

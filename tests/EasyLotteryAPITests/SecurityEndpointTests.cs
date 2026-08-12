@@ -1,7 +1,8 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
-using EasyLotteryApi;
+using EasyLotteryApi.Passkey;
+using EasyLotteryApi.Security;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.WebUtilities;
@@ -230,7 +231,7 @@ public sealed class SecurityEndpointTests
         using var response = await client.SendAsync(request);
         Assert.AreEqual(HttpStatusCode.OK, response.StatusCode);
         var options = await response.Content.ReadFromJsonAsync<PasskeyBeginResult>();
-        Assert.AreEqual(AdminPasskeyOptions.AddFlow, options!.Flow);
+        Assert.AreEqual(PasskeyFlow.Add.ToValue(), options!.Flow);
     }
 
     [TestMethod]
@@ -330,15 +331,15 @@ public sealed class SecurityEndpointTests
     {
         await using var factory = CreateFactory();
         var store = factory.Services.GetRequiredService<PasskeyStateStore>();
-        await store.SetPendingAsync(AdminPasskeyOptions.RegisterFlow, new PasskeyPendingCeremony
+        await store.SetPendingAsync(PasskeyFlow.Register, new PasskeyPendingCeremony
         {
             Email = AdminPasskeyOptions.DefaultEmail,
             OptionsJson = "{}",
             ExpiresAtUtc = DateTimeOffset.UtcNow.AddMinutes(1)
         });
 
-        var first = await store.TakePendingAsync(AdminPasskeyOptions.RegisterFlow);
-        var second = await store.TakePendingAsync(AdminPasskeyOptions.RegisterFlow);
+        var first = await store.TakePendingAsync(PasskeyFlow.Register);
+        var second = await store.TakePendingAsync(PasskeyFlow.Register);
 
         Assert.IsNotNull(first);
         Assert.IsNull(second);
@@ -349,14 +350,14 @@ public sealed class SecurityEndpointTests
     {
         await using var factory = CreateFactory();
         var store = factory.Services.GetRequiredService<PasskeyStateStore>();
-        await store.SetPendingAsync(AdminPasskeyOptions.LoginFlow, new PasskeyPendingCeremony
+        await store.SetPendingAsync(PasskeyFlow.Login, new PasskeyPendingCeremony
         {
             Email = AdminPasskeyOptions.DefaultEmail,
             OptionsJson = "{}",
             ExpiresAtUtc = DateTimeOffset.UtcNow.AddSeconds(-1)
         });
 
-        var pending = await store.TakePendingAsync(AdminPasskeyOptions.LoginFlow);
+        var pending = await store.TakePendingAsync(PasskeyFlow.Login);
 
         Assert.IsNull(pending);
     }

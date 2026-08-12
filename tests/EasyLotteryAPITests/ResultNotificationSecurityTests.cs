@@ -1,4 +1,4 @@
-using EasyLotteryApi.Endpoints;
+using EasyLotteryApi.Activities.ActivityResults.Endpoints;
 
 namespace EasyLotteryApiTests;
 
