@@ -20,6 +20,8 @@ public sealed class AdminTokenSecurityOptions
 
     public required TimeSpan ObsTokenLifetime { get; init; }
 
+    public string? SigningKey { get; init; }
+
     public static AdminTokenSecurityOptions Load(IConfiguration configuration)
     {
         var mode = (configuration["Security:AdminToken:Mode"] ?? LocalMode).Trim().ToLowerInvariant();
@@ -36,7 +38,8 @@ public sealed class AdminTokenSecurityOptions
             AllowedClientIps = allowedClientIps,
             TrustedProxyIps = trustedProxyIps,
             AdminTokenLifetime = TimeSpan.FromMinutes(ReadLifetimeMinutes(configuration, "Security:AdminToken:LifetimeMinutes", DefaultAdminLifetimeMinutes)),
-            ObsTokenLifetime = TimeSpan.FromMinutes(ReadLifetimeMinutes(configuration, "Security:ObsToken:LifetimeMinutes", DefaultObsLifetimeMinutes))
+            ObsTokenLifetime = TimeSpan.FromMinutes(ReadLifetimeMinutes(configuration, "Security:ObsToken:LifetimeMinutes", DefaultObsLifetimeMinutes)),
+            SigningKey = configuration["Security:AdminToken:SigningKey"]?.Trim() is { Length: > 0 } signingKey ? signingKey : null
         };
     }
 

@@ -51,6 +51,9 @@ Admin__Passkey__Origins__0: https://easylotter.k-derek.synology.me
 Security__AdminToken__Mode: public
 Security__AdminToken__AllowedClientIps__0: <首次註冊管理員的固定 IP 或 CIDR>
 Security__AdminToken__TrustedProxyIps__0: <反向代理固定 IP>
+Security__AdminToken__SigningKey: <至少 32 bytes 的 Base64 key>
 ```
+
+可用 `openssl rand -base64 48` 產生 signing key；固定此值可讓 API 重啟或多副本部署繼續驗證既有 JWT。
 
 首次註冊完成後，請保留 credential 儲存檔 `admin-passkey.json` 與其他資料一併備份；遺失時需要從允許來源重新初始化部署資料。API 不會保存 Passkey 私鑰。
