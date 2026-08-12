@@ -59,7 +59,7 @@
                     }
                 </div>
             </div>
-            <p class="text-muted mt-3 mb-0">單檔上限 10 MB。刪除前請先解除活動或音效模板中的引用。</p>
+            <p class="text-muted mt-3 mb-0">單檔上限 @FormatSize(limits.MaxAssetBytes)，資產包上限 @FormatSize(limits.MaxPackageBytes)。刪除前請先解除活動或音效模板中的引用。</p>
             <div class="mt-3">
                 <Field>
                     <FieldLabel>匯入資產包</FieldLabel>
@@ -115,6 +115,7 @@
 
 @code {
     private List<ObsAsset> assets = [];
+    private ObsAssetLimitValues limits = new(ObsAssetLimits.DefaultMaxAssetBytes, ObsAssetLimits.MaximumPackageBytes);
     private IBrowserFile? selectedFile;
     private IBrowserFile? packageFile;
     private ObsAssetKind selectedKind = ObsAssetKind.Image;
@@ -135,7 +136,7 @@
         isUploading = true;
         try
         {
-            await using var stream = selectedFile.OpenReadStream(10 * 1024 * 1024);
+            await using var stream = selectedFile.OpenReadStream(limits.MaxAssetBytes);
             await AssetApi.UploadAsync(selectedFile.Name, selectedFile.ContentType, selectedFile.Size, stream, selectedKind);
             selectedFile = null;
             await MessageService.Success("OBS 資產已上傳並可離線使用。");
@@ -187,7 +188,7 @@
         isUploading = true;
         try
         {
-            await using var stream = packageFile.OpenReadStream(100 * 1024 * 1024);
+            await using var stream = packageFile.OpenReadStream(limits.MaxPackageBytes);
             await AssetApi.ImportPackageAsync(stream);
             packageFile = null;
             await MessageService.Success("資產包已完成校驗並匯入。");
@@ -200,6 +201,7 @@
     private async Task ReloadAsync()
     {
         isLoading = true;
+        limits = await AssetApi.GetLimitsAsync();
         assets = (await AssetApi.ListAsync()).ToList();
         isLoading = false;
     }

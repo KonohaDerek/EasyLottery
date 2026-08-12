@@ -6,12 +6,12 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       Storage__Directory: /data
-      Admin__Email: ${EASYLOTTERY_ADMIN_EMAIL:-admin@example.com}
-      Admin__Passkey__RpId: ${EASYLOTTERY_PASSKEY_RP_ID:-localhost}
-      Admin__Passkey__Origins__0: ${EASYLOTTERY_PASSKEY_ORIGIN:-http://localhost:18930}
+      Admin__Email: ${EASYLOTTERY_ADMIN_EMAIL:?EASYLOTTERY_ADMIN_EMAIL must be set}
+      Admin__Passkey__RpId: ${EASYLOTTERY_PASSKEY_RP_ID:?EASYLOTTERY_PASSKEY_RP_ID must be set}
+      Admin__Passkey__Origins__0: ${EASYLOTTERY_PASSKEY_ORIGIN:?EASYLOTTERY_PASSKEY_ORIGIN must be set}
       Security__AdminToken__SigningKey: ${EASYLOTTERY_ADMIN_TOKEN_SIGNING_KEY-}
     ports:
-      - "18930:18930"
+      - "127.0.0.1:${EASYLOTTERY_PORT:-18930}:18930"
     volumes:
       - easy_lottery_data:/data
 

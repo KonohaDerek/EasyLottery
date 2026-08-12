@@ -44,9 +44,7 @@ public sealed class YamlObsAssetRepository : IObsAssetRepository
         AssetDirectory = Path.Combine(directory, "obs-assets");
         MetadataPath = Path.Combine(directory, "obs-assets.yaml");
         Directory.CreateDirectory(AssetDirectory);
-        _maxAssetBytes = long.TryParse(configuration["Storage:MaxAssetBytes"], out var configured)
-            ? Math.Clamp(configured, 64 * 1024, 50 * 1024 * 1024)
-            : 10 * 1024 * 1024;
+        _maxAssetBytes = ObsAssetLimits.ReadMaxAssetBytes(configuration["Storage:MaxAssetBytes"]);
         EnsureMetadataExists();
     }
 
@@ -266,7 +264,7 @@ public sealed class YamlObsAssetRepository : IObsAssetRepository
             if (!string.Equals(packageAsset.Entry, expectedEntry, StringComparison.Ordinal)) throw new InvalidDataException("資產內容路徑無效。");
             ValidateContentType(asset.Kind, asset.ContentType);
             var entry = archive.GetEntry(expectedEntry) ?? throw new InvalidDataException($"找不到資產內容：{asset.Id:D}。");
-            if (entry.Length <= 0 || entry.Length > _maxAssetBytes || (totalBytes += entry.Length) > 100 * 1024 * 1024)
+            if (entry.Length <= 0 || entry.Length > _maxAssetBytes || (totalBytes += entry.Length) > ObsAssetLimits.MaximumPackageBytes)
                 throw new InvalidDataException("資產包超過大小限制。");
             await using var entryStream = entry.Open();
             using var content = new MemoryStream();
