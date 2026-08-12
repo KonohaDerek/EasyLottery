@@ -5,10 +5,15 @@
 正式環境使用 `ASPNETCORE_ENVIRONMENT=Production`，並將 `Storage__Directory` 指向持久化磁碟或 Docker volume。不要把 `App_Data` 放在會隨容器重建而遺失的暫存層。
 
 ```bash
+export EASYLOTTERY_ADMIN_EMAIL=admin@example.com
+export EASYLOTTERY_PASSKEY_RP_ID=easylotter.k-derek.synology.me
+export EASYLOTTERY_PASSKEY_ORIGIN=https://easylotter.k-derek.synology.me
 docker compose up --build -d
 curl --fail http://localhost:18930/health/live
 curl --fail http://localhost:18930/health/ready
 ```
+
+Compose 會拒絕未設定管理員 email、WebAuthn RP ID 或 Origin 的 Production 啟動，避免使用錯誤的 localhost 或預設身份。容器 port 預設只綁定本機 loopback，供同一台主機的 HTTPS reverse proxy 轉送；若 reverse proxy 位於其他容器，請改用共享 Docker network 或明確覆寫 `EASYLOTTERY_PORT` 的 bind 設定。
 
 ## 備份與還原
 
