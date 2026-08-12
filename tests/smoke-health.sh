@@ -28,5 +28,8 @@ done
 
 curl --fail http://localhost:18930/health/live >/dev/null
 curl --fail http://localhost:18930/health/ready >/dev/null
+curl --fail --silent http://localhost:18930/ >/dev/null
+curl --fail --silent http://localhost:18930/index.html >/dev/null
+curl --fail --silent http://localhost:18930/_framework/blazor.webassembly.js >/dev/null
 
-echo "Health endpoints are responding"
+echo "Health endpoints and Blazor static assets are responding"
