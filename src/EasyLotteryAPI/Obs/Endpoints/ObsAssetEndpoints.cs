@@ -42,6 +42,15 @@ internal static class ObsAssetEndpoints
             return Results.File(package, "application/zip", $"obs-assets-{DateTime.UtcNow:yyyyMMdd-HHmmss}.zip");
         });
 
+        app.MapGet("/api/obs-assets/limits", (HttpContext context, IConfiguration configuration, ObsSessionAccess access) =>
+        {
+            var denied = ObsSessionAccess.DeniedResult(access.RequireAdmin(context.Request));
+            if (denied is not null) return denied;
+            return Results.Ok(new ObsAssetLimitValues(
+                ObsAssetLimits.ReadMaxAssetBytes(configuration["Storage:MaxAssetBytes"]),
+                ObsAssetLimits.MaximumPackageBytes));
+        });
+
         app.MapPost("/api/obs-assets/import", async (HttpContext context, IObsAssetRepository repository, ObsSessionAccess access) =>
         {
             var denied = ObsSessionAccess.DeniedResult(access.RequireAdmin(context.Request));
@@ -92,7 +101,7 @@ internal static class ObsAssetEndpoints
             if (file is null) return Results.BadRequest(new { error = "找不到上傳的資產檔案。" });
             if (!Enum.TryParse<ObsAssetKind>(form["kind"].ToString(), ignoreCase: true, out var kind)) kind = InferKind(file.ContentType);
             var references = form["referencedBy"].ToString().Split(['\n', ','], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            var maxBytes = ReadMaxAssetBytes(configuration);
+            var maxBytes = ObsAssetLimits.ReadMaxAssetBytes(configuration["Storage:MaxAssetBytes"]);
             if (file.Length > maxBytes) return Results.BadRequest(new { error = $"資產檔案不可超過 {maxBytes / 1024 / 1024} MB。" });
             try
             {
@@ -156,8 +165,4 @@ internal static class ObsAssetEndpoints
         return ObsAssetKind.Other;
     }
 
-    private static long ReadMaxAssetBytes(IConfiguration configuration) =>
-        long.TryParse(configuration["Storage:MaxAssetBytes"], out var configured)
-            ? Math.Clamp(configured, 64 * 1024, 50 * 1024 * 1024)
-            : 10 * 1024 * 1024;
 }
