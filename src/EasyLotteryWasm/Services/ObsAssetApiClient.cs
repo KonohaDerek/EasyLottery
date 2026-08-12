@@ -22,6 +22,15 @@ public sealed class ObsAssetApiClient(HttpClient client, ObsSessionService sessi
         return await response.Content.ReadFromJsonAsync<List<ObsAsset>>(cancellationToken: cancellationToken) ?? [];
     }
 
+    public async Task<ObsAssetLimitValues> GetLimitsAsync(CancellationToken cancellationToken = default)
+    {
+        using var request = await CreateRequestAsync(HttpMethod.Get, "api/obs-assets/limits", cancellationToken);
+        using var response = await client.SendAsync(request, cancellationToken);
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<ObsAssetLimitValues>(cancellationToken: cancellationToken)
+            ?? throw new InvalidOperationException("資產限制 API 未回傳內容。");
+    }
+
     public async Task<byte[]> ExportPackageAsync(CancellationToken cancellationToken = default)
     {
         using var request = await CreateRequestAsync(HttpMethod.Get, "api/obs-assets/export", cancellationToken);

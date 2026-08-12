@@ -23,6 +23,7 @@ using EasyLotteryApi.Storage.Endpoints;
 using EasyLotteryApi.Tunnel;
 using EasyLotteryApi.Tunnel.Endpoints;
 using EasyLotteryDomain.Services;
+using EasyLotteryDomain.Models.Obs;
 using EasyLotteryInfrastructure.Settings;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.HttpOverrides;
@@ -128,11 +129,11 @@ app.Use(async (context, next) =>
 {
     // Normal API payloads stay small; media assets have their own repository limit
     // and need enough room for multipart boundaries.
-    var configuredAssetBytes = long.TryParse(app.Configuration["Storage:MaxAssetBytes"], out var assetBytes)
-        ? Math.Clamp(assetBytes, 64 * 1024, 50 * 1024 * 1024)
-        : 10 * 1024 * 1024;
-    var maxRequestBytes = context.Request.Path.StartsWithSegments("/api/obs-assets")
-        ? configuredAssetBytes + 1_048_576L
+    var configuredAssetBytes = ObsAssetLimits.ReadMaxAssetBytes(app.Configuration["Storage:MaxAssetBytes"]);
+    var maxRequestBytes = context.Request.Path.StartsWithSegments("/api/obs-assets/import")
+        ? ObsAssetLimits.MaximumPackageBytes + ObsAssetLimits.RequestOverheadBytes
+        : context.Request.Path.StartsWithSegments("/api/obs-assets")
+        ? configuredAssetBytes + ObsAssetLimits.RequestOverheadBytes
         : 1_048_576L;
     var bodySizeFeature = context.Features.Get<Microsoft.AspNetCore.Http.Features.IHttpMaxRequestBodySizeFeature>();
     if (bodySizeFeature is { IsReadOnly: false }) bodySizeFeature.MaxRequestBodySize = maxRequestBytes;

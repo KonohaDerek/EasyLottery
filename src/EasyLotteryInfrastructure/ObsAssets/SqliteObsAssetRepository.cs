@@ -30,9 +30,7 @@ public sealed class SqliteObsAssetRepository(
     private sealed record ImportedAsset(ObsAsset Asset, byte[] Content);
 
     private readonly string _connectionString = options.Value.ConnectionString!;
-    private readonly long _maxAssetBytes = long.TryParse(configuration["Storage:MaxAssetBytes"], out var configured)
-        ? Math.Clamp(configured, 64 * 1024, 50 * 1024 * 1024)
-        : 10 * 1024 * 1024;
+    private readonly long _maxAssetBytes = ObsAssetLimits.ReadMaxAssetBytes(configuration["Storage:MaxAssetBytes"]);
 
     public async Task<IReadOnlyList<ObsAsset>> ListAsync(CancellationToken cancellationToken = default)
     {
@@ -157,7 +155,7 @@ public sealed class SqliteObsAssetRepository(
             if (!string.Equals(packageAsset.Entry, expectedEntry, StringComparison.Ordinal)) throw new InvalidDataException("資產內容路徑無效。");
             ValidateContentType(asset.Kind, asset.ContentType);
             var entry = archive.GetEntry(expectedEntry) ?? throw new InvalidDataException($"找不到資產內容：{asset.Id:D}。");
-            if (entry.Length <= 0 || entry.Length > _maxAssetBytes || (totalBytes += entry.Length) > 100 * 1024 * 1024)
+            if (entry.Length <= 0 || entry.Length > _maxAssetBytes || (totalBytes += entry.Length) > ObsAssetLimits.MaximumPackageBytes)
                 throw new InvalidDataException("資產包超過大小限制。");
             await using var entryStream = entry.Open();
             using var content = new MemoryStream();
