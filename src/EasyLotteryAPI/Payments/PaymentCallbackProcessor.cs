@@ -2,7 +2,7 @@ using System.Net;
 using System.Net.Mail;
 using EasyLotteryApplication.Payments;
 using EasyLotteryApplication.Settings;
-using EasyLotteryApi;
+using EasyLotteryApi.Obs;
 using EasyLotteryDomain.Models.Config;
 using EasyLotteryDomain.Models.Overtime;
 using EasyLotteryDomain.Services;
@@ -13,6 +13,12 @@ namespace EasyLotteryApi.Payments;
 public sealed class PaymentCallbackProcessor
 {
     private static readonly TimeSpan ProcessingLease = TimeSpan.FromMinutes(5);
+    private static readonly IReadOnlyDictionary<string, Func<DonationIntegrationSettings, DonationProviderSettings>> ProviderSettings = new Dictionary<string, Func<DonationIntegrationSettings, DonationProviderSettings>>(StringComparer.OrdinalIgnoreCase)
+    {
+        [PaymentProviderIds.EcpayBroadcaster] = settings => settings.Ecpay,
+        [PaymentProviderIds.NewebPayDonation] = settings => settings.NewebPay,
+        [PaymentProviderIds.Oen] = settings => settings.OenTw
+    };
 
     private readonly PaymentProviderFactory _factory;
     private readonly IHubContext<OvertimeHub> _hub;
@@ -387,22 +393,12 @@ public sealed class PaymentCallbackProcessor
     {
         var document = await _settingsStore.ReadAsync(cancellationToken);
         var providers = document?.SystemSettings?.DonationIntegration;
-        var provider = providerId switch
-        {
-            PaymentProviderIds.EcpayBroadcaster => providers?.Ecpay,
-            PaymentProviderIds.NewebPayDonation => providers?.NewebPay,
-            PaymentProviderIds.Oen => providers?.OenTw,
-            _ => null
-        };
+        if (providers is null || !ProviderSettings.TryGetValue(providerId, out var getSettings)) return null;
+        var provider = getSettings(providers);
         provider?.MigrateLegacyConfiguration();
         provider?.ApplyActiveConnection();
         return provider;
     }
 
-    private static string NormalizeProviderId(string providerId) => providerId.Trim().ToLowerInvariant() switch
-    {
-        "ecpay" => PaymentProviderIds.EcpayBroadcaster,
-        "newebpay" => PaymentProviderIds.NewebPayDonation,
-        _ => providerId
-    };
+    private static string NormalizeProviderId(string providerId) => PaymentProviderAliases.Normalize(providerId);
 }

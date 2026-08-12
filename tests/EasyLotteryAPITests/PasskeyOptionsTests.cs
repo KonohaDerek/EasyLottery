@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Configuration;
 
-using EasyLotteryApi;
+using EasyLotteryApi.Passkey;
 
 namespace EasyLotteryApiTests;
 

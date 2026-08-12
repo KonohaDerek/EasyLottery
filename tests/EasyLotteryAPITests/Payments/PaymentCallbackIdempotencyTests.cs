@@ -4,7 +4,7 @@ using System.Net.Http.Json;
 using System.Security.Cryptography;
 using System.Text;
 using EasyLotteryApplication.Payments;
-using EasyLotteryApi;
+using EasyLotteryApi.Security;
 using EasyLotteryDomain.Models.Config;
 using EasyLotteryDomain.Services;
 using EasyLotteryInfrastructure.Settings;

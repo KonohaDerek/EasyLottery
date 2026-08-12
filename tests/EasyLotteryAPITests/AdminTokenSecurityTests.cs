@@ -1,5 +1,5 @@
 using System.Net;
-using EasyLotteryApi;
+using EasyLotteryApi.Security;
 using Microsoft.AspNetCore.Http;
 
 namespace EasyLotteryApiTests;
@@ -49,7 +49,7 @@ public sealed class AdminTokenSecurityTests
         });
 
         var admin = tokens.IssueAdminToken();
-        var obs = tokens.IssueObsToken("donate", Guid.NewGuid().ToString(), ["read"]);
+        var obs = tokens.IssueObsToken(ObsResourceKind.Donate, Guid.NewGuid().ToString(), [ObsSessionScope.Read]);
 
         Assert.IsTrue(admin.ExpiresAtUtc >= now.AddMinutes(14));
         Assert.IsTrue(admin.ExpiresAtUtc <= now.AddMinutes(16));

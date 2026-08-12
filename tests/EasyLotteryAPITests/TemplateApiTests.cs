@@ -1,6 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
-using EasyLotteryApi;
+using EasyLotteryApi.Security;
 using EasyLotteryDomain.Models.Entities;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
