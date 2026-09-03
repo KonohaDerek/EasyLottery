@@ -11,8 +11,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Google.Apis.YouTube.v3" Version="1.75.0.4239" />
-    <PackageReference Include="Google.Protobuf" Version="3.35.1" />
+    <PackageReference Include="Google.Apis.YouTube.v3" Version="1.76.0.4249" />
+    <PackageReference Include="Google.Protobuf" Version="3.36.1" />
     <PackageReference Include="Grpc.Net.Client" Version="2.83.0" />
     <PackageReference Include="Microsoft.Extensions.Caching.Abstractions" Version="10.0.11" />
     <PackageReference Include="Microsoft.Extensions.Configuration" Version="10.0.11" />
