@@ -1,0 +1,18 @@
+{
+  "id": "production-audit-remediation-2026-09-19",
+  "task": "依正式站巡檢建立 issue 並修正可由程式碼處理的前端可信度、隱私與無障礙問題",
+  "complexity": "medium",
+  "main_agent": "terra",
+  "use_subagents": false,
+  "parallel": false,
+  "risk": "medium",
+  "verification_level": "unit, build, authenticated and unauthenticated browser audit",
+  "needs_human_approval": true,
+  "external_changes": ["GitHub issue creation"],
+  "deferred_external_work": ["Blazorise commercial licensing", "Synology reverse-proxy and security headers", "payment, SMTP, tunnel, and YouTube credentials"],
+  "reason": [
+    "前端修正與部署/授權/外部帳號設定具不同權限與回滾邊界，須分成可驗證的程式碼變更與追蹤 issue。",
+    "不使用子 Agent，因為目前工作區尚未隔離且所有前端檔案會重疊。",
+    "正式環境不會被修改；瀏覽器驗證只讀且已取得使用者登入協助。"
+  ]
+}
