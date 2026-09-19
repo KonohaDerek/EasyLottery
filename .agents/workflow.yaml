@@ -39,6 +39,11 @@ openspec:
     - observability_requirements
 
 development:
+  continuous_execution:
+    enabled_for_approved_native_work: true
+    terminal_conditions: [verification_complete, branch_pushed, pull_request_created]
+    status_requests_do_not_pause_work: true
+    interrupt_only_for: [security_sensitive_action, destructive_operation, missing_external_authority, production_change]
   superpowers:
     status: installed
     source: https://github.com/obra/superpowers
@@ -51,6 +56,8 @@ development:
     - Investigate failed tests; never skip them without recording the reason.
     - Inspect the diff after every phase.
     - Do not modify code unrelated to the request.
+    - After a user approves Native execution, continue task-by-task until verification is complete, the branch is pushed, and a Ready for review PR is created.
+    - Treat progress requests as informational; resume work immediately rather than ending the approved execution.
 
 verification:
   required: true
