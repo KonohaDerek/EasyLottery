@@ -22,7 +22,7 @@ else
         <ChildContent>
             <Router AppAssembly="@typeof(App).Assembly">
                 <Found Context="routeData">
-                    <RouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)" />
+                    <RouteView RouteData="@routeData" DefaultLayout="@DefaultLayout" />
                     <FocusOnNavigate RouteData="@routeData" Selector="h1" />
                 </Found>
                 <NotFound>
@@ -60,7 +60,7 @@ else
             return;
         }
 
-        if (!sessionChecked || visualStyleInitialized || (!hasSession && !IsObsRoute))
+        if (!sessionChecked || visualStyleInitialized || IsPublicRoute || (!hasSession && !IsObsRoute))
         {
             return;
         }
@@ -91,6 +91,11 @@ else
     }
 
     private bool IsObsRoute => CurrentPath.StartsWith("obs/", StringComparison.OrdinalIgnoreCase);
+
+    private Type DefaultLayout => IsPublicRoute ? typeof(PublicLayout) : typeof(MainLayout);
+
+    private bool IsPublicRoute => CurrentPath.Equals("about", StringComparison.OrdinalIgnoreCase)
+        || CurrentPath.Equals("privacy-policy", StringComparison.OrdinalIgnoreCase);
 
     private string CurrentPath => NavigationManager.ToBaseRelativePath(NavigationManager.Uri)
         .Split(['?', '#'], 2)[0]

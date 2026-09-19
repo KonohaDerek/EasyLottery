@@ -117,7 +117,7 @@
 <Card>
     <CardBody>
         <CardText>
-            <Validations @ref="@validations" Mode="ValidationMode.Auto" Model="@chatRoomCatch">
+            <Validations @ref="@validations" Mode="ValidationMode.Manual" Model="@chatRoomCatch">
                 <div class="chat-settings-grid">
                     <div class="chat-settings-panel">
                         <div class="chat-settings-panel-header">
@@ -612,20 +612,21 @@
     // 擷取聊天室
     async Task OnCatchChatChanged( bool value )
     {
-        if ( await validations.ValidateAll() )
+        if (value && !await validations.ValidateAll())
         {
-            catchChat = value;
-            Log.Information( $"OnCatchChatChanged: {value}" );
-            if (catchChat)
-            {
-            await  StartCatchChat();
-            }
-            else
-            {
-                StopCatchChat();
-            }
-        } else {
             catchChat = false;
+            return;
+        }
+
+        catchChat = value;
+        Log.Information( $"OnCatchChatChanged: {value}" );
+        if (catchChat)
+        {
+            await StartCatchChat();
+        }
+        else
+        {
+            StopCatchChat();
         }
     }
 
