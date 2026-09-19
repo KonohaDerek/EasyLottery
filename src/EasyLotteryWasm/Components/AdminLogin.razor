@@ -1,4 +1,5 @@
 @inject PasskeyAuthService Auth
+@using System.Net.Mail
 
 <main class="container py-5" aria-labelledby="admin-login-title">
     <div class="mx-auto" style="max-width: 34rem;">
@@ -25,13 +26,19 @@
 @code {
     [Parameter] public EventCallback OnAuthenticated { get; set; }
 
-    private string email = "admin@example.com";
+    private string email = string.Empty;
     private string? error;
     private bool busy;
 
     private async Task LoginAsync()
     {
         error = null;
+        if (!IsValidEmail(email))
+        {
+            error = "請輸入有效的管理員 email。";
+            return;
+        }
+
         busy = true;
         try
         {
@@ -49,6 +56,25 @@
         finally
         {
             busy = false;
+        }
+    }
+
+    private static bool IsValidEmail(string value)
+    {
+        var candidate = value.Trim();
+        if (candidate.Length == 0)
+        {
+            return false;
+        }
+
+        try
+        {
+            var parsed = new MailAddress(candidate);
+            return parsed.Address.Equals(candidate, StringComparison.OrdinalIgnoreCase);
+        }
+        catch (FormatException)
+        {
+            return false;
         }
     }
 }
