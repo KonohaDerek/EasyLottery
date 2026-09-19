@@ -16,12 +16,12 @@
     "testing": "available (.NET 10 and repository test projects)",
     "git_worktree_branch": "available",
     "ci": "available (GitHub Actions workflows)",
-    "jev": "deferred pending access; manual structured decision fallback configured",
+    "jev": "available through TypeSafe; live routing evaluation recorded separately",
     "astra": "unavailable"
   },
   "reason": [
     "此工作只新增工作流文件，沒有業務程式碼或外部狀態變更。",
-    "Jev、Superpowers 與 Astra 沒有可呼叫工具，因此採用可追溯的本地等效規則。",
+    "Astra 沒有可呼叫工具，因此採用 Terra/Sol fallback。",
     "不存在兩個需要同時執行的獨立子任務。"
   ]
 }

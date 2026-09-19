@@ -4,6 +4,10 @@
     "dockerfile": "Dockerfile",
     "context": "../.."
   },
+  "runArgs": [
+    "--env-file",
+    "${localWorkspaceFolder}/.devcontainer/local/.env"
+  ],
   "customizations": {
     "vscode": {
       "extensions": [

@@ -13,9 +13,42 @@ models:
     sol: available
     astra: unavailable
 
+skills:
+  typesafe_ai:
+    status: installed
+    scope: project
+    path: .agents/skills/typesafe-ai
+    source: typesafe-ai/skills
+    use_for:
+      - semantic_routing
+      - ranking
+      - structured_extraction
+      - evidence_verification
+      - uncertainty_escalation
+    rules:
+      - Read current TypeSafe documentation before an API or SDK integration.
+      - Keep deterministic rules, calculations, and side effects in application code.
+      - Keep credentials server-side.
+      - Validate representative cases, thresholds, cost, and latency before release.
+
 routing:
-  enable_jev: false
-  jev_status: deferred_pending_access
+  enable_jev: true
+  jev_status: available
+  jev:
+    provider: typesafe
+    model: jev-latest
+    credential_environment_variable: TYPESAFE_API_KEY
+    required_for:
+      - task_complexity
+      - agent_routing
+      - parallelism_decision
+      - risk_assessment
+      - verification_level
+      - human_approval_decision
+    record_directory: .agents/decisions
+    input_rules:
+      - Do not send credentials, secrets, production personal data, or unnecessary source code.
+      - Send only the task context necessary for the judgment.
   fallback_when_jev_unavailable: manual_structured_decision
   parallel_tasks: true
   minimum_independent_tasks: 2

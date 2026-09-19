@@ -6,16 +6,22 @@
 ## 初始化與能力
 
 每次工作先確認平台、可用模型、OpenSpec、測試、Git/worktree 與 CI，並先讀取
-`.agents/workflow.yaml`、本檔及 `.agents/state/current.md`。Jev 目前因尚未取得存取而
-略過，不是工作前置條件；中大型或高風險任務由主 Agent 將人工結構化決策寫入
-`.agents/decisions/`，記錄複雜度、路由、是否可平行、風險、測試層級、人工確認需求、
-假設與理由。缺少 Superpowers 時，遵守 YAML 內的 `local_incremental_workflow`。Astra
-不可用時不得假設可使用；端到端工作改由 Sol 處理，必要時拆成可安全驗證的小步驟。
+`.agents/workflow.yaml`、本檔及 `.agents/state/current.md`。Jev 已透過 TypeSafe 啟用；
+每次工作使用它做複雜度、路由、是否可平行、風險、測試層級與人工確認需求的結構化判斷，
+並將結果寫入 `.agents/decisions/`。只傳送足以判斷的任務脈絡，不得傳送憑證、secret、
+正式環境個資或不必要原始碼。服務無法使用時才改由主 Agent 使用人工結構化決策並記錄原因。
+缺少 Superpowers 時，遵守 YAML 內的 `local_incremental_workflow`。Astra 不可用時不得假設
+可使用；端到端工作改由 Sol 處理，必要時拆成可安全驗證的小步驟。
 
 Superpowers skills 已從 `obra/superpowers` 安裝，新的 Agent session 可使用其
 brainstorming、TDD、debugging、worktree、planning 與 verification skills。若 Dev
 Container 重建導致使用者層 skill 消失，仍必須依本專案 `local_incremental_workflow`
 繼續工作，不得因此中止；可依本檔記錄的來源重新安裝。
+
+TypeSafe 已安裝為專案層 skill（`.agents/skills/typesafe-ai`），會隨專案保留。當功能
+需要可程式化的語意判斷，例如路由、排序、結構化抽取、證據驗證或不確定性升級時，先
+載入 TypeSafe skill 並讀取當前官方文件；確定性規則、計算與副作用維持在應用程式程式碼
+中，且 API 憑證只可保存在伺服器端。
 
 ## 任務路由
 
