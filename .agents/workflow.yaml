@@ -1,0 +1,95 @@
+version: 1
+language: zh-TW
+
+models:
+  main_default: terra
+  subagent_default: sol
+  trivial: luna
+  complex: sol
+  end_to_end: sol
+  availability:
+    luna: available
+    terra: available
+    sol: available
+    astra: unavailable
+
+routing:
+  enable_jev: false
+  jev_status: deferred_pending_access
+  fallback_when_jev_unavailable: manual_structured_decision
+  parallel_tasks: true
+  minimum_independent_tasks: 2
+  subagents_require_isolated_worktree: true
+  prohibit_overlapping_file_edits: true
+  default_when_uncertain:
+    main_agent: terra
+    use_subagents: false
+    subagent_model: sol
+
+openspec:
+  available: true
+  required_for: [medium, large]
+  required_artifacts:
+    - proposal
+    - design
+    - tasks
+    - acceptance_criteria
+    - test_strategy
+    - rollback_strategy
+    - observability_requirements
+
+development:
+  superpowers:
+    status: installed
+    source: https://github.com/obra/superpowers
+    skills_available_next_session: true
+    fallback: local_incremental_workflow
+  rules:
+    - Understand the existing code before editing it.
+    - Define or update verification before implementation when practical.
+    - Complete one small, verifiable step at a time.
+    - Investigate failed tests; never skip them without recording the reason.
+    - Inspect the diff after every phase.
+    - Do not modify code unrelated to the request.
+
+verification:
+  required: true
+  default_level: unit
+  integration_for: [database, redis, rabbitmq, external_api]
+  e2e_for: [booking, payment, order, cancellation]
+  record_directory: .agents/verification
+  verifier_checks:
+    - requirements_implemented
+    - acceptance_criteria_covered
+    - tests_verify_behavior
+    - error_and_boundary_paths
+    - api_and_data_compatibility
+    - migration_rollback_observability
+    - unrelated_changes
+    - security_performance_concurrency_risks
+
+safety:
+  require_human_approval_for:
+    - production_change
+    - destructive_operation
+    - database_migration
+    - security_change
+  prohibited_without_explicit_authorization:
+    - production_modification
+    - data_deletion
+    - git_history_reset
+    - use_of_unapproved_external_accounts
+
+state:
+  allowed_values:
+    - Backlog
+    - Analyzing
+    - Planned
+    - Ready
+    - In Progress
+    - Testing
+    - Verification
+    - Needs Review
+    - Ready for Merge
+    - Done
+    - Blocked
