@@ -1,0 +1,34 @@
+@page "/interactions/rounds"
+@inject InteractionApiClient Interactions
+@inject IMessageService MessageService
+
+<PageTitle>直播互動回合</PageTitle>
+<h1 class="h2">直播互動回合</h1>
+<Card class="mb-3"><CardBody>
+    <Field><FieldLabel>名稱</FieldLabel><TextInput @bind-Value="name" /></Field>
+    <Field class="mt-2"><FieldLabel>類型</FieldLabel><Select @bind-Value="type"><SelectItem Value="@("SignIn")">簽到</SelectItem><SelectItem Value="@("Vote")">投票</SelectItem><SelectItem Value="@("Quiz")">答題</SelectItem></Select></Field>
+    <Field class="mt-2"><FieldLabel>指令</FieldLabel><TextInput @bind-Value="commandPrefix" /></Field>
+    <Field class="mt-2"><FieldLabel>投票選項（逗號分隔）</FieldLabel><TextInput @bind-Value="voteOptions" /></Field>
+    <Button class="mt-3" Color="Color.Primary" Clicked="CreateAsync">建立草稿</Button>
+</CardBody></Card>
+@if (rounds is null) { <p class="text-muted">載入中…</p> }
+else { @foreach (var round in rounds) { <Card class="mb-2"><CardBody><strong>@round.Name</strong>　@round.Type　<span>@round.Status</span>
+    @if (round.Status is "Draft" or "Scheduled") { <Button class="ms-2" Color="Color.Success" Clicked="@(() => StartAsync(round.Id))">開始</Button> }
+    @if (round.Status == "Live") { <Button class="ms-2" Color="Color.Warning" Clicked="@(() => PauseAsync(round.Id))">暫停</Button> }
+    @if (round.Status is "Live" or "Paused") { <Button class="ms-2" Color="Color.Primary" Clicked="@(() => SettleAsync(round.Id))">結算</Button> }
+</CardBody></Card> } }
+
+@code {
+    private IReadOnlyList<InteractionRoundResource>? rounds;
+    private string name = "";
+    private string type = "Vote";
+    private string commandPrefix = "!vote";
+    private string voteOptions = "A,B";
+    protected override async Task OnInitializedAsync() => await ReloadAsync();
+    private async Task CreateAsync() { await Interactions.CreateAsync(new(name, type, commandPrefix, voteOptions.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries), null)); await ReloadAsync(); await MessageService.Success("互動回合草稿已建立。"); }
+    private Task StartAsync(Guid id) => TransitionAsync(id, "start");
+    private Task PauseAsync(Guid id) => TransitionAsync(id, "pause");
+    private Task SettleAsync(Guid id) => TransitionAsync(id, "settle");
+    private async Task TransitionAsync(Guid id, string action) { await Interactions.TransitionAsync(id, action); await ReloadAsync(); }
+    private async Task ReloadAsync() => rounds = await Interactions.ListRoundsAsync();
+}

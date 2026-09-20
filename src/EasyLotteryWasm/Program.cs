@@ -45,6 +45,7 @@ builder.Services.AddScoped<VisualStyleService>();
 builder.Services.AddScoped<OvertimeFeedClient>();
 builder.Services.AddScoped<OvertimeRealtimeClient>();
 builder.Services.AddTransient<LiveDrawSessionClient>();
+builder.Services.AddTransient<InteractionRealtimeClient>();
 builder.Services.AddScoped<TunnelRuntimeClient>();
 builder.Services.AddScoped<EasyLotteryAuditService>();
 

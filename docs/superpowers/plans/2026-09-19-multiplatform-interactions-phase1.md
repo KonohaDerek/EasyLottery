@@ -50,6 +50,8 @@
 
 **Interfaces:** Produces `AudienceProfile`, `PlatformIdentity`, `InteractionRound`, `InteractionEvent`, `InteractionDecision`, and `IInteractionRepository` with atomic `ApplyAsync(InteractionEvent, InteractionDecision)`.
 
+**Storage decision:** YAML is the default Phase 1 provider; SQLite remains optional. A future PostgreSQL adapter must implement the same `IInteractionRepository` contract.
+
 - [ ] **Step 1: Write failing persistence and migration tests**
   - Verify a new document has empty interaction collections.
   - Verify legacy YAML/SQLite documents migrate without changing existing settings/activities/results.

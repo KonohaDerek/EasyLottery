@@ -52,7 +52,7 @@ Connector 不可包含活動規則、點數計算或 OBS 呈現邏輯。
 | Twitch | 聊天訊息與 EventSub 可提供的事件 | OAuth access/refresh token、Client ID、EventSub callback 驗證 | 頻道、權限範圍、到期日、重新授權 |
 | Discord | 指定 Guild／Channel 的 Bot 訊息與互動 | Bot token、Guild／Channel 選擇、必要 Bot 權限 | 伺服器、頻道、權限檢查、最近事件 |
 
-秘密採部署者控制的安全儲存，API 回傳僅顯示遮罩與健康狀態。OAuth redirect、state、PKCE（適用時）、refresh token 與 webhook 簽章驗證均由伺服器端處理；瀏覽器與 OBS URL 不攜帶平台祕密。
+秘密採部署者控制的安全儲存，API 回傳僅顯示遮罩與健康狀態。OAuth redirect、state、PKCE（適用時）、refresh token 與 webhook 簽章驗證均由伺服器端處理；瀏覽器與 OBS URL 不攜帶平台祕密。Phase 1 預設使用 YAML repository，因初期資料量低；SQLite 保持為可選 provider，日後 PostgreSQL 以同一 repository contract 新增 adapter，不改變 Domain 或 API 行為。
 
 ## 身份與綁定
 

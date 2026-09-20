@@ -6,6 +6,24 @@ namespace EasyLotteryWasm.Services;
 /// <summary>Typed client for section settings resources and their ETag version.</summary>
 public sealed class SettingsResourceApiClient(HttpClient httpClient, ObsSessionService sessionService)
 {
+    public Task<SettingsResourceSnapshot<List<PlatformConnectionResource>>> GetPlatformConnectionsAsync(CancellationToken cancellationToken = default) =>
+        GetAsync<List<PlatformConnectionResource>>("api/interactions/connections", cancellationToken);
+
+    public async Task<SettingsResourceSnapshot<PlatformConnectionResource>> SavePlatformConnectionAsync(string platform, PlatformConnectionUpdateResource value, string? etag, CancellationToken cancellationToken = default)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Put, $"api/interactions/connections/{platform}")
+        {
+            Content = JsonContent.Create(value)
+        };
+        if (!string.IsNullOrWhiteSpace(etag)) request.Headers.TryAddWithoutValidation("If-Match", etag);
+        var token = await sessionService.GetSessionTokenAsync(cancellationToken);
+        if (!string.IsNullOrWhiteSpace(token)) request.Headers.Add("X-EasyLottery-Session-Token", token);
+        using var response = await httpClient.SendAsync(request, cancellationToken);
+        response.EnsureSuccessStatusCode();
+        return new SettingsResourceSnapshot<PlatformConnectionResource>(
+            (await response.Content.ReadFromJsonAsync<PlatformConnectionResource>(cancellationToken: cancellationToken))!,
+            response.Headers.ETag?.ToString() ?? etag ?? "");
+    }
     public Task<SettingsResourceSnapshot<ObsLayoutSettings>> GetObsLayoutAsync(CancellationToken cancellationToken = default) =>
         GetAsync<ObsLayoutSettings>("api/settings/obs-layout", cancellationToken);
 
@@ -68,3 +86,5 @@ public sealed class SettingsResourceApiClient(HttpClient httpClient, ObsSessionS
 }
 
 public sealed record SettingsResourceSnapshot<T>(T Value, string ETag);
+public sealed record PlatformConnectionResource(string Platform, string State, bool Configured, string ChannelScope, string? ApiKey, string? AccessToken);
+public sealed record PlatformConnectionUpdateResource(string? ApiKey, string? AccessToken, string? ChannelScope, bool Degrade = false);

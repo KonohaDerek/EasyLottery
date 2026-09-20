@@ -19,6 +19,7 @@ public static class NavigationCatalog
                 new("戳戳樂", "pokebox", "✦", "管理戳戳樂活動"),
                 new("轉盤", "roulette", "◉", "管理轉盤活動"),
                 new("加班台", "activity/overtime", "◷", "管理加班台與直播訊息"),
+                new("直播互動回合", "interactions/rounds", "◌", "建立、開始、暫停與結算直播互動回合"),
                 new("活動市集", "market", "◇", "瀏覽可用的活動模板")
             ]),
         new(
@@ -44,7 +45,8 @@ public static class NavigationCatalog
             "⌁",
             [
                 new("支付與 Donate 串接", "system/payment", "＄", "設定支付與 Donate 串接"),
-                new("YouTube 串接", "system/youtube-login", "▶", "設定 YouTube API")
+                new("YouTube 串接", "system/youtube-login", "▶", "設定 YouTube API"),
+                new("直播平台串接", "system/platform-connections", "◌", "設定 YouTube 與 Twitch 直播互動連線")
             ]),
         new(
             "system",

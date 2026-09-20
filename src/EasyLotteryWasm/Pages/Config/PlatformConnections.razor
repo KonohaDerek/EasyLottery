@@ -1,0 +1,67 @@
+@page "/system/platform-connections"
+@inject SettingsResourceApiClient SettingsResourceApiClient
+@inject IMessageService MessageService
+
+<PageTitle>直播平台串接</PageTitle>
+
+<h1 class="h2">直播平台串接</h1>
+
+@if (connections is null)
+{
+    <p class="text-muted">載入中…</p>
+}
+else
+{
+    @foreach (var connection in connections)
+    {
+        <Card class="mb-3">
+            <CardHeader><CardTitle>@connection.Platform</CardTitle></CardHeader>
+            <CardBody>
+                <p>狀態：<strong>@connection.State</strong></p>
+                <Field><FieldLabel>頻道範圍</FieldLabel><TextInput @bind-Value="connection.ChannelScope" /></Field>
+                @if (connection.Platform == "YouTube")
+                {
+                    <Field class="mt-2"><FieldLabel>API Key</FieldLabel><input class="form-control" type="password" @bind="connection.ApiKey" /></Field>
+                }
+                else
+                {
+                    <Field class="mt-2"><FieldLabel>Twitch access token</FieldLabel><input class="form-control" type="password" @bind="connection.AccessToken" /></Field>
+                }
+                <Button class="mt-3" Color="Color.Primary" Clicked="() => SaveAsync(connection)">儲存</Button>
+            </CardBody>
+        </Card>
+    }
+}
+
+@code {
+    private List<EditableConnection>? connections;
+
+    private string? etag;
+
+    protected override async Task OnInitializedAsync() => await ReloadAsync();
+
+    private async Task SaveAsync(EditableConnection connection)
+    {
+        var saved = await SettingsResourceApiClient.SavePlatformConnectionAsync(connection.Platform, new(connection.ApiKey, connection.AccessToken, connection.ChannelScope), etag);
+        etag = saved.ETag;
+        await MessageService.Success("平台連線設定已儲存。");
+        await ReloadAsync();
+    }
+
+    private async Task ReloadAsync()
+    {
+        var snapshot = await SettingsResourceApiClient.GetPlatformConnectionsAsync();
+        etag = snapshot.ETag;
+        connections = snapshot.Value.Select(EditableConnection.From).ToList();
+    }
+
+    private sealed class EditableConnection
+    {
+        public string Platform { get; init; } = "";
+        public string State { get; init; } = "";
+        public string ChannelScope { get; set; } = "";
+        public string? ApiKey { get; set; }
+        public string? AccessToken { get; set; }
+        public static EditableConnection From(PlatformConnectionResource value) => new() { Platform = value.Platform, State = value.State, ChannelScope = value.ChannelScope, ApiKey = value.ApiKey, AccessToken = value.AccessToken };
+    }
+}

@@ -87,6 +87,17 @@ development:
       channel: commentary
       status_requests_do_not_pause_work: true
       final_response_requires_terminal_condition: true
+      pre_final_gate:
+        required_state_flags:
+          - verification_complete
+          - branch_pushed
+          - pull_request_created
+        reject_phase_completion_as_terminal: true
+        phase_completion_examples:
+          - task_committed
+          - focused_tests_passed
+          - e2e_test_passed
+        recovery_after_accidental_final: resume_first_incomplete_task_before_reporting
     resume:
       on_new_turn: load_current_state_and_resume
       continue_without_reconfirmation: true
