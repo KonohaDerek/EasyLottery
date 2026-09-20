@@ -1,0 +1,28 @@
+{
+  "id": "jev-live-routing-test-2026-09-19",
+  "provider": "typesafe",
+  "model_requested": "jev-latest",
+  "model_served": "jev-1.13.0",
+  "task": "Validate the AI development workflow configuration only. No business code, production systems, or user data are involved.",
+  "questions": {
+    "routing_decision": {
+      "type": "choice",
+      "options": [
+        "single_agent",
+        "parallel_agents",
+        "human_approval"
+      ],
+      "result": "single_agent",
+      "confidence": 1.0
+    }
+  },
+  "usage": {
+    "input_tokens": 400,
+    "output_tokens": 47
+  },
+  "result": "pass",
+  "notes": [
+    "A live TypeSafe Jev request succeeded using the container-injected credential.",
+    "No credentials, business data, production-system data, or user data were sent."
+  ]
+}
