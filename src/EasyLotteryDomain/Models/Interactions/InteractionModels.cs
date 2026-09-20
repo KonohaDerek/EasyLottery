@@ -147,6 +147,15 @@ public sealed class InteractionDecision
         new(false, reason, audienceProfileId, roundId, "rejected", 0, null, 0, roundState, nextState);
 }
 
+public sealed class PlatformConnectionSettings
+{
+    public string Platform { get; set; } = "";
+    public string ApiKey { get; set; } = "";
+    public string AccessToken { get; set; } = "";
+    public string ChannelScope { get; set; } = "";
+    public bool Degrade { get; set; }
+}
+
 public sealed record InteractionRoundState
 {
     public static InteractionRoundState Empty { get; } = new();
@@ -165,4 +174,6 @@ public sealed class InteractionsYamlDocument : IYamlVersionedDocument
     public List<PlatformIdentity> PlatformIdentities { get; set; } = [];
     public List<InteractionRound> Rounds { get; set; } = [];
     public List<string> ProcessedEventKeys { get; set; } = [];
+    public List<PlatformConnectionSettings> PlatformConnections { get; set; } = [];
+    public string PlatformConnectionsRevision { get; set; } = "";
 }

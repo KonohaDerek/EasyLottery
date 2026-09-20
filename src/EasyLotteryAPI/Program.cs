@@ -22,6 +22,7 @@ using EasyLotteryApi.Storage;
 using EasyLotteryApi.Storage.Endpoints;
 using EasyLotteryApi.Tunnel;
 using EasyLotteryApi.Tunnel.Endpoints;
+using EasyLotteryApi.Interactions;
 using EasyLotteryDomain.Services;
 using EasyLotteryDomain.Models.Obs;
 using EasyLotteryInfrastructure.Settings;
@@ -61,6 +62,10 @@ builder.Services.AddSingleton<PaymentCallbackProcessor>();
 builder.Services.AddSingleton<PokeService>();
 builder.Services.AddSingleton<RouletteService>();
 builder.Services.AddSingleton<LiveDrawSessionService>();
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddSingleton<PlatformConnectionService>();
+builder.Services.AddSingleton<IPlatformConnector, YouTubeChatConnector>();
+builder.Services.AddSingleton<IPlatformConnector, TwitchChatConnector>();
 builder.Services.AddHttpClient();
 builder.Services.AddHealthChecks()
     .AddCheck<StorageHealthCheck>("storage", tags: ["ready"]);
@@ -176,6 +181,7 @@ app.MapStorageEndpoints();
 app.MapResultNotificationEndpoints();
 app.MapTunnelEndpoints();
 app.MapLiveDrawSessionEndpoints();
+app.MapPlatformConnectionEndpoints();
 app.MapHub<OvertimeHub>("/hubs/overtime");
 app.MapHub<LiveDrawHub>("/hubs/live-draw");
 

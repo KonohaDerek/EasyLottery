@@ -44,7 +44,8 @@ public static class NavigationCatalog
             "⌁",
             [
                 new("支付與 Donate 串接", "system/payment", "＄", "設定支付與 Donate 串接"),
-                new("YouTube 串接", "system/youtube-login", "▶", "設定 YouTube API")
+                new("YouTube 串接", "system/youtube-login", "▶", "設定 YouTube API"),
+                new("直播平台串接", "system/platform-connections", "◌", "設定 YouTube 與 Twitch 直播互動連線")
             ]),
         new(
             "system",
