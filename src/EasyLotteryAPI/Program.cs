@@ -64,6 +64,7 @@ builder.Services.AddSingleton<RouletteService>();
 builder.Services.AddSingleton<LiveDrawSessionService>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<PlatformConnectionService>();
+builder.Services.AddSingleton<InteractionRoundService>();
 builder.Services.AddSingleton<IPlatformConnector, YouTubeChatConnector>();
 builder.Services.AddSingleton<IPlatformConnector, TwitchChatConnector>();
 builder.Services.AddHttpClient();
@@ -182,6 +183,7 @@ app.MapResultNotificationEndpoints();
 app.MapTunnelEndpoints();
 app.MapLiveDrawSessionEndpoints();
 app.MapPlatformConnectionEndpoints();
+app.MapInteractionRoundEndpoints();
 app.MapHub<OvertimeHub>("/hubs/overtime");
 app.MapHub<LiveDrawHub>("/hubs/live-draw");
 

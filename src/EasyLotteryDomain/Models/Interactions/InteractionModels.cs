@@ -69,6 +69,17 @@ public sealed class InteractionRound
     public string CorrectAnswer { get; set; } = "";
     public int CorrectAnswerPoints { get; set; }
     public int EligibilityTickets { get; set; }
+    public InteractionRoundState State { get; set; } = InteractionRoundState.Empty;
+    public List<InteractionHostAdjustment> HostAdjustments { get; set; } = [];
+}
+
+public sealed class InteractionHostAdjustment
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid AudienceProfileId { get; set; }
+    public int PointDelta { get; set; }
+    public string Reason { get; set; } = "";
+    public DateTimeOffset RecordedAtUtc { get; set; } = DateTimeOffset.UtcNow;
 }
 
 public sealed class InteractionEvent
@@ -160,10 +171,10 @@ public sealed record InteractionRoundState
 {
     public static InteractionRoundState Empty { get; } = new();
 
-    public IReadOnlyDictionary<Guid, string> VotesByProfile { get; init; } = new Dictionary<Guid, string>();
-    public IReadOnlyDictionary<Guid, int> PointsByProfile { get; init; } = new Dictionary<Guid, int>();
-    public IReadOnlySet<Guid> JoinedProfiles { get; init; } = new HashSet<Guid>();
-    public IReadOnlySet<string> ProcessedEventKeys { get; init; } = new HashSet<string>(StringComparer.Ordinal);
+    public Dictionary<Guid, string> VotesByProfile { get; init; } = [];
+    public Dictionary<Guid, int> PointsByProfile { get; init; } = [];
+    public HashSet<Guid> JoinedProfiles { get; init; } = [];
+    public HashSet<string> ProcessedEventKeys { get; init; } = new(StringComparer.Ordinal);
     public Guid? FirstCorrectProfileId { get; init; }
 }
 

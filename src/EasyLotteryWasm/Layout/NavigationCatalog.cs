@@ -19,6 +19,7 @@ public static class NavigationCatalog
                 new("戳戳樂", "pokebox", "✦", "管理戳戳樂活動"),
                 new("轉盤", "roulette", "◉", "管理轉盤活動"),
                 new("加班台", "activity/overtime", "◷", "管理加班台與直播訊息"),
+                new("直播互動回合", "interactions/rounds", "◌", "建立、開始、暫停與結算直播互動回合"),
                 new("活動市集", "market", "◇", "瀏覽可用的活動模板")
             ]),
         new(
