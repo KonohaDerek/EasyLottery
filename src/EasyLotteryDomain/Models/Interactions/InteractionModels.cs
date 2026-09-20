@@ -5,7 +5,8 @@ namespace EasyLotteryDomain.Models.Interactions;
 public enum PlatformKind
 {
     YouTube,
-    Twitch
+    Twitch,
+    Discord
 }
 
 public enum InteractionRoundType
@@ -56,6 +57,26 @@ public sealed class PlatformIdentity
     public string DisplayName { get; set; } = "";
     public DateTimeOffset LastSeenAtUtc { get; set; } = DateTimeOffset.UtcNow;
     public string EventScopeKey => $"{Platform}:{ChannelScope}:{ExternalUserId}";
+}
+
+public sealed class IdentityLinkRequest
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public string CodeHash { get; set; } = "";
+    public Guid SourceIdentityId { get; set; }
+    public Guid TargetIdentityId { get; set; }
+    public DateTimeOffset ExpiresAtUtc { get; set; }
+    public bool Consumed { get; set; }
+}
+
+public sealed class IdentityMergeAudit
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid SourceProfileId { get; set; }
+    public Guid TargetProfileId { get; set; }
+    public string Action { get; set; } = "";
+    public string Reason { get; set; } = "";
+    public DateTimeOffset RecordedAtUtc { get; set; } = DateTimeOffset.UtcNow;
 }
 
 public sealed class InteractionRound
@@ -197,4 +218,6 @@ public sealed class InteractionsYamlDocument : IYamlVersionedDocument
     public List<string> ProcessedEventKeys { get; set; } = [];
     public List<PlatformConnectionSettings> PlatformConnections { get; set; } = [];
     public string PlatformConnectionsRevision { get; set; } = "";
+    public List<IdentityLinkRequest> IdentityLinkRequests { get; set; } = [];
+    public List<IdentityMergeAudit> IdentityMergeAudits { get; set; } = [];
 }
