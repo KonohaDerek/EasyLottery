@@ -39,16 +39,29 @@ openspec:
     - observability_requirements
 
 development:
-  continuous_execution:
-    enabled_for_approved_native_work: true
-    terminal_conditions: [verification_complete, branch_pushed, pull_request_created]
-    status_requests_do_not_pause_work: true
-    interrupt_only_for: [security_sensitive_action, destructive_operation, missing_external_authority, production_change]
   superpowers:
     status: installed
     source: https://github.com/obra/superpowers
     skills_available_next_session: true
     fallback: local_incremental_workflow
+  continuous_execution:
+    enabled_for_approved_native_work: true
+    required_terminal_conditions:
+      - verification_complete
+      - branch_pushed
+      - pull_request_created
+    progress_updates:
+      channel: commentary
+      status_requests_do_not_pause_work: true
+      final_response_requires_terminal_condition: true
+    resume:
+      on_new_turn: load_current_state_and_resume
+      continue_without_reconfirmation: true
+    interrupt_only_for:
+      - security_sensitive_action
+      - destructive_operation
+      - missing_external_authority
+      - production_change
   rules:
     - Understand the existing code before editing it.
     - Define or update verification before implementation when practical.
@@ -56,8 +69,9 @@ development:
     - Investigate failed tests; never skip them without recording the reason.
     - Inspect the diff after every phase.
     - Do not modify code unrelated to the request.
-    - After a user approves Native execution, continue task-by-task until verification is complete, the branch is pushed, and a Ready for review PR is created.
-    - Treat progress requests as informational; resume work immediately rather than ending the approved execution.
+    - For approved Native work, do not end the execution turn until every required terminal condition is met or an allowed interruption is recorded.
+    - Treat a progress request as a commentary update and continue the active task immediately afterward.
+    - After a new turn, load the persisted work state and resume approved Native work unless the user has changed the task.
 
 verification:
   required: true
