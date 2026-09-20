@@ -29,7 +29,7 @@ public sealed class PlatformConnectionService(IInteractionsYamlDocumentRepositor
     public async Task<PlatformConnectionsSnapshot> ListAsync(CancellationToken cancellationToken = default)
     {
         var document = await repository.ReadAsync(cancellationToken);
-        var connections = new[] { "YouTube", "Twitch" }
+        var connections = new[] { "YouTube", "Twitch", "Discord" }
             .Select(platform => StatusFor(platform, document.PlatformConnections.SingleOrDefault(item => item.Platform.Equals(platform, StringComparison.OrdinalIgnoreCase))))
             .ToList();
         return new PlatformConnectionsSnapshot(connections, ETagFor(document));
@@ -130,6 +130,7 @@ public sealed class PlatformConnectionService(IInteractionsYamlDocumentRepositor
     {
         "youtube" => "YouTube",
         "twitch" => "Twitch",
+        "discord" => "Discord",
         _ => throw new InvalidOperationException("不支援的互動平台。")
     };
 
