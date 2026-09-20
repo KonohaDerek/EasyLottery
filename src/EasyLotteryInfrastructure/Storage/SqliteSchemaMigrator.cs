@@ -92,6 +92,17 @@ public sealed class SqliteSchemaMigrator(
                 payload_json TEXT NOT NULL,
                 content BLOB NOT NULL
             );
+            CREATE TABLE IF NOT EXISTS interaction_documents (
+                id INTEGER PRIMARY KEY CHECK (id = 1),
+                payload_json TEXT NOT NULL,
+                updated_at_utc TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS interaction_event_keys (
+                platform TEXT NOT NULL,
+                channel_scope TEXT NOT NULL,
+                external_event_id TEXT NOT NULL,
+                PRIMARY KEY (platform, channel_scope, external_event_id)
+            );
             """;
         await command.ExecuteNonQueryAsync(cancellationToken);
         logger.LogInformation("SQLite storage schema is ready.");

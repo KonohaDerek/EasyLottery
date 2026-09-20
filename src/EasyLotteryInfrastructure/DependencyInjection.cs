@@ -3,12 +3,14 @@ using EasyLotteryApplication.Payments;
 using EasyLotteryApplication.Settings;
 using EasyLotteryApplication.Templates;
 using EasyLotteryApplication.ObsAssets;
+using EasyLotteryApplication.Interactions;
 using EasyLotteryInfrastructure.DonateActivities;
 using EasyLotteryInfrastructure.Payments;
 using EasyLotteryInfrastructure.Settings;
 using EasyLotteryInfrastructure.Storage;
 using EasyLotteryInfrastructure.Templates;
 using EasyLotteryInfrastructure.ObsAssets;
+using EasyLotteryInfrastructure.Interactions;
 using EasyLotteryDomain.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -69,6 +71,18 @@ public static class DependencyInjection
         services.AddSingleton<IActivitiesYamlDocumentRepository>(sp => sp.GetRequiredService<YamlActivitiesDocumentRepository>());
         services.AddSingleton<YamlActivityResultsDocumentRepository>();
         services.AddSingleton<IActivityResultsYamlDocumentRepository>(sp => sp.GetRequiredService<YamlActivityResultsDocumentRepository>());
+        services.AddSingleton<YamlInteractionsDocumentRepository>();
+        services.AddSingleton<SqliteInteractionsDocumentRepository>();
+        services.AddSingleton<YamlInteractionRepository>();
+        services.AddSingleton<SqliteInteractionRepository>();
+        services.AddSingleton<IInteractionRepository>(sp =>
+            sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<StorageProviderOptions>>().Value.NormalizedProvider == "sqlite"
+                ? sp.GetRequiredService<SqliteInteractionRepository>()
+                : sp.GetRequiredService<YamlInteractionRepository>());
+        services.AddSingleton<IInteractionsYamlDocumentRepository>(sp =>
+            sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<StorageProviderOptions>>().Value.NormalizedProvider == "sqlite"
+                ? sp.GetRequiredService<SqliteInteractionsDocumentRepository>()
+                : sp.GetRequiredService<YamlInteractionsDocumentRepository>());
         services.AddSingleton<ConfigSecretRedactor>();
         services.AddSingleton<SettingsSectionRules>();
         services.AddSingleton<YamlSettingsSectionRepository>();

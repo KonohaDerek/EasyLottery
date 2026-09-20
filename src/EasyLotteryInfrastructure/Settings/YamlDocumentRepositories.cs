@@ -1,5 +1,6 @@
 using EasyLotteryApplication.Settings;
 using EasyLotteryDomain.Models.Config;
+using EasyLotteryDomain.Models.Interactions;
 using EasyLotteryDomain.Services;
 using EasyLotteryInfrastructure.Storage;
 using Microsoft.Extensions.Configuration;
@@ -39,6 +40,15 @@ public abstract class YamlDocumentRepositoryBase<T> where T : class, IYamlVersio
     {
         await using var gate = await _storageGates.AcquireAsync(cancellationToken, StoragePath);
         await SaveUnsafeAsync(document, cancellationToken);
+    }
+
+    public async Task<TResult> MutateAsync<TResult>(Func<T, TResult> mutation, CancellationToken cancellationToken = default)
+    {
+        await using var gate = await _storageGates.AcquireAsync(cancellationToken, StoragePath);
+        var document = await ReadUnsafeAsync(cancellationToken);
+        var result = mutation(document);
+        await SaveUnsafeAsync(document, cancellationToken);
+        return result;
     }
 
     internal async Task<T> ReadUnsafeAsync(CancellationToken cancellationToken = default)
@@ -257,6 +267,14 @@ public sealed class YamlActivityResultsDocumentRepository : YamlDocumentReposito
 {
     public YamlActivityResultsDocumentRepository(IConfiguration configuration, IHostEnvironment environment, IStorageGateProvider storageGates)
         : base(configuration, environment, storageGates, "activity-results.yaml")
+    {
+    }
+}
+
+public sealed class YamlInteractionsDocumentRepository : YamlDocumentRepositoryBase<InteractionsYamlDocument>, IInteractionsYamlDocumentRepository
+{
+    public YamlInteractionsDocumentRepository(IConfiguration configuration, IHostEnvironment environment, IStorageGateProvider storageGates)
+        : base(configuration, environment, storageGates, "interactions.yaml")
     {
     }
 }

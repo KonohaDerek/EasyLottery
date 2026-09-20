@@ -1,4 +1,5 @@
 using EasyLotteryDomain.Models.Config;
+using EasyLotteryDomain.Models.Interactions;
 
 namespace EasyLotteryApplication.Settings;
 
@@ -18,4 +19,10 @@ public interface IActivityResultsYamlDocumentRepository
 {
     Task<ActivityResultsYamlDocument> ReadAsync(CancellationToken cancellationToken = default);
     Task SaveAsync(ActivityResultsYamlDocument document, CancellationToken cancellationToken = default);
+}
+
+public interface IInteractionsYamlDocumentRepository
+{
+    Task<InteractionsYamlDocument> ReadAsync(CancellationToken cancellationToken = default);
+    Task SaveAsync(InteractionsYamlDocument document, CancellationToken cancellationToken = default);
 }
