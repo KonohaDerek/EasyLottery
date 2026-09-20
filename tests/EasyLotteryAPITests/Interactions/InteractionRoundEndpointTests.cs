@@ -34,6 +34,12 @@ public sealed class InteractionRoundEndpointTests
 
         using var adjustment = await client.PostAsJsonAsync($"/api/interactions/rounds/{round.Id}/points", new { audienceProfileId = Guid.NewGuid(), pointDelta = 5, reason = "主持人補分" });
         Assert.AreEqual(HttpStatusCode.NoContent, adjustment.StatusCode);
+        using var preview = await client.GetAsync($"/api/interactions/rounds/{round.Id}/eligibility-preview");
+        preview.EnsureSuccessStatusCode();
+        using var imported = await client.PostAsync($"/api/interactions/rounds/{round.Id}/eligibility-import", null);
+        imported.EnsureSuccessStatusCode();
+        using var importedAgain = await client.PostAsync($"/api/interactions/rounds/{round.Id}/eligibility-import", null);
+        importedAgain.EnsureSuccessStatusCode();
     }
 
     private static WebApplicationFactory<Program> CreateFactory() =>

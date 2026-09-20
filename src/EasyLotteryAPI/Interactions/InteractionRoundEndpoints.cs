@@ -1,6 +1,7 @@
 using EasyLotteryApplication.Settings;
 using EasyLotteryDomain.Models.Interactions;
 using EasyLotteryDomain.Services;
+using EasyLotteryApplication.Interactions;
 using EasyLotteryApi.Security;
 
 namespace EasyLotteryApi.Interactions;
@@ -118,6 +119,20 @@ internal static class InteractionRoundEndpoints
             try { return Results.Ok(await rounds.ProcessAudienceEventAsync(id, request, context.RequestAborted)); }
             catch (KeyNotFoundException exception) { return Results.NotFound(new { error = exception.Message }); }
             catch (InvalidOperationException exception) { return Results.BadRequest(new { error = exception.Message }); }
+        }).RequireRateLimiting("sensitive");
+        app.MapGet("/api/interactions/rounds/{id:guid}/eligibility-preview", async (Guid id, HttpContext context, EligibilitySnapshotService snapshots, ObsSessionAccess access) =>
+        {
+            var denied = ObsSessionAccess.DeniedResult(access.RequireAdmin(context.Request));
+            if (denied is not null) return denied;
+            try { return Results.Ok(await snapshots.PreviewAsync(id, context.RequestAborted)); }
+            catch (KeyNotFoundException exception) { return Results.NotFound(new { error = exception.Message }); }
+        });
+        app.MapPost("/api/interactions/rounds/{id:guid}/eligibility-import", async (Guid id, HttpContext context, EligibilitySnapshotService snapshots, ObsSessionAccess access) =>
+        {
+            var denied = ObsSessionAccess.DeniedResult(access.RequireAdmin(context.Request));
+            if (denied is not null) return denied;
+            try { return Results.Ok(await snapshots.ImportAsync(id, context.RequestAborted)); }
+            catch (KeyNotFoundException exception) { return Results.NotFound(new { error = exception.Message }); }
         }).RequireRateLimiting("sensitive");
     }
 }

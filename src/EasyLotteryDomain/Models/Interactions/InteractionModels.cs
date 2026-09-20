@@ -71,6 +71,16 @@ public sealed class InteractionRound
     public int EligibilityTickets { get; set; }
     public InteractionRoundState State { get; set; } = InteractionRoundState.Empty;
     public List<InteractionHostAdjustment> HostAdjustments { get; set; } = [];
+    public EligibilitySnapshot? EligibilitySnapshot { get; set; }
+}
+
+public sealed class EligibilitySnapshot
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid RoundId { get; set; }
+    public List<Guid> AudienceProfileIds { get; set; } = [];
+    public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
+    public bool Imported { get; set; }
 }
 
 public sealed class InteractionHostAdjustment
