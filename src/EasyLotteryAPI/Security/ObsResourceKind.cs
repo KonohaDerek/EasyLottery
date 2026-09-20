@@ -5,7 +5,8 @@ public enum ObsResourceKind
     Donate,
     PokeBox,
     Roulette,
-    Overtime
+    Overtime,
+    InteractionRound
 }
 
 public enum ObsSessionScope
@@ -21,7 +22,8 @@ public static class ObsResourceKinds
         [ObsResourceKind.Donate] = "donate",
         [ObsResourceKind.PokeBox] = "pokebox",
         [ObsResourceKind.Roulette] = "roulette",
-        [ObsResourceKind.Overtime] = "overtime"
+        [ObsResourceKind.Overtime] = "overtime",
+        [ObsResourceKind.InteractionRound] = "interaction-round"
     };
 
     private static readonly IReadOnlyDictionary<string, ObsResourceKind> ByValue = Values

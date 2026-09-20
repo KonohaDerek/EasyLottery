@@ -10,7 +10,7 @@ public sealed record InteractionRoundResource(Guid Id, string Name, string Statu
 public sealed record HostPointAdjustmentRequest(Guid AudienceProfileId, int PointDelta, string Reason);
 public sealed record AudienceInteractionRequest(Guid AudienceProfileId, string Platform, string ChannelScope, string ExternalUserId, string ExternalEventId, string Content);
 
-public sealed class InteractionRoundService(IInteractionsYamlDocumentRepository repository)
+public sealed class InteractionRoundService(IInteractionsYamlDocumentRepository repository, InteractionStateBroadcaster broadcaster)
 {
     private readonly InteractionRoundEngine _engine = new();
     public async Task<InteractionRoundResource> CreateAsync(CreateInteractionRoundRequest request, CancellationToken cancellationToken)
@@ -21,6 +21,7 @@ public sealed class InteractionRoundService(IInteractionsYamlDocumentRepository 
         var round = new InteractionRound { Name = request.Name.Trim(), Type = type, CommandPrefix = request.CommandPrefix.Trim(), VoteOptions = request.VoteOptions?.Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).ToList() ?? [], CorrectAnswer = request.CorrectAnswer?.Trim() ?? "", CorrectAnswerPoints = request.CorrectAnswerPoints, EligibilityTickets = request.EligibilityTickets };
         document.Rounds.Add(round);
         await repository.SaveAsync(document, cancellationToken);
+        await broadcaster.PublishAsync(round.Id, cancellationToken);
         return ToResource(round);
     }
 
@@ -37,6 +38,7 @@ public sealed class InteractionRoundService(IInteractionsYamlDocumentRepository 
             _ => throw new InvalidOperationException("此回合無法執行該狀態變更。")
         };
         await repository.SaveAsync(document, cancellationToken);
+        await broadcaster.PublishAsync(round.Id, cancellationToken);
         return ToResource(round);
     }
 
@@ -53,6 +55,7 @@ public sealed class InteractionRoundService(IInteractionsYamlDocumentRepository 
         round.State = round.State with { PointsByProfile = points };
         round.HostAdjustments.Add(new InteractionHostAdjustment { AudienceProfileId = request.AudienceProfileId, PointDelta = request.PointDelta, Reason = request.Reason.Trim() });
         await repository.SaveAsync(document, cancellationToken);
+        await broadcaster.PublishAsync(round.Id, cancellationToken);
     }
 
     public async Task<InteractionDecision> ProcessAudienceEventAsync(Guid id, AudienceInteractionRequest request, CancellationToken cancellationToken)
@@ -69,6 +72,7 @@ public sealed class InteractionRoundService(IInteractionsYamlDocumentRepository 
         var decision = _engine.Apply(round, round.State, profile.Id, interactionEvent);
         if (decision.Accepted) round.State = decision.NextState;
         await repository.SaveAsync(document, cancellationToken);
+        if (decision.Accepted) await broadcaster.PublishAsync(round.Id, cancellationToken);
         return decision;
     }
 
