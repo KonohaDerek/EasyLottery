@@ -39,7 +39,7 @@ public sealed class InteractionRepositoryTests
                 "event-1",
                 identity.ExternalUserId,
                 "!vote blue");
-            var decision = InteractionDecision.Accepted(profile.Id, round.Id, "vote");
+            var decision = InteractionDecision.Allow(profile.Id, round.Id, "vote", InteractionRoundStatus.Live, InteractionRoundState.Empty);
 
             var repository = new SqliteInteractionRepository(options);
             await repository.ApplyAsync(interactionEvent, decision, profile, identity, round);
@@ -75,7 +75,7 @@ public sealed class InteractionRepositoryTests
             var identity = new PlatformIdentity(PlatformKind.Twitch, "twitch-1", "channel-abc", profile.Id, "Ari");
             var round = new InteractionRound { Id = Guid.NewGuid(), Name = "Sign in" };
             var interactionEvent = new InteractionEvent(PlatformKind.Twitch, "channel-abc", "event-2", identity.ExternalUserId, "!join");
-            var decision = InteractionDecision.Accepted(profile.Id, round.Id, "join");
+            var decision = InteractionDecision.Allow(profile.Id, round.Id, "join", InteractionRoundStatus.Live, InteractionRoundState.Empty);
 
             await new YamlInteractionRepository(documents).ApplyAsync(interactionEvent, decision, profile, identity, round);
 
