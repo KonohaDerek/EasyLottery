@@ -37,5 +37,21 @@ public sealed class IdentityLinkService(IInteractionsYamlDocumentRepository repo
         await repository.SaveAsync(document, cancellationToken);
     }
 
+    public async Task UnlinkAsync(Guid identityId, string reason, CancellationToken cancellationToken = default)
+    {
+        if (identityId == Guid.Empty || string.IsNullOrWhiteSpace(reason)) throw new InvalidOperationException("身份與解除原因皆為必填。");
+        var document = await repository.ReadAsync(cancellationToken);
+        var identity = document.PlatformIdentities.SingleOrDefault(item => item.Id == identityId) ?? throw new KeyNotFoundException("找不到平台身份。");
+        var previousProfile = identity.AudienceProfileId;
+        var replacement = new AudienceProfile { DisplayName = identity.DisplayName };
+        document.AudienceProfiles.Add(replacement);
+        identity.AudienceProfileId = replacement.Id;
+        document.IdentityMergeAudits.Add(new IdentityMergeAudit { SourceProfileId = previousProfile, TargetProfileId = replacement.Id, Action = "unlink", Reason = reason.Trim() });
+        await repository.SaveAsync(document, cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<IdentityMergeAudit>> ListAuditsAsync(CancellationToken cancellationToken = default) =>
+        (await repository.ReadAsync(cancellationToken)).IdentityMergeAudits.OrderByDescending(item => item.RecordedAtUtc).ToList();
+
     private static string Hash(string value) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value)));
 }
