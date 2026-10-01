@@ -7,9 +7,9 @@
   <ItemGroup>
     <ProjectReference Include="..\EasyLotteryApplication\EasyLotteryApplication.csproj" />
     <ProjectReference Include="..\EasyLotteryDomain\EasyLotteryDomain.csproj" />
-    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.11" />
-    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.11" />
-    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.11" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.12" />
+    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.12" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.12" />
     <PackageReference Include="YamlDotNet" Version="18.1.0" />
   </ItemGroup>
 </Project>
