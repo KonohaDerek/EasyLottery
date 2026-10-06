@@ -9,4 +9,4 @@
 - [x] 加入 Vitest 與 Playwright public-route coverage。
 - [x] 更新 CI/Docker build ordering，確保發布包包含 Vue assets。
 - [x] 執行 frontend、.NET、OpenSpec、E2E 驗證並記錄結果。
-- [ ] 檢查 diff、建立 commit、push branch 與 Ready PR。
+- [x] 檢查 diff、建立 commit、push branch 與 Ready PR。
