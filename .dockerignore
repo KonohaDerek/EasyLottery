@@ -1,5 +1,8 @@
 **/bin/
 **/obj/
+**/node_modules/
+**/.pnpm-store/
+**/dist/
 .git/
 .github/
 .vscode/

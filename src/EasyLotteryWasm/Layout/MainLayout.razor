@@ -1,15 +1,25 @@
-﻿@inherits LayoutComponentBase
+@inherits LayoutComponentBase
+@inject NavigationManager NavigationManager
+
 <div class="page">
     <div class="sidebar">
         <NavMenu />
     </div>
     <main>
         <div class="top-row app-top-banner px-4">
-            <a href="/about">關於 EasyLottery</a>
-            <a href="/privacy-policy">隱私權政策</a>
+            <button type="button" class="btn-link" @onclick="OpenAbout">關於 EasyLottery</button>
+            <button type="button" class="btn-link" @onclick="OpenPrivacy">隱私權政策</button>
+            <button type="button" class="btn-link" @onclick="OpenVueHome">新版介面</button>
         </div>
         <article class="content px-4">
             @Body
         </article>
     </main>
 </div>
+@code {
+    private void OpenAbout() => NavigationManager.NavigateTo("/app/about", forceLoad: true);
+
+    private void OpenPrivacy() => NavigationManager.NavigateTo("/app/privacy-policy", forceLoad: true);
+
+    private void OpenVueHome() => NavigationManager.NavigateTo("/app/", forceLoad: true);
+}

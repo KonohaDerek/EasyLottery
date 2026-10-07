@@ -5,16 +5,19 @@
         <h1 id="admin-login-title" class="h3">管理員 Passkey 登入</h1>
         <p class="text-muted">EasyLottery 只允許設定的管理員 email 使用。Passkey 私鑰會留在你的裝置或密碼管理器。</p>
 
+        <form @onsubmit="HandleSubmitAsync" @onsubmit:preventDefault="true">
         <div class="mb-3">
             <label class="form-label" for="admin-email">管理員 email</label>
-            <input id="admin-email" class="form-control" type="email" autocomplete="username" @bind="email" disabled="@busy" />
+            <input id="admin-email" class="form-control" type="email" autocomplete="username" required maxlength="254"
+                   @bind="email" disabled="@busy" />
         </div>
 
-        <button class="btn btn-primary" type="button" @onclick="LoginAsync" disabled="@busy">
+        <button class="btn btn-primary" type="submit" disabled="@busy">
             @(busy ? "處理中…" : "使用 Passkey 登入")
         </button>
 
         <p class="small text-muted mt-3 mb-0">已有 Passkey 會直接登入；第一次使用則會由同一個按鈕註冊目前裝置的 Passkey 後登入。</p>
+        </form>
         @if (!string.IsNullOrWhiteSpace(error))
         {
             <div class="alert alert-warning mt-3" role="alert">@error</div>
@@ -25,9 +28,11 @@
 @code {
     [Parameter] public EventCallback OnAuthenticated { get; set; }
 
-    private string email = "admin@example.com";
+    private string email = string.Empty;
     private string? error;
     private bool busy;
+
+    private async Task HandleSubmitAsync() => await LoginAsync();
 
     private async Task LoginAsync()
     {

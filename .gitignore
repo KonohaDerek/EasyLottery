@@ -6,9 +6,11 @@ TestResults/
 !.vscode/launch.json
 !.vscode/tasks.json
 .vs
-src/EasyLottery/.pnpm-store
-src/EasyLottery/node_modules
-src/EasyLottery/dist
+src/EasyLotteryVue/node_modules/
+src/EasyLotteryVue/.pnpm-store/
+src/EasyLotteryVue/dist/
+*.tsbuildinfo
+src/EasyLotteryAPI/wwwroot/app/
 
 # Sensitive settings
 appsettings.Development.json

@@ -118,6 +118,8 @@ OBS 資產頁面（`/system/obs-assets`）可上傳圖片、音效與 Live2D 模
 
 ## 開發與執行
 
+Vue 前端遷移進度與本機啟動方式請參閱 [前端遷移](docs/frontend-migration.md)。新版介面目前掛載於 `/app/`，尚未搬入的功能仍由 Blazor 版提供。
+
 Session、scoped OBS URL 與 Tunnel 公開部署前注意事項請先閱讀 [Session 與 OBS 權限](docs/security.md)。
 
 OBS 動畫階段、結果停留時間、透明背景與低動態／低效能選項請參閱 [OBS 動畫生命週期](docs/obs-animation-lifecycle.md)。

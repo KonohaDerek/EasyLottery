@@ -1,3 +1,12 @@
+FROM node:24-alpine AS vue-build
+WORKDIR /repo
+RUN corepack enable
+COPY src/EasyLotteryVue/package.json src/EasyLotteryVue/pnpm-lock.yaml ./src/EasyLotteryVue/
+WORKDIR /repo/src/EasyLotteryVue
+RUN pnpm install --frozen-lockfile
+COPY src/EasyLotteryVue/ ./
+RUN pnpm build
+
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
@@ -12,6 +21,7 @@ COPY src/EasyLotteryWasm/EasyLotteryWasm.csproj src/EasyLotteryWasm/
 RUN dotnet restore src/EasyLotteryAPI/EasyLotteryApi.csproj
 
 COPY . .
+COPY --from=vue-build /repo/src/EasyLotteryAPI/wwwroot/app/ ./src/EasyLotteryAPI/wwwroot/app/
 RUN dotnet publish src/EasyLotteryAPI/EasyLotteryApi.csproj -c Release -o /app/publish --no-restore
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime

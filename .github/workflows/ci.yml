@@ -22,6 +22,28 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24.x
+          cache: npm
+          cache-dependency-path: tests/e2e/package-lock.json
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.19.0
+
+      - name: Install Vue dependencies
+        working-directory: src/EasyLotteryVue
+        run: pnpm install --frozen-lockfile
+
+      - name: Test and build Vue frontend
+        working-directory: src/EasyLotteryVue
+        run: |
+          pnpm test:unit
+          pnpm build
+
       - name: Setup .NET
         uses: actions/setup-dotnet@v6
         with:
@@ -41,13 +63,6 @@ jobs:
 
       - name: Run container smoke test
         run: bash tests/smoke-health.sh
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version: 22.x
-          cache: npm
-          cache-dependency-path: tests/e2e/package-lock.json
 
       - name: Install OpenSpec CLI
         run: npm install --global @fission-ai/openspec@1.7.0

@@ -1,0 +1,35 @@
+{
+  "name": "easylottery-vue",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "packageManager": "pnpm@11.19.0",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc --noEmit -p tsconfig.app.json && vue-tsc --noEmit -p tsconfig.node.json && vite build",
+    "preview": "vite preview",
+    "typecheck": "vue-tsc --noEmit -p tsconfig.app.json && vue-tsc --noEmit -p tsconfig.node.json",
+    "test:unit": "vitest run"
+  },
+  "dependencies": {
+    "@fontsource/roboto": "^5.2.8",
+    "@mdi/font": "^7.4.47",
+    "@microsoft/signalr": "^10.0.0",
+    "pinia": "^3.0.4",
+    "vue": "^3.5.22",
+    "vue-router": "^4.5.1",
+    "vuetify": "^4.2.2"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@vitejs/plugin-vue": "^6.0.2",
+    "typescript": "^5.9.3",
+    "vite": "^8.0.0",
+    "vite-plugin-vuetify": "^2.1.0",
+    "vitest": "^4.0.0",
+    "vue-tsc": "^3.0.0"
+  }
+}

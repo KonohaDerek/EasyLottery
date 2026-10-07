@@ -18,11 +18,13 @@ test("admin can register and use a Passkey", async ({ browser, baseURL }) => {
 
   try {
     await page.goto(`${origin}/`, { waitUntil: "networkidle" });
+    await page.getByLabel("管理員 email").fill("admin@example.com");
     await page.getByRole("button", { name: "使用 Passkey 登入" }).click();
     await expect(page.getByText("名單與獎項匯入 / 匯出")).toBeVisible();
 
     await page.evaluate(() => sessionStorage.clear());
     await page.reload({ waitUntil: "networkidle" });
+    await page.getByLabel("管理員 email").fill("admin@example.com");
     await page.getByRole("button", { name: "使用 Passkey 登入" }).click();
     await expect(page.getByText("名單與獎項匯入 / 匯出")).toBeVisible();
 

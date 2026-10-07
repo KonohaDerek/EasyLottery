@@ -45,11 +45,23 @@
                         @foreach (var item in group.Items)
                         {
                             <div class="nav-item px-3 nav-sub-item">
-                                <NavLink class="nav-link" href="@item.Route" Match="NavLinkMatch.Prefix"
-                                         title="@item.Label" aria-label="@item.Description" @onclick="CloseMobileMenu">
-                                    <span class="nav-icon" aria-hidden="true">@item.Icon</span>
-                                    <span class="nav-label">@item.Label</span>
-                                </NavLink>
+                                @if (item.Route.StartsWith("app/", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    <a class="nav-link" href="/@item.Route" title="@item.Label"
+                                       aria-label="@item.Description" @onclick="() => NavigateToVue(item.Route)"
+                                       @onclick:preventDefault="true">
+                                        <span class="nav-icon" aria-hidden="true">@item.Icon</span>
+                                        <span class="nav-label">@item.Label</span>
+                                    </a>
+                                }
+                                else
+                                {
+                                    <NavLink class="nav-link" href="@item.Route" Match="NavLinkMatch.Prefix"
+                                             title="@item.Label" aria-label="@item.Description" @onclick="CloseMobileMenu">
+                                        <span class="nav-icon" aria-hidden="true">@item.Icon</span>
+                                        <span class="nav-label">@item.Label</span>
+                                    </NavLink>
+                                }
                             </div>
                         }
                     </div>
@@ -152,6 +164,12 @@
     private void ToggleDesktopSidebar() => sidebarCollapsed = !sidebarCollapsed;
 
     private void CloseMobileMenu() => mobileMenuOpen = false;
+
+    private void NavigateToVue(string route)
+    {
+        CloseMobileMenu();
+        NavigationManager.NavigateTo($"/{route.TrimStart('/')}", forceLoad: true);
+    }
 
     private void EnsureActiveGroupExpanded()
     {

@@ -1,0 +1,107 @@
+:root {
+  font-family: Roboto, "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+  color: #18342d;
+  background: #f4f7f5;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+html {
+  min-width: 320px;
+  min-height: 100%;
+  background: #f4f7f5;
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+a {
+  color: inherit;
+}
+
+.page-content {
+  width: min(100%, 1160px);
+  margin-inline: auto;
+  padding: clamp(1.25rem, 3vw, 2.75rem) clamp(1rem, 3vw, 2rem) 3rem;
+}
+
+.eyebrow {
+  margin: 0 0 0.65rem;
+  color: #557c6f;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.page-title {
+  margin: 0;
+  color: #173d33;
+  font-size: clamp(2rem, 5vw, 3.25rem);
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  line-height: 1.12;
+}
+
+.page-lead {
+  max-width: 50rem;
+  margin: 1rem 0 0;
+  color: #526b63;
+  font-size: clamp(1rem, 2vw, 1.18rem);
+  line-height: 1.75;
+}
+
+.content-card {
+  height: 100%;
+  padding: clamp(1.25rem, 3vw, 1.75rem);
+  border: 1px solid #e1eae5;
+  box-shadow: 0 12px 36px rgb(21 74 57 / 6%);
+}
+
+.section-heading {
+  margin: 2.25rem 0 0.85rem;
+  color: #214c3f;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.prose {
+  max-width: 54rem;
+  color: #425a52;
+  font-size: 1rem;
+  line-height: 1.8;
+}
+
+.prose p {
+  margin: 0.7rem 0;
+}
+
+.prose ul {
+  padding-left: 1.35rem;
+}
+
+.prose li + li {
+  margin-top: 0.4rem;
+}
+
+.app-footer {
+  border-top: 1px solid #e1eae5;
+  color: #62766e;
+  font-size: 0.9rem;
+}
+
+@media (max-width: 600px) {
+  .page-content {
+    padding-bottom: 2rem;
+  }
+}

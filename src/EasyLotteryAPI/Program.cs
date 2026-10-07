@@ -191,6 +191,10 @@ app.MapGet("/api/test/session-token", (IHostEnvironment environment, IConfigurat
     return Results.Ok(new SessionTokenResponse(issued.Token, issued.ExpiresAtUtc));
 });
 
+app.MapGet("/about", () => Results.Redirect("/app/about"));
+app.MapGet("/privacy-policy", () => Results.Redirect("/app/privacy-policy"));
+app.MapGet("/login", () => Results.Redirect("/app/login"));
+app.MapFallbackToFile("/app/{*path:nonfile}", "app/index.html");
 app.MapFallbackToFile("index.html");
 
 await app.RunAsync();
