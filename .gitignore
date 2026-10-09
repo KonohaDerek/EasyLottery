@@ -9,6 +9,9 @@ TestResults/
 src/EasyLottery/.pnpm-store
 src/EasyLottery/node_modules
 src/EasyLottery/dist
+src/EasyLotteryWeb/node_modules/
+src/EasyLotteryWeb/dist/
+src/EasyLotteryWasm/wwwroot/vue/
 
 # Sensitive settings
 appsettings.Development.json
