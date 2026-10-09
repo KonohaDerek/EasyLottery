@@ -1,0 +1,38 @@
+{
+  "id": "vue-frontend-phase3-activity-results-2026-10-09",
+  "task": "Issue #268: migrate the authenticated activity-results browsing route to Vue as the first independently verifiable Phase 3 slice",
+  "complexity": "medium",
+  "main_agent": "current configured Codex model (not overridden)",
+  "use_subagents": true,
+  "parallel": true,
+  "subagents": [
+    {
+      "role": "read-only inventory",
+      "model": "gpt-6-luna",
+      "reasoning_effort": "high",
+      "write_scope": "none"
+    }
+  ],
+  "risk": "medium",
+  "verification_level": "Vue unit tests, typecheck/build, .NET regression tests, authenticated Playwright route/navigation/export E2E, OpenSpec strict validation",
+  "needs_human_approval": false,
+  "external_changes": [
+    "push feat/vue-frontend-phase3",
+    "create Ready for review PR referencing #252 and #268"
+  ],
+  "deferred_external_work": [
+    "production deployment or cutover",
+    "Domain or REST API contract changes",
+    "Donate payment summary integration",
+    "roulette/PokeBox management and interactive flows",
+    "OBS/SignalR migration",
+    "EasyLotteryWasm/Blazorise retirement"
+  ],
+  "reason": [
+    "TYPESAFE_API_KEY is unset, so the repo-required Jev route is unavailable; this is the documented manual fallback.",
+    "Issue #268 is a multi-page phase; a read-only Activity Results page is a bounded vertical slice using the existing authenticated GET endpoint, keeping payment, draw, and realtime behavior out of scope.",
+    "The Vue router already has an admin JWT guard and shared API client; keep the Blazor host and route as rollback while routing only /activity-results to Vue.",
+    "The implementation can be verified without changing backend behavior; production cutover remains separately unauthorized and out of scope.",
+    "The repo Dev Container CLI and Superpowers commands are absent on the host; use the checked-in Dev Container Dockerfile and the local incremental workflow fallback."
+  ]
+}
