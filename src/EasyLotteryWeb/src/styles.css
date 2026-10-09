@@ -1,0 +1,145 @@
+:root {
+  color-scheme: light;
+  font-family: Inter, "Segoe UI", "Noto Sans TC", sans-serif;
+  background: #eef3f9;
+}
+
+html,
+body,
+#app {
+  min-height: 100%;
+  margin: 0;
+}
+
+body {
+  color: #1f2a37;
+  background: linear-gradient(180deg, #eef3f9 0%, #e4ebf5 100%);
+}
+
+a {
+  color: inherit;
+}
+
+.public-nav {
+  min-height: 64px;
+}
+
+.brand {
+  color: #1d4ed8;
+  font-size: 1.15rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-decoration: none;
+}
+
+.nav-link {
+  padding: 0.75rem;
+  color: #334155;
+  font-size: 0.95rem;
+  text-decoration: none;
+}
+
+.nav-link:hover,
+.nav-link.router-link-active {
+  color: #1d4ed8;
+}
+
+.public-main {
+  background: radial-gradient(circle at top left, rgba(37, 99, 235, 0.1), transparent 34%);
+}
+
+.eyebrow {
+  margin-bottom: 0.75rem;
+  color: #2563eb;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+}
+
+.lead {
+  max-width: 42rem;
+  color: #66758d;
+  font-size: 1.15rem;
+  line-height: 1.7;
+}
+
+article,
+section {
+  line-height: 1.75;
+}
+
+article p {
+  max-width: 50rem;
+}
+
+.highlight-card {
+  border: 1px solid rgba(37, 99, 235, 0.12);
+}
+
+.login-page {
+  padding-block: 2rem;
+}
+
+.login-card {
+  border: 1px solid rgba(37, 99, 235, 0.14);
+}
+
+.field-label {
+  display: block;
+  margin-bottom: 0.4rem;
+  color: #334155;
+  font-weight: 600;
+}
+
+.email-input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 3rem;
+  padding: 0.75rem 0.9rem;
+  color: #1f2a37;
+  font: inherit;
+  background: #fff;
+  border: 1px solid #b8c4d6;
+  border-radius: 0.35rem;
+}
+
+.email-input:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.submit-button {
+  width: 100%;
+  min-height: 3rem;
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+  background: #2563eb;
+  border: 0;
+  border-radius: 0.35rem;
+  cursor: pointer;
+}
+
+.submit-button:hover:not(:disabled) {
+  background: #1d4ed8;
+}
+
+.submit-button:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.login-error {
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  color: #991b1b;
+  background: #fef2f2;
+  border-radius: 0.5rem;
+}
+
+:focus-visible {
+  outline: 3px solid rgba(37, 99, 235, 0.45);
+  outline-offset: 2px;
+}

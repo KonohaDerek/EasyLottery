@@ -1,0 +1,18 @@
+{
+  "id": "vue-frontend-phase1-2026-10-06",
+  "task": "建立 Vue 3 frontend shell，遷移 public About、Privacy Policy、Login 與 Passkey login foundation，保留 Blazor/Backend 共存",
+  "complexity": "large",
+  "main_agent": "terra",
+  "use_subagents": false,
+  "parallel": false,
+  "risk": "medium",
+  "verification_level": "frontend unit, TypeScript build, .NET build/test, public browser E2E",
+  "needs_human_approval": true,
+  "external_changes": ["更新 GitHub #252/#255", "建立 GitHub #266-#270", "建立 ready-for-review PR"],
+  "deferred_external_work": ["production cutover", "Blazorise licensing purchase", "admin settings migration", "lottery migration", "OBS/SignalR migration"],
+  "reason": [
+    "TYPESAFE_API_KEY 不可用，因此依 repo workflow 使用主 Agent 的人工結構化判斷。",
+    "第一階段只新增 Vue public entry points；保留 root 與未遷移路由給 Blazor，讓路由可獨立回滾。",
+    "Passkey protocol 已存在且 frontend 只需實作 WebAuthn serialization 與既有 API bridge，不需要 backend contract 變更。"
+  ]
+}

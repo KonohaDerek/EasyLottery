@@ -1,0 +1,22 @@
+<template>
+  <article aria-labelledby="privacy-policy-title">
+    <p class="eyebrow">EASYLOTTERY</p>
+    <h1 id="privacy-policy-title" class="text-h3 text-sm-h2 mb-6">隱私權政策</h1>
+    <p>EasyLottery 是可由部署者自行架設與管理的直播互動工具。本頁說明此部署可能處理的資料種類；實際的保存期間、存取權限與刪除流程由部署者決定。</p>
+
+    <h2 class="text-h5 mt-8 mb-2">可能處理與保存的資料</h2>
+    <p>資料會保存在<strong>部署者控制的儲存體</strong>中，可能包括管理員 Passkey 的公開憑證與名稱、系統與活動設定、參加者／聊天室活動資料、抽獎與活動結果、OBS 資產資訊，以及支付回呼紀錄。管理員輸入的第三方服務設定（例如 YouTube API Key、SMTP 與金流設定）也會依部署設定保存。</p>
+
+    <h2 class="text-h5 mt-8 mb-2">資料的用途</h2>
+    <p>這些資料僅用於提供與維護此部署的直播互動、抽獎、通知、支付回呼、備份與稽核功能。專案不會自行經營集中式的分析或廣告服務；但部署者啟用的第三方服務會依其各自的隱私權條款處理必要資料。</p>
+
+    <h2 class="text-h5 mt-8 mb-2">第三方服務</h2>
+    <p>部署者可選擇設定 YouTube、SMTP、金流或 Tunnel 等第三方服務。使用這些服務前，請由部署者確認資料傳輸範圍、帳號權限與適用條款。</p>
+
+    <h2 class="text-h5 mt-8 mb-2">查詢、保存與刪除</h2>
+    <p>若您對資料保存、查詢或刪除有需求，請直接聯絡此 EasyLottery 執行個體的部署者或管理員；其可依實際部署與法規需求處理您的請求。</p>
+
+    <h2 class="text-h5 mt-8 mb-2">政策更新</h2>
+    <p>部署者可隨系統設定或資料處理方式調整本頁內容，建議於使用前定期查看。</p>
+  </article>
+</template>
