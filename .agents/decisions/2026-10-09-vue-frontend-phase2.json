@@ -1,0 +1,19 @@
+{
+  "id": "vue-frontend-phase2-2026-10-09",
+  "task": "將 authenticated admin settings pages 從 Blazor 遷移至 Vue，保留既有 REST API、session-token、audit 與 Blazor rollback coexistence",
+  "complexity": "large",
+  "main_agent": "terra",
+  "use_subagents": false,
+  "parallel": false,
+  "risk": "medium",
+  "verification_level": "frontend unit, TypeScript build, .NET build/test, authenticated browser E2E",
+  "needs_human_approval": true,
+  "external_changes": ["建立 feat/vue-frontend-phase2 branch", "建立 ready-for-review PR 並關聯 #252/#267"],
+  "deferred_external_work": ["production cutover", "lottery/activity migration", "OBS/SignalR realtime migration", "Blazorise retirement"],
+  "reason": [
+    "TYPESAFE_API_KEY 不可用，因此依 repo workflow 使用主 Agent 的人工結構化判斷。",
+    "Phase 2 需要共用 authenticated layout、route guard、settings API、Passkey admin 與 asset upload，跨前端與後端 contract 邊界，屬 medium/large change。",
+    "既有 resource endpoints 已提供 ETag、secret redaction 與 authorization；優先重用它們，audit/backups/asset pages 使用既有 endpoint，非必要不新增 backend contract。",
+    "保留未遷移路由給 Blazor，Vue admin routes 可逐頁回滾。"
+  ]
+}

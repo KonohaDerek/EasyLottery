@@ -1,11 +1,17 @@
 <script setup lang="ts">
-import { RouterView } from "vue-router";
+import { RouterView, useRoute } from "vue-router";
+import AdminLayout from "./components/AdminLayout.vue";
 import PublicLayout from "./components/PublicLayout.vue";
+
+const route = useRoute();
 </script>
 
 <template>
   <v-app>
-    <PublicLayout>
+    <AdminLayout v-if="route.meta.requiresAuth">
+      <RouterView />
+    </AdminLayout>
+    <PublicLayout v-else>
       <RouterView />
     </PublicLayout>
   </v-app>

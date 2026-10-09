@@ -199,6 +199,15 @@ app.MapHub<InteractionHub>("/hubs/interactions");
 app.MapFallbackToFile("/about", "vue/index.html");
 app.MapFallbackToFile("/privacy-policy", "vue/index.html");
 app.MapFallbackToFile("/login", "vue/index.html");
+app.MapFallbackToFile("/system/access", "vue/index.html");
+app.MapFallbackToFile("/system/payment", "vue/index.html");
+app.MapFallbackToFile("/system/youtube-login", "vue/index.html");
+app.MapFallbackToFile("/system/audit", "vue/index.html");
+app.MapFallbackToFile("/system/backups", "vue/index.html");
+app.MapFallbackToFile("/system/obs-layouts", "vue/index.html");
+app.MapFallbackToFile("/system/obs-assets", "vue/index.html");
+app.MapFallbackToFile("/system/sound-cues", "vue/index.html");
+app.MapFallbackToFile("/system/visual-styles", "vue/index.html");
 
 app.MapGet("/api/test/session-token", (IHostEnvironment environment, IConfiguration configuration, ObsSessionTokenService tokens) =>
 {

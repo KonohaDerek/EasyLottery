@@ -45,11 +45,22 @@
                         @foreach (var item in group.Items)
                         {
                             <div class="nav-item px-3 nav-sub-item">
-                                <NavLink class="nav-link" href="@item.Route" Match="NavLinkMatch.Prefix"
-                                         title="@item.Label" aria-label="@item.Description" @onclick="CloseMobileMenu">
-                                    <span class="nav-icon" aria-hidden="true">@item.Icon</span>
-                                    <span class="nav-label">@item.Label</span>
-                                </NavLink>
+                                @if (IsVueRoute(item.Route))
+                                {
+                                    <a class="nav-link" href="/@item.Route" title="@item.Label" aria-label="@item.Description"
+                                       @onclick="() => NavigateToVueRoute(item.Route)" @onclick:preventDefault="true">
+                                        <span class="nav-icon" aria-hidden="true">@item.Icon</span>
+                                        <span class="nav-label">@item.Label</span>
+                                    </a>
+                                }
+                                else
+                                {
+                                    <NavLink class="nav-link" href="@item.Route" Match="NavLinkMatch.Prefix"
+                                             title="@item.Label" aria-label="@item.Description" @onclick="CloseMobileMenu">
+                                        <span class="nav-icon" aria-hidden="true">@item.Icon</span>
+                                        <span class="nav-label">@item.Label</span>
+                                    </NavLink>
+                                }
                             </div>
                         }
                     </div>
@@ -89,6 +100,13 @@
     private bool expandedStateLoaded;
 
     private string? NavMenuCssClass => mobileMenuOpen ? "mobile-expanded" : "mobile-collapsed";
+
+    private static bool IsVueRoute(string route) => route is
+        "system/access" or "system/payment" or "system/youtube-login" or "system/audit" or
+        "system/backups" or "system/obs-layouts" or "system/obs-assets" or "system/sound-cues" or
+        "system/visual-styles" or "privacy-policy" or "about";
+
+    private void NavigateToVueRoute(string route) => NavigationManager.NavigateTo($"/{route}", forceLoad: true);
 
     protected override void OnInitialized()
     {

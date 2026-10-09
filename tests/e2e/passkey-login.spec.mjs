@@ -8,7 +8,7 @@ test("blank login email stays client-side", async ({ page }) => {
     }
   });
 
-  await page.goto("/", { waitUntil: "networkidle" });
+  await page.goto("/login", { waitUntil: "networkidle" });
   await expect(page.locator("#admin-email")).toHaveValue("");
   await page.getByRole("button", { name: "使用 Passkey 登入" }).click();
   await expect(page.getByRole("alert")).toContainText("請輸入有效的管理員 email");
@@ -23,7 +23,7 @@ test("malformed login email stays client-side", async ({ page }) => {
     }
   });
 
-  await page.goto("/", { waitUntil: "networkidle" });
+  await page.goto("/login", { waitUntil: "networkidle" });
   await page.locator("#admin-email").fill("not-an-email");
   await page.getByRole("button", { name: "使用 Passkey 登入" }).click();
   await expect(page.getByRole("alert")).toContainText("請輸入有效的管理員 email");
@@ -47,19 +47,18 @@ test("admin can register and use a Passkey", async ({ browser, baseURL }) => {
   });
 
   try {
-    await page.goto(`${origin}/`, { waitUntil: "networkidle" });
+    await page.goto(`${origin}/login`, { waitUntil: "networkidle" });
     await page.locator("#admin-email").fill("admin@example.com");
     await page.getByRole("button", { name: "使用 Passkey 登入" }).click();
-    await expect(page.getByText("名單與獎項匯入 / 匯出")).toBeVisible();
-    await expect(page.getByText("請輸入 YT 網址")).toHaveCount(0);
-    await page.locator(".chat-settings-switch input[type=checkbox]").click();
-    await expect(page.getByText("請輸入 YT 網址")).toBeVisible();
+    await expect(page.getByText("管理員 Passkey 管理", { exact: true })).toBeVisible();
+    await expect(page).toHaveURL(`${origin}/system/access`);
 
     await page.evaluate(() => sessionStorage.clear());
-    await page.reload({ waitUntil: "networkidle" });
+    await page.goto(`${origin}/login?redirect=%2F%2Fevil.example`, { waitUntil: "networkidle" });
     await page.locator("#admin-email").fill("admin@example.com");
     await page.getByRole("button", { name: "使用 Passkey 登入" }).click();
-    await expect(page.getByText("名單與獎項匯入 / 匯出")).toBeVisible();
+    await expect(page.getByText("管理員 Passkey 管理", { exact: true })).toBeVisible();
+    await expect(page).toHaveURL(`${origin}/system/access`);
 
     await page.goto(`${origin}/system/access`, { waitUntil: "networkidle" });
     await expect(page.getByText("管理員 Passkey 管理", { exact: true })).toBeVisible();

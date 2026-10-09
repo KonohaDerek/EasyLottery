@@ -1,15 +1,22 @@
 ﻿@inherits LayoutComponentBase
+@inject NavigationManager NavigationManager
 <div class="page">
     <div class="sidebar">
         <NavMenu />
     </div>
     <main>
         <div class="top-row app-top-banner px-4">
-            <a href="/about">關於 EasyLottery</a>
-            <a href="/privacy-policy">隱私權政策</a>
+            <a href="/about" @onclick="NavigateToAbout" @onclick:preventDefault="true">關於 EasyLottery</a>
+            <a href="/privacy-policy" @onclick="NavigateToPrivacyPolicy" @onclick:preventDefault="true">隱私權政策</a>
         </div>
         <article class="content px-4">
             @Body
         </article>
     </main>
 </div>
+
+@code {
+    private void NavigateToAbout() => NavigationManager.NavigateTo("/about", forceLoad: true);
+
+    private void NavigateToPrivacyPolicy() => NavigationManager.NavigateTo("/privacy-policy", forceLoad: true);
+}

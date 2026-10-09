@@ -3,7 +3,8 @@ import { expect, test } from "./fixtures.mjs";
 test("Vue public routes do not initialize admin settings", async ({ page }) => {
   const settingsRequests = [];
   page.on("request", request => {
-    if (new URL(request.url()).pathname.includes("/settings")) {
+    const path = new URL(request.url()).pathname;
+    if (path.startsWith("/api/settings") || path === "/settings" || path === "/easy-lottery-config.yaml") {
       settingsRequests.push(request.url());
     }
   });
