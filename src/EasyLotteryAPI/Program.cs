@@ -93,10 +93,11 @@ foreach (var trustedProxy in adminTokenOptions.TrustedProxyIps)
 }
 
 var app = builder.Build();
+const string cspInlineScriptHashes = "'sha256-Up8uKOnWUeLN1tr4F2xu+G5FnVKm7nZjUJBCP1QSanw=' 'sha256-WUm4fB9Y4RMY9agzHmV/MMXHbrL8xfXxHQxcvjgLqgg=' 'sha256-tLspFXPZVf2Btx2+I3LWOBB8LI+MDBOozVbeg+mYcC8=' 'sha256-ETTAEtA+fNqMEmgny2yBfWttJL0JNR8HXXAfFfWKL0E=' 'sha256-1hWiEA5sfLjogAXMlr8SSyo5i4aMCfMvKiFDknEfVfU=' 'sha256-ByI1LlblWvDYhw/BMM5qTimN+FQ/qKSxIdqAhrnGEAQ=' 'sha256-LVtt4YNWSmiS+24AP4l1/sI57D/EK/HUcrxkodair1k=' 'sha256-7dSB9L+SDCGhgxMXElF4mYId3G+wGYCZ9MCfs4Fcv78='";
 
-if (app.Configuration.GetValue("Security:ForceHttps", !app.Environment.IsDevelopment()))
+if (adminTokenOptions.TrustedProxyIps.Count > 0)
 {
-    app.UseHttpsRedirection();
+    app.UseForwardedHeaders(forwardedHeadersOptions);
 }
 
 app.Use(async (context, next) =>
@@ -107,11 +108,16 @@ app.Use(async (context, next) =>
         context.Response.Headers["X-Frame-Options"] = "DENY";
         context.Response.Headers["Referrer-Policy"] = "no-referrer";
         context.Response.Headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()";
-        context.Response.Headers["Content-Security-Policy"] = "default-src 'self'; connect-src 'self' ws: wss:; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; script-src 'self' 'wasm-unsafe-eval'; frame-ancestors 'none'";
+        context.Response.Headers["Content-Security-Policy"] = $"default-src 'self'; connect-src 'self' ws: wss:; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; script-src 'self' 'wasm-unsafe-eval' {cspInlineScriptHashes}; frame-ancestors 'none'";
         return Task.CompletedTask;
     });
     await next();
 });
+
+if (app.Configuration.GetValue("Security:ForceHttps", !app.Environment.IsDevelopment()))
+{
+    app.UseHttpsRedirection();
+}
 
 app.UseExceptionHandler(errorApp => errorApp.Run(async context =>
 {
@@ -150,10 +156,6 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseBlazorFrameworkFiles();
-if (adminTokenOptions.TrustedProxyIps.Count > 0)
-{
-    app.UseForwardedHeaders(forwardedHeadersOptions);
-}
 app.UseStaticFiles();
 app.Use(async (context, next) =>
 {

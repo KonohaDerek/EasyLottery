@@ -20,6 +20,12 @@ WebAuthn 只在 HTTPS secure context（localhost 除外）可用；`Admin__Passk
 
 本機若使用非 `18930` 的埠號，請同步設定 `Admin__Passkey__Origins__0=http://localhost:<埠號>`；不要依賴 Production fallback，也不要使用 wildcard origin。
 
+## HTTPS 與反向代理
+
+`Security:ForceHttps` 在 Production 預設為 `true`，Development 預設為 `false`。API 先處理可信任 proxy 的 `X-Forwarded-Proto`，再判斷是否重導向 HTTP；redirect、錯誤與一般回應都會帶安全標頭。CSP 以 SHA-256 hash 精確允許 app shell 既有的 inline scripts；修改 inline script 時，必須同步更新 hash，API 測試會檢查兩者一致。只有 `Security:AdminToken:TrustedProxyIps` 列出的來源 IP 可以影響 scheme；請填 API 實際看到的 proxy IP，並讓 proxy 移除外部傳入的 `X-Forwarded-*` 後重新設定 `X-Forwarded-Proto`。不要信任任意來源的 forwarded headers。
+
+若 HTTPS 在反向代理終止，請由代理處理公開入口的 HTTP→HTTPS，並將 API 端口限制在可信任網路；API 收到可信任代理的 `X-Forwarded-Proto: https` 時不會再次重導向。API 直接處理 TLS 時，須設定 HTTPS 端點與對應 port，才能產生正確的 redirect URL。部署與暫時回滾設定見 [部署手冊](deployment.md)。
+
 設定寫入、活動 CRUD、Tunnel、測試支付與其他敏感命令仍要求有效的 admin JWT，並套用速率限制及 1 MiB request body 上限。
 
 ## OBS URL
