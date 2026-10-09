@@ -28,10 +28,12 @@ using EasyLotteryDomain.Services;
 using EasyLotteryDomain.Models.Obs;
 using EasyLotteryInfrastructure.Settings;
 using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.AspNetCore.HttpsPolicy;
 using Microsoft.AspNetCore.HttpOverrides;
 using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Services.Configure<HttpsRedirectionOptions>(options => options.RedirectStatusCode = StatusCodes.Status308PermanentRedirect);
 builder.Services.AddSignalR();
 builder.Services.AddSingleton<TunnelRuntimeService>();
 builder.Services.AddSingleton<IPaymentProvider, EcpayBroadcasterPaymentProvider>();

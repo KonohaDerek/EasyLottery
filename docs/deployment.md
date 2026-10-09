@@ -13,7 +13,7 @@ curl --fail https://easylotter.k-derek.synology.me/health/live
 curl --fail https://easylotter.k-derek.synology.me/health/ready
 ```
 
-Compose 會拒絕未設定管理員 email、WebAuthn RP ID 或 Origin 的 Production 啟動，避免使用錯誤的 localhost 或預設身份。容器 port 預設只綁定本機 loopback，供同一台主機的 HTTPS reverse proxy 轉送；若 reverse proxy 位於其他容器，請改用共享 Docker network 或明確覆寫 `EASYLOTTERY_PORT` 的 bind 設定。健康檢查應走公開 HTTPS 入口；直接對內部 HTTP port 使用 `curl --fail` 可能把 307 redirect 當成健康成功。
+Compose 會拒絕未設定管理員 email、WebAuthn RP ID 或 Origin 的 Production 啟動，避免使用錯誤的 localhost 或預設身份。容器 port 預設只綁定本機 loopback，供同一台主機的 HTTPS reverse proxy 轉送；若 reverse proxy 位於其他容器，請改用共享 Docker network 或明確覆寫 `EASYLOTTERY_PORT` 的 bind 設定。健康檢查應走公開 HTTPS 入口；直接對內部 HTTP port 使用 `curl --fail` 可能把 308 redirect 當成健康成功。
 
 ## 備份與還原
 

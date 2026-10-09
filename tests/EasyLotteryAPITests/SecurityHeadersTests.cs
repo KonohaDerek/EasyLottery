@@ -90,12 +90,12 @@ public sealed class SecurityHeadersTests
         AssertHeaders(missing);
 
         var untrusted = await SendAsync(IPAddress.Parse("192.0.2.10"), forwardedHttps: true);
-        Assert.AreEqual(StatusCodes.Status307TemporaryRedirect, untrusted.Response.StatusCode);
+        Assert.AreEqual(StatusCodes.Status308PermanentRedirect, untrusted.Response.StatusCode);
         Assert.AreEqual("https://example.test/health/live", untrusted.Response.Headers.Location.ToString());
         AssertHeaders(untrusted);
 
         var http = await SendAsync(IPAddress.Loopback, forwardedHttps: false);
-        Assert.AreEqual(StatusCodes.Status307TemporaryRedirect, http.Response.StatusCode);
+        Assert.AreEqual(StatusCodes.Status308PermanentRedirect, http.Response.StatusCode);
         AssertHeaders(http);
 
         static void AssertHeaders(HttpContext context)
