@@ -11,4 +11,4 @@
 - [x] 為 token guard、登入預設落點與完整 Blazor-to-Vue 導覽交接加入測試。
 - [x] 恢復支付 provider 的環境專屬憑證／啟用欄位，並覆蓋遮罩密鑰往返與 redirect 邊界。
 - [x] 防止 payment／YouTube／audit／preset 初次設定載入失敗時以空資料覆寫伺服器設定，並驗證重試流程與 ETag。
-- [ ] 檢查 diff、建立 commit、push branch 與 Ready PR。
+- [x] 檢查 diff、建立 commit、push branch 與 Ready PR #274。

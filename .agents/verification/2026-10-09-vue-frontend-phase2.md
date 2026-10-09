@@ -30,3 +30,9 @@ Scope: Issue #267; remediate the Phase 2 Vue/admin and PR #272 review findings.
 ## Review and boundaries
 
 Independent read-only review findings around login redirect safety, payment field/enable persistence, and failed-load data loss in payment, YouTube, audit, and preset settings were corrected and covered as above. TypeSafe routing used the documented manual fallback because `TYPESAFE_API_KEY` is unset. No production settings, data, or Blazorise licensing were changed.
+
+## Delivery
+
+- Branch `feat/vue-frontend-phase2` is pushed; Ready PR [#274](https://github.com/KonohaDerek/EasyLottery/pull/274) references #252/#255 and closes #267 on merge.
+- PR [#263](https://github.com/KonohaDerek/EasyLottery/pull/263) was updated to describe the 308/CSP fixes and the production-deployment boundary.
+- PR #272 was closed as superseded by merged PR #271 and the Phase 2 follow-up #274.
