@@ -6,4 +6,4 @@
 - [x] 將 Vue route 加入 API host fallback、Blazor handoff 與 Vue 管理導覽；保持 Blazor 頁及其他路由可回滾。
 - [x] 加入 Vitest 與 authenticated Playwright coverage，包含錯誤、邊界及下載。
 - [x] 執行 Vue、.NET、Playwright、OpenSpec strict 與 diff 驗證，記錄限制與結果。
-- [ ] 完成主代理獨立檢查，提交、推送 branch 並建立 Ready for review PR，關聯 #252/#268。
+- [x] 完成主代理獨立檢查，提交、推送 branch 並建立 Ready for review PR，關聯 #252/#268。
