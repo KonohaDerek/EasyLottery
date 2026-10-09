@@ -50,7 +50,7 @@ export function clonePublicKeyOptions(options: Record<string, unknown>): Record<
   return publicKey;
 }
 
-function serializeCredential(credential: PublicKeyCredential): Record<string, unknown> {
+export function serializeCredential(credential: PublicKeyCredential): Record<string, unknown> {
   const response = credential.response as unknown as {
     clientDataJSON: ArrayBuffer;
     attestationObject?: ArrayBuffer;
@@ -101,6 +101,28 @@ async function request<T>(path: string, body: Record<string, unknown>): Promise<
   return payload as T;
 }
 
+async function authorizedRequest<T>(path: string, method: string, body?: Record<string, unknown>): Promise<T> {
+  const token = sessionStorage.getItem("easy-lottery.session-token");
+  const response = await fetch(path, {
+    method,
+    headers: {
+      ...(body ? { "Content-Type": "application/json" } : {}),
+      ...(token ? { "X-EasyLottery-Session-Token": token } : {})
+    },
+    body: body ? JSON.stringify(body) : undefined
+  });
+  const payload = await response.json().catch(() => null) as { error?: string; code?: string } | T | null;
+  if (!response.ok) {
+    const errorPayload = payload as { error?: string; code?: string } | null;
+    throw new PasskeyRequestError(
+      errorPayload?.error ?? `Passkey API 回傳 HTTP ${response.status}。`,
+      response.status,
+      errorPayload?.code ?? "passkey_request_failed"
+    );
+  }
+  return payload as T;
+}
+
 async function completeFlow(email: string, flow: PasskeyFlow): Promise<PasskeyTokenResponse> {
   if (!window.isSecureContext || !window.PublicKeyCredential || !navigator.credentials) {
     throw new Error("目前網址或瀏覽器不支援 Passkey，請使用 HTTPS 與支援 WebAuthn 的瀏覽器。");
@@ -131,4 +153,29 @@ export async function loginWithPasskey(email: string): Promise<PasskeyTokenRespo
     }
     throw cause;
   }
+}
+
+export interface PasskeyDevice {
+  id: string;
+  name: string;
+  createdAtUtc: string;
+}
+
+export async function listPasskeys(): Promise<PasskeyDevice[]> {
+  return authorizedRequest<PasskeyDevice[]>("/api/admin/passkeys", "GET");
+}
+
+export async function addPasskey(name: string): Promise<PasskeyDevice> {
+  const begin = await authorizedRequest<PasskeyOptionsResponse>("/api/admin/passkeys/options", "POST", { name });
+  if (!window.isSecureContext || !window.PublicKeyCredential || !navigator.credentials) {
+    throw new Error("目前網址或瀏覽器不支援 Passkey，請使用 HTTPS 與支援 WebAuthn 的瀏覽器。");
+  }
+  const publicKey = clonePublicKeyOptions(begin.options) as unknown as PublicKeyCredentialCreationOptions;
+  const credential = await navigator.credentials.create({ publicKey });
+  if (!credential || !(credential instanceof PublicKeyCredential)) throw new Error("Passkey 註冊已取消。");
+  return authorizedRequest<PasskeyDevice>("/api/admin/passkeys/verify", "POST", { credential: serializeCredential(credential) });
+}
+
+export async function removePasskey(id: string): Promise<void> {
+  await authorizedRequest<null>(`/api/admin/passkeys/${encodeURIComponent(id)}`, "DELETE");
 }

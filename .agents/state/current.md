@@ -1,14 +1,13 @@
 # Current work state
 
-- Task ID: vue-frontend-phase1
-- Status: Complete
-- Scope: Issue #252 epic; Phase 1 public Vue shell and Passkey login remediation for #255/#266.
-- OpenSpec change: `migrate-vue-frontend`
-- Branch: `feat/vue-frontend-phase1`
-- Worktree: `.worktrees/vue-frontend-phase1`
-- verification_complete: true
-- branch_pushed: true
-- pull_request_created: true
-- Pull request: https://github.com/KonohaDerek/EasyLottery/pull/271
-- Notes: TypeSafe was unavailable because `TYPESAFE_API_KEY` was unset; manual workflow decision recorded in `.agents/decisions/2026-10-06-vue-frontend-phase1.json`. Blazor, Blazorise, backend APIs, and Passkey protocol remain in coexistence mode.
-- Updated: 2026-10-06
+- Task ID: vue-frontend-phase2
+- Status: In Progress
+- Scope: Issue #267; migrate authenticated admin settings from Blazor to Vue while retaining Blazor rollback coverage.
+- OpenSpec change: `migrate-vue-frontend-phase2`
+- Branch: `feat/vue-frontend-phase2`
+- Worktree: `.worktrees/vue-frontend-phase2`
+- verification_complete: false
+- branch_pushed: false
+- pull_request_created: false
+- Notes: TypeSafe was unavailable because `TYPESAFE_API_KEY` was unset; manual workflow decision recorded in `.agents/decisions/2026-10-09-vue-frontend-phase2.json`. Existing backend contracts, Blazor pages, Blazorise, and Passkey protocol remain in coexistence mode.
+- Updated: 2026-10-09
