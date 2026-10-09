@@ -7,6 +7,7 @@ type AuditRecord = Record<string, unknown>;
 const document = ref<Record<string, any>>({});
 const etag = ref("");
 const loading = ref(true);
+const loaded = ref(false);
 const saving = ref(false);
 const error = ref("");
 const saved = ref(false);
@@ -20,11 +21,14 @@ const records = computed<AuditRecord[]>(() => Array.isArray(document.value.audit
 
 async function load() {
   loading.value = true;
+  loaded.value = false;
   error.value = "";
   try {
     const response = await apiText("/settings");
+    if (!response.etag) throw new Error("設定載入缺少 ETag，請重新載入後再儲存。");
     document.value = parse(response.data) as Record<string, any>;
     etag.value = response.etag;
+    loaded.value = true;
   } catch (cause) {
     error.value = cause instanceof Error ? cause.message : "審計設定載入失敗。";
   } finally {
@@ -33,6 +37,11 @@ async function load() {
 }
 
 async function save() {
+  if (!loaded.value || !etag.value) {
+    error.value = "設定尚未成功載入，請重新載入後再儲存。";
+    return;
+  }
+
   saving.value = true;
   saved.value = false;
   error.value = "";
@@ -66,6 +75,10 @@ onMounted(load);
       <v-card-title>操作人設定</v-card-title>
       <v-card-text>
         <p v-if="loading" class="status-text">載入中…</p>
+        <div v-else-if="!loaded" class="login-error" role="alert">
+          <p>{{ error || "審計設定尚未載入。" }}</p>
+          <button class="submit-button compact" type="button" @click="load">重新載入</button>
+        </div>
         <form v-else @submit.prevent="save">
           <label class="field-label" for="audit-actor">預設操作人</label>
           <input id="audit-actor" v-model="auditSettings.actorName" class="settings-input" maxlength="120" />
@@ -76,10 +89,11 @@ onMounted(load);
     <v-card class="settings-card">
       <v-card-title>最近紀錄</v-card-title>
       <v-card-text>
-        <p v-if="records.length === 0" class="status-text">目前沒有審計紀錄。</p>
+        <p v-if="!loaded" class="status-text">審計紀錄尚未載入。</p>
+        <p v-else-if="records.length === 0" class="status-text">目前沒有審計紀錄。</p>
         <div v-else class="table-wrap"><table><thead><tr><th>時間</th><th>操作人</th><th>類別</th><th>動作</th><th>目標</th><th>詳細</th></tr></thead><tbody><tr v-for="(record, index) in records" :key="value(record, 'id') || index"><td>{{ value(record, 'changedAtUtc') }}</td><td>{{ value(record, 'changedBy') }}</td><td>{{ value(record, 'category') }}</td><td>{{ value(record, 'action') }}</td><td>{{ value(record, 'targetName') }}</td><td>{{ value(record, 'details') }}</td></tr></tbody></table></div>
       </v-card-text>
     </v-card>
-    <div v-if="error" class="login-error" role="alert">{{ error }}</div>
+    <div v-if="error && loaded" class="login-error" role="alert">{{ error }}</div>
   </section>
 </template>

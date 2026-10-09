@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory } from "vue-router";
 import { routes, publicRoutes } from "./routes";
 import { adminRouteRedirect } from "./router-guard";
-import { getStoredToken } from "./stores/session";
+import { getStoredToken, isAdminSessionToken } from "./stores/session";
 
 export { adminRoutes, publicRoutes, routes } from "./routes";
 
@@ -11,7 +11,7 @@ export const router = createRouter({
 });
 
 router.beforeEach(to => {
-  const redirect = to.meta.requiresAuth ? adminRouteRedirect(to.path, Boolean(getStoredToken())) : null;
+  const redirect = to.meta.requiresAuth ? adminRouteRedirect(to.path, isAdminSessionToken(getStoredToken())) : null;
   if (redirect) return redirect;
   return true;
 });

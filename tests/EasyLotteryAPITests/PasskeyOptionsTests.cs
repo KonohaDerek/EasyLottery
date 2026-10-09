@@ -41,6 +41,7 @@ public sealed class PasskeyOptionsTests
         Assert.AreEqual(AdminPasskeyOptions.DefaultEmail, options.Email);
         Assert.AreEqual("localhost", options.RpId);
         Assert.IsTrue(options.Origins.Contains("http://localhost:18930"));
+        Assert.IsTrue(options.Origins.Contains("http://localhost:5173"));
         Assert.AreEqual(TimeSpan.FromMinutes(2), options.ChallengeLifetime);
     }
 

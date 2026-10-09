@@ -4,6 +4,20 @@ export interface ProviderSettings {
   name?: string;
   isEnabled?: boolean;
   environment?: string;
+  testing?: ProviderConnectionSettings;
+  production?: ProviderConnectionSettings;
+  [key: string]: unknown;
+}
+
+export interface ProviderConnectionSettings {
+  isEnabled?: boolean;
+  merchantId?: string;
+  apiKey?: string;
+  secretKey?: string;
+  channelId?: string;
+  accessToken?: string;
+  creatorId?: string;
+  donationPageUrl?: string;
   [key: string]: unknown;
 }
 

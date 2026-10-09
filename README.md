@@ -129,6 +129,7 @@ OBS 動畫階段、結果停留時間、透明背景與低動態／低效能選�
 ### 前置需求
 
 - .NET SDK 10.0
+- Node.js 22 與 npm（Vue 前端開發）
 - 支援 Blazor WebAssembly 的瀏覽器
 
 ### 執行 Web Host
@@ -138,6 +139,15 @@ OBS 動畫階段、結果停留時間、透明背景與低動態／低效能選�
 ```bash
 dotnet run --project src/EasyLotteryAPI/EasyLotteryApi.csproj --launch-profile EasyLotteryAPI
 ```
+
+Vue 開發使用 Vite 熱更新；先啟動 API，再於另一個終端機執行：
+
+```bash
+npm ci --prefix src/EasyLotteryWeb
+npm run dev --prefix src/EasyLotteryWeb
+```
+
+開啟 `http://localhost:5173/about`、`/privacy-policy` 或 `/login`。Vite 會把 API 請求代理到 `http://localhost:18930`；只有未設定 `Admin__Passkey__Origins` 時，本機 Passkey 預設才允許這個開發 origin。若已有明確設定，請只在 Development origins 加入 `http://localhost:5173`，Production 不要加入開發 origin。若要直接透過 .NET host 驗證 Vue 靜態頁，先執行 `npm run build --prefix src/EasyLotteryWeb` 再啟動 API。
 
 ### 以 Docker 執行
 

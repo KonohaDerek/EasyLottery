@@ -23,17 +23,21 @@ const settings = reactive<Record<string, string>>({
 });
 const etag = ref("");
 const loading = ref(true);
+const loaded = ref(false);
 const saving = ref(false);
 const error = ref("");
 const saved = ref(false);
 
 async function load() {
   loading.value = true;
+  loaded.value = false;
   error.value = "";
   try {
     const response = await apiRequest<Record<string, string>>(props.endpoint);
+    if (!response.etag) throw new Error("設定載入缺少 ETag，請重新載入後再儲存。");
     Object.assign(settings, response.data);
     etag.value = response.etag;
+    loaded.value = true;
   } catch (cause) {
     error.value = cause instanceof Error ? cause.message : "設定載入失敗。";
   } finally {
@@ -42,6 +46,11 @@ async function load() {
 }
 
 async function save() {
+  if (!loaded.value || !etag.value) {
+    error.value = "設定尚未成功載入，請重新載入後再儲存。";
+    return;
+  }
+
   saving.value = true;
   error.value = "";
   saved.value = false;
@@ -76,6 +85,10 @@ onMounted(load);
       <v-card-title>{{ fieldLabel }}</v-card-title>
       <v-card-text>
         <p v-if="loading" class="status-text">載入中…</p>
+        <div v-else-if="!loaded" class="login-error" role="alert">
+          <p>{{ error || "設定尚未載入。" }}</p>
+          <button class="submit-button compact" type="button" @click="load">重新載入</button>
+        </div>
         <form v-else @submit.prevent="save">
           <div class="preset-grid">
             <label v-for="preset in presets" :key="preset.key" class="preset-option">
@@ -94,7 +107,7 @@ onMounted(load);
             <span v-if="saved" class="success-text" role="status">已儲存</span>
           </div>
         </form>
-        <div v-if="error" class="login-error" role="alert">{{ error }}</div>
+        <div v-if="error && loaded" class="login-error" role="alert">{{ error }}</div>
       </v-card-text>
     </v-card>
   </section>

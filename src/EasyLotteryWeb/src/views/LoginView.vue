@@ -33,6 +33,7 @@ import { ref } from "vue";
 import { useRoute } from "vue-router";
 import { isValidEmail } from "../auth/email";
 import { loginWithPasskey } from "../auth/passkey";
+import { safePostLoginRedirect } from "../auth/redirect";
 import { useSessionStore } from "../stores/session";
 
 const email = ref("");
@@ -53,10 +54,8 @@ async function submit() {
   try {
     const result = await loginWithPasskey(normalizedEmail);
     session.setToken(result.token);
-    const redirect = typeof route.query.redirect === "string" && route.query.redirect.startsWith("/")
-      ? route.query.redirect
-      : "/";
-    window.location.assign(redirect);
+    const requestedRedirect = typeof route.query.redirect === "string" ? route.query.redirect : undefined;
+    window.location.assign(safePostLoginRedirect(requestedRedirect, window.location.origin));
   } catch (cause) {
     error.value = cause instanceof Error ? cause.message : "Passkey 登入失敗，請稍後再試。";
   } finally {

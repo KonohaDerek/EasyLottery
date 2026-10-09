@@ -1,0 +1,22 @@
+{
+  "id": "pr-review-remediation-2026-10-09",
+  "task": "完成 Phase 2 Vue admin settings 遷移並修正 PR #272 的認證、Passkey、導覽及支付設定 review findings；同步修正 PR #263 的 HTTPS/CSP findings",
+  "complexity": "large",
+  "main_agent": "main",
+  "use_subagents": true,
+  "parallel": true,
+  "risk": "high",
+  "verification_level": "frontend unit/typecheck/build, environment-specific payment and masked-secret round-trip E2E, .NET build/tests, browser E2E, OpenSpec strict validation, independent security review",
+  "needs_human_approval": false,
+  "user_authorization": "User explicitly requested 修正; no production configuration or data changes are in scope.",
+  "external_changes": [
+    "update PR #263 branch after verification",
+    "create a Ready for review PR for Phase 2",
+    "close superseded PR #272 after replacement PR is available"
+  ],
+  "reason": [
+    "TYPESAFE_API_KEY is unset, so the repository-required Jev decision uses the documented manual fallback.",
+    "Phase 2 token/session and local Passkey origin fixes are isolated from PR #263 HTTPS middleware/test fixes and use separate worktrees.",
+    "The security changes stay in code and tests only; production proxy configuration is out of scope."
+  ]
+}

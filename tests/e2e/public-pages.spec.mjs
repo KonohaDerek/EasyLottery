@@ -3,7 +3,8 @@ import { expect, test } from "./fixtures.mjs";
 test("anonymous public pages use no admin shell or settings request", async ({ page }) => {
   const settingsResponses = [];
   page.on("response", response => {
-    if (new URL(response.url()).pathname.endsWith("/settings")) {
+    const path = new URL(response.url()).pathname;
+    if (path.startsWith("/api/settings") || path === "/settings" || path === "/easy-lottery-config.yaml") {
       settingsResponses.push(response.status());
     }
   });
@@ -30,7 +31,8 @@ test("authenticated public pages do not initialize settings", async ({ page, req
     window.sessionStorage.setItem("easy-lottery.session-token", sessionToken);
   }, token);
   page.on("request", request => {
-    if (new URL(request.url()).pathname.includes("/settings")) {
+    const path = new URL(request.url()).pathname;
+    if (path.startsWith("/api/settings") || path === "/settings" || path === "/easy-lottery-config.yaml") {
       settingsRequests.push(request.url());
     }
   });

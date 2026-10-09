@@ -14,8 +14,8 @@ public sealed class AdminPasskeyOptions
 
     public Fido2Configuration CreateFido2Configuration() => new()
     {
-        ServerDomain = RpId,
-        ServerName = ServerName,
+        RPID = RpId,
+        RPName = ServerName,
         Origins = Origins
     };
 
@@ -31,7 +31,7 @@ public sealed class AdminPasskeyOptions
         if (!string.IsNullOrWhiteSpace(singleOrigin)) origins.Add(singleOrigin);
         if (origins.Count == 0)
         {
-            origins.UnionWith(["http://localhost:18930", "https://localhost:18930", "http://127.0.0.1:18930", "https://127.0.0.1:18930"]);
+            origins.UnionWith(["http://localhost:18930", "https://localhost:18930", "http://127.0.0.1:18930", "https://127.0.0.1:18930", "http://localhost:5173"]);
         }
 
         var challengeMinutes = configuration.GetValue("Admin:Passkey:ChallengeMinutes", 2);
