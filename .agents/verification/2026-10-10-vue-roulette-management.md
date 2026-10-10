@@ -15,6 +15,7 @@ Validated the Vue `/roulette` administration slice, its existing API contract, t
 - `dotnet test EasyLottery.generated.sln --configuration Release` in a fresh repo Dev Container: passed, 112 Domain tests and 120 API tests; 232 total, 0 failed / 0 skipped.
 - `openspec validate --all --strict` in the repo Dev Container: passed, 33/33 changes.
 - `git diff --check`: passed.
+- Ready for review PR #277: https://github.com/KonohaDerek/EasyLottery/pull/277 (not merged).
 
 An initial `dotnet test --no-build` in a fresh container could not start API tests because the container had not restored the referenced Blazorise static web assets. Running the normal `dotnet test` command restored dependencies and passed all tests; this was an environment setup issue, not a test failure in the change.
 
