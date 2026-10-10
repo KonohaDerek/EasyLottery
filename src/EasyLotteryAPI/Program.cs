@@ -234,6 +234,7 @@ app.MapFallbackToFile("/system/visual-styles", "vue/index.html");
 app.MapFallbackToFile("/activity-results", "vue/index.html");
 app.MapFallbackToFile("/donate-activities", "vue/index.html");
 app.MapFallbackToFile("/roulette", "vue/index.html");
+app.MapFallbackToFile("/roulette/preview/{id}", "vue/index.html");
 app.MapFallbackToFile("/pokebox", "vue/index.html");
 app.MapFallbackToFile("/pokebox/preview/{id}", "vue/index.html");
 
