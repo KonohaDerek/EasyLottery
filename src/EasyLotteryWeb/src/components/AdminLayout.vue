@@ -9,6 +9,7 @@ const links = [
   ["/donate-activities", "Donate 活動"],
   ["/activity-results", "活動結果"],
   ["/roulette", "轉盤模板"],
+  ["/pokebox", "戳戳樂模板"],
   ["/system/access", "管理員 Passkey"],
   ["/system/payment", "支付配置"],
   ["/system/youtube-login", "YouTube API Key"],

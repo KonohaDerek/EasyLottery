@@ -8,5 +8,5 @@
     [Parameter] public int Id { get; set; }
 
     protected override void OnInitialized() =>
-        NavigationManager.NavigateTo($"/pokebox?edit={Id}", replace: true);
+        NavigationManager.NavigateTo($"/pokebox?edit={Id}", forceLoad: true, replace: true);
 }

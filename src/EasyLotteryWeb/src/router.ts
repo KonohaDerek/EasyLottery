@@ -11,7 +11,10 @@ export const router = createRouter({
 });
 
 router.beforeEach(to => {
-  const redirect = to.meta.requiresAuth ? adminRouteRedirect(to.path, isAdminSessionToken(getStoredToken())) : null;
+  const requestedPath = to.path === "/pokebox" && typeof to.query.edit === "string"
+    ? `${to.path}?edit=${encodeURIComponent(to.query.edit)}`
+    : to.path;
+  const redirect = to.meta.requiresAuth ? adminRouteRedirect(requestedPath, isAdminSessionToken(getStoredToken())) : null;
   if (redirect) return redirect;
   return true;
 });
