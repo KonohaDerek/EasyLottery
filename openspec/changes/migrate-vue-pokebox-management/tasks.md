@@ -6,4 +6,4 @@
 - [x] 接入 `/pokebox` Vue route/fallback/Blazor handoff，保留 `/legacy/pokebox`、編輯 query alias 與未遷移 routes。
 - [x] 加入 Vitest 與 Playwright 測試，驗證授權、管理操作、錯誤路徑、舊路由與測試 OBS token fragment。
 - [x] 執行 Vue tests、typecheck/build、Playwright、.NET build/tests、OpenSpec strict、diff 檢查並記錄結果。
-- [ ] 主代理獨立檢查行為與 diff，提交、推送 branch 並建立 Ready for review PR，關聯 #252/#268。
+- [x] 主代理獨立檢查行為與 diff，提交、推送 branch 並建立 Ready for review PR #278，關聯 #252/#268。
