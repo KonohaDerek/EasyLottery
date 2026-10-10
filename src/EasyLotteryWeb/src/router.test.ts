@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { publicRoutes } from "./routes";
+import { adminRoutes, publicRoutes } from "./routes";
 import { adminRouteRedirect } from "./router-guard";
 
 describe("public Vue routes", () => {
@@ -10,8 +10,13 @@ describe("public Vue routes", () => {
 });
 
 describe("admin route guard", () => {
+  it("registers activity results as an authenticated route", () => {
+    expect(adminRoutes.find(route => route.path === "/activity-results")?.meta?.requiresAuth).toBe(true);
+  });
+
   it("redirects unauthenticated admin navigation to login", () => {
     expect(adminRouteRedirect("/system/payment", false)).toBe("/login?redirect=%2Fsystem%2Fpayment");
+    expect(adminRouteRedirect("/activity-results", false)).toBe("/login?redirect=%2Factivity-results");
   });
 
   it("allows an authenticated session to continue", () => {

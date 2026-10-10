@@ -6,6 +6,7 @@ const router = useRouter();
 const session = useSessionStore();
 
 const links = [
+  ["/activity-results", "活動結果"],
   ["/system/access", "管理員 Passkey"],
   ["/system/payment", "支付配置"],
   ["/system/youtube-login", "YouTube API Key"],

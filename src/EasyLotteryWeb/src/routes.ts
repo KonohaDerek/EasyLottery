@@ -3,6 +3,7 @@ import AboutView from "./views/AboutView.vue";
 import LoginView from "./views/LoginView.vue";
 import PrivacyPolicyView from "./views/PrivacyPolicyView.vue";
 import AdminAccessView from "./views/AdminAccessView.vue";
+import ActivityResultsView from "./views/ActivityResultsView.vue";
 import AuditView from "./views/AuditView.vue";
 import BackupsView from "./views/BackupsView.vue";
 import ObsAssetsView from "./views/ObsAssetsView.vue";
@@ -19,6 +20,7 @@ export const publicRoutes: RouteRecordRaw[] = [
 ];
 
 export const adminRoutes: RouteRecordRaw[] = [
+  { path: "/activity-results", component: ActivityResultsView, meta: { title: "活動結果｜EasyLottery", requiresAuth: true } },
   { path: "/system/access", component: AdminAccessView, meta: { title: "管理員 Passkey 管理｜EasyLottery", requiresAuth: true } },
   { path: "/system/payment", component: PaymentSettingsView, meta: { title: "支付配置｜EasyLottery", requiresAuth: true } },
   { path: "/system/youtube-login", component: YoutubeLoginView, meta: { title: "YouTube API Key｜EasyLottery", requiresAuth: true } },

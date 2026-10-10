@@ -231,6 +231,7 @@ app.MapFallbackToFile("/system/obs-layouts", "vue/index.html");
 app.MapFallbackToFile("/system/obs-assets", "vue/index.html");
 app.MapFallbackToFile("/system/sound-cues", "vue/index.html");
 app.MapFallbackToFile("/system/visual-styles", "vue/index.html");
+app.MapFallbackToFile("/activity-results", "vue/index.html");
 
 app.MapGet("/api/test/session-token", (IHostEnvironment environment, IConfiguration configuration, ObsSessionTokenService tokens) =>
 {
