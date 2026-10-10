@@ -23,7 +23,8 @@ The verification container was created from the existing `easylottery-devcontain
 
 ## Review notes and limits
 
+- Main-agent second-pass review completed: requirements and OpenSpec scenarios match the implementation; route authorization, invalid IDs, 404 distinctions, scoped OBS-session issuance, fragment-only token handoff, Vue fallback ordering, rollback alias, and untouched OBS/SignalR behavior were checked against source and E2E coverage. No findings.
+- An independent reviewer was requested, but worktree thread setup did not produce a readable reviewer task in this environment; this is not an independent review.
 - The Vue guard prevents anonymous template/session requests. The relay requests an OBS session only after a valid template load, scopes it to that template with `read` and `control`, and reuses the existing URL helper to put the token only in the fragment.
 - Only a template-load 404 returns to `/pokebox`; an OBS-session API 404 remains a visible retryable error.
 - No production OBS/browser-source smoke test was performed because this PR does not migrate or change the overlay.
-- Independent review is pending.
