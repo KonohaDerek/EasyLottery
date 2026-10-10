@@ -104,7 +104,7 @@
     private static bool IsVueRoute(string route) => route is
         "system/access" or "system/payment" or "system/youtube-login" or "system/audit" or
         "system/backups" or "system/obs-layouts" or "system/obs-assets" or "system/sound-cues" or
-        "system/visual-styles" or "activity-results" or "donate-activities" or "privacy-policy" or "about";
+        "system/visual-styles" or "activity-results" or "donate-activities" or "roulette" or "privacy-policy" or "about";
 
     private void NavigateToVueRoute(string route) => NavigationManager.NavigateTo($"/{route}", forceLoad: true);
 

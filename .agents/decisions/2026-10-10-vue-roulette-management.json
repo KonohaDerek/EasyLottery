@@ -1,0 +1,20 @@
+{
+  "task": "Migrate Roulette template management route from Blazor to Vue",
+  "source": "GitHub issues #252 and #268",
+  "complexity": "medium",
+  "routing": "main agent implements the cohesive UI slice; no subagent",
+  "parallelism": "not beneficial because route, editor, API contract, and E2E coverage are coupled",
+  "risk": "moderate: admin authorization, persisted segment compatibility, and route fallback; no backend or real-data mutation",
+  "verification": [
+    "Vitest",
+    "Vue typecheck and production build",
+    "Playwright with all writes and OBS-session issuance intercepted",
+    "OpenSpec strict validation",
+    "git diff --check"
+  ],
+  "human_approval": "not required for isolated UI work; no production change, data deletion, migration, or merge",
+  "decision_source": "manual fallback; TYPESAFE_API_KEY is not configured",
+  "worktree": ".worktrees/vue-roulette-management-slice",
+  "branch": "feat/vue-roulette-management-slice",
+  "base": "48042a78cdf0667fd517834f073feda67e7bfb42"
+}

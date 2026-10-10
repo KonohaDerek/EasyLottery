@@ -12,7 +12,7 @@ interface ObsAsset {
 
 const props = defineProps<{
   modelValue: string;
-  kind: 0 | 4;
+  kind: 0 | 1 | 4;
   label: string;
   placeholder: string;
 }>();
@@ -64,7 +64,7 @@ function formatSize(bytes: number) {
     <small v-if="modelValue.includes('/api/obs-assets/')" class="local-asset-hint">已使用本機 OBS 資產</small>
     <dialog ref="dialog" class="asset-dialog" aria-label="選擇 OBS 資產">
       <header class="dialog-heading">
-        <h2>選擇{{ kind === 4 ? " WebM 動畫" : "圖片" }}</h2>
+        <h2>選擇{{ kind === 0 ? "圖片" : kind === 1 ? "音訊" : "影片" }}</h2>
         <button class="icon-button" type="button" aria-label="關閉" @click="dialog?.close()">×</button>
       </header>
       <div class="dialog-content">
@@ -76,6 +76,7 @@ function formatSize(bytes: number) {
         <div v-else class="asset-grid">
           <button v-for="asset in assets" :key="asset.id" class="asset-choice" type="button" @click="select(asset)">
             <img v-if="kind === 0" :src="`/api/obs-assets/${encodeURIComponent(asset.id)}/content`" :alt="asset.fileName" loading="lazy" />
+            <audio v-else-if="kind === 1" :src="`/api/obs-assets/${encodeURIComponent(asset.id)}/content`" controls preload="metadata" :aria-label="asset.fileName" />
             <video v-else :src="`/api/obs-assets/${encodeURIComponent(asset.id)}/content`" muted preload="metadata" :aria-label="asset.fileName" />
             <strong>{{ asset.fileName }}</strong>
             <small>{{ formatSize(asset.length) }}</small>
@@ -100,6 +101,7 @@ function formatSize(bytes: number) {
 .asset-choice { display: grid; gap: .4rem; padding: .6rem; text-align: left; color: #1f2937; background: white; border: 1px solid #dbe3ef; border-radius: .5rem; cursor: pointer; }
 .asset-choice:hover { border-color: #2563eb; background: #eff6ff; }
 .asset-choice img, .asset-choice video { width: 100%; height: 105px; object-fit: contain; background: #f1f5f9; }
+.asset-choice audio { width: 100%; }
 .asset-choice small { color: #64748b; }
 .secondary-button { min-height: 2.65rem; padding: .5rem .75rem; color: #1e40af; font: inherit; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: .35rem; cursor: pointer; }
 @media (max-width: 480px) { .asset-input-row { grid-template-columns: 1fr; } }
