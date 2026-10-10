@@ -16,12 +16,14 @@ describe("admin route guard", () => {
 
   it("registers activity results as an authenticated route", () => {
     expect(adminRoutes.find(route => route.path === "/activity-results")?.meta?.requiresAuth).toBe(true);
+    expect(adminRoutes.find(route => route.path === "/roulette")?.meta?.requiresAuth).toBe(true);
   });
 
   it("redirects unauthenticated admin navigation to login", () => {
     expect(adminRouteRedirect("/donate-activities", false)).toBe("/login?redirect=%2Fdonate-activities");
     expect(adminRouteRedirect("/system/payment", false)).toBe("/login?redirect=%2Fsystem%2Fpayment");
     expect(adminRouteRedirect("/activity-results", false)).toBe("/login?redirect=%2Factivity-results");
+    expect(adminRouteRedirect("/roulette", false)).toBe("/login?redirect=%2Froulette");
   });
 
   it("allows an authenticated session to continue", () => {
