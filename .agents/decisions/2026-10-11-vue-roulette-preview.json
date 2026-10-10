@@ -1,0 +1,22 @@
+{
+  "task": "Migrate the Roulette preview relay from Blazor to Vue",
+  "source": "GitHub issues #252 and #268; PR #279 merged",
+  "complexity": "medium",
+  "routing": "main agent owns the coupled route, API fallback, rollback alias, and E2E changes",
+  "parallelism": "not beneficial because authorization, template lookup, token handoff, rollback route, and tests form one dependency chain",
+  "risk": "moderate: the authenticated relay issues a short-lived OBS control token; the OBS overlay and SignalR behavior remain unchanged",
+  "verification": [
+    "Vitest route guard coverage",
+    "Vue unit tests, typecheck, and production build",
+    "Playwright coverage for anonymous access, invalid and missing templates, retry, token fragment, and rollback alias",
+    ".NET 10 Release build/tests because API fallback and Razor route mappings change",
+    "OpenSpec strict validation",
+    "git diff --check"
+  ],
+  "human_approval": "not required for isolated UI routing; no production change, persisted data change, or merge",
+  "decision_source": "manual fallback; TYPESAFE_API_KEY is absent, so Jev is unavailable",
+  "superpowers": "skill files unavailable in this environment; repository local workflow used",
+  "worktree": ".worktrees/vue-roulette-preview-slice",
+  "branch": "feat/vue-roulette-preview-slice",
+  "base": "f2b798b1c1bb9eaf80d59cb76407ba8a73b00a57"
+}

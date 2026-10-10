@@ -19,6 +19,7 @@ describe("admin route guard", () => {
     expect(adminRoutes.find(route => route.path === "/roulette")?.meta?.requiresAuth).toBe(true);
     expect(adminRoutes.find(route => route.path === "/pokebox")?.meta?.requiresAuth).toBe(true);
     expect(adminRoutes.find(route => route.path === "/pokebox/preview/:id")?.meta?.requiresAuth).toBe(true);
+    expect(adminRoutes.find(route => route.path === "/roulette/preview/:id")?.meta?.requiresAuth).toBe(true);
   });
 
   it("redirects unauthenticated admin navigation to login", () => {
@@ -28,6 +29,7 @@ describe("admin route guard", () => {
     expect(adminRouteRedirect("/roulette", false)).toBe("/login?redirect=%2Froulette");
     expect(adminRouteRedirect("/pokebox?edit=7", false)).toBe("/login?redirect=%2Fpokebox%3Fedit%3D7");
     expect(adminRouteRedirect("/pokebox/preview/7", false)).toBe("/login?redirect=%2Fpokebox%2Fpreview%2F7");
+    expect(adminRouteRedirect("/roulette/preview/7", false)).toBe("/login?redirect=%2Froulette%2Fpreview%2F7");
   });
 
   it("allows an authenticated session to continue", () => {

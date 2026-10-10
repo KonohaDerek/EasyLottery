@@ -8,6 +8,7 @@ import DonateActivitiesView from "./views/DonateActivitiesView.vue";
 import RouletteView from "./views/RouletteView.vue";
 import PokeBoxView from "./views/PokeBoxView.vue";
 import PokeBoxPreviewView from "./views/PokeBoxPreviewView.vue";
+import RoulettePreviewView from "./views/RoulettePreviewView.vue";
 import AuditView from "./views/AuditView.vue";
 import BackupsView from "./views/BackupsView.vue";
 import ObsAssetsView from "./views/ObsAssetsView.vue";
@@ -27,6 +28,7 @@ export const adminRoutes: RouteRecordRaw[] = [
   { path: "/donate-activities", component: DonateActivitiesView, meta: { title: "Donate 活動｜EasyLottery", requiresAuth: true } },
   { path: "/activity-results", component: ActivityResultsView, meta: { title: "活動結果｜EasyLottery", requiresAuth: true } },
   { path: "/roulette", component: RouletteView, meta: { title: "轉盤模板｜EasyLottery", requiresAuth: true } },
+  { path: "/roulette/preview/:id", component: RoulettePreviewView, meta: { title: "轉盤 OBS 預覽｜EasyLottery", requiresAuth: true } },
   { path: "/pokebox", component: PokeBoxView, meta: { title: "戳戳樂模板｜EasyLottery", requiresAuth: true } },
   { path: "/pokebox/preview/:id", component: PokeBoxPreviewView, meta: { title: "戳戳樂 OBS 預覽｜EasyLottery", requiresAuth: true } },
   { path: "/system/access", component: AdminAccessView, meta: { title: "管理員 Passkey 管理｜EasyLottery", requiresAuth: true } },
