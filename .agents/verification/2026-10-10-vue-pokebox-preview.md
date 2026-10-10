@@ -28,3 +28,4 @@ The verification container was created from the existing `easylottery-devcontain
 - The Vue guard prevents anonymous template/session requests. The relay requests an OBS session only after a valid template load, scopes it to that template with `read` and `control`, and reuses the existing URL helper to put the token only in the fragment.
 - Only a template-load 404 returns to `/pokebox`; an OBS-session API 404 remains a visible retryable error.
 - No production OBS/browser-source smoke test was performed because this PR does not migrate or change the overlay.
+- Ready-for-review PR: https://github.com/KonohaDerek/EasyLottery/pull/279 (references #252 and #268).
