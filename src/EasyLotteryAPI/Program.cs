@@ -217,8 +217,8 @@ app.MapHub<OvertimeHub>("/hubs/overtime");
 app.MapHub<LiveDrawHub>("/hubs/live-draw");
 app.MapHub<InteractionHub>("/hubs/interactions");
 
-// Phase 1 Vue routes coexist with the Blazor fallback. Keep the exact public
-// entry points narrow so every non-migrated route remains rollback-safe.
+// Vue routes coexist with the Blazor fallback. Keep entries narrow so every
+// non-migrated route remains rollback-safe.
 app.MapFallbackToFile("/about", "vue/index.html");
 app.MapFallbackToFile("/privacy-policy", "vue/index.html");
 app.MapFallbackToFile("/login", "vue/index.html");
@@ -235,6 +235,7 @@ app.MapFallbackToFile("/activity-results", "vue/index.html");
 app.MapFallbackToFile("/donate-activities", "vue/index.html");
 app.MapFallbackToFile("/roulette", "vue/index.html");
 app.MapFallbackToFile("/pokebox", "vue/index.html");
+app.MapFallbackToFile("/pokebox/preview/{id}", "vue/index.html");
 
 app.MapGet("/api/test/session-token", (IHostEnvironment environment, IConfiguration configuration, ObsSessionTokenService tokens) =>
 {

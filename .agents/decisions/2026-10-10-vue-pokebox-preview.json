@@ -1,0 +1,22 @@
+{
+  "task": "Migrate the PokeBox preview relay route from Blazor to Vue",
+  "source": "GitHub issues #252 and #268; PR #278 merged",
+  "complexity": "medium",
+  "routing": "main agent implemented the cohesive route/auth/token slice; a read-only independent reviewer was requested but worktree thread setup did not produce a readable reviewer task, so main-agent second-pass review was completed",
+  "parallelism": "implementation tasks are one dependency chain; reviewer setup was attempted for independent review but did not complete",
+  "risk": "moderate: authenticated template access and short-lived OBS control token handoff; overlay and draw behavior remain unchanged",
+  "verification": [
+    "Vitest route guard coverage",
+    "Vue typecheck and production build",
+    "Playwright for anonymous redirect, template-not-found fallback, and OBS token fragment handoff",
+    ".NET 10 Release build and tests because API host and Razor route mappings change",
+    "OpenSpec strict validation",
+    "git diff --check"
+  ],
+  "human_approval": "not required for isolated UI routing; no production change, data deletion, migration, or merge",
+  "decision_source": "manual fallback; TYPESAFE_API_KEY is not configured and Jev is unavailable",
+  "superpowers": "skill files not available in this environment; repository local incremental workflow used",
+  "worktree": ".worktrees/vue-pokebox-preview-slice",
+  "branch": "feat/vue-pokebox-preview-slice",
+  "base": "f23e824c328495378b11d080fa7cab2090bae8ce"
+}

@@ -1,13 +1,15 @@
 # Current work state
 
-- Task ID: vue-pokebox-management-2026-10-10
+- Task ID: vue-pokebox-preview-2026-10-10
 - Status: Ready for review
-- Scope: Issue #268 slice — migrate PokeBox template management at `/pokebox` to Vue, retaining `/legacy/pokebox` for rollback and existing Blazor preview/OBS routes.
-- OpenSpec change: `migrate-vue-pokebox-management`
-- Branch: `feat/vue-pokebox-management-slice`
-- Worktree: `.worktrees/vue-pokebox-management-slice`
+- Source: Phase 3 migration issue #268 under epic #252; previous slice PR #278 is merged.
+- Scope: Move the authenticated `/pokebox/preview/{id}` relay to Vue while preserving the existing OBS overlay and `/legacy/pokebox/preview/{id}` Blazor rollback path.
+- OpenSpec change: `migrate-vue-pokebox-preview`
+- Branch: `feat/vue-pokebox-preview-slice`
+- Worktree: `.worktrees/vue-pokebox-preview-slice`
 - verification_complete: true
 - branch_pushed: true
 - pull_request_created: true
-- Notes: PR #277 (Roulette template management) is merged into `main` at `c4d00f9b5ac3e4b280fe4b4d3b4aeaaa010ef4aa`. This slice is PR #278: https://github.com/KonohaDerek/EasyLottery/pull/278, Ready for review, referencing #252 and #268. `/activity-results`, `/donate-activities`, `/roulette`, and now `/pokebox` are Vue routes. This slice covers only PokeBox admin template list/editor and existing template API operations; keep editor redirect compatibility, preview, public draw, OBS rendering, SignalR, API/Domain contracts, production, and Blazorise unchanged. Verification is recorded in `.agents/verification/2026-10-10-vue-pokebox-management.md`. TypeSafe/Jev is unavailable because `TYPESAFE_API_KEY` is unset; see `.agents/decisions/2026-10-10-vue-pokebox-management.json`.
+- PR: https://github.com/KonohaDerek/EasyLottery/pull/279 (open, Ready for review)
+- Notes: Vue unit/typecheck/build, full 47-test Playwright suite, .NET Release build/tests (232), OpenSpec strict (35), and final diff check pass. Main-agent second-pass review found no issues; independent reviewer setup did not produce a readable task. No API, Domain, OBS rendering, draw lifecycle, SignalR, production, or Blazorise changes. TypeSafe/Jev is unavailable because `TYPESAFE_API_KEY` is unset; manual decision is recorded under `.agents/decisions/`. Superpowers skill files are unavailable in this environment; following the repository local incremental workflow.
 - Updated: 2026-10-10
