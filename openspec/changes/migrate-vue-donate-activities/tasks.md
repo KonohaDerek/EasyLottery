@@ -7,4 +7,4 @@
 - [x] 加入 Vue route、Admin 導覽、Blazor handoff、API 精確 fallback 與 Blazor legacy alias。
 - [x] 加入 Playwright authenticated route、CRUD mocks、錯誤／驗證、資產、OBS fragment 與 legacy flow。
 - [x] 執行 Vue unit/typecheck/build、.NET regression、Playwright、OpenSpec strict 與 diff 驗證並記錄缺口。
-- [ ] 主代理獨立核對規格與完整 diff，commit/push branch，建立 Ready PR 並關聯 #252/#268。
+- [x] 主代理獨立核對規格與完整 diff，commit/push branch，建立 Ready PR #276 並關聯 #252/#268。
