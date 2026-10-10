@@ -1,0 +1,21 @@
+{
+  "task": "Migrate PokeBox template management route from Blazor to Vue",
+  "source": "GitHub issues #252 and #268",
+  "complexity": "medium",
+  "routing": "main agent implements the cohesive UI slice; no subagent",
+  "parallelism": "not beneficial because the editor, route handoff, API contract, and E2E coverage are coupled",
+  "risk": "moderate: admin authorization, persisted PokeTemplate/PokeCell compatibility, edit-query compatibility, and route fallback; no backend or real-data mutation",
+  "verification": [
+    "Vitest",
+    "Vue typecheck and production build",
+    "Playwright with all template writes and OBS-session issuance intercepted",
+    ".NET 10 Release solution build and tests",
+    "OpenSpec strict validation",
+    "git diff --check"
+  ],
+  "human_approval": "not required for isolated UI work; no production change, data deletion, migration, or merge",
+  "decision_source": "manual fallback; TYPESAFE_API_KEY is not configured",
+  "worktree": ".worktrees/vue-pokebox-management-slice",
+  "branch": "feat/vue-pokebox-management-slice",
+  "base": "c4d00f9b5ac3e4b280fe4b4d3b4aeaaa010ef4aa"
+}
