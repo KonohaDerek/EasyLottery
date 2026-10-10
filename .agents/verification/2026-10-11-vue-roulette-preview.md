@@ -17,6 +17,7 @@ Validate the authenticated Vue `/roulette/preview/{id}` relay, API-host fallback
 - .NET Release tests: passed, 112 Domain + 120 API; 232 total, 0 failed / 0 skipped.
 - `openspec validate --all --strict`: passed, 36/36 changes. One pre-existing informational delta for `donate-draw-reveal-sequence`; no validation failures.
 - `git diff --check`: passed.
+- Ready-for-review PR: https://github.com/KonohaDerek/EasyLottery/pull/280 (references #252 and #268).
 
 The API/E2E container mounted only this worktree; no `.env` or production credentials were mounted. Tests used a temporary storage directory and intercepted template/session calls. The initial browser launch reported missing Chromium system dependencies; these were installed only inside the temporary container, after which all targeted and full E2E tests passed.
 

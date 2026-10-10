@@ -5,4 +5,4 @@
 - [x] Implement template lookup, OBS-session handoff, missing-template fallback, and accessible retry state.
 - [x] Add route unit and Playwright coverage for auth, error paths, fragment token, and rollback.
 - [x] Run Vue, Playwright, .NET Release, OpenSpec strict, and diff checks; record results.
-- [ ] Main-agent review, commit/push branch, and create Ready-for-review PR referencing #252/#268.
+- [x] Main-agent review, commit/push branch, and create Ready-for-review PR referencing #252/#268 (PR #280).
