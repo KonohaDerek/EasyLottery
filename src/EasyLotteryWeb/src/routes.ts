@@ -4,6 +4,7 @@ import LoginView from "./views/LoginView.vue";
 import PrivacyPolicyView from "./views/PrivacyPolicyView.vue";
 import AdminAccessView from "./views/AdminAccessView.vue";
 import ActivityResultsView from "./views/ActivityResultsView.vue";
+import DonateActivitiesView from "./views/DonateActivitiesView.vue";
 import AuditView from "./views/AuditView.vue";
 import BackupsView from "./views/BackupsView.vue";
 import ObsAssetsView from "./views/ObsAssetsView.vue";
@@ -20,6 +21,7 @@ export const publicRoutes: RouteRecordRaw[] = [
 ];
 
 export const adminRoutes: RouteRecordRaw[] = [
+  { path: "/donate-activities", component: DonateActivitiesView, meta: { title: "Donate 活動｜EasyLottery", requiresAuth: true } },
   { path: "/activity-results", component: ActivityResultsView, meta: { title: "活動結果｜EasyLottery", requiresAuth: true } },
   { path: "/system/access", component: AdminAccessView, meta: { title: "管理員 Passkey 管理｜EasyLottery", requiresAuth: true } },
   { path: "/system/payment", component: PaymentSettingsView, meta: { title: "支付配置｜EasyLottery", requiresAuth: true } },

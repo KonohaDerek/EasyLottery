@@ -1,0 +1,30 @@
+{
+  "id": "vue-donate-activities-2026-10-10",
+  "task": "Issue #268: migrate Donate activity management CRUD to Vue while keeping the existing API and a Blazor rollback route",
+  "complexity": "medium",
+  "main_agent": "current configured Codex model (not overridden)",
+  "use_subagents": false,
+  "parallel": false,
+  "risk": "medium",
+  "verification_level": "Vue unit tests, typecheck/build, authenticated Playwright CRUD mocks, .NET API regression, OpenSpec strict validation, independent diff review",
+  "needs_human_approval": false,
+  "external_changes": [
+    "push feat/vue-donate-activities-slice",
+    "create Ready for review PR referencing #252 and #268"
+  ],
+  "deferred_external_work": [
+    "production deployment or cutover",
+    "actual Donate API mutations or draw execution during E2E",
+    "Domain or REST API contract changes",
+    "Donate payment summary, roulette/PokeBox, OBS/SignalR migration",
+    "EasyLotteryWasm/Blazorise retirement"
+  ],
+  "reason": [
+    "TYPESAFE_API_KEY is absent, so the repo-required Jev route is unavailable; use the documented manual fallback.",
+    "Issue #268 remains open and explicitly includes Donate activity creation and management; the CRUD page is one bounded vertical slice.",
+    "This UI consumes existing authenticated endpoints. Preserve payloads and keep writes out of live E2E by intercepting them in Playwright.",
+    "Keep the Blazor screen at /legacy/donate-activities and only add an exact Vue fallback for the migrated path; no data migration or production cutover is needed.",
+    "No two independent, non-overlapping tasks justify parallel agents; main agent handles implementation and independent review.",
+    "The repo Dev Container CLI is absent; use the checked-in Dev Container image directly without mounting credentials or loading .env."
+  ]
+}
