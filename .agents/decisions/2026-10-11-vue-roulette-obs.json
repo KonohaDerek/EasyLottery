@@ -1,0 +1,27 @@
+{
+  "task": "Migrate the Roulette OBS overlay from Blazor to Vue as the first bounded slice of issue #269",
+  "source": "GitHub issue #269 under epic #252; GitHub Project 1 board",
+  "complexity": "medium",
+  "routing": "main agent owns the coupled token bootstrap, Vue view, SignalR lifecycle, API fallback, rollback alias, and tests",
+  "parallelism": "read-only investigator mapped remaining routes and recommended Roulette; no parallel writes because the overlay state, token, hub lifecycle, and route fallback must stay consistent",
+  "risk": "moderate: OBS session token handling and reconnect rejoin/snapshot must preserve current live-draw behavior; server contracts and draw rules remain untouched",
+  "verification": [
+    "Vitest for token URL scrubbing and client state/reconnect behavior",
+    "Playwright for the existing Roulette OBS URL, real hub/API control-to-read synchronization, reconnect/rejoin, stale token feedback, and Blazor rollback alias",
+    "Vue test, typecheck, and production build",
+    ".NET 10 Release build/tests because the API fallback route changes",
+    "OpenSpec strict validation and git diff checks",
+    "Chromium visual checks at 1920x1080 and 1280x720; actual OBS Browser Source smoke remains manual"
+  ],
+  "human_approval": "not required for the requested isolated UI migration; no production, persisted-data, or server-contract change",
+  "decision_source": "manual fallback; TYPESAFE_API_KEY is absent, so Jev is unavailable",
+  "superpowers": "CLI unavailable in this environment; repository local workflow used",
+  "issue": 269,
+  "parent_issue": 252,
+  "board_status": "Last observed In progress; PR #281 is Ready for review but the board could not be updated because Ego TaskSpace 18 is unavailable and GitHub CLI lacks read:project",
+  "pull_request": "https://github.com/KonohaDerek/EasyLottery/pull/281",
+  "verification_complete": true,
+  "worktree": ".worktrees/vue-obs-signalr-slice",
+  "branch": "feat/vue-obs-signalr-slice",
+  "base": "9eec7afe8a08bc7a8b2a7ab2212d78cbbef6c9ae"
+}

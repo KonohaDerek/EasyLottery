@@ -16,6 +16,21 @@ body {
   background: linear-gradient(180deg, #eef3f9 0%, #e4ebf5 100%);
 }
 
+html.obs-overlay,
+body.obs-overlay,
+body.obs-overlay #app,
+.obs-app,
+.obs-app .v-application__wrap {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+}
+
+body.obs-overlay::before,
+body.obs-overlay::after {
+  display: none !important;
+}
+
 a {
   color: inherit;
 }

@@ -1,15 +1,14 @@
 # Current work state
 
-- Task ID: vue-roulette-preview-2026-10-11
-- Status: Ready for review
-- Source: Phase 3 issue #268 under epic #252; PR #279 is merged.
-- Scope: Move the authenticated `/roulette/preview/{id}` relay to Vue while preserving `/legacy/roulette/preview/{id}` and the existing OBS overlay.
-- OpenSpec change: `migrate-vue-roulette-preview`
-- Branch: `feat/vue-roulette-preview-slice`
-- Worktree: `.worktrees/vue-roulette-preview-slice`
-- verification_complete: true
-- branch_pushed: true
-- pull_request_created: true
-- PR: https://github.com/KonohaDerek/EasyLottery/pull/280 (open, Ready for review)
-- Notes: Vue tests 33/33, typecheck/build, targeted E2E 8/8, full E2E 55/55, .NET build and tests 232/232, OpenSpec strict 36/36, and diff checks passed. Main-agent second-pass review found no issues. No API/Domain/OBS rendering, spin lifecycle, SignalR, production, or Blazorise changes. TypeSafe/Jev is unavailable because `TYPESAFE_API_KEY` is absent; manual decision is recorded in `.agents/decisions/`. Superpowers skills are unavailable; repository local workflow is being used.
+- Task ID: vue-roulette-obs-2026-10-11
+- Status: Needs Review
+- Source: GitHub issue #269 under epic #252; PR #281 is open and Ready for review. The Project board was last observed In progress and was not updated.
+- Scope: Migrate only `/obs/roulette/{publicId}` to Vue with official SignalR client, safe OBS session handoff, and a Blazor rollback alias.
+- OpenSpec change: `migrate-vue-roulette-obs`
+- Branch: `feat/vue-obs-signalr-slice`
+- Worktree: `.worktrees/vue-obs-signalr-slice`
+- Verification complete: true
+- Branch pushed: true
+- Pull request created: true — https://github.com/KonohaDerek/EasyLottery/pull/281
+- Notes: #269 remains open because Donate, PokeBox, Overtime and other Phase 4 acceptance work remain. The board could not be moved to In review: Ego TaskSpace 18 is no longer available and the configured GitHub CLI token lacks `read:project`; no broader permission was requested. TypeSafe/Jev is unavailable (`TYPESAFE_API_KEY` absent); Superpowers CLI is unavailable, so the manual decision record and repository workflow apply. Main checkout has unrelated local edits and remains untouched. Actual OBS Browser Source and server-restart/revision-reset smoke tests remain outstanding.
 - Updated: 2026-10-11
