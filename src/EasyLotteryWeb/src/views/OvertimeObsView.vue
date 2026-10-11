@@ -3,10 +3,10 @@ import { HubConnectionBuilder, type HubConnection } from "@microsoft/signalr";
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 import { ApiError } from "../api/client";
-import { appendOvertimeEvent, readOvertimeSnapshot, saveOvertimeSettings, type OvertimeOverlaySettings, type OvertimeSettingsUpdate, type OvertimeSupportEvent } from "../overtime/api";
+import { appendOvertimeEvent, readOvertimeFeed, readOvertimeSnapshot, saveOvertimeSettings, type OvertimeOverlaySettings, type OvertimeSettingsUpdate, type OvertimeSupportEvent } from "../overtime/api";
 import { calculateProgressPercent, extendEndForPause, getDisplaySessionState, getRewardSummary, isEventVisible, remainingTimeText } from "../overtime/overlay";
 import { readObsSessionToken } from "../obs/session-token";
-import { createCoalescedRefresh, createOvertimeHubLifecycleCallbacks } from "../overtime/realtime";
+import { createCoalescedRefresh, createOvertimeHubLifecycleCallbacks, createSerialActionQueue } from "../overtime/realtime";
 import "../overtime/overtime.css";
 
 const route = useRoute();
@@ -24,6 +24,8 @@ let connection: HubConnection | null = null;
 let timer: number | undefined;
 let ticksSinceRefresh = 0;
 let completionSaveAttempted = false;
+let disposed = false;
+const serializeSettingsAction = createSerialActionQueue();
 
 const plannedEndMarker = computed(() => events.value.find(event => event.source === 3 && event.sourceLabel?.toLocaleLowerCase() === "預計關台時間"));
 const sessionEndAtUtc = computed(() => settings.value?.plannedEndAtUtc
@@ -76,20 +78,22 @@ function safeError(cause: unknown): string {
 async function loadSnapshot(): Promise<void> {
   try {
     const { settings: nextSettings, events: nextEvents } = await readOvertimeSnapshot();
+    if (disposed) return;
     settings.value = nextSettings;
     events.value = nextEvents;
     error.value = "";
     maybeCompleteExpiredSession();
   } catch (cause) {
-    error.value = safeError(cause);
+    if (!disposed) error.value = safeError(cause);
   } finally {
-    loading.value = false;
+    if (!disposed) loading.value = false;
   }
 }
 
 const refreshSnapshot = createCoalescedRefresh(loadSnapshot);
 
 function maybeCompleteExpiredSession(): void {
+  if (disposed) return;
   if (state.value === "completed" && controlsEnabled.value && settings.value?.sessionState === "running") {
     if (!completionSaveAttempted) {
       completionSaveAttempted = true;
@@ -102,11 +106,13 @@ function maybeCompleteExpiredSession(): void {
 
 async function joinAndRefresh(hub: HubConnection, token: string): Promise<void> {
   await hub.invoke("Join", token);
+  if (disposed) return;
   connectionStatus.value = "即時連線中";
   await refreshSnapshot();
 }
 
 async function startRealtime(): Promise<void> {
+  if (disposed) return;
   const token = readObsSessionToken();
   if (!token) {
     connectionStatus.value = "未提供 OBS 工作階段";
@@ -123,39 +129,43 @@ async function startRealtime(): Promise<void> {
   const lifecycle = createOvertimeHubLifecycleCallbacks(
     (method, value) => hub.invoke(method, value),
     token,
-    status => { connectionStatus.value = status; },
+    status => { if (!disposed) connectionStatus.value = status; },
     refreshSnapshot,
-    cause => { error.value = safeError(cause); }
+    cause => { if (!disposed) error.value = safeError(cause); }
   );
-  hub.onreconnecting(lifecycle.onreconnecting);
-  hub.onreconnected(() => { void lifecycle.onreconnected(); });
-  hub.onclose(lifecycle.onclose);
+  hub.onreconnecting(() => { if (!disposed) lifecycle.onreconnecting(); });
+  hub.onreconnected(() => { if (!disposed) void lifecycle.onreconnected(); });
+  hub.onclose(() => { if (!disposed) lifecycle.onclose(); });
 
   try {
     await hub.start();
+    if (disposed) return;
     await joinAndRefresh(hub, token);
   } catch {
-    connectionStatus.value = "即時連線中斷，改用輪詢";
+    if (!disposed) connectionStatus.value = "即時連線中斷，改用輪詢";
   }
 }
 
 async function persistSettings(update: OvertimeSettingsUpdate): Promise<boolean> {
-  error.value = "";
-  const saved = await saveOvertimeSettings(update);
-  await refreshSnapshot();
-  return saved;
+  return serializeSettingsAction(async () => {
+    if (disposed) return false;
+    error.value = "";
+    const saved = await saveOvertimeSettings(update);
+    if (!disposed) await refreshSnapshot();
+    return saved;
+  });
 }
 
 async function runAction(action: () => Promise<void>): Promise<void> {
-  if (busy.value) return;
+  if (busy.value || disposed) return;
   busy.value = true;
   error.value = "";
   try {
     await action();
   } catch (cause) {
-    error.value = safeError(cause);
+    if (!disposed) error.value = safeError(cause);
   } finally {
-    busy.value = false;
+    if (!disposed) busy.value = false;
   }
 }
 
@@ -224,9 +234,11 @@ async function resumeCountdown(): Promise<void> {
 
 async function stopCountdown(): Promise<void> {
   if (!settings.value) return;
-  const expectedState = settings.value.sessionState;
+  const expectedState = settings.value.sessionState?.toLowerCase();
+  const wasDisplayCompleted = state.value === "completed";
   const endAtUtc = sessionEndAtUtc.value;
-  const saved = await persistSettings(current => current.sessionState === expectedState
+  const saved = await persistSettings(current => current.sessionState?.toLowerCase() === expectedState
+    || wasDisplayCompleted && current.sessionState?.toLowerCase() === "completed"
     ? { pausedAtUtc: null, sessionState: "ended" }
     : null);
   if (!saved) return;
@@ -254,17 +266,26 @@ async function sendTestNotification(): Promise<void> {
 
 async function completeExpiredSession(): Promise<void> {
   if (!settings.value) return;
+  let saved = false;
   try {
+    let latestFeedEndAtUtc: string | null = null;
+    if (!settings.value.plannedEndAtUtc) {
+      const latestFeed = await readOvertimeFeed();
+      latestFeedEndAtUtc = latestFeed.find(event => event.sessionEndAtUtc)?.sessionEndAtUtc
+        ?? latestFeed.find(event => event.source === 3 && event.sourceLabel?.toLocaleLowerCase() === "預計關台時間")?.sessionEndAtUtc
+        ?? null;
+    }
     const completedAtUtc = new Date().toISOString();
-    await persistSettings(current => {
-      const endAtUtc = current.plannedEndAtUtc ?? sessionEndAtUtc.value;
+    saved = await persistSettings(current => {
+      const endAtUtc = current.plannedEndAtUtc ?? latestFeedEndAtUtc;
       const end = endAtUtc ? Date.parse(endAtUtc) : Number.NaN;
       if (current.sessionState?.toLowerCase() !== "running" || !Number.isFinite(end) || end > Date.now()) return null;
       return { sessionState: "completed", completedAtUtc };
     });
   } catch (cause) {
-    completionSaveAttempted = false;
-    error.value = safeError(cause);
+    if (!disposed) error.value = safeError(cause);
+  } finally {
+    if (!saved) completionSaveAttempted = false;
   }
 }
 
@@ -302,7 +323,9 @@ function particleStyle(particle: number): Record<string, string> {
 
 onMounted(async () => {
   await refreshSnapshot();
+  if (disposed) return;
   await startRealtime();
+  if (disposed) return;
   timer = window.setInterval(() => {
     clock.value = new Date();
     ticksSinceRefresh += 1;
@@ -314,6 +337,8 @@ onMounted(async () => {
 });
 
 onBeforeUnmount(() => {
+  disposed = true;
+  refreshSnapshot.cancel();
   if (timer !== undefined) window.clearInterval(timer);
   if (connection) void connection.stop();
   connection = null;

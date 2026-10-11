@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createCoalescedRefresh, createOvertimeHubLifecycleCallbacks } from "./realtime";
+import { createCoalescedRefresh, createOvertimeHubLifecycleCallbacks, createSerialActionQueue } from "./realtime";
 
 describe("coalesced refresh", () => {
   it("serializes overlapping requests and performs one follow-up refresh", async () => {
@@ -50,6 +50,49 @@ describe("coalesced refresh", () => {
     expect(callsWhenFirstPromiseResolved).toBeLessThanOrEqual(2);
     expect(refresh).toHaveBeenCalledTimes(8);
     expect(maximumActive).toBe(1);
+  });
+
+  it("cancels a queued background refresh and ignores future requests after unmount", async () => {
+    let request!: ReturnType<typeof createCoalescedRefresh>;
+    const refresh = vi.fn(async () => {
+      if (refresh.mock.calls.length <= 2) void request();
+    });
+    request = createCoalescedRefresh(refresh);
+
+    await request();
+    expect(refresh).toHaveBeenCalledTimes(2);
+    request.cancel();
+    await new Promise(resolve => setTimeout(resolve, 10));
+    await request();
+
+    expect(refresh).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("serialized overtime settings actions", () => {
+  it("keeps separate writes in order and continues after a rejected write", async () => {
+    let releaseFirst!: () => void;
+    const firstGate = new Promise<void>(resolve => { releaseFirst = resolve; });
+    const order: string[] = [];
+    const serialize = createSerialActionQueue();
+    const first = serialize(async () => {
+      order.push("completion:start");
+      await firstGate;
+      order.push("completion:end");
+    });
+    const second = serialize(async () => { order.push("manual:end"); });
+
+    await Promise.resolve();
+    expect(order).toEqual(["completion:start"]);
+    releaseFirst();
+    await Promise.all([first, second]);
+    expect(order).toEqual(["completion:start", "completion:end", "manual:end"]);
+
+    const failed = serialize(async () => { throw new Error("temporary write failure"); });
+    const afterFailure = serialize(async () => { order.push("retry"); });
+    await expect(failed).rejects.toThrow("temporary write failure");
+    await afterFailure;
+    expect(order.at(-1)).toBe("retry");
   });
 });
 

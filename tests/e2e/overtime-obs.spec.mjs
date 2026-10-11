@@ -52,7 +52,18 @@ function obsUrl(baseUrl, token, controls = false) {
   return `${baseUrl}/obs/overtime${controls ? "?controls=1" : ""}#sessionToken=${encodeURIComponent(token)}`;
 }
 
+function plannedEndEvent(sessionEndAtUtc) {
+  return {
+    source: 3,
+    sourceLabel: "預計關台時間",
+    displayName: "預計關台時間",
+    occurredAtUtc: new Date().toISOString(),
+    sessionEndAtUtc
+  };
+}
+
 test("加班台 OBS shares controls, feed notifications, and transparent rendering", async ({ browser, request, baseURL }) => {
+  test.setTimeout(60_000);
   const adminToken = await login(request);
   const original = await readSettings(request, adminToken);
   const originalFeed = await readFeed(request, adminToken);
@@ -186,6 +197,64 @@ test("加班台 OBS shares controls, feed notifications, and transparent renderi
       await control.getByRole("button", { name: "結束加班" }).click();
       await expect(formal.locator(".overtime-overlay")).toHaveCount(0, { timeout: 10_000 });
 
+      const endedSettings = await readSettings(request, adminToken);
+      await saveSettings(request, adminToken, {
+        ...endedSettings.value,
+        streamStartedAtUtc: new Date(Date.now() - 60_000).toISOString(),
+        plannedEndAtUtc: null,
+        pausedAtUtc: null,
+        completedAtUtc: null,
+        sessionState: "running"
+      }, endedSettings.etag);
+      await saveFeed(request, adminToken, [plannedEndEvent(new Date(Date.now() + 60_000).toISOString())]);
+
+      let feedReads = 0;
+      await control.route("**/api/overtime-feed", async route => {
+        if (route.request().method() === "GET") {
+          feedReads += 1;
+          if (feedReads === 2) {
+            await saveFeed(request, adminToken, [plannedEndEvent(new Date(Date.now() + 60_000).toISOString())]);
+          }
+        }
+        await route.continue();
+      });
+      await saveFeed(request, adminToken, [plannedEndEvent(new Date(Date.now() - 1_000).toISOString())]);
+      await expect.poll(() => feedReads, { timeout: 10_000 }).toBeGreaterThanOrEqual(2);
+      await expect.poll(async () => (await readSettings(request, adminToken)).value.sessionState).toBe("running");
+      await saveFeed(request, adminToken, [plannedEndEvent(new Date(Date.now() - 1_000).toISOString())]);
+      await expect.poll(async () => (await readSettings(request, adminToken)).value.sessionState).toBe("completed");
+      await control.unroute("**/api/overtime-feed");
+
+      let releaseCompletionWrite;
+      let completionWriteSeen = false;
+      const completionWriteGate = new Promise(resolve => { releaseCompletionWrite = resolve; });
+      await control.route("**/settings", async route => {
+        const body = route.request().postData() ?? "";
+        if (route.request().method() === "PUT" && /sessionState:\s*completed/.test(body) && !completionWriteSeen) {
+          completionWriteSeen = true;
+          await completionWriteGate;
+        }
+        await route.continue();
+      });
+      try {
+        const completed = await readSettings(request, adminToken);
+        await saveSettings(request, adminToken, {
+          ...completed.value,
+          streamStartedAtUtc: new Date(Date.now() - 60_000).toISOString(),
+          plannedEndAtUtc: new Date(Date.now() - 1_000).toISOString(),
+          pausedAtUtc: null,
+          completedAtUtc: null,
+          sessionState: "running"
+        }, completed.etag);
+        await expect.poll(() => completionWriteSeen, { timeout: 10_000 }).toBeTruthy();
+        await control.getByRole("button", { name: "結束加班" }).click();
+        await expect(control.getByRole("button", { name: "測試贊助通知" })).toBeDisabled();
+      } finally {
+        releaseCompletionWrite();
+      }
+      await expect.poll(async () => (await readSettings(request, adminToken)).value.sessionState).toBe("ended");
+      await control.unroute("**/settings");
+
       await readonlyControl.goto(`${baseURL}/obs/overtime?controls=1&motion=reduce#sessionToken=${encodeURIComponent(readToken)}`);
       await expect(readonlyControl).toHaveURL(`${baseURL}/obs/overtime?controls=1&motion=reduce`);
       const reducedMotionFill = readonlyControl.locator(".overtime-overlay.obs-motion-reduced .overtime-progress-fill");
@@ -203,5 +272,47 @@ test("加班台 OBS shares controls, feed notifications, and transparent renderi
     } finally {
       await saveFeed(request, adminToken, originalFeed);
     }
+  }
+});
+
+test("離開初始載入中的 OBS 頁面後不會啟動 SignalR 或永久輪詢", async ({ browser, request, baseURL }) => {
+  const adminToken = await login(request);
+  const readToken = await issueObsToken(request, adminToken, ["read"]);
+  const context = await browser.newContext();
+  const page = await context.newPage();
+  let releaseSettings;
+  let notifySettingsRequest;
+  const settingsGate = new Promise(resolve => { releaseSettings = resolve; });
+  const settingsRequestStarted = new Promise(resolve => { notifySettingsRequest = resolve; });
+  let settingsGetCount = 0;
+  let hubNegotiationCount = 0;
+  page.on("request", requestEvent => {
+    const url = new URL(requestEvent.url());
+    if (url.pathname === "/settings" && requestEvent.method() === "GET") settingsGetCount += 1;
+    if (url.pathname === "/hubs/overtime/negotiate") hubNegotiationCount += 1;
+  });
+  await page.route("**/settings", async route => {
+    if (route.request().method() === "GET") {
+      notifySettingsRequest();
+      await settingsGate;
+    }
+    await route.continue();
+  });
+
+  try {
+    await page.goto(obsUrl(baseURL, readToken, true));
+    await settingsRequestStarted;
+    await page.evaluate(() => {
+      window.history.pushState({}, "", "/about");
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
+    await expect(page.getByRole("heading", { name: "關於 EasyLottery" })).toBeVisible();
+    releaseSettings();
+    await page.waitForTimeout(5_500);
+    expect(settingsGetCount).toBe(1);
+    expect(hubNegotiationCount).toBe(0);
+  } finally {
+    releaseSettings();
+    await context.close();
   }
 });

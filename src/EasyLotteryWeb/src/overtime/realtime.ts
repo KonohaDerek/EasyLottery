@@ -4,11 +4,18 @@ export interface OvertimeHubLifecycleCallbacks {
   onclose(): void;
 }
 
-export function createCoalescedRefresh(refresh: () => Promise<void>): () => Promise<void> {
+export interface CoalescedRefresh {
+  (): Promise<void>;
+  cancel(): void;
+}
+
+export function createCoalescedRefresh(refresh: () => Promise<void>): CoalescedRefresh {
   let inFlight: Promise<void> | null = null;
   let refreshQueued = false;
+  let cancelled = false;
   let rescheduleHandle: ReturnType<typeof setTimeout> | undefined;
-  function request(): Promise<void> {
+  const request: CoalescedRefresh = () => {
+    if (cancelled) return Promise.resolve();
     if (inFlight) {
       refreshQueued = true;
       return inFlight;
@@ -26,7 +33,7 @@ export function createCoalescedRefresh(refresh: () => Promise<void>): () => Prom
       }
     }).finally(() => {
       inFlight = null;
-      if (refreshQueued) {
+      if (refreshQueued && !cancelled) {
         rescheduleHandle = setTimeout(() => {
           rescheduleHandle = undefined;
           void request();
@@ -34,8 +41,25 @@ export function createCoalescedRefresh(refresh: () => Promise<void>): () => Prom
       }
     });
     return inFlight;
-  }
+  };
+  request.cancel = () => {
+    cancelled = true;
+    refreshQueued = false;
+    if (rescheduleHandle !== undefined) {
+      clearTimeout(rescheduleHandle);
+      rescheduleHandle = undefined;
+    }
+  };
   return request;
+}
+
+export function createSerialActionQueue() {
+  let tail = Promise.resolve();
+  return function serialize<T>(action: () => Promise<T>): Promise<T> {
+    const result = tail.then(action);
+    tail = result.then(() => undefined, () => undefined);
+    return result;
+  };
 }
 
 export function createOvertimeHubLifecycleCallbacks(
