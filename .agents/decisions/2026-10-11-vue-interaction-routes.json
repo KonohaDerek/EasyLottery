@@ -1,0 +1,44 @@
+{
+  "task_id": "issue-290-vue-interaction-routes-2026-10-11",
+  "issue": 290,
+  "date": "2026-10-11",
+  "source": {
+    "provider": "TypeSafe",
+    "model": "jev-1.13.0",
+    "endpoint": "https://api.typesafe.ai/v1/systemone"
+  },
+  "state_summary": "Migrate two authenticated interaction management pages and four OBS SignalR routes from Blazor to Vue. Preserve existing APIs, hub contracts, identity-link semantics, and rollback aliases. No backend or production changes; native OBS verification remains user-owned.",
+  "answers": {
+    "complexity": {
+      "type": "choice",
+      "value": "medium",
+      "confidence": 1.0,
+      "probabilities": { "small": 0.0, "medium": 1.0, "large": 0.0 }
+    },
+    "risk": {
+      "type": "choice",
+      "value": "moderate",
+      "confidence": 1.0,
+      "probabilities": { "low": 0.0, "moderate": 1.0, "high": 0.0 }
+    },
+    "parallel_safe": {
+      "type": "choice",
+      "value": "parallel_implementation",
+      "confidence": 0.51,
+      "probabilities": { "main_only": 0.13, "main_plus_readonly_survey": 0.2, "parallel_implementation": 0.67 }
+    },
+    "verification": {
+      "type": "choice",
+      "value": "browser_integration",
+      "confidence": 0.52,
+      "probabilities": { "unit_build": 0.0, "browser_integration": 0.68, "browser_plus_independent_review": 0.32 }
+    },
+    "additional_approval": { "type": "noul", "probability": 0.08 }
+  },
+  "agent_application": {
+    "execution": "Main agent owns OpenSpec, route/host integration, tests and final validation. A read-only survey mapped legacy behavior. Management UI and OBS UI are disjoint parallel candidates in isolated worktrees; no worker may merge or push.",
+    "verification": ["Vitest", "Vue typecheck/build", "interaction-filtered .NET tests", "focused Playwright", "strict OpenSpec", "diff/security review"],
+    "authorization": "Ongoing user authorization covers implementation, board sync, branch push, and a Ready-for-review PR. Do not merge, deploy, alter production, or claim native OBS verification."
+  },
+  "usage": { "input_tokens": 1152, "output_tokens": 195 }
+}

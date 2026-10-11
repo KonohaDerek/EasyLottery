@@ -40,6 +40,7 @@ builder.Services.AddScoped<ObsSessionService>();
 builder.Services.AddScoped<PasskeyAuthService>();
 builder.Services.AddScoped<SettingsResourceApiClient>();
 builder.Services.AddScoped<IdentityLinkApiClient>();
+builder.Services.AddScoped<InteractionApiClient>();
 builder.Services.AddScoped<AiCongratulationClient>();
 builder.Services.AddScoped<ResultNotificationService>();
 builder.Services.AddScoped<VisualStyleService>();

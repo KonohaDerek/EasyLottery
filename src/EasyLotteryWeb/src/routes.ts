@@ -18,6 +18,8 @@ import PaymentSettingsView from "./views/PaymentSettingsView.vue";
 import SoundCuesView from "./views/SoundCuesView.vue";
 import VisualStylesView from "./views/VisualStylesView.vue";
 import YoutubeLoginView from "./views/YoutubeLoginView.vue";
+import InteractionRoundsView from "./interactions/admin/InteractionRoundsView.vue";
+import IdentityLinkView from "./interactions/admin/IdentityLinkView.vue";
 
 export const publicRoutes: RouteRecordRaw[] = [
   { path: "/about", component: AboutView, meta: { title: "關於 EasyLottery" } },
@@ -41,14 +43,20 @@ export const adminRoutes: RouteRecordRaw[] = [
   { path: "/system/obs-layouts", component: ObsLayoutsView, meta: { title: "OBS 版面｜EasyLottery", requiresAuth: true } },
   { path: "/system/obs-assets", component: ObsAssetsView, meta: { title: "OBS 資產｜EasyLottery", requiresAuth: true } },
   { path: "/system/sound-cues", component: SoundCuesView, meta: { title: "音效預設｜EasyLottery", requiresAuth: true } },
-  { path: "/system/visual-styles", component: VisualStylesView, meta: { title: "視覺樣式｜EasyLottery", requiresAuth: true } }
+  { path: "/system/visual-styles", component: VisualStylesView, meta: { title: "視覺樣式｜EasyLottery", requiresAuth: true } },
+  { path: "/interactions/rounds", component: InteractionRoundsView, meta: { title: "直播互動回合｜EasyLottery", requiresAuth: true } },
+  { path: "/interactions/identity-link", component: IdentityLinkView, meta: { title: "觀眾身份綁定｜EasyLottery", requiresAuth: true } }
 ];
 
 export const obsRoutes: RouteRecordRaw[] = [
   { path: "/obs/roulette/:publicId", component: () => import("./views/RouletteObsView.vue"), meta: { title: "轉盤 - OBS", obs: true } },
   { path: "/obs/pokebox/:publicId", component: () => import("./views/PokeBoxObsView.vue"), meta: { title: "戳戳樂 - OBS", obs: true } },
   { path: "/obs/overtime", component: () => import("./views/OvertimeObsView.vue"), meta: { title: "加班台 - OBS", obs: true } },
-  { path: "/obs/donate/:activityRouteKey", component: () => import("./views/DonateObsView.vue"), meta: { title: "Donate 抽獎 - OBS", obs: true } }
+  { path: "/obs/donate/:activityRouteKey", component: () => import("./views/DonateObsView.vue"), meta: { title: "Donate 抽獎 - OBS", obs: true } },
+  { path: "/obs/interaction-vote/:roundId", component: () => import("./interactions/obs/InteractionObsView.vue"), props: { mode: "vote" }, meta: { title: "互動投票 - OBS", obs: true } },
+  { path: "/obs/interaction-notice/:roundId", component: () => import("./interactions/obs/InteractionObsView.vue"), props: { mode: "notice" }, meta: { title: "互動通知 - OBS", obs: true } },
+  { path: "/obs/interaction-status/:roundId", component: () => import("./interactions/obs/InteractionObsView.vue"), props: { mode: "status" }, meta: { title: "互動狀態 - OBS", obs: true } },
+  { path: "/obs/interaction-leaderboard/:roundId", component: () => import("./interactions/obs/InteractionObsView.vue"), props: { mode: "leaderboard" }, meta: { title: "互動排行榜 - OBS", obs: true } }
 ];
 
 export const routes: RouteRecordRaw[] = [...publicRoutes, ...adminRoutes, ...obsRoutes];

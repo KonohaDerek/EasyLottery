@@ -10,6 +10,8 @@ const links = [
   ["/", "抽獎工作區"],
   ["/donate-activities", "Donate 活動"],
   ["/activity-results", "活動結果"],
+  ["/interactions/rounds", "直播互動回合"],
+  ["/interactions/identity-link", "觀眾身份綁定"],
   ["/roulette", "轉盤模板"],
   ["/pokebox", "戳戳樂模板"],
   ["/system/access", "管理員 Passkey"],

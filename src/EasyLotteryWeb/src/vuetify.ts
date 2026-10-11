@@ -1,14 +1,17 @@
 import "vuetify/styles";
 import {
+  VAlert,
   VApp,
   VAppBar,
   VAppBarTitle,
   VBtn,
   VCard,
+  VCardActions,
   VCardItem,
   VCardSubtitle,
   VCardText,
   VCardTitle,
+  VChip,
   VCol,
   VContainer,
   VList,
@@ -18,21 +21,26 @@ import {
   VNavigationDrawer,
   VProgressCircular,
   VRow,
-  VSpacer
+  VSelect,
+  VSpacer,
+  VTextField
 } from "vuetify/components";
 import { createVuetify } from "vuetify";
 
 export const vuetify = createVuetify({
   components: {
+    VAlert,
     VApp,
     VAppBar,
     VAppBarTitle,
     VBtn,
     VCard,
+    VCardActions,
     VCardItem,
     VCardSubtitle,
     VCardText,
     VCardTitle,
+    VChip,
     VCol,
     VContainer,
     VList,
@@ -42,7 +50,9 @@ export const vuetify = createVuetify({
     VNavigationDrawer,
     VProgressCircular,
     VRow,
-    VSpacer
+    VSelect,
+    VSpacer,
+    VTextField
   },
   defaults: {
     VBtn: { color: "primary" },

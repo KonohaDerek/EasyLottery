@@ -20,6 +20,8 @@ describe("admin route guard", () => {
 
   it("registers activity results as an authenticated route", () => {
     expect(adminRoutes.find(route => route.path === "/activity-results")?.meta?.requiresAuth).toBe(true);
+    expect(adminRoutes.find(route => route.path === "/interactions/rounds")?.meta?.requiresAuth).toBe(true);
+    expect(adminRoutes.find(route => route.path === "/interactions/identity-link")?.meta?.requiresAuth).toBe(true);
     expect(adminRoutes.find(route => route.path === "/roulette")?.meta?.requiresAuth).toBe(true);
     expect(adminRoutes.find(route => route.path === "/pokebox")?.meta?.requiresAuth).toBe(true);
     expect(adminRoutes.find(route => route.path === "/pokebox/preview/:id")?.meta?.requiresAuth).toBe(true);
@@ -30,6 +32,8 @@ describe("admin route guard", () => {
     expect(adminRouteRedirect("/donate-activities", false)).toBe("/login?redirect=%2Fdonate-activities");
     expect(adminRouteRedirect("/system/payment", false)).toBe("/login?redirect=%2Fsystem%2Fpayment");
     expect(adminRouteRedirect("/activity-results", false)).toBe("/login?redirect=%2Factivity-results");
+    expect(adminRouteRedirect("/interactions/rounds", false)).toBe("/login?redirect=%2Finteractions%2Frounds");
+    expect(adminRouteRedirect("/interactions/identity-link", false)).toBe("/login?redirect=%2Finteractions%2Fidentity-link");
     expect(adminRouteRedirect("/roulette", false)).toBe("/login?redirect=%2Froulette");
     expect(adminRouteRedirect("/pokebox?edit=7", false)).toBe("/login?redirect=%2Fpokebox%3Fedit%3D7");
     expect(adminRouteRedirect("/pokebox/preview/7", false)).toBe("/login?redirect=%2Fpokebox%2Fpreview%2F7");
@@ -43,12 +47,16 @@ describe("admin route guard", () => {
 
 describe("OBS overlay routes", () => {
   it("registers the overlays without the admin guard or public shell", () => {
-    expect(obsRoutes).toHaveLength(4);
+    expect(obsRoutes).toHaveLength(8);
     expect(obsRoutes.map(route => route.path)).toEqual([
       "/obs/roulette/:publicId",
       "/obs/pokebox/:publicId",
       "/obs/overtime",
-      "/obs/donate/:activityRouteKey"
+      "/obs/donate/:activityRouteKey",
+      "/obs/interaction-vote/:roundId",
+      "/obs/interaction-notice/:roundId",
+      "/obs/interaction-status/:roundId",
+      "/obs/interaction-leaderboard/:roundId"
     ]);
     expect(obsRoutes.every(route => route.meta?.obs === true && route.meta?.requiresAuth !== true)).toBe(true);
   });

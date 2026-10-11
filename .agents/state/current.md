@@ -1,22 +1,21 @@
 # Current work state
 
-- Task ID: `vue-core-lottery-2026-10-11`
-- Status: In Review; implementation is in [PR #291](https://github.com/KonohaDerek/EasyLottery/pull/291). Do not merge or deploy; Native OBS verification remains with the user.
-- Source: #288, under epic #252; Phase 5 #270 is blocked on route parity and remains in Backlog. User asked to continue the migration, open direct Ready-for-review PRs, and personally perform native OBS verification. No supplied raster artwork needed migration; the Vue hero uses refined CSS sparkle and winner-reveal animations with reduced-motion support.
-- Scope: Replace the Blazor `/` core lottery workspace with authenticated Vue while preserving participant/prize workflows, draw behavior, JSON/CSV formats, YouTube member import and level weighting, chat filters/cooldown, and accepted SuperChat-to-overtime-feed behavior. Keep the Blazor fallback/legacy route available. Add only the minimum server API surface needed to keep YouTube credentials server-side and use an ETag-protected DrawingRules resource.
-- Non-goals: Do not remove EasyLotteryWasm/Blazorise, change payment/domain draw contracts, modify production configuration, run production deployment, perform native OBS verification, or merge.
-- OpenSpec change: `migrate-vue-core-lottery`
-- Branch: `feat/vue-core-lottery-workspace`
-- Worktree: `.worktrees/vue-blazor-retirement`, based on `origin/main` at `fc1ddfcd4567e4bcf808c4a6210e511aa1a25f31`.
-- Board: GitHub Project #1 has #288 In review, linked to PR #291. #252/#269 remain In progress; #270 and follow-ups #289/#290 remain Backlog.
-- Decision: Jev 1.13.0 classified this as strong (confidence 0.84); parallel implementation safe 0.25; elevated risk 0.94; browser E2E required 0.77; additional authorization for source changes/Ready PR not needed 0.19. See `.agents/decisions/2026-10-11-vue-core-lottery.json`.
-- Delivery: Vue workspace and server-side adapters implemented; Dev Container checks passed (246 .NET tests, 93 Vue tests, typecheck/build, 9 focused Playwright tests, strict OpenSpec, production image smoke). Branch `feat/vue-core-lottery-workspace` is pushed; Ready-for-review PR #291 links/closes #288 and relates #252/#270. Project #1 card is In review.
-- PR #291 follow-up: first GitHub CI run exposed three stale Blazor handoff test entry paths and two shared-IP rate-limit failures. The existing PR branch is being updated with `/legacy` test entry paths and a Development/test-session-only E2E rate-limit override; fresh Dev Container validation passed (135 API, 112 Domain, 68 full Playwright). Recheck the new GitHub CI run before marking this follow-up complete.
-- Verification targets: Vue tests/typecheck/build; API and Domain tests; focused route/E2E tests with YouTube mocked; health smoke and `openspec validate --all --strict`; diff/security review. Native OBS presentation/SignalR behavior remains user-verified and is not claimed tested by this PR.
-- Rollback: Remove the Vue `/` route/fallback and restore the original Blazor route; additive API endpoints can remain without changing existing clients. No data migration.
-- Observability: Do not log API keys, session tokens, live-chat content, or raw YouTube URLs. Expose recoverable UI errors for import, settings, and provider failures.
+- Task ID: issue-290-vue-interaction-routes-2026-10-11
+- Status: In Progress.
+- Source: Issue #290 under #269 and #252; it blocks final Blazor retirement in #270.
+- Scope: Migrate /interactions/rounds, /interactions/identity-link and four interaction OBS routes to Vue. Preserve the existing admin session, REST DTOs, one-time identity code semantics, /hubs/interactions, JoinRound and InteractionStateChanged contracts. Keep Blazor rollback aliases at /legacy/... .
+- Non-goals: No Domain/protocol/payment changes, production changes, Blazor host removal, merge, deployment, or agent-claimed native OBS verification. The identity-link endpoint was corrected to bind the existing `{ code }` JSON body already used by the Blazor client; the API request contract remains unchanged.
+- OpenSpec change: openspec/changes/migrate-vue-interaction-routes.
+- Branch: feat/vue-interaction-routes.
+- Worktree: .worktrees/vue-interaction-routes, based on origin/main at f52225908f0fcb0a762d8581c87bd572b7702b55.
+- Board: GitHub Project #1 #290 is In review with PR #292 linked. #269 remains In progress until the user completes native OBS verification; #289 remains Backlog (not Ready); #270 remains blocked on route parity and OBS evidence.
+- Decision: TypeSafe Jev 1.13.0 rated complexity medium, risk moderate, parallel implementation safe (0.67), browser integration verification (0.68), and additional approval unlikely (0.08). See .agents/decisions/2026-10-11-vue-interaction-routes.json.
+- Delivery: Implementation is integrated in the main issue worktree. An isolated management-slice commit was reviewed but not cherry-picked because it overlapped the canonical integrated files. Branch is pushed and open non-draft PR #292 links #252/#269/#270 and uses `Closes #290`: https://github.com/KonohaDerek/EasyLottery/pull/292. The GitHub Project #1 card is In review. Local Vue tests 102/102, typecheck/build, filtered .NET interaction API/Hub/identity-link tests 3/3, strict OpenSpec, diff review and real-browser REST/SignalR checks passed. CI run 38150348569 passed build, API/Domain tests, smoke and OpenSpec, but failed one E2E because a test-only rounds API mock leaked into the legacy Blazor navigation with a non-GUID id; the mock is now removed before the rollback-route check, and the full focused interaction spec passes 3/3 in the Dev Container. GitGuardian passed. Native OBS verification remains user-owned. No merge or deployment.
+- Verification targets: Vue tests/typecheck/build; interaction-filtered .NET tests; focused Playwright for auth, direct routes, REST/errors, SignalR/live/empty/error and rollback aliases; strict OpenSpec; diff/security review. Local checks passed; GitHub PR check state is recorded in `.agents/verification/2026-10-11-issue-290-vue-interaction-routes.md`.
+- Rollback: Remove the six Vue fallback/routes and restore original Blazor route directives. No data migration.
+- Observability: Never log one-time codes or OBS/session tokens. Show loading, empty, disconnected and recoverable error states. Keep OBS presentation transparent and reduced-motion aware.
 - verification_complete: true
 - branch_pushed: true
 - pull_request_created: true
-- Follow-up GitHub CI: pending; local Dev Container verification is complete.
+- pull_request: https://github.com/KonohaDerek/EasyLottery/pull/292
 - Updated: 2026-10-11
