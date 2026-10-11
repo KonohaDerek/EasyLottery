@@ -8,6 +8,7 @@
 - .NET tests: 232 passed (112 Domain, 120 API).
 - OpenSpec strict validation: 37 passed, 0 failed. One pre-existing informational warning remains for `donate-draw-reveal-sequence`.
 - `git diff --check`: passed.
+- Ready-for-review PR: [#281](https://github.com/KonohaDerek/EasyLottery/pull/281), references #269 and #252 without closing either issue.
 - `npm audit --omit=dev`: 0 vulnerabilities. Full `npm audit` reports 3 existing development-tool findings (1 moderate in `@vitest/mocker`, 2 critical in `tinypool`, reached through Vitest 3.2.7); npm only offers a breaking Vitest 5 upgrade, so it was not forced as part of this migration.
 
 ## Not verified

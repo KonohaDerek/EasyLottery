@@ -6,4 +6,4 @@
 - [x] 讓 API host fallback 指向 Vue，並保留 Blazor `/legacy/obs/roulette/{publicId}` rollback alias。
 - [x] 增加 Vitest 與 Playwright 覆蓋：token、route、live-draw 同步/重連、鍵盤控制、錯誤狀態與 rollback alias。
 - [x] 在專案 Dev Container 執行 Vue test/typecheck/build、相關 Playwright、.NET Release build/tests、OpenSpec strict 與 diff checks。
-- [ ] 更新 `.agents/state/current.md` 與 verification record，完成第二輪/獨立審查，再建立 Ready-for-review PR；只引用 #269/#252，不關閉 Phase 4 issue。
+- [x] 更新 `.agents/state/current.md` 與 verification record，完成第二輪/獨立審查，再建立 Ready-for-review PR；只引用 #269/#252，不關閉 Phase 4 issue。

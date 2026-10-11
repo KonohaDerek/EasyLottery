@@ -18,7 +18,9 @@
   "superpowers": "CLI unavailable in this environment; repository local workflow used",
   "issue": 269,
   "parent_issue": 252,
-  "board_status": "In progress",
+  "board_status": "Last observed In progress; PR #281 is Ready for review but the board could not be updated because Ego TaskSpace 18 is unavailable and GitHub CLI lacks read:project",
+  "pull_request": "https://github.com/KonohaDerek/EasyLottery/pull/281",
+  "verification_complete": true,
   "worktree": ".worktrees/vue-obs-signalr-slice",
   "branch": "feat/vue-obs-signalr-slice",
   "base": "9eec7afe8a08bc7a8b2a7ab2212d78cbbef6c9ae"
