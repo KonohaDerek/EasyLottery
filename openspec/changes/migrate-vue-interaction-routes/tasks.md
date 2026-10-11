@@ -9,4 +9,4 @@
 - [x] 在 Dev Container 完成 focused Playwright UI 執行（3/3）；涵蓋管理路由與 REST、Passkey guard、legacy rollback、identity-link 錯誤/成功呈現、OBS live/empty/reconnect/rejoin/錯誤、大小寫投票與非 Live 通知隱藏。原生 OBS 驗證仍由使用者執行。
 - [x] 完成 Vue 102/102、typecheck/build、互動 API/Hub/identity-link .NET 3/3、Playwright 3/3、strict OpenSpec 與 diff 檢查；詳見 `.agents/verification/2026-10-11-issue-290-vue-interaction-routes.md`。
 - [x] 建立 `.agents/verification/2026-10-11-issue-290-vue-interaction-routes.md` 驗證紀錄。
-- [ ] 推送分支並開 Ready-for-review PR，關聯 #252/#269/#270 並以 `Closes #290` 於合併時關閉 issue；不合併、不部署。
+- [x] 推送分支並開 Ready-for-review PR #292，關聯 #252/#269/#270 並以 `Closes #290` 於合併時關閉 issue；同步將 Project #1 #290 移至 In review；不合併、不部署。

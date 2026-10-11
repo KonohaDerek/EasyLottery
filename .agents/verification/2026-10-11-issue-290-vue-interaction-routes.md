@@ -29,6 +29,7 @@ Native OBS size/transparency and hardware/browser-source behavior were not teste
 
 ## Delivery
 
-PR: pending.
-GitHub Project #1 #290: currently In progress; move to In review after PR creation.
+PR: [#292](https://github.com/KonohaDerek/EasyLottery/pull/292), open and non-draft; it links #252, #269, and #270 and uses `Closes #290`.
+GitHub Project #1 #290: In review, with PR #292 linked on the card.
+At the latest check, GitHub `build-and-test` was pending and GitGuardian Security Checks passed. Local checks above are green; remote CI has not yet confirmed a passing run.
 Merge/deployment: not performed.
