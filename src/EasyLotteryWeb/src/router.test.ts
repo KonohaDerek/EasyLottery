@@ -39,8 +39,13 @@ describe("admin route guard", () => {
 
 describe("OBS overlay routes", () => {
   it("registers the overlays without the admin guard or public shell", () => {
-    expect(obsRoutes).toHaveLength(3);
-    expect(obsRoutes.map(route => route.path)).toEqual(["/obs/roulette/:publicId", "/obs/pokebox/:publicId", "/obs/overtime"]);
+    expect(obsRoutes).toHaveLength(4);
+    expect(obsRoutes.map(route => route.path)).toEqual([
+      "/obs/roulette/:publicId",
+      "/obs/pokebox/:publicId",
+      "/obs/overtime",
+      "/obs/donate/:activityRouteKey"
+    ]);
     expect(obsRoutes.every(route => route.meta?.obs === true && route.meta?.requiresAuth !== true)).toBe(true);
   });
 });

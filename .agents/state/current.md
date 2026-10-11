@@ -1,17 +1,18 @@
 # Current work state
 
-- Task ID: vue-overtime-obs-2026-10-11
-- Status: PR #285 is open and Ready for review; issue #284 is in Project #1 In review. No merge or deployment performed.
-- Source: GitHub issue #284 under Phase 4 issue #269 and migration epic #252; PRs #281 and #283 are merged.
-- Scope: Migrate only the /obs/overtime presentation to Vue. Preserve scoped OBS session access, existing YAML settings/feed endpoints, /hubs/overtime contract, and a Blazor rollback alias. Do not change backend contracts, overtime rules, payment/feed generation, or production deployment.
-- OpenSpec change: migrate-vue-overtime-obs
-- Branch: feat/vue-overtime-obs-slice
-- Worktree: .worktrees/vue-donate-obs-slice
-- Verification complete: true — Vue suite 63/63, typecheck/build, .NET Release build (0 warnings/errors), API tests 120/120, focused Playwright 2/2 including completed-state retry and reduced-motion GIF checks; test settings/feed restored to `paused`/0 items, strict OpenSpec, and diff checks are recorded in `.agents/verification/2026-10-11-vue-overtime-obs.md`
-- Branch pushed: true
-- Pull request created: https://github.com/KonohaDerek/EasyLottery/pull/285 (open, non-draft, mergeable)
-- Board: GitHub Project #1 issue #284 is In review; #282 is Done; #269 and #252 remain In progress. Issue #269 child checklist records #281/#282 merged and #284 in progress.
-- Decision: TypeSafe Jev 1.13.0 classified this as medium complexity (0.92 confidence), moderate risk (0.97), main agent plus one read-only survey (1.00), browser integration verification (0.80), and no additional approval needed for authorized issue/board/branch/PR operations (Noul 0.14). See `.agents/decisions/2026-10-11-vue-overtime-obs.json`.
-- Investigation: Confucius (gpt-6-luna, high) completed read-only route/contract inventory; no files changed. Main agent owns the tightly coupled implementation and validation. Superpowers skills are mounted and available in the Dev Container; the `task-start`/`task-done` helper scripts are absent, so use the installed workspace/brief/review-package scripts and manually record equivalent ledger evidence. Ponytail and TDD apply.
-- Risks: control-token authorization boundary; `/settings` YAML compatibility endpoint sunset on 2026-12-31 and scoped writes have no server ETag; Playwright mutates settings/feed and must restore them (verified); native OBS Browser Source smoke is manual.
+- Task ID: vue-donate-obs-2026-10-11
+- Status: In Progress
+- Source: issue #286 under Phase 4 #269 and migration epic #252; user requested continuation after PR #285 merged.
+- Scope: Migrate only the Donate OBS browser-source presentation to Vue, preserve scoped REST/token behavior and a Blazor rollback route, add tests, and open a Ready-for-review PR. No payment/backend/production changes; do not merge or deploy.
+- OpenSpec change: `migrate-vue-donate-obs`
+- Branch: `feat/vue-donate-obs-overlay`
+- Worktree: `.worktrees/vue-donate-obs-overlay` (based on `origin/main` at `5a8806d`)
+- Board: GitHub Project #1 issue #286 is In Progress; #284 is Done; #269 remains In Progress.
+- Decision: TypeSafe Jev 1.13.0 classified the task as balanced (confidence 1.0), not safely parallelizable (0.30), elevated regression/security risk (0.77), requiring focused browser E2E (0.95), and not requiring additional authorization for the scoped work (0.08). See `.agents/decisions/2026-10-11-vue-donate-obs.json`.
+- Execution: Main agent owns the coupled implementation and verification. TDD applies. The existing root checkout has unrelated uncommitted changes; they are untouched.
+- verification_complete: true
+- branch_pushed: false
+- pull_request_created: false
+- Review: Independent read-only follow-up review by Mill found no outstanding findings.
+- Notes: Native OBS Browser Source smoke is not yet run; report it as a gap unless an actual OBS environment is available.
 - Updated: 2026-10-11
