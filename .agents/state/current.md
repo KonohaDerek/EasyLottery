@@ -1,16 +1,17 @@
 # Current work state
 
-- Task ID: vue-pokebox-obs-2026-10-11
-- Status: Needs Review
-- Source: GitHub issue #282 under Phase 4 #269 and migration epic #252; PR #281 merged into main; PR #283 is open and Ready for review.
-- Scope: Migrate only `/obs/pokebox/{publicId}` to Vue using existing PokeBox REST, Live Draw, SignalR and scoped OBS-session contracts; keep Blazor rollback alias.
-- OpenSpec change: `migrate-vue-pokebox-obs`
-- Branch: `feat/vue-pokebox-obs-slice`
-- Worktree: `.worktrees/vue-pokebox-obs-slice`
-- Verification complete: true
+- Task ID: vue-overtime-obs-2026-10-11
+- Status: PR #285 is open and Ready for review; issue #284 is in Project #1 In review. No merge or deployment performed.
+- Source: GitHub issue #284 under Phase 4 issue #269 and migration epic #252; PRs #281 and #283 are merged.
+- Scope: Migrate only the /obs/overtime presentation to Vue. Preserve scoped OBS session access, existing YAML settings/feed endpoints, /hubs/overtime contract, and a Blazor rollback alias. Do not change backend contracts, overtime rules, payment/feed generation, or production deployment.
+- OpenSpec change: migrate-vue-overtime-obs
+- Branch: feat/vue-overtime-obs-slice
+- Worktree: .worktrees/vue-donate-obs-slice
+- Verification complete: true — Vue suite 63/63, typecheck/build, .NET Release build (0 warnings/errors), API tests 120/120, focused Playwright 2/2 including completed-state retry and reduced-motion GIF checks; test settings/feed restored to `paused`/0 items, strict OpenSpec, and diff checks are recorded in `.agents/verification/2026-10-11-vue-overtime-obs.md`
 - Branch pushed: true
-- Pull request created: true — https://github.com/KonohaDerek/EasyLottery/pull/283
-- Board: GitHub Project #1 issue #282 remains In progress; #269 and #252 remain In progress. Status synchronization to In review is pending because the logged-in ego-lite window is currently controlled by an unrelated Store Discovery TaskSpace; no unrelated board changes were made.
-- Decision: manual fallback because TypeSafe routing was unavailable; Superpowers executable unavailable, so follow repository local incremental workflow. Read-only contract investigation completed by Goodall (`gpt-6-luna`, high); independent read-only review findings on snapshot recovery/races were addressed.
-- Main checkout contains unrelated local edits and remains untouched. Native OBS Browser Source smoke is a remaining manual verification limitation.
+- Pull request created: https://github.com/KonohaDerek/EasyLottery/pull/285 (open, non-draft, mergeable)
+- Board: GitHub Project #1 issue #284 is In review; #282 is Done; #269 and #252 remain In progress. Issue #269 child checklist records #281/#282 merged and #284 in progress.
+- Decision: TypeSafe Jev 1.13.0 classified this as medium complexity (0.92 confidence), moderate risk (0.97), main agent plus one read-only survey (1.00), browser integration verification (0.80), and no additional approval needed for authorized issue/board/branch/PR operations (Noul 0.14). See `.agents/decisions/2026-10-11-vue-overtime-obs.json`.
+- Investigation: Confucius (gpt-6-luna, high) completed read-only route/contract inventory; no files changed. Main agent owns the tightly coupled implementation and validation. Superpowers skills are mounted and available in the Dev Container; the `task-start`/`task-done` helper scripts are absent, so use the installed workspace/brief/review-package scripts and manually record equivalent ledger evidence. Ponytail and TDD apply.
+- Risks: control-token authorization boundary; `/settings` YAML compatibility endpoint sunset on 2026-12-31 and scoped writes have no server ETag; Playwright mutates settings/feed and must restore them (verified); native OBS Browser Source smoke is manual.
 - Updated: 2026-10-11
