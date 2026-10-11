@@ -26,6 +26,31 @@ describe("coalesced refresh", () => {
     expect(refresh).toHaveBeenCalledTimes(2);
     expect(maximumActive).toBe(1);
   });
+
+  it("lets awaiting actions finish while continuous polling schedules later refreshes", async () => {
+    let active = 0;
+    let maximumActive = 0;
+    let request!: () => Promise<void>;
+    const refresh = vi.fn(async () => {
+      active += 1;
+      maximumActive = Math.max(maximumActive, active);
+      await new Promise(resolve => setTimeout(resolve, 1));
+      if (refresh.mock.calls.length < 8) void request();
+      active -= 1;
+    });
+    request = createCoalescedRefresh(refresh);
+
+    let callsWhenFirstPromiseResolved = 0;
+    await Promise.race([
+      request().then(() => { callsWhenFirstPromiseResolved = refresh.mock.calls.length; }),
+      new Promise((_, reject) => setTimeout(() => reject(new Error("refresh did not settle")), 100))
+    ]);
+    await new Promise(resolve => setTimeout(resolve, 30));
+
+    expect(callsWhenFirstPromiseResolved).toBeLessThanOrEqual(2);
+    expect(refresh).toHaveBeenCalledTimes(8);
+    expect(maximumActive).toBe(1);
+  });
 });
 
 describe("overtime SignalR reconnect lifecycle", () => {

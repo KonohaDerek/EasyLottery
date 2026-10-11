@@ -34,7 +34,7 @@ const state = computed(() => getDisplaySessionState({
   ...(settings.value ?? {}),
   plannedEndAtUtc: sessionEndAtUtc.value
 }, clock.value));
-const plannedEndForStart = computed(() => plannedEndMarker.value?.sessionEndAtUtc ?? settings.value?.plannedEndAtUtc ?? null);
+const plannedEndForStart = computed(() => settings.value?.plannedEndAtUtc ?? plannedEndMarker.value?.sessionEndAtUtc ?? null);
 const sessionClock = computed(() => state.value === "paused" && settings.value?.pausedAtUtc
   ? new Date(settings.value.pausedAtUtc)
   : clock.value);
@@ -180,7 +180,7 @@ async function startCountdown(): Promise<void> {
   const now = new Date().toISOString();
   let plannedEnd: string | null = null;
   const saved = await persistSettings(current => {
-    plannedEnd = plannedEndMarker.value?.sessionEndAtUtc ?? current.plannedEndAtUtc ?? null;
+    plannedEnd = current.plannedEndAtUtc ?? plannedEndMarker.value?.sessionEndAtUtc ?? null;
     if (current.sessionState === "running" || current.sessionState === "paused"
       || !plannedEnd || !Number.isFinite(Date.parse(plannedEnd)) || Date.parse(plannedEnd) <= Date.now()) {
       throw new Error("加班台設定已更新或加班時間已過期，請重新整理後再試。");

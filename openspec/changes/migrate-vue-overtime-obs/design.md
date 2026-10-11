@@ -19,7 +19,7 @@
 
 - 使用官方 @microsoft/signalr client 連線 /hubs/overtime，呼叫 Join(token)，監聽 OvertimeStateChanged 與 OvertimeFeedChanged。
 - Hub event 不攜帶完整狀態；收到事件後重新取得 settings/feed，重連後重新 Join 並重新取得 snapshot。
-- 以單一飛行中的 refresh 加一次合併重讀避免慢速請求持續丟棄快照；每 5 秒低頻輪詢 settings/feed，因管理頁設定更新不一定送出 hub event，即時連線時也需保持同步。
+- 以單一飛行中的 refresh 加最多一次合併重讀避免慢速請求持續丟棄快照；其間新事件會另排一次背景 refresh，不讓控制動作等待持續湧入的輪詢清空。每 5 秒低頻輪詢 settings/feed，因管理頁設定更新不一定送出 hub event，即時連線時也需保持同步。
 - 控制動作以最新 YAML projection 合併欄位 patch，不把載入時的整份舊 settings 寫回；完成狀態寫入失敗時，後續輪詢重試。到期判定使用 settings 或 feed marker 的有效結束時間。
 - 倒數顯示沿用既有 OvertimeSessionTimeCalculator 的運算語意，以純函數和單元測試保護 pause/resume、progress 與 end transitions。
 

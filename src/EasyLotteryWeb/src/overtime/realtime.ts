@@ -7,19 +7,35 @@ export interface OvertimeHubLifecycleCallbacks {
 export function createCoalescedRefresh(refresh: () => Promise<void>): () => Promise<void> {
   let inFlight: Promise<void> | null = null;
   let refreshQueued = false;
-  return () => {
+  let rescheduleHandle: ReturnType<typeof setTimeout> | undefined;
+  function request(): Promise<void> {
     if (inFlight) {
       refreshQueued = true;
       return inFlight;
     }
-    inFlight = (async () => {
-      do {
+    if (rescheduleHandle !== undefined) {
+      clearTimeout(rescheduleHandle);
+      rescheduleHandle = undefined;
+    }
+    refreshQueued = false;
+    inFlight = Promise.resolve().then(async () => {
+      await refresh();
+      if (refreshQueued) {
         refreshQueued = false;
         await refresh();
-      } while (refreshQueued);
-    })().finally(() => { inFlight = null; });
+      }
+    }).finally(() => {
+      inFlight = null;
+      if (refreshQueued) {
+        rescheduleHandle = setTimeout(() => {
+          rescheduleHandle = undefined;
+          void request();
+        }, 0);
+      }
+    });
     return inFlight;
-  };
+  }
+  return request;
 }
 
 export function createOvertimeHubLifecycleCallbacks(

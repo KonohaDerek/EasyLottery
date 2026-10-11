@@ -22,7 +22,7 @@
 
 #### Scenario: 管理設定更新與慢速讀取
 - **WHEN** 管理頁更新 settings 但沒有 hub event，或快照讀取慢於輪詢間隔
-- **THEN** overlay 仍會在低頻同步最新資料，並序列化讀取、合併過程中的刷新要求，不丟棄所有成功快照
+- **THEN** overlay 仍會在低頻同步最新資料，序列化讀取並最多等待一次合併補讀；更新期間的新要求另排背景刷新，不丟棄所有成功快照或卡住等待中的控制動作
 
 #### Scenario: 到期完成與重試
 - **WHEN** running session 的有效結束時間來自 settings 或 feed marker，且完成狀態寫入暫時失敗

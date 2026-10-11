@@ -139,11 +139,20 @@ test("加班台 OBS shares controls, feed notifications, and transparent renderi
         sessionState: "idle"
       }, completedSettings.etag);
       await saveFeed(request, adminToken, []);
+      await saveFeed(request, adminToken, [{
+        source: 3,
+        sourceLabel: "預計關台時間",
+        displayName: "預計關台時間",
+        occurredAtUtc: new Date().toISOString(),
+        sessionEndAtUtc: new Date(Date.now() - 1_000).toISOString()
+      }]);
       await control.reload();
 
+      await expect(control.getByRole("button", { name: "開始加班" })).toBeEnabled();
       await control.getByRole("button", { name: "開始加班" }).click();
       await expect(formal.locator(".overtime-overlay")).toBeVisible({ timeout: 10_000 });
       await expect(formal.locator(".overtime-progress-panel")).toBeVisible();
+      expect(Date.parse((await readSettings(request, adminToken)).value.plannedEndAtUtc)).toBeGreaterThan(Date.now() + 50 * 60_000);
       const background = await formal.evaluate(() => getComputedStyle(document.documentElement).backgroundColor);
       expect(background).toMatch(/rgba?\(0, 0, 0, 0\)|transparent/);
 
