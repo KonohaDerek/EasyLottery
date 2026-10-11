@@ -17,6 +17,8 @@ public interface ISettingsSectionRepository
     Task<SettingsSectionSnapshot<PaymentSettingsResource>> UpdatePaymentsAsync(PaymentSettingsResource value, string? expectedETag, CancellationToken cancellationToken = default);
     Task<SettingsSectionSnapshot<OvertimeOverlaySettings>> ReadOvertimeAsync(CancellationToken cancellationToken = default);
     Task<SettingsSectionSnapshot<OvertimeOverlaySettings>> UpdateOvertimeAsync(OvertimeOverlaySettings value, string? expectedETag, CancellationToken cancellationToken = default);
+    Task<SettingsSectionSnapshot<DrawingRuleSettings>> ReadDrawingRulesAsync(CancellationToken cancellationToken = default);
+    Task<SettingsSectionSnapshot<DrawingRuleSettings>> UpdateDrawingRulesAsync(DrawingRuleSettings value, string? expectedETag, CancellationToken cancellationToken = default);
 }
 
 public sealed record GetObsLayoutSettingsQuery : IRequest<SettingsSectionSnapshot<ObsLayoutSettings>>;
@@ -29,3 +31,5 @@ public sealed record GetPaymentSettingsQuery : IRequest<SettingsSectionSnapshot<
 public sealed record UpdatePaymentSettingsCommand(PaymentSettingsResource Value, string? ExpectedETag) : IRequest<SettingsSectionSnapshot<PaymentSettingsResource>>;
 public sealed record GetOvertimeSettingsQuery : IRequest<SettingsSectionSnapshot<OvertimeOverlaySettings>>;
 public sealed record UpdateOvertimeSettingsCommand(OvertimeOverlaySettings Value, string? ExpectedETag) : IRequest<SettingsSectionSnapshot<OvertimeOverlaySettings>>;
+public sealed record GetDrawingRulesQuery : IRequest<SettingsSectionSnapshot<DrawingRuleSettings>>;
+public sealed record UpdateDrawingRulesCommand(DrawingRuleSettings Value, string? ExpectedETag) : IRequest<SettingsSectionSnapshot<DrawingRuleSettings>>;

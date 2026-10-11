@@ -151,7 +151,7 @@ test("Blazor navigation performs a full-page handoff to Vue Donate activities", 
     expect(route.request().headers()["x-easylottery-session-token"]).toBe(token);
     await route.fulfill({ status: 200, contentType: "application/json", body: "[]" });
   });
-  await page.goto(baseURL, { waitUntil: "networkidle" });
+  await page.goto(`${baseURL}/legacy`, { waitUntil: "networkidle" });
   await page.getByRole("button", { name: "活動管理" }).click();
   const navigation = page.waitForRequest(request => request.isNavigationRequest()
     && request.frame() === page.mainFrame()

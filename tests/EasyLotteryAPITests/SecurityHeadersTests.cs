@@ -32,20 +32,28 @@ public sealed class SecurityHeadersTests
     }
 
     [TestMethod]
-    public async Task ContentSecurityPolicy_AllowsOnlyHashedInlineScriptsInTheAppShell()
+    public async Task ContentSecurityPolicy_ProtectsVueAndBlazorShells()
     {
         await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.ConfigureAppConfiguration((_, configuration) =>
             configuration.AddInMemoryCollection(new Dictionary<string, string?> { ["Security:ForceHttps"] = "false" })));
         using var client = factory.CreateClient();
         using var response = await client.GetAsync("/");
-        var html = await response.Content.ReadAsStringAsync();
+        var vueHtml = await response.Content.ReadAsStringAsync();
         var policy = response.Headers.GetValues("Content-Security-Policy").Single();
         var scriptPolicy = policy.Split(';').Single(part => part.TrimStart().StartsWith("script-src ", StringComparison.Ordinal));
-        var inlineScripts = Regex.Matches(html, @"<script\b(?![^>]*\bsrc\s*=)[^>]*>(.*?)</script>", RegexOptions.IgnoreCase | RegexOptions.Singleline);
+        var vueInlineScripts = Regex.Matches(vueHtml, @"<script\b(?![^>]*\bsrc\s*=)[^>]*>(.*?)</script>", RegexOptions.IgnoreCase | RegexOptions.Singleline);
 
         Assert.AreEqual(HttpStatusCode.OK, response.StatusCode);
-        Assert.IsTrue(inlineScripts.Count > 0, "The app shell must contain scripts covered by the CSP.");
+        StringAssert.Contains(vueHtml, "/vue/assets/");
+        Assert.AreEqual(0, vueInlineScripts.Count, "The Vue shell should not require inline scripts.");
         Assert.IsFalse(scriptPolicy.Contains("'unsafe-inline'", StringComparison.Ordinal));
+
+        using var legacy = await client.GetAsync("/legacy");
+        var legacyHtml = await legacy.Content.ReadAsStringAsync();
+        var inlineScripts = Regex.Matches(legacyHtml, @"<script\b(?![^>]*\bsrc\s*=)[^>]*>(.*?)</script>", RegexOptions.IgnoreCase | RegexOptions.Singleline);
+        Assert.AreEqual(HttpStatusCode.OK, legacy.StatusCode);
+        StringAssert.Contains(legacyHtml, "blazor.webassembly.js");
+        Assert.IsTrue(inlineScripts.Count > 0, "The legacy app shell must contain its existing CSP-hashed scripts.");
         foreach (Match script in inlineScripts)
         {
             var hash = Convert.ToBase64String(SHA256.HashData(Encoding.UTF8.GetBytes(script.Groups[1].Value)));

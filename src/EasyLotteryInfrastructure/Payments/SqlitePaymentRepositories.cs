@@ -238,7 +238,7 @@ public sealed class SqliteOvertimeFeedRepository(IOptions<StorageProviderOptions
     {
         ArgumentNullException.ThrowIfNull(mutation);
         await using var connection = await OpenAsync(cancellationToken);
-        await using var transaction = (SqliteTransaction)await connection.BeginTransactionAsync(cancellationToken);
+        await using var transaction = connection.BeginTransaction(deferred: false);
         var events = await ReadAsync(connection, transaction, cancellationToken);
         await mutation(events);
         await ReplaceAsync(connection, transaction, events, cancellationToken);

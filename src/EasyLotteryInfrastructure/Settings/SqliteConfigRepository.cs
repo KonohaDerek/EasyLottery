@@ -37,19 +37,20 @@ public sealed class SqliteConfigRepository(
         var current = await store.LoadAsync(cancellationToken);
         var currentYaml = _serializer.Serialize(current);
         var actualETag = ComputeETag(secrets.RedactForBrowser(currentYaml));
-        if (!string.IsNullOrWhiteSpace(expectedETag)
-            && expectedETag != "*"
-            && !string.Equals(expectedETag.Trim(), actualETag, StringComparison.Ordinal))
-        {
-            throw new ConfigurationConcurrencyException(expectedETag, actualETag);
-        }
-
-        var mergedYaml = secrets.MergeBrowserUpdate(currentYaml, submittedYaml);
-        var document = string.IsNullOrWhiteSpace(mergedYaml)
-            ? new EasyLotteryConfigDocument()
-            : _deserializer.Deserialize<EasyLotteryConfigDocument>(mergedYaml) ?? new EasyLotteryConfigDocument();
+        EnsureExpectedETag(expectedETag, actualETag);
         CreateBackup();
-        await store.SaveAsync(document, cancellationToken);
+        await store.MutateSettingsAsync(document =>
+        {
+            var latestYaml = _serializer.Serialize(document);
+            var latestETag = ComputeETag(secrets.RedactForBrowser(latestYaml));
+            EnsureExpectedETag(expectedETag, latestETag);
+            var mergedYaml = secrets.MergeBrowserUpdate(latestYaml, submittedYaml);
+            var updated = string.IsNullOrWhiteSpace(mergedYaml)
+                ? new EasyLotteryConfigDocument()
+                : _deserializer.Deserialize<EasyLotteryConfigDocument>(mergedYaml) ?? new EasyLotteryConfigDocument();
+            CopyDocument(updated, document);
+            return true;
+        }, updateDonateSnapshot: true, cancellationToken: cancellationToken);
     }
 
     public IReadOnlyList<ConfigBackupInfo> ListBackups()
@@ -84,11 +85,11 @@ public sealed class SqliteConfigRepository(
 
     public async Task<T> UpdateAsync<T>(Func<EasyLotteryConfigDocument, T> update, CancellationToken cancellationToken)
     {
-        var document = await store.LoadAsync(cancellationToken);
-        var result = update(document);
         CreateBackup();
-        await store.SaveAsync(document, cancellationToken);
-        return result;
+        return await store.MutateSettingsAsync(
+            update,
+            updateDonateSnapshot: true,
+            cancellationToken: cancellationToken);
     }
 
     private void CreateBackup()
@@ -109,6 +110,34 @@ public sealed class SqliteConfigRepository(
     {
         var hash = SHA256.HashData(Encoding.UTF8.GetBytes(yaml));
         return $"\"{Convert.ToHexString(hash).ToLowerInvariant()}\"";
+    }
+
+    private static void EnsureExpectedETag(string? expectedETag, string actualETag)
+    {
+        if (!string.IsNullOrWhiteSpace(expectedETag)
+            && expectedETag != "*"
+            && !string.Equals(expectedETag.Trim(), actualETag, StringComparison.Ordinal))
+            throw new ConfigurationConcurrencyException(expectedETag, actualETag);
+    }
+
+    private static void CopyDocument(EasyLotteryConfigDocument source, EasyLotteryConfigDocument target)
+    {
+        target.ConfigVersion = source.ConfigVersion;
+        target.SystemSettings = source.SystemSettings;
+        target.IdSequence = source.IdSequence;
+        target.PokeTemplates = source.PokeTemplates;
+        target.RouletteTemplates = source.RouletteTemplates;
+        target.ActivityResults = source.ActivityResults;
+        target.DrawingRulePresets = source.DrawingRulePresets;
+        target.DrawingRules = source.DrawingRules;
+        target.DonateLotteryActivities = source.DonateLotteryActivities;
+        target.DonateLotteryDrawRecords = source.DonateLotteryDrawRecords;
+        target.ProcessedDonatePaymentIds = source.ProcessedDonatePaymentIds;
+        target.VisualStyle = source.VisualStyle;
+        target.ObsLayout = source.ObsLayout;
+        target.SoundCue = source.SoundCue;
+        target.OvertimeOverlay = source.OvertimeOverlay;
+        target.AuditRecords = source.AuditRecords;
     }
 
     private static string? ResolveDatabasePath(string? connectionString)

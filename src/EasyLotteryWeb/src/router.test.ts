@@ -10,6 +10,10 @@ describe("public Vue routes", () => {
 });
 
 describe("admin route guard", () => {
+  it("registers the core lottery workspace as an authenticated root route", () => {
+    expect(adminRoutes.find(route => route.path === "/")?.meta?.requiresAuth).toBe(true);
+  });
+
   it("registers Donate activities as an authenticated route", () => {
     expect(adminRoutes.find(route => route.path === "/donate-activities")?.meta?.requiresAuth).toBe(true);
   });

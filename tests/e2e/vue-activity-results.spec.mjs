@@ -92,7 +92,7 @@ test("Blazor results navigation performs a full-page handoff to the Vue route", 
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(sampleResults) });
   });
 
-  await page.goto(baseURL, { waitUntil: "networkidle" });
+  await page.goto(`${baseURL}/legacy`, { waitUntil: "networkidle" });
   await page.getByRole("button", { name: "結果與紀錄" }).click();
   const navigation = page.waitForRequest(request => request.isNavigationRequest()
     && request.frame() === page.mainFrame()

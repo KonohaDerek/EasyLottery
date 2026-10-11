@@ -23,6 +23,7 @@ using EasyLotteryApi.Storage.Endpoints;
 using EasyLotteryApi.Tunnel;
 using EasyLotteryApi.Tunnel.Endpoints;
 using EasyLotteryApi.Interactions;
+using EasyLotteryApi.Lottery;
 using EasyLotteryApplication.Interactions;
 using EasyLotteryDomain.Services;
 using EasyLotteryDomain.Models.Obs;
@@ -40,6 +41,9 @@ builder.Services.AddSingleton<IPaymentProvider, EcpayBroadcasterPaymentProvider>
 builder.Services.AddSingleton<IPaymentProvider, NewebPayDonationPaymentProvider>();
 builder.Services.AddSingleton<PaymentProviderFactory>();
 builder.Services.AddEasyLotteryInfrastructure();
+builder.Services.AddScoped<SystemSettingsService>();
+builder.Services.AddScoped<YouTubeServiceHelper>();
+builder.Services.AddScoped<ILotteryYouTubeClient, LotteryYouTubeClient>();
 builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblies(typeof(GetDonateActivitiesQuery).Assembly, typeof(DependencyInjection).Assembly));
 var adminTokenOptions = AdminTokenSecurityOptions.Load(builder.Configuration);
 var adminPasskeyOptions = AdminPasskeyOptions.Load(builder.Configuration);
@@ -51,6 +55,10 @@ builder.Services.AddSingleton<ObsSessionAccess>();
 builder.Services.AddSingleton<PasskeyStateStore>();
 builder.Services.AddSingleton<PasskeyAuthenticationService>();
 builder.Services.AddSingleton<ObsSettingsProjectionService>();
+var sensitivePermitLimit = builder.Environment.IsDevelopment()
+    && builder.Configuration.GetValue<bool>("Testing:EnableAdminSessionToken")
+    ? Math.Max(60, builder.Configuration.GetValue<int?>("Testing:SensitivePermitLimit") ?? 60)
+    : 60;
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -59,7 +67,7 @@ builder.Services.AddRateLimiter(options =>
         _ => new FixedWindowRateLimiterOptions { PermitLimit = 5, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
     options.AddPolicy("sensitive", context => RateLimitPartition.GetSlidingWindowLimiter(
         context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-        _ => new SlidingWindowRateLimiterOptions { PermitLimit = 60, Window = TimeSpan.FromMinutes(1), SegmentsPerWindow = 6, QueueLimit = 0 }));
+        _ => new SlidingWindowRateLimiterOptions { PermitLimit = sensitivePermitLimit, Window = TimeSpan.FromMinutes(1), SegmentsPerWindow = 6, QueueLimit = 0 }));
 });
 builder.Services.AddSingleton<PaymentCallbackProcessor>();
 builder.Services.AddSingleton<PokeService>();
@@ -205,6 +213,7 @@ app.MapDonateActivityEndpoints();
 app.MapPokeTemplateEndpoints();
 app.MapRouletteTemplateEndpoints();
 app.MapActivityResultEndpoints();
+app.MapLotteryYouTubeEndpoints();
 app.MapObsAssetEndpoints();
 app.MapStorageEndpoints();
 app.MapResultNotificationEndpoints();
@@ -220,6 +229,8 @@ app.MapHub<InteractionHub>("/hubs/interactions");
 // Vue routes coexist with the Blazor fallback. Keep entries narrow so every
 // non-migrated route remains rollback-safe.
 app.MapFallbackToFile("/about", "vue/index.html");
+app.MapFallbackToFile("/", "vue/index.html");
+app.MapFallbackToFile("/legacy", "index.html");
 app.MapFallbackToFile("/privacy-policy", "vue/index.html");
 app.MapFallbackToFile("/login", "vue/index.html");
 app.MapFallbackToFile("/system/access", "vue/index.html");

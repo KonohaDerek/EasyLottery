@@ -65,6 +65,13 @@ public static class DependencyInjection
                 ? sp.GetRequiredService<SqliteOvertimeFeedRepository>()
                 : sp.GetRequiredService<JsonOvertimeFeedRepository>();
         });
+        services.AddSingleton<IOvertimeFeedMutationRepository>(sp =>
+        {
+            var provider = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<StorageProviderOptions>>().Value.NormalizedProvider;
+            return provider == "sqlite"
+                ? sp.GetRequiredService<SqliteOvertimeFeedRepository>()
+                : sp.GetRequiredService<JsonOvertimeFeedRepository>();
+        });
         services.AddSingleton<YamlSettingsDocumentRepository>();
         services.AddSingleton<ISettingsYamlDocumentRepository>(sp => sp.GetRequiredService<YamlSettingsDocumentRepository>());
         services.AddSingleton<YamlActivitiesDocumentRepository>();

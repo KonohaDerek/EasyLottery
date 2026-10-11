@@ -34,7 +34,7 @@ test("Blazor navigation hands migrated routes to Vue", async ({ page, baseURL })
   const session = await response.json();
   await page.addInitScript(token => sessionStorage.setItem("easy-lottery.session-token", token), session.token);
 
-  await page.goto(baseURL, { waitUntil: "networkidle" });
+  await page.goto(`${baseURL}/legacy`, { waitUntil: "networkidle" });
   const aboutNavigation = page.waitForRequest(request => request.isNavigationRequest()
     && request.frame() === page.mainFrame()
     && new URL(request.url()).pathname === "/about");
@@ -43,7 +43,7 @@ test("Blazor navigation hands migrated routes to Vue", async ({ page, baseURL })
   await expect(page.getByRole("heading", { name: "關於 EasyLottery" })).toBeVisible();
   await expect(page.locator("#app[data-v-app]")).toBeVisible();
 
-  await page.goto(baseURL, { waitUntil: "networkidle" });
+  await page.goto(`${baseURL}/legacy`, { waitUntil: "networkidle" });
   await page.getByRole("button", { name: /串接與支付/ }).click();
   const paymentNavigation = page.waitForRequest(request => request.isNavigationRequest()
     && request.frame() === page.mainFrame()

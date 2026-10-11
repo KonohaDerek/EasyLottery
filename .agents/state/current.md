@@ -1,19 +1,22 @@
 # Current work state
 
-- Task ID: vue-donate-obs-2026-10-11
-- Status: PR #287 is open and Ready for review; issue #286 is In review. No merge or deployment performed.
-- Source: issue #286 under Phase 4 #269 and migration epic #252; user requested continuation after PR #285 merged.
-- Scope: Migrate only the Donate OBS browser-source presentation to Vue, preserve scoped REST/token behavior and a Blazor rollback route, add tests, and open a Ready-for-review PR. No payment/backend/production changes; do not merge or deploy.
-- OpenSpec change: `migrate-vue-donate-obs`
-- Branch: `feat/vue-donate-obs-overlay`
-- Worktree: `.worktrees/vue-donate-obs-overlay` (based on `origin/main` at `5a8806d`)
-- Board: GitHub Project #1 issue #286 is In review and linked to PR #287; #284 is Done; #269 remains In Progress.
-- Decision: TypeSafe Jev 1.13.0 classified the task as balanced (confidence 1.0), not safely parallelizable (0.30), elevated regression/security risk (0.77), requiring focused browser E2E (0.95), and not requiring additional authorization for the scoped work (0.08). See `.agents/decisions/2026-10-11-vue-donate-obs.json`.
-- Execution: Main agent owns the coupled implementation and verification. TDD applies. The existing root checkout has unrelated uncommitted changes; they are untouched.
+- Task ID: `vue-core-lottery-2026-10-11`
+- Status: In Review; implementation is in [PR #291](https://github.com/KonohaDerek/EasyLottery/pull/291). Do not merge or deploy; Native OBS verification remains with the user.
+- Source: #288, under epic #252; Phase 5 #270 is blocked on route parity and remains in Backlog. User asked to continue the migration, open direct Ready-for-review PRs, and personally perform native OBS verification. No supplied raster artwork needed migration; the Vue hero uses refined CSS sparkle and winner-reveal animations with reduced-motion support.
+- Scope: Replace the Blazor `/` core lottery workspace with authenticated Vue while preserving participant/prize workflows, draw behavior, JSON/CSV formats, YouTube member import and level weighting, chat filters/cooldown, and accepted SuperChat-to-overtime-feed behavior. Keep the Blazor fallback/legacy route available. Add only the minimum server API surface needed to keep YouTube credentials server-side and use an ETag-protected DrawingRules resource.
+- Non-goals: Do not remove EasyLotteryWasm/Blazorise, change payment/domain draw contracts, modify production configuration, run production deployment, perform native OBS verification, or merge.
+- OpenSpec change: `migrate-vue-core-lottery`
+- Branch: `feat/vue-core-lottery-workspace`
+- Worktree: `.worktrees/vue-blazor-retirement`, based on `origin/main` at `fc1ddfcd4567e4bcf808c4a6210e511aa1a25f31`.
+- Board: GitHub Project #1 has #288 In review, linked to PR #291. #252/#269 remain In progress; #270 and follow-ups #289/#290 remain Backlog.
+- Decision: Jev 1.13.0 classified this as strong (confidence 0.84); parallel implementation safe 0.25; elevated risk 0.94; browser E2E required 0.77; additional authorization for source changes/Ready PR not needed 0.19. See `.agents/decisions/2026-10-11-vue-core-lottery.json`.
+- Delivery: Vue workspace and server-side adapters implemented; Dev Container checks passed (246 .NET tests, 93 Vue tests, typecheck/build, 9 focused Playwright tests, strict OpenSpec, production image smoke). Branch `feat/vue-core-lottery-workspace` is pushed; Ready-for-review PR #291 links/closes #288 and relates #252/#270. Project #1 card is In review.
+- PR #291 follow-up: first GitHub CI run exposed three stale Blazor handoff test entry paths and two shared-IP rate-limit failures. The existing PR branch is being updated with `/legacy` test entry paths and a Development/test-session-only E2E rate-limit override; fresh Dev Container validation passed (135 API, 112 Domain, 68 full Playwright). Recheck the new GitHub CI run before marking this follow-up complete.
+- Verification targets: Vue tests/typecheck/build; API and Domain tests; focused route/E2E tests with YouTube mocked; health smoke and `openspec validate --all --strict`; diff/security review. Native OBS presentation/SignalR behavior remains user-verified and is not claimed tested by this PR.
+- Rollback: Remove the Vue `/` route/fallback and restore the original Blazor route; additive API endpoints can remain without changing existing clients. No data migration.
+- Observability: Do not log API keys, session tokens, live-chat content, or raw YouTube URLs. Expose recoverable UI errors for import, settings, and provider failures.
 - verification_complete: true
 - branch_pushed: true
 - pull_request_created: true
-- Pull request: https://github.com/KonohaDerek/EasyLottery/pull/287 (open, non-draft, mergeable).
-- Review: Independent read-only follow-up review by Mill found no outstanding findings.
-- Notes: Native OBS Browser Source smoke is not yet run; report it as a gap unless an actual OBS environment is available.
+- Follow-up GitHub CI: pending; local Dev Container verification is complete.
 - Updated: 2026-10-11
