@@ -15,6 +15,7 @@
 - Post-E2E isolated data check: session returned to its original `paused` state and feed returned to 0 items; the exact test API process was stopped.
 - `openspec validate migrate-vue-overtime-obs --strict`: passed.
 - `git diff --check` and `git diff --cached --check`: passed.
+- PR [#285](https://github.com/KonohaDerek/EasyLottery/pull/285) is open as Ready for review; Project #1 issue #284 is In review.
 
 ## Review and limits
 

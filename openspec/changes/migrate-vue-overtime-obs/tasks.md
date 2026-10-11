@@ -7,4 +7,4 @@
 - [x] Extend the isolated Playwright flow for read/control scopes, start/pause/resume/end, connected-client settings polling, expired feed-marker guard/no-op with completed-state retry on a later poll, stale feed-marker precedence, test amount consistency, live hub/feed notifications, URL scrubbing, reduced-motion suppression of completion GIFs, transparent rendering, legacy fallback, and exact settings/feed restoration.
 - [x] Run and record Vue unit tests, typecheck/build, focused overtime Playwright, relevant .NET Release tests, strict OpenSpec validation, and diff checks in the project Dev Container.
 - [x] Complete an isolated whole-branch review; resolve material findings and rerun verification.
-- [ ] Push the feature branch, create a Ready-for-review PR linked to #284/#269/#252, and move #284 to In review in Project #1. Do not merge or deploy.
+- [x] Push the feature branch, create a Ready-for-review PR linked to #284/#269/#252, and move #284 to In review in Project #1. Do not merge or deploy.
