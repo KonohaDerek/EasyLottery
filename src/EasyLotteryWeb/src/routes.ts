@@ -42,4 +42,8 @@ export const adminRoutes: RouteRecordRaw[] = [
   { path: "/system/visual-styles", component: VisualStylesView, meta: { title: "視覺樣式｜EasyLottery", requiresAuth: true } }
 ];
 
-export const routes: RouteRecordRaw[] = [...publicRoutes, ...adminRoutes];
+export const obsRoutes: RouteRecordRaw[] = [
+  { path: "/obs/roulette/:publicId", component: () => import("./views/RouletteObsView.vue"), meta: { title: "轉盤 - OBS", obs: true } }
+];
+
+export const routes: RouteRecordRaw[] = [...publicRoutes, ...adminRoutes, ...obsRoutes];

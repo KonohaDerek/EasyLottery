@@ -1,4 +1,20 @@
 export const sessionTokenKey = "easy-lottery.session-token";
+let inMemorySessionToken: string | null = null;
+
+export function setSessionTokenFallback(value: string | null): void {
+  inMemorySessionToken = value;
+}
+
+export function getSessionToken(): string | null {
+  if (inMemorySessionToken) return inMemorySessionToken;
+  try {
+    const storedToken = typeof sessionStorage === "undefined" ? null : sessionStorage.getItem(sessionTokenKey);
+    if (storedToken) return storedToken;
+  } catch {
+    // Browser storage may be disabled for OBS sources.
+  }
+  return inMemorySessionToken;
+}
 
 export class ApiError extends Error {
   constructor(
@@ -15,11 +31,6 @@ export class ApiError extends Error {
 export interface ApiResponse<T> {
   data: T;
   etag: string;
-}
-
-function token(): string | null {
-  if (typeof sessionStorage === "undefined") return null;
-  return sessionStorage.getItem(sessionTokenKey);
 }
 
 async function parsePayload(response: Response): Promise<unknown> {
@@ -39,7 +50,7 @@ function errorFromResponse(response: Response, payload: unknown): ApiError {
 
 export async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
   const headers = new Headers(options.headers);
-  const value = token();
+  const value = getSessionToken();
   if (value) headers.set("X-EasyLottery-Session-Token", value);
   if (options.body && !headers.has("Content-Type") && !(options.body instanceof FormData)) {
     headers.set("Content-Type", "application/json");
@@ -53,7 +64,7 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}): Pr
 
 export async function apiText(path: string, options: RequestInit = {}): Promise<ApiResponse<string>> {
   const headers = new Headers(options.headers);
-  const value = token();
+  const value = getSessionToken();
   if (value) headers.set("X-EasyLottery-Session-Token", value);
   if (options.body && !headers.has("Content-Type")) headers.set("Content-Type", "text/yaml");
   const response = await fetch(path, { ...options, headers });

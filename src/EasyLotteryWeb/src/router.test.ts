@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { adminRoutes, publicRoutes } from "./routes";
+import { adminRoutes, obsRoutes, publicRoutes } from "./routes";
 import { adminRouteRedirect } from "./router-guard";
 
 describe("public Vue routes", () => {
@@ -34,5 +34,14 @@ describe("admin route guard", () => {
 
   it("allows an authenticated session to continue", () => {
     expect(adminRouteRedirect("/system/payment", true)).toBeNull();
+  });
+});
+
+describe("OBS overlay routes", () => {
+  it("registers the roulette overlay without the admin guard or public shell", () => {
+    expect(obsRoutes).toHaveLength(1);
+    expect(obsRoutes[0].path).toBe("/obs/roulette/:publicId");
+    expect(obsRoutes[0].meta?.obs).toBe(true);
+    expect(obsRoutes[0].meta?.requiresAuth).not.toBe(true);
   });
 });
