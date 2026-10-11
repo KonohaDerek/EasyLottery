@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ApiError, setSessionTokenFallback } from "../api/client";
-import { appendOvertimeEvent, readOvertimeSettings, saveOvertimeSettings } from "./api";
+import { appendOvertimeEvent, readOvertimeFeed, readOvertimeSettings, saveOvertimeSettings } from "./api";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -73,6 +73,34 @@ describe("overtime OBS API adapter", () => {
     expect(saved).toHaveLength(30);
     expect(saved[0]).toMatchObject({ source: 3, sourceLabel: "加班開始", displayName: "加班開始", currency: "TWD" });
     expect(saved.some((item: { id: string }) => item.id === "29")).toBe(false);
+  });
+
+  it("normalizes the existing feed endpoint's PascalCase JSON response", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify([{
+      Id: "event-1",
+      Source: 2,
+      SourceLabel: "ECPay Donate",
+      DisplayName: "Guest",
+      Message: "Thanks",
+      Amount: 100,
+      AmountDisplay: "NT$100",
+      Currency: "TWD",
+      AvatarUrl: "",
+      Color: "#ff85b4",
+      OccurredAtUtc: "2026-10-11T12:00:00.000Z",
+      SessionEndAtUtc: null,
+      ExternalId: "external-1"
+    }]), { status: 200, headers: { "content-type": "application/json" } })));
+
+    await expect(readOvertimeFeed()).resolves.toMatchObject([{
+      id: "event-1",
+      source: 2,
+      sourceLabel: "ECPay Donate",
+      displayName: "Guest",
+      message: "Thanks",
+      amount: 100,
+      occurredAtUtc: "2026-10-11T12:00:00.000Z"
+    }]);
   });
 
   it("surfaces a scoped API denial without including the token in the error", async () => {

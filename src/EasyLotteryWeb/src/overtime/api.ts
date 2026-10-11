@@ -81,7 +81,37 @@ export async function saveOvertimeSettings(settings: OvertimeOverlaySettings): P
 
 export async function readOvertimeFeed(): Promise<OvertimeSupportEvent[]> {
   const { data } = await apiRequest<OvertimeSupportEvent[]>("/api/overtime-feed");
-  return Array.isArray(data) ? data : [];
+  return Array.isArray(data)
+    ? data.map(normalizeOvertimeEvent).filter((event): event is OvertimeSupportEvent => event !== null)
+    : [];
+}
+
+function normalizeOvertimeEvent(value: unknown): OvertimeSupportEvent | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const item = value as Record<string, unknown>;
+  const field = (camel: string, pascal: string) => Object.hasOwn(item, camel) ? item[camel] : item[pascal];
+  const source = Number(field("source", "Source"));
+  if (source !== 1 && source !== 2 && source !== 3 && source !== 4) return null;
+  const stringValue = (camel: string, pascal: string, fallback = "") => {
+    const result = field(camel, pascal);
+    return typeof result === "string" ? result : fallback;
+  };
+  const amount = field("amount", "Amount");
+  return {
+    id: stringValue("id", "Id"),
+    source,
+    sourceLabel: stringValue("sourceLabel", "SourceLabel"),
+    displayName: stringValue("displayName", "DisplayName"),
+    message: stringValue("message", "Message"),
+    amount: typeof amount === "number" ? amount : null,
+    amountDisplay: stringValue("amountDisplay", "AmountDisplay"),
+    currency: stringValue("currency", "Currency", "TWD"),
+    avatarUrl: stringValue("avatarUrl", "AvatarUrl"),
+    color: stringValue("color", "Color", "#ff85b4"),
+    occurredAtUtc: stringValue("occurredAtUtc", "OccurredAtUtc"),
+    sessionEndAtUtc: stringValue("sessionEndAtUtc", "SessionEndAtUtc") || null,
+    externalId: stringValue("externalId", "ExternalId") || null
+  };
 }
 
 export async function saveOvertimeFeed(events: OvertimeSupportEvent[]): Promise<void> {

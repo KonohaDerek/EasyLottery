@@ -44,7 +44,8 @@ export const adminRoutes: RouteRecordRaw[] = [
 
 export const obsRoutes: RouteRecordRaw[] = [
   { path: "/obs/roulette/:publicId", component: () => import("./views/RouletteObsView.vue"), meta: { title: "轉盤 - OBS", obs: true } },
-  { path: "/obs/pokebox/:publicId", component: () => import("./views/PokeBoxObsView.vue"), meta: { title: "戳戳樂 - OBS", obs: true } }
+  { path: "/obs/pokebox/:publicId", component: () => import("./views/PokeBoxObsView.vue"), meta: { title: "戳戳樂 - OBS", obs: true } },
+  { path: "/obs/overtime", component: () => import("./views/OvertimeObsView.vue"), meta: { title: "加班台 - OBS", obs: true } }
 ];
 
 export const routes: RouteRecordRaw[] = [...publicRoutes, ...adminRoutes, ...obsRoutes];

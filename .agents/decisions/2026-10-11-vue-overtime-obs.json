@@ -1,0 +1,52 @@
+{
+  "date": "2026-10-11",
+  "task_id": "vue-overtime-obs-2026-10-11",
+  "source": "TypeSafe Jev HTTP API",
+  "model": "jev-1.13.0",
+  "judgments": {
+    "complexity": {
+      "choice": "medium",
+      "confidence": 0.92,
+      "probabilities": {
+        "small": 0.01,
+        "medium": 0.95,
+        "large": 0.04
+      }
+    },
+    "risk": {
+      "choice": "moderate",
+      "confidence": 0.97,
+      "probabilities": {
+        "low": 0.02,
+        "moderate": 0.98,
+        "high": 0.0
+      }
+    },
+    "route": {
+      "choice": "main_plus_readonly_survey",
+      "confidence": 1.0
+    },
+    "verification": {
+      "choice": "browser_integration",
+      "confidence": 0.7,
+      "probabilities": {
+        "unit_build": 0.02,
+        "browser_integration": 0.8,
+        "browser_plus_independent_review": 0.18
+      }
+    },
+    "additional_approval": {
+      "noul": 0.14,
+      "decision": "No additional approval for the explicitly authorized issue tracking, Project board sync, isolated implementation, push, or Ready-for-review PR. Production changes, merging, destructive operations, and backend authorization changes are excluded."
+    }
+  },
+  "manual_application": [
+    "Use the existing token-authorized /settings compatibility endpoint for OBS control; do not send a control token to the admin-only PUT /api/settings/overtime endpoint.",
+    "Run UI and browser integration verification in the project Dev Container; keep E2E state isolated and restored.",
+    "Keep the Blazor rollback route available and record native OBS smoke as a manual limitation."
+  ],
+  "environment": {
+    "superpowers": "Unavailable; use the repository local incremental workflow.",
+    "production_change": false
+  }
+}
