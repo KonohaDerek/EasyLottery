@@ -6,7 +6,7 @@
 
 ## Results
 
-- `npm test` in `src/EasyLotteryWeb`: passed, 15 files / 60 tests, including latest-projection patch guards and bounded coalesced-refresh coverage.
+- `npm test` in `src/EasyLotteryWeb`: passed, 15 files / 61 tests, including latest-projection patch guards, bounded coalesced-refresh coverage, and the settled-snapshot regression test.
 - `npm run typecheck` in `src/EasyLotteryWeb`: passed.
 - `npm run build` in `src/EasyLotteryWeb`: passed. Rollup emitted two non-fatal warnings about `/*#__PURE__*/` annotation placement in the installed SignalR package and removed those annotations.
 - `dotnet build EasyLottery.generated.sln --configuration Release`: passed, 0 warnings / 0 errors.
@@ -18,6 +18,6 @@
 
 ## Review and limits
 
-- Independent isolated reviews found nine concrete issues across two rounds (stale settings overwrite, connected polling gap, overlapping snapshot drops/action wait, no completion retry, feed end not used for expiry, stale feed marker precedence, `motion=reduce` not applied, and mismatched test amount display). All were fixed and covered by the post-fix checks above; final review of the latest commit is pending.
+- Three independent isolated review rounds found ten concrete issues. All are fixed, including waiting for both concurrent snapshot requests to settle before releasing the refresh lock after a partial failure; the latest regression test and full verification above cover the final fix. A fresh review of the final commit is pending.
 - Native OBS Browser Source smoke test: not run; Playwright Chromium verifies browser behavior but is not the native OBS runtime.
 - Existing `/settings` YAML compatibility endpoint remains scheduled to sunset on 2026-12-31. Scoped OBS writes do not receive an ETag from the current backend, so merging the latest YAML projection reduces stale-field overwrites but cannot guarantee server-side serialization of truly simultaneous writes; this UI-only change intentionally does not alter that backend contract.

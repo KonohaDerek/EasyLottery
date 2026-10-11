@@ -3,7 +3,7 @@ import { HubConnectionBuilder, type HubConnection } from "@microsoft/signalr";
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 import { ApiError } from "../api/client";
-import { appendOvertimeEvent, readOvertimeFeed, readOvertimeSettings, saveOvertimeSettings, type OvertimeOverlaySettings, type OvertimeSettingsUpdate, type OvertimeSupportEvent } from "../overtime/api";
+import { appendOvertimeEvent, readOvertimeSnapshot, saveOvertimeSettings, type OvertimeOverlaySettings, type OvertimeSettingsUpdate, type OvertimeSupportEvent } from "../overtime/api";
 import { calculateProgressPercent, extendEndForPause, getDisplaySessionState, getRewardSummary, isEventVisible, remainingTimeText } from "../overtime/overlay";
 import { readObsSessionToken } from "../obs/session-token";
 import { createCoalescedRefresh, createOvertimeHubLifecycleCallbacks } from "../overtime/realtime";
@@ -75,7 +75,7 @@ function safeError(cause: unknown): string {
 
 async function loadSnapshot(): Promise<void> {
   try {
-    const [nextSettings, nextEvents] = await Promise.all([readOvertimeSettings(), readOvertimeFeed()]);
+    const { settings: nextSettings, events: nextEvents } = await readOvertimeSnapshot();
     settings.value = nextSettings;
     events.value = nextEvents;
     error.value = "";

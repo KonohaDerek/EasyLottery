@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ApiError, setSessionTokenFallback } from "../api/client";
-import { appendOvertimeEvent, readOvertimeFeed, readOvertimeSettings, saveOvertimeSettings } from "./api";
+import { appendOvertimeEvent, readOvertimeFeed, readOvertimeSettings, readOvertimeSnapshot, saveOvertimeSettings } from "./api";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -19,6 +19,31 @@ describe("overtime OBS API adapter", () => {
     await expect(readOvertimeSettings()).resolves.toMatchObject({ sessionState: "running" });
     expect(fetchMock).toHaveBeenCalledWith("/settings", expect.objectContaining({ headers: expect.any(Headers) }));
     expect((fetchMock.mock.calls[0][1]?.headers as Headers).get("X-EasyLottery-Session-Token")).toBe("obs-read-token");
+  });
+
+  it("waits for both snapshot requests to settle before returning a read error", async () => {
+    let resolveSettings!: (response: Response) => void;
+    const settingsResponse = new Promise<Response>(resolve => { resolveSettings = resolve; });
+    const fetchMock = vi.fn((input: RequestInfo | URL) => input.toString() === "/settings"
+      ? settingsResponse
+      : Promise.resolve(new Response("unavailable", { status: 503 })));
+    vi.stubGlobal("fetch", fetchMock);
+
+    let rejected = false;
+    const snapshot = readOvertimeSnapshot().catch(cause => {
+      rejected = true;
+      throw cause;
+    });
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(rejected).toBe(false);
+    resolveSettings(new Response("overtimeOverlay:\n  sessionState: running\n", {
+      status: 200,
+      headers: { "content-type": "text/yaml" }
+    }));
+    await expect(snapshot).rejects.toMatchObject({ status: 503 });
+    expect(rejected).toBe(true);
   });
 
   it("merges a settings patch into the latest projection instead of replacing newer fields", async () => {

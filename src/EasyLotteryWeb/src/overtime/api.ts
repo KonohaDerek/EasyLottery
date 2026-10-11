@@ -94,6 +94,13 @@ export async function readOvertimeFeed(): Promise<OvertimeSupportEvent[]> {
     : [];
 }
 
+export async function readOvertimeSnapshot(): Promise<{ settings: OvertimeOverlaySettings; events: OvertimeSupportEvent[] }> {
+  const [settings, events] = await Promise.allSettled([readOvertimeSettings(), readOvertimeFeed()]);
+  if (settings.status === "rejected") throw settings.reason;
+  if (events.status === "rejected") throw events.reason;
+  return { settings: settings.value, events: events.value };
+}
+
 function normalizeOvertimeEvent(value: unknown): OvertimeSupportEvent | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const item = value as Record<string, unknown>;
