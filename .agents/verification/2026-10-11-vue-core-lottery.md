@@ -17,6 +17,13 @@
 - `git diff --check` and `openspec validate --all --strict` passed; both were rerun after final task documentation changes.
 - Production dependency audit: `npm audit --omit=dev` found 0 vulnerabilities.
 
+## PR #291 CI follow-up
+
+- The first GitHub CI run failed 5 browser tests: 3 legacy-to-Vue handoff tests still opened `/` after Vue became the root, and 2 Roulette tests exhausted the shared-IP `sensitive` API limit during the full suite.
+- Updated those handoff tests to open `/legacy`. The E2E runner now opts into `Testing:SensitivePermitLimit=600`; the override is effective only in Development when the test Session Token is explicitly enabled. The production/default limit remains 60/minute, verified by a new API regression test.
+- Rebuilt the Release solution in the Dev Container (0 warnings, 0 errors). Re-ran API tests (135/135), Domain tests (112/112), 22 focused browser tests (22/22), and the complete browser suite on a fresh test database (68/68). `git diff --check` passed.
+- GitHub CI will be checked again after this follow-up is pushed; local green tests do not assert a remote green result.
+
 ## Review and limits
 
 - Independent read-only reviews identified stale full-document settings/feed writes, full-feed retention, an in-flight settings-save UI race, missing mobile navigation, logout/token issuance ordering, and a YouTube member import race while DrawingRules load. These were addressed with regression tests; the final reviewer rechecked the CSV-loading fix and found no remaining issue in that scope. Main-agent full-diff review found no unrelated changes.

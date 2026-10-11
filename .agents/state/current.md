@@ -11,10 +11,11 @@
 - Board: GitHub Project #1 has #288 In review, linked to PR #291. #252/#269 remain In progress; #270 and follow-ups #289/#290 remain Backlog.
 - Decision: Jev 1.13.0 classified this as strong (confidence 0.84); parallel implementation safe 0.25; elevated risk 0.94; browser E2E required 0.77; additional authorization for source changes/Ready PR not needed 0.19. See `.agents/decisions/2026-10-11-vue-core-lottery.json`.
 - Delivery: Vue workspace and server-side adapters implemented; Dev Container checks passed (246 .NET tests, 93 Vue tests, typecheck/build, 9 focused Playwright tests, strict OpenSpec, production image smoke). Branch `feat/vue-core-lottery-workspace` is pushed; Ready-for-review PR #291 links/closes #288 and relates #252/#270. Project #1 card is In review.
+- PR #291 follow-up: first GitHub CI run exposed three stale Blazor handoff test entry paths and two shared-IP rate-limit failures. The existing PR branch is being updated with `/legacy` test entry paths and a Development/test-session-only E2E rate-limit override; fresh Dev Container validation passed (135 API, 112 Domain, 68 full Playwright). Recheck the new GitHub CI run before marking this follow-up complete.
 - Verification targets: Vue tests/typecheck/build; API and Domain tests; focused route/E2E tests with YouTube mocked; health smoke and `openspec validate --all --strict`; diff/security review. Native OBS presentation/SignalR behavior remains user-verified and is not claimed tested by this PR.
 - Rollback: Remove the Vue `/` route/fallback and restore the original Blazor route; additive API endpoints can remain without changing existing clients. No data migration.
 - Observability: Do not log API keys, session tokens, live-chat content, or raw YouTube URLs. Expose recoverable UI errors for import, settings, and provider failures.
-- verification_complete: true
-- branch_pushed: true
+- verification_complete: false (follow-up GitHub CI pending)
+- branch_pushed: false (follow-up changes not yet pushed)
 - pull_request_created: true
 - Updated: 2026-10-11

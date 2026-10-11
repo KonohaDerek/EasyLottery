@@ -83,6 +83,7 @@ jobs:
           ASPNETCORE_ENVIRONMENT: Development
           Storage__Directory: ${{ runner.temp }}/easy-lottery-e2e
           Testing__EnableAdminSessionToken: true
+          Testing__SensitivePermitLimit: 600
           Admin__Passkey__RpId: localhost
           Admin__Passkey__Origins__0: http://localhost:18930
         run: |

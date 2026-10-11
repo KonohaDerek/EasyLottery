@@ -485,6 +485,34 @@ public sealed class SecurityEndpointTests
     }
 
     [TestMethod]
+    public async Task SensitiveRateLimit_TestOverrideRequiresDevelopmentAndTestSession()
+    {
+        var settings = new Dictionary<string, string?>
+        {
+            ["Testing:EnableAdminSessionToken"] = "true",
+            ["Testing:SensitivePermitLimit"] = "600"
+        };
+
+        await using var developmentFactory = CreateFactory(settings);
+        using var developmentClient = developmentFactory.CreateClient();
+        for (var attempt = 0; attempt < 61; attempt++)
+        {
+            using var response = await developmentClient.DeleteAsync("/api/roulette-templates/0");
+            Assert.AreEqual(HttpStatusCode.Unauthorized, response.StatusCode);
+        }
+
+        await using var productionFactory = CreateFactory(settings, "Production");
+        using var productionClient = productionFactory.CreateClient();
+        for (var attempt = 0; attempt < 60; attempt++)
+        {
+            using var response = await productionClient.DeleteAsync("/api/roulette-templates/0");
+            Assert.AreEqual(HttpStatusCode.Unauthorized, response.StatusCode);
+        }
+        using var limited = await productionClient.DeleteAsync("/api/roulette-templates/0");
+        Assert.AreEqual(HttpStatusCode.TooManyRequests, limited.StatusCode);
+    }
+
+    [TestMethod]
     public async Task OversizedRequest_IsRejected()
     {
         await using var factory = CreateFactory();

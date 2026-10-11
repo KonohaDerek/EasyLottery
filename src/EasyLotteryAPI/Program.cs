@@ -55,6 +55,10 @@ builder.Services.AddSingleton<ObsSessionAccess>();
 builder.Services.AddSingleton<PasskeyStateStore>();
 builder.Services.AddSingleton<PasskeyAuthenticationService>();
 builder.Services.AddSingleton<ObsSettingsProjectionService>();
+var sensitivePermitLimit = builder.Environment.IsDevelopment()
+    && builder.Configuration.GetValue<bool>("Testing:EnableAdminSessionToken")
+    ? Math.Max(60, builder.Configuration.GetValue<int?>("Testing:SensitivePermitLimit") ?? 60)
+    : 60;
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -63,7 +67,7 @@ builder.Services.AddRateLimiter(options =>
         _ => new FixedWindowRateLimiterOptions { PermitLimit = 5, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
     options.AddPolicy("sensitive", context => RateLimitPartition.GetSlidingWindowLimiter(
         context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-        _ => new SlidingWindowRateLimiterOptions { PermitLimit = 60, Window = TimeSpan.FromMinutes(1), SegmentsPerWindow = 6, QueueLimit = 0 }));
+        _ => new SlidingWindowRateLimiterOptions { PermitLimit = sensitivePermitLimit, Window = TimeSpan.FromMinutes(1), SegmentsPerWindow = 6, QueueLimit = 0 }));
 });
 builder.Services.AddSingleton<PaymentCallbackProcessor>();
 builder.Services.AddSingleton<PokeService>();
