@@ -15,7 +15,8 @@
 - Verification targets: Vue tests/typecheck/build; API and Domain tests; focused route/E2E tests with YouTube mocked; health smoke and `openspec validate --all --strict`; diff/security review. Native OBS presentation/SignalR behavior remains user-verified and is not claimed tested by this PR.
 - Rollback: Remove the Vue `/` route/fallback and restore the original Blazor route; additive API endpoints can remain without changing existing clients. No data migration.
 - Observability: Do not log API keys, session tokens, live-chat content, or raw YouTube URLs. Expose recoverable UI errors for import, settings, and provider failures.
-- verification_complete: false (follow-up GitHub CI pending)
-- branch_pushed: false (follow-up changes not yet pushed)
+- verification_complete: true
+- branch_pushed: true
 - pull_request_created: true
+- Follow-up GitHub CI: pending; local Dev Container verification is complete.
 - Updated: 2026-10-11
