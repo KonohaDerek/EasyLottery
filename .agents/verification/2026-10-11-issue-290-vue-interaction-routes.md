@@ -10,7 +10,7 @@ Worktree: `.worktrees/vue-interaction-routes`
 - `npm run typecheck`: passed.
 - `npm run build`: passed; Rollup emitted only its existing annotation warning from `@microsoft/signalr`.
 - `dotnet test tests/EasyLotteryAPITests/EasyLotteryApiTests.csproj --no-restore --filter "FullyQualifiedName~IdentityLinkEndpointTests|FullyQualifiedName~InteractionRoundEndpointTests|FullyQualifiedName~InteractionHubTests"`: 3 passed, 0 failed.
-- `npm test -- interaction-rounds.spec.mjs` in the Dev Container: 3 passed, 0 failed.
+- `npm test -- interaction-rounds.spec.mjs` in the Dev Container after fixing CI run 38150348569: 3 passed, 0 failed. The CI failure was test isolation: the Vue test's `page.route("**/api/interactions/rounds**", ...)` stayed active while the same page navigated to the legacy Blazor route, so the Blazor client received the mock's non-GUID id and failed to deserialize it. The test now removes that route before navigating to `/legacy/interactions/rounds`.
 - `node --check tests/e2e/interaction-rounds.spec.mjs`: passed.
 - `openspec validate --all --strict`: 42 passed, 0 failed; one unrelated existing informational note is reported for `donate-draw-reveal-sequence`.
 - `git diff --check`: passed after the implementation and documentation updates.
@@ -31,5 +31,5 @@ Native OBS size/transparency and hardware/browser-source behavior were not teste
 
 PR: [#292](https://github.com/KonohaDerek/EasyLottery/pull/292), open and non-draft; it links #252, #269, and #270 and uses `Closes #290`.
 GitHub Project #1 #290: In review, with PR #292 linked on the card.
-At the latest check, GitHub `build-and-test` was pending and GitGuardian Security Checks passed. Local checks above are green; remote CI has not yet confirmed a passing run.
+GitHub run [38150348569](https://github.com/KonohaDerek/EasyLottery/actions/runs/38150348569) passed Vue, .NET build, Domain/API tests, container smoke, and OpenSpec; its 70-test browser suite had 69 passes and the single mock-leak failure described above. After the local fix, the focused interaction spec passed 3/3; the updated branch's remote result should be checked on PR #292.
 Merge/deployment: not performed.

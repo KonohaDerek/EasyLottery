@@ -109,6 +109,7 @@ test("Vue interaction management routes preserve admin REST behavior and show em
   await expect(page.getByRole("heading", { name: "觀眾身份綁定", exact: true })).toBeVisible();
   expect(frameworkRequests).toEqual([]);
 
+  await page.unroute("**/api/interactions/rounds**");
   await page.goto(`${baseURL}/legacy/interactions/rounds`, { waitUntil: "domcontentloaded" });
   await expect(page.getByRole("heading", { name: "直播互動回合", exact: true })).toBeVisible();
   expect(frameworkRequests.some(url => new URL(url).pathname.startsWith("/_framework/"))).toBe(true);
