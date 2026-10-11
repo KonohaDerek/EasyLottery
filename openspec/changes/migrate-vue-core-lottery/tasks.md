@@ -9,4 +9,4 @@
 - [x] Add focused Playwright coverage for direct route/refresh/auth, draw and imports, mocked YouTube member/chat flow, errors, and legacy route.
 - [x] Run Vue, API, Domain, health and strict OpenSpec verification in the project Dev Container; record exact results and gaps.
 - [x] Review full diff for parity, credential handling, races, ETag behavior, visual scope, and unrelated changes; complete any independent review required by the risk.
-- [ ] Push branch and open a Ready-for-review PR linked to #288 and related #252/#270; sync Project #1 to In review. Do not merge/deploy or claim Native OBS testing.
+- [x] Push branch and open a Ready-for-review PR linked to #288 and related #252/#270; sync Project #1 to In review. Do not merge/deploy or claim Native OBS testing.
