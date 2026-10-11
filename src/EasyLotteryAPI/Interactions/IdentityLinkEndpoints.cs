@@ -4,6 +4,7 @@ using EasyLotteryApplication.Interactions;
 namespace EasyLotteryApi.Interactions;
 
 public sealed record IssueIdentityLinkRequest(Guid SourceIdentityId, Guid TargetIdentityId);
+public sealed record CompleteIdentityLinkRequest(string? Code);
 
 internal static class IdentityLinkEndpoints
 {
@@ -17,9 +18,9 @@ internal static class IdentityLinkEndpoints
             catch (InvalidOperationException exception) { return Results.BadRequest(new { error = exception.Message }); }
         }).RequireRateLimiting("sensitive");
 
-        app.MapPost("/api/interactions/identity-links/complete", async (string? code, HttpContext context, IdentityLinkService links) =>
+        app.MapPost("/api/interactions/identity-links/complete", async (CompleteIdentityLinkRequest request, HttpContext context, IdentityLinkService links) =>
         {
-            try { await links.CompleteAsync(code ?? "", context.RequestAborted); return Results.NoContent(); }
+            try { await links.CompleteAsync(request.Code ?? "", context.RequestAborted); return Results.NoContent(); }
             catch (InvalidOperationException exception) { return Results.BadRequest(new { error = exception.Message }); }
         }).RequireRateLimiting("sensitive");
 

@@ -10,21 +10,21 @@
 ## Bounded tasks
 
 1. Inventory existing route behavior and REST/SignalR contracts. Completed by read-only survey and direct source inspection.
-2. Implement two authenticated management routes and isolated REST helpers/tests. Parallel candidate; owns only src/EasyLotteryWeb/src/interactions/admin/**.
-3. Implement four OBS routes, interaction SignalR lifecycle and tests. Parallel candidate; owns only src/EasyLotteryWeb/src/interactions/obs/**.
-4. Integrate route table, AdminLayout navigation, API host exact fallbacks, Blazor legacy aliases, router and Playwright tests. Main agent owns shared integration files after interfaces are fixed.
-5. Run Dev Container verification, inspect diff/security/compatibility, record results, push branch and open a Ready-for-review PR. Do not merge, deploy or close Phase 4 #269.
+2. Implemented both authenticated management routes and REST helpers/tests in the issue worktree; retained the existing admin header and one-time code protocol.
+3. Implemented all four OBS modes and the SignalR lifecycle, including reconnect rejoin, refreshed snapshots, stale-token, missing-token and missing-round states.
+4. Integrated six routes, AdminLayout/Blazor navigation, exact API host fallbacks, all six /legacy aliases, router/Vitest coverage and focused Playwright cases.
+5. Vue tests/typecheck/build, interaction API/Hub/identity-link endpoint tests, strict OpenSpec and all three focused Playwright UI cases passed. Playwright covered direct Vue routes, admin REST, identity-link safe errors, legacy rollback alias, four OBS modes, lowercase vote counts, reconnect plus a post-rejoin event, and hidden notice state while paused. A real ego-browser check also exercised round creation/start, REST vote ingestion, live SignalR rendering, all four OBS modes, safe identity-code errors, invalid credentials and missing rounds. Native OBS validation remains user-owned. Delivery record, push and PR are in progress; do not merge or deploy.
 
-Tasks 2 and 3 use isolated worktrees and disjoint file paths. Shared route registration, host fallback, and Playwright integration remain serialized on the main issue branch.
+An isolated management-slice commit was reviewed but not cherry-picked because it overlapped the integrated implementation; the issue branch contains one canonical set of interaction views and clients.
 
 ## Validation plan
 
 - Vue: npm test, npm run typecheck, npm run build.
 - .NET: interaction-filtered EasyLottery API tests and any changed host tests.
-- Browser: focused Playwright for login gating, routes/refresh, REST actions/errors, identity-code errors, live/empty/error OBS states, and legacy aliases.
+- Browser: focused Playwright cases pass (3/3), covering login gating, Vue routes/refresh, REST actions/errors, safe identity-link errors and success, live/reconnect/rejoin/empty/error OBS states, reduced motion and legacy aliases. Native OBS remains user-owned.
 - Repo: openspec validate --all --strict; git diff --check; review token handling and reconnect behavior.
 - Native OBS: user-owned verification for supported resolutions, transparency, reload/reconnect and read-token failure; do not mark verified by Chromium.
 
 ## Scope and rollback
 
-No backend/domain/protocol, payment, production, or data changes. Rollback by restoring original Blazor route directives and removing Vue route/fallback entries; preserve all /legacy aliases until parity and the user's OBS validation gate are satisfied.
+No Domain/protocol, payment, production, or data changes. The identity-link endpoint now binds the existing JSON `{ code }` body already sent by the Blazor client, rather than changing the request contract or placing the code in a URL. Rollback by restoring original Blazor route directives and removing Vue route/fallback entries; preserve all /legacy aliases until parity and the user's OBS validation gate are satisfied.
