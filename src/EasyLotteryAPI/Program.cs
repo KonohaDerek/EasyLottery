@@ -236,6 +236,7 @@ app.MapFallbackToFile("/donate-activities", "vue/index.html");
 app.MapFallbackToFile("/roulette", "vue/index.html");
 app.MapFallbackToFile("/roulette/preview/{id}", "vue/index.html");
 app.MapFallbackToFile("/obs/roulette/{publicId:guid}", "vue/index.html");
+app.MapFallbackToFile("/obs/pokebox/{publicId:guid}", "vue/index.html");
 app.MapFallbackToFile("/pokebox", "vue/index.html");
 app.MapFallbackToFile("/pokebox/preview/{id}", "vue/index.html");
 
