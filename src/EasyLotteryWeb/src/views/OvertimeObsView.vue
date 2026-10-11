@@ -1,16 +1,17 @@
 <script setup lang="ts">
-import { HubConnectionBuilder, HubConnectionState, type HubConnection } from "@microsoft/signalr";
+import { HubConnectionBuilder, type HubConnection } from "@microsoft/signalr";
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 import { ApiError } from "../api/client";
-import { appendOvertimeEvent, readOvertimeFeed, readOvertimeSettings, saveOvertimeSettings, type OvertimeOverlaySettings, type OvertimeSupportEvent } from "../overtime/api";
-import { calculateProgressPercent, extendEndForPause, getDisplaySessionState, getRewardSummary, isEventVisible, OvertimeSessionRevision, remainingTimeText } from "../overtime/overlay";
+import { appendOvertimeEvent, readOvertimeFeed, readOvertimeSettings, saveOvertimeSettings, type OvertimeOverlaySettings, type OvertimeSettingsUpdate, type OvertimeSupportEvent } from "../overtime/api";
+import { calculateProgressPercent, extendEndForPause, getDisplaySessionState, getRewardSummary, isEventVisible, remainingTimeText } from "../overtime/overlay";
 import { readObsSessionToken } from "../obs/session-token";
-import { createOvertimeHubLifecycleCallbacks } from "../overtime/realtime";
+import { createCoalescedRefresh, createOvertimeHubLifecycleCallbacks } from "../overtime/realtime";
 import "../overtime/overtime.css";
 
 const route = useRoute();
 const controlsEnabled = computed(() => route.query.controls === "1");
+const motionReduced = computed(() => route.query.motion === "reduce");
 const loading = ref(true);
 const busy = ref(false);
 const settings = ref<OvertimeOverlaySettings | null>(null);
@@ -19,18 +20,20 @@ const error = ref("");
 const connectionStatus = ref("連線中…");
 const clock = ref(new Date());
 const fireworksStartedAt = ref<number | null>(null);
-const snapshotRevision = new OvertimeSessionRevision();
 let connection: HubConnection | null = null;
 let timer: number | undefined;
 let ticksSinceRefresh = 0;
 let completionSaveAttempted = false;
 
-const state = computed(() => getDisplaySessionState(settings.value ?? {}, clock.value));
 const plannedEndMarker = computed(() => events.value.find(event => event.source === 3 && event.sourceLabel?.toLocaleLowerCase() === "預計關台時間"));
 const sessionEndAtUtc = computed(() => settings.value?.plannedEndAtUtc
   ?? events.value.find(event => event.sessionEndAtUtc)?.sessionEndAtUtc
   ?? plannedEndMarker.value?.sessionEndAtUtc
   ?? null);
+const state = computed(() => getDisplaySessionState({
+  ...(settings.value ?? {}),
+  plannedEndAtUtc: sessionEndAtUtc.value
+}, clock.value));
 const plannedEndForStart = computed(() => plannedEndMarker.value?.sessionEndAtUtc ?? settings.value?.plannedEndAtUtc ?? null);
 const sessionClock = computed(() => state.value === "paused" && settings.value?.pausedAtUtc
   ? new Date(settings.value.pausedAtUtc)
@@ -61,13 +64,7 @@ watch(state, (next, previous) => {
   if (previous === "running" && next === "completed") {
     if (settings.value?.enableCompletionFireworks !== false) fireworksStartedAt.value = clock.value.getTime();
   }
-  if (next === "completed" && controlsEnabled.value && settings.value?.sessionState === "running" && !completionSaveAttempted) {
-    completionSaveAttempted = true;
-    void completeExpiredSession();
-  }
-  if (next !== "completed") {
-    completionSaveAttempted = false;
-  }
+  maybeCompleteExpiredSession();
 });
 
 function safeError(cause: unknown): string {
@@ -76,19 +73,31 @@ function safeError(cause: unknown): string {
   return cause instanceof Error ? cause.message : "加班台 OBS 操作失敗。";
 }
 
-async function refreshSnapshot(): Promise<void> {
-  const revision = snapshotRevision.begin();
+async function loadSnapshot(): Promise<void> {
   try {
     const [nextSettings, nextEvents] = await Promise.all([readOvertimeSettings(), readOvertimeFeed()]);
-    if (!snapshotRevision.isCurrent(revision)) return;
     settings.value = nextSettings;
     events.value = nextEvents;
     error.value = "";
+    maybeCompleteExpiredSession();
   } catch (cause) {
-    if (snapshotRevision.isCurrent(revision)) error.value = safeError(cause);
+    error.value = safeError(cause);
   } finally {
-    if (snapshotRevision.isCurrent(revision)) loading.value = false;
+    loading.value = false;
   }
+}
+
+const refreshSnapshot = createCoalescedRefresh(loadSnapshot);
+
+function maybeCompleteExpiredSession(): void {
+  if (state.value === "completed" && controlsEnabled.value && settings.value?.sessionState === "running") {
+    if (!completionSaveAttempted) {
+      completionSaveAttempted = true;
+      void completeExpiredSession();
+    }
+    return;
+  }
+  completionSaveAttempted = false;
 }
 
 async function joinAndRefresh(hub: HubConnection, token: string): Promise<void> {
@@ -130,10 +139,11 @@ async function startRealtime(): Promise<void> {
   }
 }
 
-async function persistSettings(next: OvertimeOverlaySettings): Promise<void> {
+async function persistSettings(update: OvertimeSettingsUpdate): Promise<boolean> {
   error.value = "";
-  await saveOvertimeSettings(next);
+  const saved = await saveOvertimeSettings(update);
   await refreshSnapshot();
+  return saved;
 }
 
 async function runAction(action: () => Promise<void>): Promise<void> {
@@ -166,41 +176,61 @@ function makeManualEvent(sourceLabel: string, message: string, sessionEndAtUtc: 
 }
 
 async function startCountdown(): Promise<void> {
-  if (!settings.value || !canStart.value || !plannedEndForStart.value) return;
+  if (!settings.value || !canStart.value) return;
   const now = new Date().toISOString();
-  const plannedEnd = plannedEndForStart.value;
-  await persistSettings({
-    ...settings.value,
-    streamStartedAtUtc: now,
-    plannedEndAtUtc: plannedEnd,
-    pausedAtUtc: null,
-    completedAtUtc: null,
-    sessionState: "running"
+  let plannedEnd: string | null = null;
+  const saved = await persistSettings(current => {
+    plannedEnd = plannedEndMarker.value?.sessionEndAtUtc ?? current.plannedEndAtUtc ?? null;
+    if (current.sessionState === "running" || current.sessionState === "paused"
+      || !plannedEnd || !Number.isFinite(Date.parse(plannedEnd)) || Date.parse(plannedEnd) <= Date.now()) {
+      throw new Error("加班台設定已更新或加班時間已過期，請重新整理後再試。");
+    }
+    return {
+      streamStartedAtUtc: now,
+      plannedEndAtUtc: plannedEnd,
+      pausedAtUtc: null,
+      completedAtUtc: null,
+      sessionState: "running"
+    };
   });
+  if (!saved || !plannedEnd) return;
   await appendOvertimeEvent(makeManualEvent("加班開始", "加班台已開始。", plannedEnd));
   await refreshSnapshot();
 }
 
 async function pauseCountdown(): Promise<void> {
   if (!settings.value || state.value !== "running") return;
-  await persistSettings({ ...settings.value, pausedAtUtc: new Date().toISOString(), sessionState: "paused" });
+  await persistSettings(current => {
+    const endAtUtc = current.plannedEndAtUtc ?? sessionEndAtUtc.value;
+    if (current.sessionState?.toLowerCase() !== "running"
+      || !endAtUtc || !Number.isFinite(Date.parse(endAtUtc)) || Date.parse(endAtUtc) <= Date.now()) return null;
+    return { pausedAtUtc: new Date().toISOString(), sessionState: "paused" };
+  });
 }
 
 async function resumeCountdown(): Promise<void> {
   if (!settings.value || state.value !== "paused") return;
   const now = new Date().toISOString();
-  await persistSettings({
-    ...settings.value,
-    plannedEndAtUtc: extendEndForPause(sessionEndAtUtc.value, settings.value.pausedAtUtc, now) ?? settings.value.plannedEndAtUtc,
-    pausedAtUtc: null,
-    sessionState: "running"
+  await persistSettings(current => {
+    if (current.sessionState?.toLowerCase() !== "paused") return null;
+    const endAtUtc = current.plannedEndAtUtc ?? sessionEndAtUtc.value;
+    return {
+      plannedEndAtUtc: extendEndForPause(endAtUtc, current.pausedAtUtc, now) ?? current.plannedEndAtUtc,
+      pausedAtUtc: null,
+      sessionState: "running"
+    };
   });
 }
 
 async function stopCountdown(): Promise<void> {
   if (!settings.value) return;
-  await persistSettings({ ...settings.value, pausedAtUtc: null, sessionState: "ended" });
-  await appendOvertimeEvent(makeManualEvent("加班停止", "加班台已停止。", sessionEndAtUtc.value));
+  const expectedState = settings.value.sessionState;
+  const endAtUtc = sessionEndAtUtc.value;
+  const saved = await persistSettings(current => current.sessionState === expectedState
+    ? { pausedAtUtc: null, sessionState: "ended" }
+    : null);
+  if (!saved) return;
+  await appendOvertimeEvent(makeManualEvent("加班停止", "加班台已停止。", endAtUtc));
   await refreshSnapshot();
 }
 
@@ -214,7 +244,7 @@ async function sendTestNotification(): Promise<void> {
     displayName: "測試贊助者",
     message: "加班台 OBS 測試通知",
     amount,
-    amountDisplay: "NT$100",
+    amountDisplay: `NT$${amount.toLocaleString("zh-TW", { maximumFractionDigits: 2 })}`,
     currency: "TWD",
     externalId: `obs-overtime-test:${crypto.randomUUID()}`,
     occurredAtUtc: new Date().toISOString()
@@ -225,8 +255,15 @@ async function sendTestNotification(): Promise<void> {
 async function completeExpiredSession(): Promise<void> {
   if (!settings.value) return;
   try {
-    await persistSettings({ ...settings.value, sessionState: "completed", completedAtUtc: new Date().toISOString() });
+    const completedAtUtc = new Date().toISOString();
+    await persistSettings(current => {
+      const endAtUtc = current.plannedEndAtUtc ?? sessionEndAtUtc.value;
+      const end = endAtUtc ? Date.parse(endAtUtc) : Number.NaN;
+      if (current.sessionState?.toLowerCase() !== "running" || !Number.isFinite(end) || end > Date.now()) return null;
+      return { sessionState: "completed", completedAtUtc };
+    });
   } catch (cause) {
+    completionSaveAttempted = false;
     error.value = safeError(cause);
   }
 }
@@ -268,12 +305,10 @@ onMounted(async () => {
   await startRealtime();
   timer = window.setInterval(() => {
     clock.value = new Date();
-    if (connection?.state !== HubConnectionState.Connected) {
-      ticksSinceRefresh += 1;
-      if (ticksSinceRefresh >= 3) {
-        ticksSinceRefresh = 0;
-        void refreshSnapshot();
-      }
+    ticksSinceRefresh += 1;
+    if (ticksSinceRefresh >= 5) {
+      ticksSinceRefresh = 0;
+      void refreshSnapshot();
     }
   }, 1000);
 });
@@ -286,7 +321,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <main v-if="!loading && (state !== 'idle' && state !== 'ended' || controlsEnabled)" class="overtime-overlay" aria-label="加班台 OBS">
+  <main v-if="!loading && (state !== 'idle' && state !== 'ended' || controlsEnabled)" class="overtime-overlay" :class="{ 'obs-motion-reduced': motionReduced }" aria-label="加班台 OBS">
     <div class="overtime-shell">
       <div v-if="controlsEnabled" class="overtime-obs-controls">
         <div class="overtime-control-status" role="status">{{ connectionStatus }}</div>

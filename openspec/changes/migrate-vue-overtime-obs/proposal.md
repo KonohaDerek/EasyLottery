@@ -17,7 +17,9 @@ Phase 4（#269）的 Roulette 與 PokeBox OBS 頁已切換至 Vue，但 /obs/ove
 - Vue OBS route/view、精確 API host fallback、Blazor legacy alias。
 - URL fragment token bootstrap 與清理；讀取 overtime settings projection 和 feed；以既有相容 settings endpoint 保存控制狀態。
 - SignalR 初始加入、事件後重新讀取 server state/feed，以及重連後重新加入並同步。
+- 管理頁不發布 hub event 時仍以低頻 polling 同步，並以單次快照載入/合併重讀避免請求競態；控制寫入只 patch 最新 projection。
 - Countdown、progress、開始/暫停/繼續/結束、測試通知、support event 顯示、主題/動畫與透明背景。
+- 保留 `motion=reduce` OBS query，並以 settings 或 feed marker 的有效結束時間完成到期狀態。
 - Vitest、Playwright、相關 .NET tests、OpenSpec strict 與驗證紀錄。
 
 ## 非目標

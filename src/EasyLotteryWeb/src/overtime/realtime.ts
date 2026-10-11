@@ -4,6 +4,24 @@ export interface OvertimeHubLifecycleCallbacks {
   onclose(): void;
 }
 
+export function createCoalescedRefresh(refresh: () => Promise<void>): () => Promise<void> {
+  let inFlight: Promise<void> | null = null;
+  let refreshQueued = false;
+  return () => {
+    if (inFlight) {
+      refreshQueued = true;
+      return inFlight;
+    }
+    inFlight = (async () => {
+      do {
+        refreshQueued = false;
+        await refresh();
+      } while (refreshQueued);
+    })().finally(() => { inFlight = null; });
+    return inFlight;
+  };
+}
+
 export function createOvertimeHubLifecycleCallbacks(
   invoke: (method: string, token: string) => Promise<unknown>,
   token: string,

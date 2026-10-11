@@ -264,6 +264,15 @@
 .animation-fade-in { animation: overtime-fade-in 0.45s ease-out both; }
 .animation-pop-in { animation: overtime-pop-in 0.35s ease-out both; }
 
+.overtime-overlay.obs-motion-reduced *,
+.overtime-overlay.obs-motion-reduced::before,
+.overtime-overlay.obs-motion-reduced::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  scroll-behavior: auto !important;
+  transition-duration: 0.01ms !important;
+}
+
 @keyframes overtime-slide-in {
   from { opacity: 0; transform: translateY(24px); }
   to { opacity: 1; transform: translateY(0); }

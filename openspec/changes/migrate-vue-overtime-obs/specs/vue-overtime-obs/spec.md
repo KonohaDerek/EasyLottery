@@ -20,6 +20,18 @@
 - **WHEN** overtime hub 發出 OvertimeStateChanged/OvertimeFeedChanged，或連線重新建立
 - **THEN** Vue 重新取得權威 settings/feed；重連後重新 Join(token)，較舊的請求結果不覆蓋較新的狀態
 
+#### Scenario: 管理設定更新與慢速讀取
+- **WHEN** 管理頁更新 settings 但沒有 hub event，或快照讀取慢於輪詢間隔
+- **THEN** overlay 仍會在低頻同步最新資料，並序列化讀取、合併過程中的刷新要求，不丟棄所有成功快照
+
+#### Scenario: 到期完成與重試
+- **WHEN** running session 的有效結束時間來自 settings 或 feed marker，且完成狀態寫入暫時失敗
+- **THEN** overlay 顯示到期狀態並於後續輪詢重試；寫入前重新確認 server session 仍 running 且時間已到
+
+#### Scenario: 降低動態效果
+- **WHEN** Browser Source URL 包含 `motion=reduce`
+- **THEN** 通知、進度轉場與完成動畫使用近乎即時的動畫時長，並保留透明背景
+
 #### Scenario: 保留回退路徑
 - **WHEN** 操作者使用 /legacy/obs/overtime
 - **THEN** 原 Blazor overtime OBS page 仍可載入作為 Vue 切片回復入口

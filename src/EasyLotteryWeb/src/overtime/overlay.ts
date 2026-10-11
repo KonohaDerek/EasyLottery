@@ -88,16 +88,3 @@ export function getRewardSummary(rules: OvertimeRewardRule[] | undefined, amount
     : hours > 0 ? `${hours} 小時` : `${minutes} 分鐘`;
   return `加班 +${duration}`;
 }
-
-export class OvertimeSessionRevision {
-  private revision = 0;
-
-  begin(): number {
-    this.revision += 1;
-    return this.revision;
-  }
-
-  isCurrent(revision: number): boolean {
-    return revision === this.revision;
-  }
-}

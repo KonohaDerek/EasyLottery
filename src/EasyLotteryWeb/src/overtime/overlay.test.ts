@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  OvertimeSessionRevision,
   calculateProgressPercent,
   extendEndForPause,
   getDisplaySessionState,
@@ -52,13 +51,5 @@ describe("overtime OBS display helpers", () => {
       { isEnabled: true, amountThreshold: 300, addHours: 2, addMinutes: 15 }
     ], 400)).toBe("加班 +2 小時 15 分鐘");
     expect(getRewardSummary([], null)).toBe("");
-  });
-
-  it("rejects an older settings/feed snapshot after a newer request begins", () => {
-    const revision = new OvertimeSessionRevision();
-    const oldRequest = revision.begin();
-    const newRequest = revision.begin();
-    expect(revision.isCurrent(newRequest)).toBe(true);
-    expect(revision.isCurrent(oldRequest)).toBe(false);
   });
 });

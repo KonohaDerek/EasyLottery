@@ -21,17 +21,17 @@ describe("overtime OBS API adapter", () => {
     expect((fetchMock.mock.calls[0][1]?.headers as Headers).get("X-EasyLottery-Session-Token")).toBe("obs-read-token");
   });
 
-  it("updates only OvertimeOverlay in the projection and preserves sibling fields", async () => {
+  it("merges a settings patch into the latest projection instead of replacing newer fields", async () => {
     setSessionTokenFallback("obs-control-token");
     const fetchMock = vi.fn()
-      .mockResolvedValueOnce(new Response("configVersion: 1\nobsLayout:\n  activeLayoutKey: stage-spotlight\novertimeOverlay:\n  sessionState: idle\n", {
+      .mockResolvedValueOnce(new Response("configVersion: 1\nobsLayout:\n  activeLayoutKey: stage-spotlight\novertimeOverlay:\n  sessionState: idle\n  plannedEndAtUtc: '2026-10-11T15:00:00Z'\n  showAmounts: true\n", {
         status: 200,
         headers: { "content-type": "text/yaml", etag: 'W/"settings-1"' }
       }))
       .mockResolvedValueOnce(new Response(null, { status: 204 }));
     vi.stubGlobal("fetch", fetchMock);
 
-    await saveOvertimeSettings({ sessionState: "running", plannedEndAtUtc: "2026-10-11T13:00:00Z" });
+    await saveOvertimeSettings({ sessionState: "paused", pausedAtUtc: "2026-10-11T12:30:00Z" });
 
     const [url, request] = fetchMock.mock.calls[1];
     expect(url).toBe("/settings");
@@ -41,7 +41,9 @@ describe("overtime OBS API adapter", () => {
     expect(headers.get("If-Match")).toBe('W/"settings-1"');
     expect(headers.get("Content-Type")).toContain("yaml");
     expect(request.body).toContain("activeLayoutKey: stage-spotlight");
-    expect(request.body).toContain("sessionState: running");
+    expect(request.body).toContain("sessionState: paused");
+    expect(request.body).toContain("plannedEndAtUtc: 2026-10-11T15:00:00Z");
+    expect(request.body).toContain("showAmounts: true");
   });
 
   it("allows scoped OBS writes when the projection has no ETag", async () => {
@@ -54,6 +56,19 @@ describe("overtime OBS API adapter", () => {
     await saveOvertimeSettings({ sessionState: "running" });
 
     expect(new Headers(fetchMock.mock.calls[1][1]?.headers).has("If-Match")).toBe(false);
+  });
+
+  it("does not issue a write when a server-state guard rejects a stale action", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response("overtimeOverlay:\n  sessionState: completed\n", {
+      status: 200,
+      headers: { "content-type": "text/yaml" }
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(saveOvertimeSettings(current => current.sessionState === "running"
+      ? { sessionState: "paused" }
+      : null)).resolves.toBe(false);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it("appends a normalized feed item and keeps the newest 30 events", async () => {

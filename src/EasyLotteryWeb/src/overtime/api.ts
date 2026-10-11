@@ -49,6 +49,9 @@ type OvertimeConfigProjection = Record<string, unknown> & {
   overtimeOverlay?: OvertimeOverlaySettings;
 };
 
+export type OvertimeSettingsUpdate = Partial<OvertimeOverlaySettings>
+  | ((current: OvertimeOverlaySettings) => Partial<OvertimeOverlaySettings> | null);
+
 const MaxEvents = 30;
 
 function readProjection(yaml: string): OvertimeConfigProjection {
@@ -68,15 +71,20 @@ export async function readOvertimeSettings(): Promise<OvertimeOverlaySettings> {
   return projection.overtimeOverlay;
 }
 
-export async function saveOvertimeSettings(settings: OvertimeOverlaySettings): Promise<void> {
+export async function saveOvertimeSettings(update: OvertimeSettingsUpdate): Promise<boolean> {
   const { data, etag } = await apiText("/settings");
   const projection = readProjection(data);
-  projection.overtimeOverlay = settings;
+  const current = projection.overtimeOverlay;
+  if (!current || typeof current !== "object") throw new Error("加班台 OBS 設定不存在。");
+  const patch = typeof update === "function" ? update(current) : update;
+  if (patch === null) return false;
+  projection.overtimeOverlay = { ...current, ...patch };
   await apiText("/settings", {
     method: "PUT",
     headers: etag ? { "If-Match": etag } : undefined,
     body: stringify(projection)
   });
+  return true;
 }
 
 export async function readOvertimeFeed(): Promise<OvertimeSupportEvent[]> {
