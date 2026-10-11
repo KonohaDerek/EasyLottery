@@ -332,18 +332,25 @@ test("加班台 OBS shares controls, feed notifications, and transparent renderi
         completedAtUtc: null,
         sessionState: "running",
         enableCompletionFireworks: true,
+        completionFireworksDurationSeconds: 15,
         completionFireworksGifUrl: reducedMotionGif
       }, gifSettings.etag);
       await readonlyControl.goto(`${baseURL}/obs/overtime?motion=reduce#sessionToken=${encodeURIComponent(readToken)}`);
       await expect(readonlyControl).toHaveURL(`${baseURL}/obs/overtime?motion=reduce`);
+      const reducedMotionRemaining = async () => {
+        const text = await readonlyControl.locator(".overtime-remaining-time").textContent();
+        const parts = (text ?? "").split(":").map(Number);
+        return parts.length === 3 && parts.every(Number.isFinite) ? parts[0] * 3600 + parts[1] * 60 + parts[2] : 0;
+      };
+      await expect.poll(reducedMotionRemaining, { timeout: 10_000 }).toBeGreaterThan(1_800);
       const runningGifSettings = await readSettings(request, adminToken);
       await saveSettings(request, adminToken, {
         ...runningGifSettings.value,
         plannedEndAtUtc: new Date(Date.now() - 1_000).toISOString(),
         sessionState: "running"
       }, runningGifSettings.etag);
-      await expect.poll(() => readonlyControl.locator(".overtime-remaining-time").textContent()).toBe("00:00:00");
-      await expect(readonlyControl.locator(".overtime-fireworks")).toHaveCount(0);
+      await expect.poll(reducedMotionRemaining, { timeout: 10_000 }).toBe(0);
+      await expect(readonlyControl.locator(".overtime-fireworks")).toHaveCount(0, { timeout: 500 });
       const reducedMotionFill = readonlyControl.locator(".overtime-overlay.obs-motion-reduced .overtime-progress-fill");
       await expect(reducedMotionFill).toBeVisible();
       expect(parseFloat(await reducedMotionFill.evaluate(element => getComputedStyle(element).transitionDuration))).toBeLessThan(0.001);
