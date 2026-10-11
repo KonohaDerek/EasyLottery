@@ -38,10 +38,9 @@ describe("admin route guard", () => {
 });
 
 describe("OBS overlay routes", () => {
-  it("registers the roulette overlay without the admin guard or public shell", () => {
-    expect(obsRoutes).toHaveLength(1);
-    expect(obsRoutes[0].path).toBe("/obs/roulette/:publicId");
-    expect(obsRoutes[0].meta?.obs).toBe(true);
-    expect(obsRoutes[0].meta?.requiresAuth).not.toBe(true);
+  it("registers the overlays without the admin guard or public shell", () => {
+    expect(obsRoutes).toHaveLength(2);
+    expect(obsRoutes.map(route => route.path)).toEqual(["/obs/roulette/:publicId", "/obs/pokebox/:publicId"]);
+    expect(obsRoutes.every(route => route.meta?.obs === true && route.meta?.requiresAuth !== true)).toBe(true);
   });
 });

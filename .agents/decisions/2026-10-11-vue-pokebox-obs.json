@@ -1,0 +1,29 @@
+{
+  "taskId": "vue-pokebox-obs-2026-10-11",
+  "source": ["GitHub issue #282", "GitHub issue #269", "GitHub issue #252", "merged PR #281"],
+  "complexity": "medium",
+  "routing": {
+    "method": "manual_fallback",
+    "reason": "TYPESAFE_API_KEY is absent; use repository-local incremental workflow.",
+    "main": "primary agent",
+    "subagent": {
+      "name": "Goodall",
+      "model": "gpt-6-luna",
+      "reasoningEffort": "high",
+      "scope": "read-only PokeBox OBS and REST/SignalR contract inventory",
+      "result": "completed; no file changes"
+    }
+  },
+  "parallelism": "One read-only contract investigation was independent of implementation; implementation remains a single isolated worktree and branch.",
+  "risk": "medium: token scope/URL leakage and realtime state recovery; backend contracts remain unchanged.",
+  "verification": [
+    "Vue unit tests",
+    "Vue typecheck and production build",
+    "PokeBox OBS Playwright scenarios with separate control/OBS clients",
+    ".NET 10 Release build and tests",
+    "OpenSpec strict validation",
+    "git diff --check and second-round requirement review"
+  ],
+  "humanApproval": "No additional approval required for this authorized code/issue/Ready-PR workflow; no production cutover or destructive action.",
+  "board": "GitHub Project #1 was updated through the logged-in browser: issue #282 moved from Backlog to In progress; keep #269 and #252 In progress; move #282 to In review after PR creation."
+}
