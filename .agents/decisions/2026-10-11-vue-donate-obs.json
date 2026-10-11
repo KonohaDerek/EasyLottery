@@ -1,0 +1,30 @@
+{
+  "task_id": "vue-donate-obs-2026-10-11",
+  "issue": 286,
+  "date": "2026-10-11",
+  "source": {
+    "provider": "TypeSafe",
+    "model": "jev-1.13.0",
+    "endpoint": "https://api.typesafe.ai/v1/systemone"
+  },
+  "state_summary": "Bounded Vue migration of the Donate OBS browser-source route, preserving existing OBS-scoped REST/session behavior and Blazor rollback. No payment, backend, deployment, merge, or production changes; user authorized continuation and a Ready-for-review PR.",
+  "answers": {
+    "complexity": {
+      "type": "choice",
+      "value": "balanced",
+      "confidence": 1.0,
+      "probabilities": { "fast": 0.0, "balanced": 1.0, "strong": 0.0, "long": 0.0 }
+    },
+    "parallel_safe": { "type": "noul", "probability": 0.3 },
+    "elevated_risk": { "type": "noul", "probability": 0.77 },
+    "browser_e2e_required": { "type": "noul", "probability": 0.95 },
+    "needs_additional_authorization": { "type": "noul", "probability": 0.08 }
+  },
+  "agent_decisions": {
+    "execution": "Main agent owns the coupled route, session, reveal lifecycle, and tests; no parallel implementation.",
+    "verification": ["Vitest", "Vue typecheck and production build", "focused Playwright", "relevant .NET tests", "strict OpenSpec validation", "diff review"],
+    "authorization": "Continue within the user-approved Vue migration; create/sync issue and board, push branch, and open a Ready-for-review PR. Do not merge, deploy, or alter payment/backend behavior.",
+    "route_advisor": "This continues the already-approved migration plan; no new dispatch plan was created."
+  },
+  "usage": { "input_tokens": 986, "output_tokens": 128 }
+}
