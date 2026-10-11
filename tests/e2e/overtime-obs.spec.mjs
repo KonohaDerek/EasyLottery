@@ -196,8 +196,13 @@ test("加班台 OBS shares controls, feed notifications, and transparent renderi
 
       await control.getByRole("button", { name: "結束加班" }).click();
       await expect(formal.locator(".overtime-overlay")).toHaveCount(0, { timeout: 10_000 });
+      await control.close();
+      const raceControl = await controlContext.newPage();
 
       const endedSettings = await readSettings(request, adminToken);
+      const futureFeedEnd = new Date(Date.now() + 3_600_000).toISOString();
+      const expiredFeedEnd = new Date(Date.now() - 1_000).toISOString();
+      await saveFeed(request, adminToken, [plannedEndEvent(futureFeedEnd)]);
       await saveSettings(request, adminToken, {
         ...endedSettings.value,
         streamStartedAtUtc: new Date(Date.now() - 60_000).toISOString(),
@@ -206,29 +211,78 @@ test("加班台 OBS shares controls, feed notifications, and transparent renderi
         completedAtUtc: null,
         sessionState: "running"
       }, endedSettings.etag);
-      await saveFeed(request, adminToken, [plannedEndEvent(new Date(Date.now() + 60_000).toISOString())]);
+      await raceControl.goto(obsUrl(baseURL, controlToken, true));
+      await expect(raceControl.getByRole("button", { name: "暫停加班" })).toBeVisible();
 
-      let feedReads = 0;
-      await control.route("**/api/overtime-feed", async route => {
+      let expiredSnapshotSeen = false;
+      let expiryPhase = false;
+      let expiredFeedReadStarted = false;
+      let freshFeedReadCompleted = false;
+      let noOpRefreshCompleted = false;
+      let freshFeedResponses = 0;
+      let serveFutureFeed = true;
+      let completionWrites = 0;
+      await raceControl.route("**/settings", async route => {
+        const body = route.request().postData() ?? "";
+        if (route.request().method() === "PUT" && /sessionState:\s*completed/.test(body)) completionWrites += 1;
+        await route.continue();
+      });
+      await raceControl.route("**/api/overtime-feed", async route => {
         if (route.request().method() === "GET") {
-          feedReads += 1;
-          if (feedReads === 2) {
-            await saveFeed(request, adminToken, [plannedEndEvent(new Date(Date.now() + 60_000).toISOString())]);
+          if (expiryPhase && !expiredFeedReadStarted) {
+            expiredFeedReadStarted = true;
+            const responsePromise = route.request().response();
+            await route.continue();
+            const response = await responsePromise;
+            if (response?.ok()) {
+              const events = await response.json();
+              expiredSnapshotSeen = events.some(event => {
+                const endAtUtc = event.sessionEndAtUtc ?? event.SessionEndAtUtc;
+                return typeof endAtUtc === "string" && Date.parse(endAtUtc) <= Date.now();
+              });
+            }
+            return;
           }
+          if (expiryPhase && serveFutureFeed) {
+            await route.fulfill({
+              status: 200,
+              contentType: "application/json",
+              body: JSON.stringify([plannedEndEvent(futureFeedEnd)])
+            });
+            freshFeedResponses += 1;
+            freshFeedReadCompleted = true;
+            if (freshFeedResponses >= 2) noOpRefreshCompleted = true;
+            return;
+          }
+          await route.continue();
+          return;
         }
         await route.continue();
       });
-      await saveFeed(request, adminToken, [plannedEndEvent(new Date(Date.now() - 1_000).toISOString())]);
-      await expect.poll(() => feedReads, { timeout: 10_000 }).toBeGreaterThanOrEqual(2);
+      // Let one expired snapshot reach the page, then keep the guard and no-op refresh fresh until retry.
+      expiryPhase = true;
+      await saveFeed(request, adminToken, [plannedEndEvent(expiredFeedEnd)]);
+      await expect.poll(() => expiredSnapshotSeen, { timeout: 10_000 }).toBeTruthy();
+      await expect.poll(() => freshFeedReadCompleted, { timeout: 10_000 }).toBeTruthy();
+      await expect.poll(() => noOpRefreshCompleted, { timeout: 10_000 }).toBeTruthy();
+      const remainingSeconds = async () => {
+        const parts = (await raceControl.locator(".overtime-remaining-time").textContent()).split(":").map(Number);
+        return parts[0] * 3600 + parts[1] * 60 + parts[2];
+      };
+      await expect.poll(remainingSeconds, { timeout: 10_000 }).toBeGreaterThan(1_800);
       await expect.poll(async () => (await readSettings(request, adminToken)).value.sessionState).toBe("running");
-      await saveFeed(request, adminToken, [plannedEndEvent(new Date(Date.now() - 1_000).toISOString())]);
+      expect(completionWrites).toBe(0);
+      serveFutureFeed = false;
+      await saveFeed(request, adminToken, [plannedEndEvent(expiredFeedEnd)]);
       await expect.poll(async () => (await readSettings(request, adminToken)).value.sessionState).toBe("completed");
-      await control.unroute("**/api/overtime-feed");
+      await expect.poll(() => completionWrites).toBe(1);
+      await raceControl.unroute("**/api/overtime-feed");
+      await raceControl.unroute("**/settings");
 
       let releaseCompletionWrite;
       let completionWriteSeen = false;
       const completionWriteGate = new Promise(resolve => { releaseCompletionWrite = resolve; });
-      await control.route("**/settings", async route => {
+      await raceControl.route("**/settings", async route => {
         const body = route.request().postData() ?? "";
         if (route.request().method() === "PUT" && /sessionState:\s*completed/.test(body) && !completionWriteSeen) {
           completionWriteSeen = true;
@@ -247,13 +301,13 @@ test("加班台 OBS shares controls, feed notifications, and transparent renderi
           sessionState: "running"
         }, completed.etag);
         await expect.poll(() => completionWriteSeen, { timeout: 10_000 }).toBeTruthy();
-        await control.getByRole("button", { name: "結束加班" }).click();
-        await expect(control.getByRole("button", { name: "測試贊助通知" })).toBeDisabled();
+        await raceControl.getByRole("button", { name: "結束加班" }).click();
+        await expect(raceControl.getByRole("button", { name: "測試贊助通知" })).toBeDisabled();
       } finally {
         releaseCompletionWrite();
       }
       await expect.poll(async () => (await readSettings(request, adminToken)).value.sessionState).toBe("ended");
-      await control.unroute("**/settings");
+      await raceControl.unroute("**/settings");
 
       await readonlyControl.goto(`${baseURL}/obs/overtime?controls=1&motion=reduce#sessionToken=${encodeURIComponent(readToken)}`);
       await expect(readonlyControl).toHaveURL(`${baseURL}/obs/overtime?controls=1&motion=reduce`);
