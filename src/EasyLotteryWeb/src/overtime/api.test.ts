@@ -26,7 +26,7 @@ describe("overtime OBS API adapter", () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(new Response("configVersion: 1\nobsLayout:\n  activeLayoutKey: stage-spotlight\novertimeOverlay:\n  sessionState: idle\n", {
         status: 200,
-        headers: { "content-type": "text/yaml" }
+        headers: { "content-type": "text/yaml", etag: 'W/"settings-1"' }
       }))
       .mockResolvedValueOnce(new Response(null, { status: 204 }));
     vi.stubGlobal("fetch", fetchMock);
@@ -38,9 +38,22 @@ describe("overtime OBS API adapter", () => {
     expect(request.method).toBe("PUT");
     const headers = new Headers(request.headers);
     expect(headers.get("X-EasyLottery-Session-Token")).toBe("obs-control-token");
+    expect(headers.get("If-Match")).toBe('W/"settings-1"');
     expect(headers.get("Content-Type")).toContain("yaml");
     expect(request.body).toContain("activeLayoutKey: stage-spotlight");
     expect(request.body).toContain("sessionState: running");
+  });
+
+  it("allows scoped OBS writes when the projection has no ETag", async () => {
+    setSessionTokenFallback("obs-control-token");
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response("overtimeOverlay:\n  sessionState: idle\n", { status: 200, headers: { "content-type": "text/yaml" } }))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await saveOvertimeSettings({ sessionState: "running" });
+
+    expect(new Headers(fetchMock.mock.calls[1][1]?.headers).has("If-Match")).toBe(false);
   });
 
   it("appends a normalized feed item and keeps the newest 30 events", async () => {

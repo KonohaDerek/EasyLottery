@@ -63,10 +63,14 @@ export async function readOvertimeSettings(): Promise<OvertimeOverlaySettings> {
 }
 
 export async function saveOvertimeSettings(settings: OvertimeOverlaySettings): Promise<void> {
-  const { data } = await apiText("/settings");
+  const { data, etag } = await apiText("/settings");
   const projection = readProjection(data);
   projection.overtimeOverlay = settings;
-  await apiText("/settings", { method: "PUT", body: stringify(projection) });
+  await apiText("/settings", {
+    method: "PUT",
+    headers: etag ? { "If-Match": etag } : undefined,
+    body: stringify(projection)
+  });
 }
 
 export async function readOvertimeFeed(): Promise<OvertimeSupportEvent[]> {
