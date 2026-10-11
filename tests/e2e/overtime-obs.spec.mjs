@@ -211,26 +211,33 @@ test("加班台 OBS shares controls, feed notifications, and transparent renderi
         completedAtUtc: null,
         sessionState: "running"
       }, endedSettings.etag);
-      await raceControl.goto(obsUrl(baseURL, controlToken, true));
-      await expect(raceControl.getByRole("button", { name: "暫停加班" })).toBeVisible();
-
       let expiredSnapshotSeen = false;
       let expiryPhase = false;
-      let expiredFeedReadStarted = false;
-      let freshFeedReadCompleted = false;
+      let expiredSnapshotServed = false;
+      let guardFeedReadCompleted = false;
       let noOpRefreshCompleted = false;
-      let freshFeedResponses = 0;
-      let serveFutureFeed = true;
+      let settingsReadsAfterGuard = 0;
+      let postGuardFeedReads = 0;
       let completionWrites = 0;
+      await raceControl.route("**/hubs/overtime/negotiate*", route => route.abort());
       await raceControl.route("**/settings", async route => {
         const body = route.request().postData() ?? "";
         if (route.request().method() === "PUT" && /sessionState:\s*completed/.test(body)) completionWrites += 1;
+        if (route.request().method() === "GET" && guardFeedReadCompleted) {
+          settingsReadsAfterGuard += 1;
+          const responsePromise = route.request().response();
+          await route.continue();
+          const response = await responsePromise;
+          await response?.finished();
+          if (settingsReadsAfterGuard >= 2 && postGuardFeedReads >= 1) noOpRefreshCompleted = true;
+          return;
+        }
         await route.continue();
       });
       await raceControl.route("**/api/overtime-feed", async route => {
-        if (route.request().method() === "GET") {
-          if (expiryPhase && !expiredFeedReadStarted) {
-            expiredFeedReadStarted = true;
+        if (route.request().method() === "GET" && expiryPhase) {
+          if (!expiredSnapshotServed) {
+            expiredSnapshotServed = true;
             const responsePromise = route.request().response();
             await route.continue();
             const response = await responsePromise;
@@ -243,41 +250,46 @@ test("加班台 OBS shares controls, feed notifications, and transparent renderi
             }
             return;
           }
-          if (expiryPhase && serveFutureFeed) {
+          if (!guardFeedReadCompleted) {
             await route.fulfill({
               status: 200,
               contentType: "application/json",
               body: JSON.stringify([plannedEndEvent(futureFeedEnd)])
             });
-            freshFeedResponses += 1;
-            freshFeedReadCompleted = true;
-            if (freshFeedResponses >= 2) noOpRefreshCompleted = true;
+            guardFeedReadCompleted = true;
             return;
           }
+          postGuardFeedReads += 1;
+          const responsePromise = route.request().response();
           await route.continue();
+          await responsePromise;
+          if (settingsReadsAfterGuard >= 2 && postGuardFeedReads >= 1) noOpRefreshCompleted = true;
           return;
         }
         await route.continue();
       });
-      // Let one expired snapshot reach the page, then keep the guard and no-op refresh fresh until retry.
+
+      await raceControl.goto(obsUrl(baseURL, controlToken, true));
+      await expect(raceControl.getByRole("button", { name: "暫停加班" })).toBeVisible();
       expiryPhase = true;
       await saveFeed(request, adminToken, [plannedEndEvent(expiredFeedEnd)]);
       await expect.poll(() => expiredSnapshotSeen, { timeout: 10_000 }).toBeTruthy();
-      await expect.poll(() => freshFeedReadCompleted, { timeout: 10_000 }).toBeTruthy();
+      await expect.poll(() => guardFeedReadCompleted, { timeout: 10_000 }).toBeTruthy();
       await expect.poll(() => noOpRefreshCompleted, { timeout: 10_000 }).toBeTruthy();
       const remainingSeconds = async () => {
         const parts = (await raceControl.locator(".overtime-remaining-time").textContent()).split(":").map(Number);
         return parts[0] * 3600 + parts[1] * 60 + parts[2];
       };
-      await expect.poll(remainingSeconds, { timeout: 10_000 }).toBeGreaterThan(1_800);
+      await expect.poll(remainingSeconds, { timeout: 10_000 }).toBe(0);
       await expect.poll(async () => (await readSettings(request, adminToken)).value.sessionState).toBe("running");
       expect(completionWrites).toBe(0);
-      serveFutureFeed = false;
-      await saveFeed(request, adminToken, [plannedEndEvent(expiredFeedEnd)]);
+      expect(settingsReadsAfterGuard).toBeGreaterThanOrEqual(2);
+      expect(postGuardFeedReads).toBeGreaterThanOrEqual(1);
+      await expect.poll(() => completionWrites, { timeout: 12_000 }).toBe(1);
       await expect.poll(async () => (await readSettings(request, adminToken)).value.sessionState).toBe("completed");
-      await expect.poll(() => completionWrites).toBe(1);
       await raceControl.unroute("**/api/overtime-feed");
       await raceControl.unroute("**/settings");
+      await raceControl.unroute("**/hubs/overtime/negotiate*");
 
       let releaseCompletionWrite;
       let completionWriteSeen = false;
@@ -308,9 +320,30 @@ test("加班台 OBS shares controls, feed notifications, and transparent renderi
       }
       await expect.poll(async () => (await readSettings(request, adminToken)).value.sessionState).toBe("ended");
       await raceControl.unroute("**/settings");
+      await raceControl.close();
 
-      await readonlyControl.goto(`${baseURL}/obs/overtime?controls=1&motion=reduce#sessionToken=${encodeURIComponent(readToken)}`);
-      await expect(readonlyControl).toHaveURL(`${baseURL}/obs/overtime?controls=1&motion=reduce`);
+      const gifSettings = await readSettings(request, adminToken);
+      const reducedMotionGif = "data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=";
+      await saveSettings(request, adminToken, {
+        ...gifSettings.value,
+        streamStartedAtUtc: new Date(Date.now() - 60_000).toISOString(),
+        plannedEndAtUtc: new Date(Date.now() + 3_600_000).toISOString(),
+        pausedAtUtc: null,
+        completedAtUtc: null,
+        sessionState: "running",
+        enableCompletionFireworks: true,
+        completionFireworksGifUrl: reducedMotionGif
+      }, gifSettings.etag);
+      await readonlyControl.goto(`${baseURL}/obs/overtime?motion=reduce#sessionToken=${encodeURIComponent(readToken)}`);
+      await expect(readonlyControl).toHaveURL(`${baseURL}/obs/overtime?motion=reduce`);
+      const runningGifSettings = await readSettings(request, adminToken);
+      await saveSettings(request, adminToken, {
+        ...runningGifSettings.value,
+        plannedEndAtUtc: new Date(Date.now() - 1_000).toISOString(),
+        sessionState: "running"
+      }, runningGifSettings.etag);
+      await expect.poll(() => readonlyControl.locator(".overtime-remaining-time").textContent()).toBe("00:00:00");
+      await expect(readonlyControl.locator(".overtime-fireworks")).toHaveCount(0);
       const reducedMotionFill = readonlyControl.locator(".overtime-overlay.obs-motion-reduced .overtime-progress-fill");
       await expect(reducedMotionFill).toBeVisible();
       expect(parseFloat(await reducedMotionFill.evaluate(element => getComputedStyle(element).transitionDuration))).toBeLessThan(0.001);

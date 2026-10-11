@@ -59,6 +59,7 @@ const messageAnimationClass = computed(() => {
 });
 const fireworksDuration = computed(() => Math.min(15, Math.max(2, settings.value?.completionFireworksDurationSeconds ?? 6)));
 const showFireworks = computed(() => settings.value?.enableCompletionFireworks !== false
+  && !motionReduced.value
   && fireworksStartedAt.value !== null
   && clock.value.getTime() - fireworksStartedAt.value < fireworksDuration.value * 1000);
 
