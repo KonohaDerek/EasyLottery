@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { useRouter } from "vue-router";
 import { useSessionStore } from "../stores/session";
+import { clearOvertimeToken } from "../lottery/api";
 
 const router = useRouter();
 const session = useSessionStore();
 
 const links = [
+  ["/", "抽獎工作區"],
   ["/donate-activities", "Donate 活動"],
   ["/activity-results", "活動結果"],
   ["/roulette", "轉盤模板"],
@@ -22,6 +24,7 @@ const links = [
 ] as const;
 
 function logout() {
+  clearOvertimeToken();
   session.clearToken();
   router.push("/login");
 }
@@ -29,8 +32,16 @@ function logout() {
 
 <template>
   <v-app-bar color="primary" class="admin-header">
+    <v-menu location="bottom start">
+      <template #activator="{ props }">
+        <v-btn v-bind="props" class="mobile-admin-menu" variant="text" aria-label="管理選單">選單</v-btn>
+      </template>
+      <v-list class="mobile-admin-menu-list" density="compact" nav>
+        <v-list-item v-for="[path, label] in links" :key="path" :to="path" :title="label" />
+      </v-list>
+    </v-menu>
     <v-app-bar-title>EasyLottery 管理設定</v-app-bar-title>
-    <v-btn variant="text" to="/about">回到公開頁</v-btn>
+    <v-btn class="admin-public-link" variant="text" to="/about">回到公開頁</v-btn>
     <v-btn variant="text" @click="logout">登出</v-btn>
   </v-app-bar>
 

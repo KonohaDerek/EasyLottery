@@ -49,9 +49,12 @@ function errorFromResponse(response: Response, payload: unknown): ApiError {
 }
 
 export async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
+  return apiRequestWithToken<T>(path, getSessionToken(), options);
+}
+
+export async function apiRequestWithToken<T>(path: string, token: string | null, options: RequestInit = {}): Promise<ApiResponse<T>> {
   const headers = new Headers(options.headers);
-  const value = getSessionToken();
-  if (value) headers.set("X-EasyLottery-Session-Token", value);
+  if (token) headers.set("X-EasyLottery-Session-Token", token);
   if (options.body && !headers.has("Content-Type") && !(options.body instanceof FormData)) {
     headers.set("Content-Type", "application/json");
   }

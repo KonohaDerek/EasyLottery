@@ -1,6 +1,7 @@
 import type { RouteRecordRaw } from "vue-router";
 import AboutView from "./views/AboutView.vue";
 import LoginView from "./views/LoginView.vue";
+import LotteryHomeView from "./views/LotteryHomeView.vue";
 import PrivacyPolicyView from "./views/PrivacyPolicyView.vue";
 import AdminAccessView from "./views/AdminAccessView.vue";
 import ActivityResultsView from "./views/ActivityResultsView.vue";
@@ -25,6 +26,7 @@ export const publicRoutes: RouteRecordRaw[] = [
 ];
 
 export const adminRoutes: RouteRecordRaw[] = [
+  { path: "/", component: LotteryHomeView, meta: { title: "抽獎工作區｜EasyLottery", requiresAuth: true } },
   { path: "/donate-activities", component: DonateActivitiesView, meta: { title: "Donate 活動｜EasyLottery", requiresAuth: true } },
   { path: "/activity-results", component: ActivityResultsView, meta: { title: "活動結果｜EasyLottery", requiresAuth: true } },
   { path: "/roulette", component: RouletteView, meta: { title: "轉盤模板｜EasyLottery", requiresAuth: true } },

@@ -80,6 +80,12 @@ public sealed class YamlSettingsSectionRepository : ISettingsSectionRepository
     public Task<SettingsSectionSnapshot<OvertimeOverlaySettings>> UpdateOvertimeAsync(OvertimeOverlaySettings value, string? expectedETag, CancellationToken cancellationToken = default) =>
         UpdateAsync((document, _) => document.OvertimeOverlay = value, expectedETag, document => document.OvertimeOverlay ?? new OvertimeOverlaySettings(), cancellationToken);
 
+    public Task<SettingsSectionSnapshot<DrawingRuleSettings>> ReadDrawingRulesAsync(CancellationToken cancellationToken = default) =>
+        ReadAsync(document => document.DrawingRules ?? new DrawingRuleSettings(), cancellationToken);
+
+    public Task<SettingsSectionSnapshot<DrawingRuleSettings>> UpdateDrawingRulesAsync(DrawingRuleSettings value, string? expectedETag, CancellationToken cancellationToken = default) =>
+        UpdateAsync((document, _) => document.DrawingRules = value, expectedETag, document => document.DrawingRules ?? new DrawingRuleSettings(), cancellationToken);
+
     private async Task<SettingsSectionSnapshot<T>> ReadAsync<T>(Func<SettingsYamlDocument, T> selector, CancellationToken cancellationToken)
     {
         await using var gate = await _storageGates.AcquireAsync(cancellationToken, _repository.StoragePath);

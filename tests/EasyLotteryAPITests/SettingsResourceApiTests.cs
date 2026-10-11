@@ -13,6 +13,195 @@ namespace EasyLotteryApiTests;
 public sealed class SettingsResourceApiTests
 {
     [TestMethod]
+    public async Task DrawingRules_AreProtectedAndUseOptimisticConcurrency()
+    {
+        await using var factory = CreateFactory();
+        using var anonymous = factory.CreateClient();
+        using var denied = await anonymous.GetAsync("/api/settings/drawing-rules");
+        Assert.AreEqual(HttpStatusCode.Unauthorized, denied.StatusCode);
+
+        using var client = factory.CreateClient();
+        AddToken(client, LoginAsync(factory));
+
+        using var initial = await client.GetAsync("/api/settings/drawing-rules");
+        Assert.AreEqual(HttpStatusCode.OK, initial.StatusCode);
+        var originalTag = initial.Headers.ETag?.Tag;
+        Assert.IsFalse(string.IsNullOrWhiteSpace(originalTag));
+
+        using var update = new HttpRequestMessage(HttpMethod.Put, "/api/settings/drawing-rules")
+        {
+            Content = JsonContent.Create(new DrawingRuleSettings
+            {
+                LevelRates = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase) { ["銀牌"] = 3 }
+            })
+        };
+        update.Headers.TryAddWithoutValidation("If-Match", originalTag);
+        using var saved = await client.SendAsync(update);
+        Assert.AreEqual(HttpStatusCode.OK, saved.StatusCode);
+        Assert.AreNotEqual(originalTag, saved.Headers.ETag?.Tag);
+        var value = await saved.Content.ReadFromJsonAsync<DrawingRuleSettings>();
+        Assert.AreEqual(3, value!.LevelRates["銀牌"]);
+
+        using var stale = new HttpRequestMessage(HttpMethod.Put, "/api/settings/drawing-rules")
+        {
+            Content = JsonContent.Create(new DrawingRuleSettings
+            {
+                LevelRates = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase) { ["銀牌"] = 9 }
+            })
+        };
+        stale.Headers.TryAddWithoutValidation("If-Match", originalTag);
+        using var conflict = await client.SendAsync(stale);
+        Assert.AreEqual(HttpStatusCode.Conflict, conflict.StatusCode);
+
+        using var verify = await client.GetAsync("/api/settings/drawing-rules");
+        var persisted = await verify.Content.ReadFromJsonAsync<DrawingRuleSettings>();
+        Assert.AreEqual(3, persisted!.LevelRates["銀牌"]);
+    }
+
+    [TestMethod]
+    public async Task DrawingRules_UseSqliteSettingsStore()
+    {
+        var databasePath = Path.Combine(Path.GetTempPath(), $"easy-lottery-drawing-rules-{Guid.NewGuid():N}.db");
+        await using var factory = CreateSqliteFactory(databasePath);
+        using var client = factory.CreateClient();
+        AddToken(client, LoginAsync(factory));
+
+        using var initial = await client.GetAsync("/api/settings/drawing-rules");
+        var tag = initial.Headers.ETag!.Tag;
+        using var update = new HttpRequestMessage(HttpMethod.Put, "/api/settings/drawing-rules")
+        {
+            Content = JsonContent.Create(new DrawingRuleSettings
+            {
+                LevelRates = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase) { ["金卡"] = 4 }
+            })
+        };
+        update.Headers.TryAddWithoutValidation("If-Match", tag);
+        using var response = await client.SendAsync(update);
+
+        Assert.AreEqual(HttpStatusCode.OK, response.StatusCode);
+        var store = factory.Services.GetRequiredService<SqliteConfigStore>();
+        var document = await store.LoadAsync();
+        Assert.AreEqual(4, document.DrawingRules.LevelRates["金卡"]);
+    }
+
+    [TestMethod]
+    public async Task LegacySqliteConfigSave_PreservesDrawingRulesChangedAfterItsRead()
+    {
+        var databasePath = Path.Combine(Path.GetTempPath(), $"easy-lottery-stale-config-{Guid.NewGuid():N}.db");
+        await using var factory = CreateSqliteFactory(databasePath);
+        var store = factory.Services.GetRequiredService<SqliteConfigStore>();
+        var staleDocument = await store.LoadAsync();
+
+        await store.MutateSettingsAsync(document =>
+        {
+            document.DrawingRules.LevelRates["Gold"] = 5;
+            return true;
+        });
+        staleDocument.SystemSettings.ResultNotificationEmail = "saved@example.test";
+        await store.SaveAsync(staleDocument);
+
+        var persisted = await store.LoadAsync();
+        Assert.AreEqual(5, persisted.DrawingRules.LevelRates["Gold"]);
+        Assert.AreEqual("saved@example.test", persisted.SystemSettings.ResultNotificationEmail);
+    }
+
+    [TestMethod]
+    public async Task SqliteCompatibilitySettingsWrite_RejectsStaleDocumentAfterDrawingRulesUpdate()
+    {
+        var databasePath = Path.Combine(Path.GetTempPath(), $"easy-lottery-stale-settings-api-{Guid.NewGuid():N}.db");
+        await using var factory = CreateSqliteFactory(databasePath);
+        using var client = factory.CreateClient();
+        AddToken(client, LoginAsync(factory));
+
+        using var initialSettings = await client.GetAsync("/settings");
+        var originalSettings = await initialSettings.Content.ReadAsStringAsync();
+        var originalETag = initialSettings.Headers.ETag!.Tag;
+        using var initialRules = await client.GetAsync("/api/settings/drawing-rules");
+        using var rulesUpdate = new HttpRequestMessage(HttpMethod.Put, "/api/settings/drawing-rules")
+        {
+            Content = JsonContent.Create(new DrawingRuleSettings
+            {
+                LevelRates = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase) { ["Gold"] = 6 }
+            })
+        };
+        rulesUpdate.Headers.TryAddWithoutValidation("If-Match", initialRules.Headers.ETag!.Tag);
+        using var updatedRules = await client.SendAsync(rulesUpdate);
+        Assert.AreEqual(HttpStatusCode.OK, updatedRules.StatusCode);
+
+        using var staleSettings = new HttpRequestMessage(HttpMethod.Put, "/settings")
+        {
+            Content = new StringContent(originalSettings)
+        };
+        staleSettings.Headers.TryAddWithoutValidation("If-Match", originalETag);
+        using var conflict = await client.SendAsync(staleSettings);
+
+        Assert.AreEqual(HttpStatusCode.Conflict, conflict.StatusCode);
+        var store = factory.Services.GetRequiredService<SqliteConfigStore>();
+        var persisted = await store.LoadAsync();
+        Assert.AreEqual(6, persisted.DrawingRules.LevelRates["Gold"]);
+    }
+
+    [TestMethod]
+    public async Task DrawingRules_RequireSpecificIfMatch()
+    {
+        await using var factory = CreateFactory();
+        using var client = factory.CreateClient();
+        AddToken(client, LoginAsync(factory));
+        using var initial = await client.GetAsync("/api/settings/drawing-rules");
+        var originalTag = initial.Headers.ETag!.Tag;
+
+        foreach (var ifMatch in new string?[] { null, "*" })
+        {
+            using var update = new HttpRequestMessage(HttpMethod.Put, "/api/settings/drawing-rules")
+            {
+                Content = JsonContent.Create(new DrawingRuleSettings
+                {
+                    LevelRates = new Dictionary<string, int> { ["銀牌"] = 9 }
+                })
+            };
+            if (ifMatch is not null) update.Headers.TryAddWithoutValidation("If-Match", ifMatch);
+            using var response = await client.SendAsync(update);
+
+            Assert.AreEqual(HttpStatusCode.PreconditionRequired, response.StatusCode);
+            using var verify = await client.GetAsync("/api/settings/drawing-rules");
+            Assert.AreEqual(originalTag, verify.Headers.ETag!.Tag);
+        }
+    }
+
+    [TestMethod]
+    public async Task DrawingRules_ConcurrentSqliteUpdatesAcceptOnlyOneMatchingEtag()
+    {
+        var databasePath = Path.Combine(Path.GetTempPath(), $"easy-lottery-rules-race-{Guid.NewGuid():N}.db");
+        await using var factory = CreateSqliteFactory(databasePath);
+        using var client = factory.CreateClient();
+        AddToken(client, LoginAsync(factory));
+        using var initial = await client.GetAsync("/api/settings/drawing-rules");
+        var tag = initial.Headers.ETag!.Tag;
+
+        using var firstRequest = UpdateRequest(2, tag);
+        using var secondRequest = UpdateRequest(7, tag);
+        var responses = await Task.WhenAll(client.SendAsync(firstRequest), client.SendAsync(secondRequest));
+        using var first = responses[0];
+        using var second = responses[1];
+        Assert.AreEqual(1, responses.Count(response => response.StatusCode == HttpStatusCode.OK));
+        Assert.AreEqual(1, responses.Count(response => response.StatusCode == HttpStatusCode.Conflict));
+        using var verify = await client.GetAsync("/api/settings/drawing-rules");
+        Assert.AreNotEqual(tag, verify.Headers.ETag!.Tag);
+        var savedRate = (await verify.Content.ReadFromJsonAsync<DrawingRuleSettings>())!.LevelRates["銀牌"];
+        Assert.IsTrue(savedRate is 2 or 7);
+    }
+
+    private static HttpRequestMessage UpdateRequest(int rate, string etag)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Put, "/api/settings/drawing-rules")
+        {
+            Content = JsonContent.Create(new DrawingRuleSettings { LevelRates = new Dictionary<string, int> { ["銀牌"] = rate } })
+        };
+        request.Headers.TryAddWithoutValidation("If-Match", etag);
+        return request;
+    }
+
+    [TestMethod]
     public async Task SettingsResources_ReadAndWriteOneSectionWithEtag()
     {
         await using var factory = CreateFactory();

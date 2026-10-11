@@ -24,6 +24,8 @@ internal static class SettingsResourceEndpoints
             app, "payments", (value, etag) => new UpdatePaymentSettingsCommand(value, etag), () => new GetPaymentSettingsQuery());
         Map<OvertimeOverlaySettings, GetOvertimeSettingsQuery, UpdateOvertimeSettingsCommand>(
             app, "overtime", (value, etag) => new UpdateOvertimeSettingsCommand(value, etag), () => new GetOvertimeSettingsQuery(), allowObsRead: true);
+        Map<DrawingRuleSettings, GetDrawingRulesQuery, UpdateDrawingRulesCommand>(
+            app, "drawing-rules", (value, etag) => new UpdateDrawingRulesCommand(value, etag), () => new GetDrawingRulesQuery(), requiresSpecificETag: true);
     }
 
     private static void Map<TValue, TQuery, TCommand>(
@@ -31,7 +33,8 @@ internal static class SettingsResourceEndpoints
         string resource,
         Func<TValue, string?, TCommand> commandFactory,
         Func<TQuery> queryFactory,
-        bool allowObsRead = false)
+        bool allowObsRead = false,
+        bool requiresSpecificETag = false)
         where TQuery : IRequest<SettingsSectionSnapshot<TValue>>
         where TCommand : IRequest<SettingsSectionSnapshot<TValue>>
     {
@@ -51,9 +54,12 @@ internal static class SettingsResourceEndpoints
         {
             var denied = ObsSessionAccess.DeniedResult(access.RequireAdmin(context.Request));
             if (denied is not null) return denied;
+            var expectedETag = context.Request.Headers.IfMatch.FirstOrDefault();
+            if (requiresSpecificETag && (string.IsNullOrWhiteSpace(expectedETag) || expectedETag.Trim() == "*"))
+                return Results.StatusCode(StatusCodes.Status428PreconditionRequired);
             try
             {
-                var snapshot = await mediator.Send(commandFactory(value, context.Request.Headers.IfMatch.FirstOrDefault()), context.RequestAborted);
+                var snapshot = await mediator.Send(commandFactory(value, expectedETag), context.RequestAborted);
                 return JsonSnapshot(context, snapshot);
             }
             catch (ConfigurationConcurrencyException exception)

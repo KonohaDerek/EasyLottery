@@ -1,0 +1,29 @@
+{
+  "task_id": "vue-core-lottery-2026-10-11",
+  "issue": 288,
+  "date": "2026-10-11",
+  "source": {
+    "provider": "TypeSafe",
+    "model": "jev-1.13.0",
+    "endpoint": "https://api.typesafe.ai/v1/systemone"
+  },
+  "state_summary": "Migrate the authenticated core lottery workspace at / from Blazor to Vue while preserving draw, participant/prize import/export, YouTube member weighting, live-chat filters/cooldown, and SuperChat feed behavior. Keep credentials server-side; open a Ready-for-review PR only, with no merge/deployment.",
+  "answers": {
+    "complexity": {
+      "type": "choice",
+      "value": "strong",
+      "confidence": 0.84,
+      "probabilities": { "fast": 0.0, "balanced": 0.0, "strong": 0.88, "long": 0.12 }
+    },
+    "parallel_safe": { "type": "noul", "probability": 0.25 },
+    "elevated_risk": { "type": "noul", "probability": 0.94 },
+    "browser_e2e_required": { "type": "noul", "probability": 0.77 },
+    "needs_additional_authorization": { "type": "noul", "probability": 0.19 }
+  },
+  "agent_decisions": {
+    "execution": "Main agent owns the coupled Vue state, secure YouTube API boundary, settings persistence, and tests; one read-only subagent audited legacy behavior.",
+    "verification": ["Vitest", "Vue typecheck/build", "API and Domain tests", "focused Playwright with YouTube mocked", "strict OpenSpec", "diff/security review"],
+    "authorization": "User authorized continued source implementation, board synchronization, branch push, and a Ready-for-review PR. Do not merge, deploy, alter production configuration, or claim native OBS verification."
+  },
+  "usage": { "input_tokens": 801, "output_tokens": 128 }
+}

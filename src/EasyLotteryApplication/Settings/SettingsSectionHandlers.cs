@@ -80,6 +80,20 @@ public sealed class SettingsSectionRules
         return value;
     }
 
+    public DrawingRuleSettings Normalize(DrawingRuleSettings? value)
+    {
+        value ??= new DrawingRuleSettings();
+        value.LevelRates ??= new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var normalized = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (rawLevel, rawRate) in value.LevelRates)
+        {
+            var level = rawLevel?.Trim();
+            if (!string.IsNullOrWhiteSpace(level)) normalized[level] = Math.Max(1, rawRate);
+        }
+        value.LevelRates = normalized;
+        return value;
+    }
+
     private static void NormalizeProvider(DonationProviderSettings provider, string defaultName)
     {
         provider.Name = string.IsNullOrWhiteSpace(provider.Name) ? defaultName : provider.Name.Trim();
@@ -166,4 +180,16 @@ public sealed class UpdateOvertimeSettingsCommandHandler(ISettingsSectionReposit
     : IRequestHandler<UpdateOvertimeSettingsCommand, SettingsSectionSnapshot<OvertimeOverlaySettings>>
 {
     public Task<SettingsSectionSnapshot<OvertimeOverlaySettings>> Handle(UpdateOvertimeSettingsCommand request, CancellationToken cancellationToken) => repository.UpdateOvertimeAsync(rules.Normalize(request.Value), request.ExpectedETag, cancellationToken);
+}
+
+public sealed class GetDrawingRulesQueryHandler(ISettingsSectionRepository repository)
+    : IRequestHandler<GetDrawingRulesQuery, SettingsSectionSnapshot<DrawingRuleSettings>>
+{
+    public Task<SettingsSectionSnapshot<DrawingRuleSettings>> Handle(GetDrawingRulesQuery request, CancellationToken cancellationToken) => repository.ReadDrawingRulesAsync(cancellationToken);
+}
+
+public sealed class UpdateDrawingRulesCommandHandler(ISettingsSectionRepository repository, SettingsSectionRules rules)
+    : IRequestHandler<UpdateDrawingRulesCommand, SettingsSectionSnapshot<DrawingRuleSettings>>
+{
+    public Task<SettingsSectionSnapshot<DrawingRuleSettings>> Handle(UpdateDrawingRulesCommand request, CancellationToken cancellationToken) => repository.UpdateDrawingRulesAsync(rules.Normalize(request.Value), request.ExpectedETag, cancellationToken);
 }

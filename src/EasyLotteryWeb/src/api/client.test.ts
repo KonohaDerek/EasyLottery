@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ApiError, apiRequest } from "./client";
+import { ApiError, apiRequest, apiRequestWithToken } from "./client";
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -22,5 +22,15 @@ describe("API client", () => {
 
     await expect(apiRequest("/api/settings/test", { method: "PUT", body: JSON.stringify({ secret: "not logged" }) }))
       .rejects.toMatchObject({ status: 409, code: "etag_conflict", message: "設定版本已變更" } satisfies Partial<ApiError>);
+  });
+
+  it("can send a narrowly scoped token instead of the admin session token", async () => {
+    vi.stubGlobal("sessionStorage", { getItem: () => "admin-token" });
+    vi.stubGlobal("fetch", vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      expect(new Headers(init?.headers).get("X-EasyLottery-Session-Token")).toBe("overtime-scoped-token");
+      return new Response(null, { status: 204 });
+    }));
+
+    await apiRequestWithToken<void>("/api/overtime-feed", "overtime-scoped-token", { method: "PUT", body: "[]" });
   });
 });

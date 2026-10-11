@@ -160,6 +160,16 @@ article p {
   z-index: 3;
 }
 
+.mobile-admin-menu {
+  display: none;
+}
+
+.mobile-admin-menu-list {
+  max-height: 70vh;
+  min-width: 220px;
+  overflow-y: auto;
+}
+
 .admin-drawer {
   border-right: 1px solid #d8e1ee;
 }
@@ -400,8 +410,25 @@ th {
 }
 
 @media (max-width: 760px) {
+  .mobile-admin-menu {
+    display: inline-flex;
+  }
+
+  .admin-public-link {
+    display: none;
+  }
+
+  .admin-header .v-app-bar-title {
+    min-width: 0;
+    font-size: 1rem;
+  }
+
   .admin-drawer {
     display: none;
+  }
+
+  .admin-main {
+    padding-left: 0 !important;
   }
 
   .admin-content {
