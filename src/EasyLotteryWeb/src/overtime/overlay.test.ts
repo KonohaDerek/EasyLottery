@@ -4,6 +4,7 @@ import {
   calculateProgressPercent,
   extendEndForPause,
   getDisplaySessionState,
+  getRewardSummary,
   isEventVisible,
   remainingTimeText
 } from "./overlay";
@@ -42,6 +43,15 @@ describe("overtime OBS display helpers", () => {
     expect(isEventVisible("2026-10-11T11:59:51.999Z", now, 8)).toBe(false);
     expect(isEventVisible("2026-10-11T12:00:01.000Z", now, 8)).toBe(false);
     expect(isEventVisible("2026-10-11T11:59:00.000Z", now, 500)).toBe(true);
+  });
+
+  it("uses the highest enabled donation threshold for the overtime reward label", () => {
+    expect(getRewardSummary([
+      { isEnabled: true, amountThreshold: 100, addHours: 1 },
+      { isEnabled: false, amountThreshold: 500, addHours: 9 },
+      { isEnabled: true, amountThreshold: 300, addHours: 2, addMinutes: 15 }
+    ], 400)).toBe("加班 +2 小時 15 分鐘");
+    expect(getRewardSummary([], null)).toBe("");
   });
 
   it("rejects an older settings/feed snapshot after a newer request begins", () => {

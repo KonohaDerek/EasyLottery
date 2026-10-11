@@ -5,6 +5,13 @@ export interface OvertimeSessionSnapshot {
   plannedEndAtUtc?: string | null;
 }
 
+export interface OvertimeRewardRule {
+  isEnabled?: boolean;
+  amountThreshold?: number;
+  addHours?: number;
+  addMinutes?: number;
+}
+
 function validTimestamp(value: string | null | undefined): number | null {
   if (!value) return null;
   const timestamp = Date.parse(value);
@@ -61,6 +68,25 @@ export function isEventVisible(occurredAtUtc: string, now: Date, visibleSeconds:
   const age = now.getTime() - occurred;
   const visibleWindow = Math.min(60, Math.max(1, visibleSeconds));
   return age >= 0 && age <= visibleWindow * 1000;
+}
+
+export function getRewardSummary(rules: OvertimeRewardRule[] | undefined, amount: number | null | undefined): string {
+  if (amount === null || amount === undefined || !rules) return "";
+  const match = rules
+    .filter(rule => rule.isEnabled !== false && amount >= (rule.amountThreshold ?? 0))
+    .sort((left, right) =>
+      (right.amountThreshold ?? 0) - (left.amountThreshold ?? 0)
+      || ((right.addHours ?? 0) * 60 + (right.addMinutes ?? 0)) - ((left.addHours ?? 0) * 60 + (left.addMinutes ?? 0))
+    )[0];
+  if (!match) return "";
+  const totalMinutes = Math.max(0, match.addHours ?? 0) * 60 + Math.max(0, match.addMinutes ?? 0);
+  if (totalMinutes === 0) return "加班 +0 分鐘";
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  const duration = hours > 0 && minutes > 0
+    ? `${hours} 小時 ${minutes} 分鐘`
+    : hours > 0 ? `${hours} 小時` : `${minutes} 分鐘`;
+  return `加班 +${duration}`;
 }
 
 export class OvertimeSessionRevision {

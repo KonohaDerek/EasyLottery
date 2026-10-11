@@ -19,7 +19,13 @@ export interface OvertimeOverlaySettings {
   completionFireworksStyle?: string;
   completionFireworksDurationSeconds?: number;
   completionFireworksGifUrl?: string;
-  rewardRules?: Array<{ label?: string; amount?: number; addHours?: number; addMinutes?: number }>;
+  rewardRules?: Array<{
+    isEnabled?: boolean;
+    amountThreshold?: number;
+    label?: string;
+    addHours?: number;
+    addMinutes?: number;
+  }>;
   [key: string]: unknown;
 }
 
