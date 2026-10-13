@@ -29,3 +29,9 @@ Dev Container workspace: `/workspaces/EasyLottery/.worktrees/vue-remaining-route
 - No native OBS application/hardware verification was performed; that remains user-owned under #269.
 - No real YouTube, ECPay, SMTP, or other provider call; no production change, deployment, merge, schema migration, or Blazor retirement was performed.
 - Blazor pages remain reachable through `/legacy/...` aliases for rollback.
+
+## Delivery
+
+- PR [#293](https://github.com/KonohaDerek/EasyLottery/pull/293) is open and Ready for review; it links #289 and #252.
+- GitHub Actions CI run `38353582742` completed successfully, including the full browser E2E job.
+- GitHub Project #1 #289 is In review and shows linked PR #293.

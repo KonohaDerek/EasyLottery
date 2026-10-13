@@ -27,4 +27,4 @@
 
 - [x] 4.1 Run `npm test`, `npm run typecheck`, and `npm run build` in `src/EasyLotteryWeb`; run focused and full relevant Playwright tests in `tests/e2e`; run the full .NET solution tests in the Dev Container.
 - [x] 4.2 Run `openspec validate --all --strict`, `git diff --check`, and a second-pass review of route fallback, secret handling, ETag conflicts, session preservation, payment-event concurrency, and unrelated changes; record results in `.agents/verification/`.
-- [ ] 4.3 Push the issue branch, create a Ready-for-review PR linked to #289/#252, move Project #1 #289 to In review, and verify the PR URL, checks, and board state. Do not merge or deploy.
+- [x] 4.3 Push the issue branch, create a Ready-for-review PR linked to #289/#252, move Project #1 #289 to In review, and verify the PR URL, checks, and board state. Do not merge or deploy.

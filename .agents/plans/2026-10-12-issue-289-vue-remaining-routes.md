@@ -1,6 +1,6 @@
 # Issue #289 — migrate remaining routes to Vue
 
-- Status: Verification
+- Status: Needs Review
 - Source: GitHub issue #289; GitHub Project #1 transitions verified: Backlog → Ready → In progress.
 - OpenSpec: `openspec/changes/migrate-vue-remaining-routes`
 - Branch/worktree: `feat/vue-remaining-routes` / `.worktrees/vue-remaining-routes`
@@ -42,3 +42,9 @@ Migrate `/market`, `/system/platform-connections`, and `/activity/overtime` into
 ## Delegation
 
 Beauvoir performed a read-only investigation of platform connection endpoints/DTOs/secret masking/ETag behavior and API-test gaps. Mencius completed an independent read-only review; it reported no code findings and requested full-feed mixed-payment boundary tests, which were added for both JSON and SQLite repositories. Main agent owns all implementation, shared route/menu integration, testing, push, and PR operations.
+
+## Delivery
+
+- PR: [#293](https://github.com/KonohaDerek/EasyLottery/pull/293), open and Ready for review; not merged.
+- GitHub Actions CI run `38353582742` completed successfully, including browser E2E.
+- Project #1 #289 is In review and shows linked PR #293.
