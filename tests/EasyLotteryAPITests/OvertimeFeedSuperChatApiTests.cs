@@ -63,6 +63,30 @@ public sealed class OvertimeFeedSuperChatApiTests
     }
 
     [TestMethod]
+    public async Task StaleFullFeedPut_PreservesThirdPartyPaymentAppendedAfterItsRead()
+    {
+        await AssertStalePutKeepsThirdPartyPaymentAsync(sqlite: false);
+    }
+
+    [TestMethod]
+    public async Task SqliteStaleFullFeedPut_PreservesThirdPartyPaymentAppendedAfterItsRead()
+    {
+        await AssertStalePutKeepsThirdPartyPaymentAsync(sqlite: true);
+    }
+
+    [TestMethod]
+    public async Task StaleFullFeedPutWithMixedPaymentSources_PreservesNewPaymentAtCapacity()
+    {
+        await AssertStalePutKeepsMixedPaymentsAtCapacityAsync(sqlite: false);
+    }
+
+    [TestMethod]
+    public async Task SqliteStaleFullFeedPutWithMixedPaymentSources_PreservesNewPaymentAtCapacity()
+    {
+        await AssertStalePutKeepsMixedPaymentsAtCapacityAsync(sqlite: true);
+    }
+
+    [TestMethod]
     public async Task SuperChatAppendToFullFeed_KeepsNewEventAndEvictsOldestExistingEvent()
     {
         var directory = Path.Combine(Path.GetTempPath(), $"easy-lottery-superchat-full-{Guid.NewGuid():N}");
@@ -164,7 +188,7 @@ public sealed class OvertimeFeedSuperChatApiTests
             ExternalId = "manual-existing"
         };
         await repository.SaveAsync([existing]);
-        var staleSnapshot = await repository.ListAsync();
+        var staleSnapshot = (await repository.ListAsync()).ToList();
 
         using var client = factory.CreateClient();
         var token = await IssueControlTokenAsync(client, factory.Services.GetRequiredService<ObsSessionTokenService>().IssueAdminToken().Token);
@@ -185,6 +209,101 @@ public sealed class OvertimeFeedSuperChatApiTests
         var events = await repository.ListAsync();
         Assert.IsTrue(events.Any(item => item.ExternalId == "manual-existing"));
         Assert.IsTrue(events.Any(item => item.ExternalId == "youtube-race-message"));
+    }
+
+    private static async Task AssertStalePutKeepsThirdPartyPaymentAsync(bool sqlite)
+    {
+        var directory = Path.Combine(Path.GetTempPath(), $"easy-lottery-payment-stale-{Guid.NewGuid():N}");
+        await using var factory = CreateFactory(directory, sqlite);
+        var repository = factory.Services.GetRequiredService<IOvertimeFeedRepository>();
+        var existing = new OvertimeSupportEvent
+        {
+            Source = OvertimeSupportSource.Manual,
+            DisplayName = "Existing",
+            ExternalId = "manual-existing"
+        };
+        await repository.SaveAsync([existing]);
+        var staleSnapshot = (await repository.ListAsync()).ToList();
+
+        await factory.Services.GetRequiredService<IOvertimeFeedMutationRepository>().MutateAsync(events =>
+        {
+            events.Add(new OvertimeSupportEvent
+            {
+                Source = OvertimeSupportSource.ThirdPartyPayment,
+                DisplayName = "ECPay callback",
+                ExternalId = "ecpay-callback-race"
+            });
+            return Task.CompletedTask;
+        });
+        staleSnapshot.Add(new OvertimeSupportEvent
+        {
+            Source = OvertimeSupportSource.ThirdPartyPayment,
+            DisplayName = "ECPay demo",
+            ExternalId = "ecpay-demo-from-old-client"
+        });
+
+        using var client = factory.CreateClient();
+        var token = await IssueControlTokenAsync(client, factory.Services.GetRequiredService<ObsSessionTokenService>().IssueAdminToken().Token);
+        using var stalePut = new HttpRequestMessage(HttpMethod.Put, "/api/overtime-feed") { Content = JsonContent.Create(staleSnapshot) };
+        stalePut.Headers.Add(ObsSessionTokenService.HeaderName, token);
+        using var saved = await client.SendAsync(stalePut);
+
+        Assert.AreEqual(HttpStatusCode.NoContent, saved.StatusCode);
+        var events = await repository.ListAsync();
+        Assert.IsTrue(events.Any(item => item.ExternalId == "manual-existing"));
+        Assert.IsTrue(events.Any(item => item.ExternalId == "ecpay-callback-race"));
+        Assert.IsTrue(events.Any(item => item.ExternalId == "ecpay-demo-from-old-client"));
+    }
+
+    private static async Task AssertStalePutKeepsMixedPaymentsAtCapacityAsync(bool sqlite)
+    {
+        var directory = Path.Combine(Path.GetTempPath(), $"easy-lottery-payment-full-{Guid.NewGuid():N}");
+        await using var factory = CreateFactory(directory, sqlite);
+        var repository = factory.Services.GetRequiredService<IOvertimeFeedRepository>();
+        var existing = Enumerable.Range(0, 30).Select(index => new OvertimeSupportEvent
+        {
+            Source = index == 0 ? OvertimeSupportSource.SuperChat
+                : index == 1 ? OvertimeSupportSource.ThirdPartyPayment
+                : OvertimeSupportSource.Manual,
+            DisplayName = $"Existing {index}",
+            ExternalId = $"existing-{index}",
+            OccurredAtUtc = DateTimeOffset.UtcNow.AddMinutes(-index)
+        }).ToArray();
+        await repository.SaveAsync(existing);
+        var staleSnapshot = (await repository.ListAsync()).Take(29).ToList();
+
+        await factory.Services.GetRequiredService<IOvertimeFeedMutationRepository>().MutateAsync(events =>
+        {
+            events.Add(new OvertimeSupportEvent
+            {
+                Source = OvertimeSupportSource.ThirdPartyPayment,
+                DisplayName = "Concurrent payment",
+                ExternalId = "ecpay-callback-at-capacity",
+                OccurredAtUtc = DateTimeOffset.UtcNow
+            });
+            return Task.CompletedTask;
+        });
+        staleSnapshot.Add(new OvertimeSupportEvent
+        {
+            Source = OvertimeSupportSource.ThirdPartyPayment,
+            DisplayName = "Demo payment",
+            ExternalId = "ecpay-demo-at-capacity",
+            OccurredAtUtc = DateTimeOffset.UtcNow.AddSeconds(1)
+        });
+
+        using var client = factory.CreateClient();
+        var token = await IssueControlTokenAsync(client, factory.Services.GetRequiredService<ObsSessionTokenService>().IssueAdminToken().Token);
+        using var stalePut = new HttpRequestMessage(HttpMethod.Put, "/api/overtime-feed") { Content = JsonContent.Create(staleSnapshot) };
+        stalePut.Headers.Add(ObsSessionTokenService.HeaderName, token);
+        using var saved = await client.SendAsync(stalePut);
+
+        Assert.AreEqual(HttpStatusCode.NoContent, saved.StatusCode);
+        var events = await repository.ListAsync();
+        Assert.AreEqual(30, events.Count);
+        Assert.IsTrue(events.Any(item => item.ExternalId == "existing-0"));
+        Assert.IsTrue(events.Any(item => item.ExternalId == "existing-1"));
+        Assert.IsTrue(events.Any(item => item.ExternalId == "ecpay-callback-at-capacity"));
+        Assert.IsTrue(events.Any(item => item.ExternalId == "ecpay-demo-at-capacity"));
     }
 
     private static WebApplicationFactory<Program> CreateFactory(string directory, bool sqlite = false)

@@ -12,17 +12,20 @@ const links = [
   ["/activity-results", "活動結果"],
   ["/interactions/rounds", "直播互動回合"],
   ["/interactions/identity-link", "觀眾身份綁定"],
+  ["/market", "活動市集"],
   ["/roulette", "轉盤模板"],
   ["/pokebox", "戳戳樂模板"],
   ["/system/access", "管理員 Passkey"],
   ["/system/payment", "支付配置"],
+  ["/system/platform-connections", "直播平台串接"],
   ["/system/youtube-login", "YouTube API Key"],
   ["/system/audit", "審計紀錄"],
   ["/system/backups", "設定備份"],
   ["/system/obs-layouts", "OBS 版面"],
   ["/system/obs-assets", "OBS 資產"],
   ["/system/sound-cues", "音效預設"],
-  ["/system/visual-styles", "視覺樣式"]
+  ["/system/visual-styles", "視覺樣式"],
+  ["/activity/overtime", "加班台設定"]
 ] as const;
 
 function logout() {
