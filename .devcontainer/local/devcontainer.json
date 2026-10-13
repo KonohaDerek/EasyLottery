@@ -27,6 +27,7 @@
   "mounts": [
     "source=${localWorkspaceFolder}/.devcontainer/local/data/gh,target=/home/vscode/.config/gh,type=bind",
     "source=${localWorkspaceFolder}/.devcontainer/local/data/codex,target=/home/vscode/.codex,type=bind",
+    "source=${localEnv:HOME}/.codex/AGENTS.md,target=/home/vscode/.codex/AGENTS.md,type=bind,readonly",
     "source=${localWorkspaceFolder}/.devcontainer/local/data/copilot,target=/home/vscode/.copilot,type=bind",
     "source=${localWorkspaceFolder}/.devcontainer/local/data/ssh,target=/home/vscode/.ssh,type=bind",
     "source=${localWorkspaceFolder}/.devcontainer/local/data/gh-local-share,target=/home/vscode/.local/share/gh,type=bind"

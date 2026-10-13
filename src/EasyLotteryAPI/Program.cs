@@ -258,6 +258,9 @@ app.MapFallbackToFile("/pokebox", "vue/index.html");
 app.MapFallbackToFile("/pokebox/preview/{id}", "vue/index.html");
 app.MapFallbackToFile("/interactions/rounds", "vue/index.html");
 app.MapFallbackToFile("/interactions/identity-link", "vue/index.html");
+app.MapFallbackToFile("/market", "vue/index.html");
+app.MapFallbackToFile("/system/platform-connections", "vue/index.html");
+app.MapFallbackToFile("/activity/overtime", "vue/index.html");
 
 app.MapGet("/api/test/session-token", (IHostEnvironment environment, IConfiguration configuration, ObsSessionTokenService tokens) =>
 {

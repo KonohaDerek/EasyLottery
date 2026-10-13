@@ -20,6 +20,9 @@ import VisualStylesView from "./views/VisualStylesView.vue";
 import YoutubeLoginView from "./views/YoutubeLoginView.vue";
 import InteractionRoundsView from "./interactions/admin/InteractionRoundsView.vue";
 import IdentityLinkView from "./interactions/admin/IdentityLinkView.vue";
+import MarketplaceView from "./views/MarketplaceView.vue";
+import PlatformConnectionsView from "./views/PlatformConnectionsView.vue";
+import OvertimeSettingsView from "./views/OvertimeSettingsView.vue";
 
 export const publicRoutes: RouteRecordRaw[] = [
   { path: "/about", component: AboutView, meta: { title: "關於 EasyLottery" } },
@@ -45,7 +48,10 @@ export const adminRoutes: RouteRecordRaw[] = [
   { path: "/system/sound-cues", component: SoundCuesView, meta: { title: "音效預設｜EasyLottery", requiresAuth: true } },
   { path: "/system/visual-styles", component: VisualStylesView, meta: { title: "視覺樣式｜EasyLottery", requiresAuth: true } },
   { path: "/interactions/rounds", component: InteractionRoundsView, meta: { title: "直播互動回合｜EasyLottery", requiresAuth: true } },
-  { path: "/interactions/identity-link", component: IdentityLinkView, meta: { title: "觀眾身份綁定｜EasyLottery", requiresAuth: true } }
+  { path: "/interactions/identity-link", component: IdentityLinkView, meta: { title: "觀眾身份綁定｜EasyLottery", requiresAuth: true } },
+  { path: "/market", component: MarketplaceView, meta: { title: "活動市集｜EasyLottery", requiresAuth: true } },
+  { path: "/system/platform-connections", component: PlatformConnectionsView, meta: { title: "直播平台串接｜EasyLottery", requiresAuth: true } },
+  { path: "/activity/overtime", component: OvertimeSettingsView, meta: { title: "加班台設定｜EasyLottery", requiresAuth: true } }
 ];
 
 export const obsRoutes: RouteRecordRaw[] = [

@@ -1,21 +1,22 @@
 # Current work state
 
-- Task ID: issue-290-vue-interaction-routes-2026-10-11
-- Status: In Progress.
-- Source: Issue #290 under #269 and #252; it blocks final Blazor retirement in #270.
-- Scope: Migrate /interactions/rounds, /interactions/identity-link and four interaction OBS routes to Vue. Preserve the existing admin session, REST DTOs, one-time identity code semantics, /hubs/interactions, JoinRound and InteractionStateChanged contracts. Keep Blazor rollback aliases at /legacy/... .
-- Non-goals: No Domain/protocol/payment changes, production changes, Blazor host removal, merge, deployment, or agent-claimed native OBS verification. The identity-link endpoint was corrected to bind the existing `{ code }` JSON body already used by the Blazor client; the API request contract remains unchanged.
-- OpenSpec change: openspec/changes/migrate-vue-interaction-routes.
-- Branch: feat/vue-interaction-routes.
-- Worktree: .worktrees/vue-interaction-routes, based on origin/main at f52225908f0fcb0a762d8581c87bd572b7702b55.
-- Board: GitHub Project #1 #290 is In review with PR #292 linked. #269 remains In progress until the user completes native OBS verification; #289 remains Backlog (not Ready); #270 remains blocked on route parity and OBS evidence.
-- Decision: TypeSafe Jev 1.13.0 rated complexity medium, risk moderate, parallel implementation safe (0.67), browser integration verification (0.68), and additional approval unlikely (0.08). See .agents/decisions/2026-10-11-vue-interaction-routes.json.
-- Delivery: Implementation is integrated in the main issue worktree. An isolated management-slice commit was reviewed but not cherry-picked because it overlapped the canonical integrated files. Branch is pushed and open non-draft PR #292 links #252/#269/#270 and uses `Closes #290`: https://github.com/KonohaDerek/EasyLottery/pull/292. The GitHub Project #1 card is In review. Local Vue tests 102/102, typecheck/build, filtered .NET interaction API/Hub/identity-link tests 3/3, strict OpenSpec, diff review and real-browser REST/SignalR checks passed. CI run 38150348569 passed build, API/Domain tests, smoke and OpenSpec, but failed one E2E because a test-only rounds API mock leaked into the legacy Blazor navigation with a non-GUID id; the mock is now removed before the rollback-route check, and the full focused interaction spec passes 3/3 in the Dev Container. GitGuardian passed. Native OBS verification remains user-owned. No merge or deployment.
-- Verification targets: Vue tests/typecheck/build; interaction-filtered .NET tests; focused Playwright for auth, direct routes, REST/errors, SignalR/live/empty/error and rollback aliases; strict OpenSpec; diff/security review. Local checks passed; GitHub PR check state is recorded in `.agents/verification/2026-10-11-issue-290-vue-interaction-routes.md`.
-- Rollback: Remove the six Vue fallback/routes and restore original Blazor route directives. No data migration.
-- Observability: Never log one-time codes or OBS/session tokens. Show loading, empty, disconnected and recoverable error states. Keep OBS presentation transparent and reduced-motion aware.
+- Task ID: issue-289-vue-remaining-routes-2026-10-12
+- Status: Verification.
+- Source: GitHub Issue #289 under migration epic #252; related Phase 2/3 issues #267 and #268 are closed; it blocks final Blazor retirement in #270.
+- Scope: Migrate `/market`, `/system/platform-connections`, and `/activity/overtime` to Vue. Preserve REST/OAuth/SignalR contracts, template copy-install semantics, admin authorization and credential handling, overtime settings/preview/demo/clear behavior, and Blazor rollback paths. Strengthen existing overtime-feed PUT semantics so a stale full-feed snapshot cannot erase a concurrently appended SuperChat or third-party payment event.
+- Non-goals: No endpoint/DTO/auth-scope/SignalR contract, Domain, payment-processing/provider, or YouTube protocol changes; no production changes, real provider calls, Blazor host retirement, merge, deployment, or change to native OBS verification ownership.
+- OpenSpec change: `openspec/changes/migrate-vue-remaining-routes` (all implementation/integration tasks complete; strict validation passed 43/43, with one unrelated informational notice for `donate-draw-reveal-sequence`).
+- Branch/worktree: `feat/vue-remaining-routes` / `.worktrees/vue-remaining-routes`, based on merged `origin/main` at `429532346eff0556d7ec7c3b60c92a573b55cf59` (PR #292 merge).
+- Dev Container: running project container `2062a4df92f7`; shared checkout `/workspaces/EasyLottery/.worktrees/vue-remaining-routes`; .NET 10. The configured devcontainer includes the shared read-only Codex AGENTS bind mount. No real-provider calls or credentials were used.
+- Board: Project #1 #289 is currently In progress; move it to In review after the Ready PR is created and linked. PR #292 merged at `2026-10-11T15:59:37Z`; issue #290 and its card are Done. #269 stays In Progress pending the user's native OBS verification; #270 remains gated on route parity and that evidence.
+- Decision: Route Advisor run `20261011T160427.082Z-44e30e07`; Jev was attempted but returned low confidence, so the typed Agent fallback selected long / `gpt-6-astra` / medium. One bounded implementation task because route registration, admin navigation, shared API behavior, and acceptance tests integrate together. Independent review used the available `gpt-6.1-sol/high` fallback because the repo workflow records Astra as unavailable. See `.agents/decisions/2026-10-12-issue-289-vue-remaining-routes.json`.
+- Investigation: Read-only platform-connection contract survey completed by Beauvoir (`gpt-6-luna` / high); findings are captured in the plan and will guide masked-secret, ETag, authorization, and conflict tests.
+- Plan: `.agents/plans/2026-10-12-issue-289-vue-remaining-routes.md`.
+- Verification: `npm test` 118 passed; Vue typecheck/build passed; full .NET solution 252 passed (112 Domain, 140 API); focused Playwright 10 passed; full Playwright 80 passed; OpenSpec strict 43 passed; `git diff --check` passed. Independent read-only review found no actionable findings; it recommended mixed-source full-feed coverage, which was added for JSON and SQLite and then passed in the full .NET suite. Details: `.agents/verification/2026-10-13-issue-289-vue-remaining-routes.md`.
+- Rollback: Keep the Blazor pages reachable; remove Vue route/fallback and restore original route ownership if needed. No data migration.
+- Progress: OpenSpec implementation and verification tasks 1.1–4.2 complete; only push/Ready PR/Project #1 synchronization task 4.3 remains.
+- Verification status: Complete. Native OBS/manual hardware verification remains user-owned under #269.
 - verification_complete: true
-- branch_pushed: true
-- pull_request_created: true
-- pull_request: https://github.com/KonohaDerek/EasyLottery/pull/292
-- Updated: 2026-10-11
+- branch_pushed: false
+- pull_request_created: false
+- Updated: 2026-10-13

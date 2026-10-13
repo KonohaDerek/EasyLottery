@@ -33,19 +33,19 @@ internal static class OvertimeFeedEndpoints
                 : JsonSerializer.Deserialize<List<OvertimeSupportEvent>>(body, new JsonSerializerOptions(JsonSerializerDefaults.Web)) ?? [];
             await feedRepository.MutateAsync(current =>
             {
-                var protectedSuperChats = current
-                    .Where(IsSuperChat)
+                var protectedPaymentEvents = current
+                    .Where(IsProtectedPaymentEvent)
                     .Select(EventKey)
                     .ToHashSet(StringComparer.Ordinal);
                 var currentKeys = current.Select(EventKey).ToHashSet(StringComparer.Ordinal);
                 var incomingKeys = events.Select(EventKey).ToHashSet(StringComparer.Ordinal);
                 var incomingAdditions = incomingKeys.Where(key => !currentKeys.Contains(key)).ToHashSet(StringComparer.Ordinal);
-                foreach (var item in current.Where(IsSuperChat))
+                foreach (var item in current.Where(IsProtectedPaymentEvent))
                 {
                     if (incomingKeys.Add(EventKey(item))) events.Add(item);
                 }
 
-                TrimFeed(events, protectedSuperChats, preferredKeys: incomingAdditions);
+                TrimFeed(events, protectedPaymentEvents, preferredKeys: incomingAdditions);
                 current.Clear();
                 current.AddRange(events);
                 return Task.CompletedTask;
@@ -99,7 +99,8 @@ internal static class OvertimeFeedEndpoints
         app.MapDelete("/api/overtime-feed", clearOvertimeFeed).RequireRateLimiting("sensitive");
     }
 
-    private static bool IsSuperChat(OvertimeSupportEvent item) => item.Source == OvertimeSupportSource.SuperChat;
+    private static bool IsProtectedPaymentEvent(OvertimeSupportEvent item) =>
+        item.Source is OvertimeSupportSource.SuperChat or OvertimeSupportSource.ThirdPartyPayment;
 
     private static string EventKey(OvertimeSupportEvent item) =>
         string.IsNullOrWhiteSpace(item.ExternalId) ? $"id:{item.Id:D}" : $"external:{item.ExternalId}";

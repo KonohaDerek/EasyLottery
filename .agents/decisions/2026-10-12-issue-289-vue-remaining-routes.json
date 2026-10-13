@@ -1,0 +1,64 @@
+{
+  "task_id": "issue-289-vue-remaining-routes-2026-10-12",
+  "issue": 289,
+  "date": "2026-10-12",
+  "assessment": {
+    "source": "agent_fallback",
+    "jev": {
+      "provider": "TypeSafe",
+      "model_preference": "jev-latest",
+      "attempted": true,
+      "outcome": "low_confidence_fallback",
+      "raw_confidence": null,
+      "note": "Route Advisor retained the typed fallback reason but did not persist the raw Jev confidence."
+    },
+    "agent": {
+      "tier": "long",
+      "confidence": 0.86,
+      "signals": {
+        "taskComplexity": 0.78,
+        "reasoningRequired": 0.76,
+        "toolComplexity": 0.72
+      },
+      "rationale": "Three-route incremental migration with auth, masked credentials, ETag concurrency, copy safety, and browser-test requirements."
+    },
+    "recommendation": {
+      "model": "gpt-6-astra",
+      "effort": "medium",
+      "coordinator_profile_from_local_codex_config": {
+        "model": "gpt-6-astra",
+        "effort": "xhigh"
+      },
+      "execution_mode": "auto_session_override"
+    },
+    "decomposition": {
+      "bounded_task_count": 1,
+      "parallel_groups": [],
+      "rationale": "Shared route registration, admin navigation, and one acceptance/verification loop make the three surfaces an integrated issue-sized task."
+    }
+  },
+  "agent_application": {
+    "execution": "Main agent owns OpenSpec, implementation, integration, tests, GitHub Project sync, push, and PR. Beauvoir performed a read-only survey of platform-connection contracts; no implementation work was delegated.",
+    "delegation_fallback": {
+      "role": "independent_read_only_review",
+      "recommended_profile": "gpt-6-astra/high",
+      "availability_evidence": "The repository workflow records Astra as unavailable; the current host inventory and delegation tool expose gpt-6.1-sol with high effort.",
+      "actual_profile": "gpt-6.1-sol/high",
+      "reason": "Use the available Sol reviewer profile without changing the coordinator profile or assigning write access."
+    },
+    "verification": [
+      "Vitest",
+      "Vue typecheck and build",
+      "focused Playwright",
+      "relevant .NET platform-connection endpoint tests",
+      "strict OpenSpec validation",
+      "diff and security review"
+    ],
+    "authorization": "Existing user authorization covers incremental migration, board transitions, branch push, and a Ready-for-review PR. No merge, deployment, production change, or external-provider call is authorized."
+  },
+  "route_advisor_run_id": "20261011T160427.082Z-44e30e07",
+  "notes": [
+    "The recommendation is advisory and does not replace tests or authorization.",
+    "No raw secrets or production data were sent to TypeSafe."
+  ]
+}
