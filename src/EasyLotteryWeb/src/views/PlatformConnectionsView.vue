@@ -68,7 +68,7 @@ function stateColor(state: string): string {
 }
 
 function credentialLabel(platform: string): string {
-  return platform === "YouTube" ? "YouTube API Key" : platform === "Twitch" ? "Twitch access token" : "Discord Bot token";
+  return platform === "YouTube" ? "互動平台 YouTube API Key" : platform === "Twitch" ? "Twitch access token" : "Discord Bot token";
 }
 
 function credentialChanged(draft: PlatformConnectionDraft, value: string | null): void {
@@ -114,6 +114,11 @@ onMounted(() => void reload());
               density="comfortable"
               @update:model-value="credentialChanged(draft, $event)"
             />
+            <p v-if="draft.platform === 'YouTube'" class="field-hint">
+              這是獨立的互動平台設定；抽獎工作區的 YouTube Live Chat 不讀取此欄位。請到
+              <RouterLink to="/system/youtube-login">YouTube 直播設定</RouterLink>
+              管理 Live Chat 使用的系統 API Key。
+            </p>
             <p v-if="draft.platform === 'Discord'" class="field-hint">頻道範圍請填 GuildId:ChannelId。</p>
             <div class="connection-actions">
               <v-btn
@@ -142,9 +147,9 @@ onMounted(() => void reload());
 </template>
 
 <style scoped>
-.connection-card { height: 100%; border: 1px solid rgba(37, 99, 235, 0.1); }
+.connection-card { height: 100%; border: 1px solid var(--creator-border); }
 .connection-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 0.35rem; }
-.field-hint { margin: -0.5rem 0 1rem; color: #64748b; font-size: 0.875rem; }
-.state-card { padding: 1.25rem; color: #526179; background: rgba(255,255,255,.85); border: 1px solid #dbe4f0; border-radius: 1rem; }
+.field-hint { margin: -0.5rem 0 1rem; color: var(--creator-muted); font-size: 0.875rem; }
+.state-card { padding: 1.25rem; color: var(--creator-muted); background: var(--creator-surface); border: 1px solid var(--creator-border); border-radius: 1rem; }
 .success-text { color: #147a43; font-weight: 650; }
 </style>

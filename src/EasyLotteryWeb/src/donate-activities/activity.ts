@@ -30,6 +30,25 @@ export interface DonateActivity {
   prizes: DonatePrize[];
 }
 
+export type DonateScheduleStatus = "scheduled" | "active" | "ended" | "incomplete";
+
+function utcInstant(value: string): number | null {
+  if (!value || !/(?:Z|[+-]\d{2}:\d{2})$/i.test(value)) return null;
+  const instant = Date.parse(value);
+  return Number.isFinite(instant) ? instant : null;
+}
+
+export function getDonateScheduleStatus(
+  activity: Pick<DonateActivity, "startsAtUtc" | "endsAtUtc">,
+  now = new Date()
+): DonateScheduleStatus {
+  const start = utcInstant(activity.startsAtUtc);
+  const end = activity.endsAtUtc ? utcInstant(activity.endsAtUtc) : null;
+  if (!Number.isFinite(now.getTime()) || start === null || (activity.endsAtUtc && end === null) || (end !== null && end <= start)) return "incomplete";
+  if (now.getTime() < start) return "scheduled";
+  return end !== null && now.getTime() >= end ? "ended" : "active";
+}
+
 export function createDonateActivity(now = new Date()): DonateActivity {
   const startsAt = new Date(now);
   const endsAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);

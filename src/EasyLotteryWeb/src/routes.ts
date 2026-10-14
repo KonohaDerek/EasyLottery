@@ -40,7 +40,7 @@ export const adminRoutes: RouteRecordRaw[] = [
   { path: "/pokebox/preview/:id", component: PokeBoxPreviewView, meta: { title: "戳戳樂 OBS 預覽｜EasyLottery", requiresAuth: true } },
   { path: "/system/access", component: AdminAccessView, meta: { title: "管理員 Passkey 管理｜EasyLottery", requiresAuth: true } },
   { path: "/system/payment", component: PaymentSettingsView, meta: { title: "支付配置｜EasyLottery", requiresAuth: true } },
-  { path: "/system/youtube-login", component: YoutubeLoginView, meta: { title: "YouTube API Key｜EasyLottery", requiresAuth: true } },
+  { path: "/system/youtube-login", component: YoutubeLoginView, meta: { title: "YouTube 直播設定｜EasyLottery", requiresAuth: true } },
   { path: "/system/audit", component: AuditView, meta: { title: "審計紀錄｜EasyLottery", requiresAuth: true } },
   { path: "/system/backups", component: BackupsView, meta: { title: "設定備份與回復｜EasyLottery", requiresAuth: true } },
   { path: "/system/obs-layouts", component: ObsLayoutsView, meta: { title: "OBS 版面｜EasyLottery", requiresAuth: true } },

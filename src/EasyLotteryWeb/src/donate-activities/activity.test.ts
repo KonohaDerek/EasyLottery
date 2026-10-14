@@ -4,6 +4,7 @@ import {
   buildDonateObsTestUrl,
   createDonateActivity,
   createDonatePrize,
+  getDonateScheduleStatus,
   localDateTimeToUtc,
   prizeProbabilityTotal,
   toLocalDateTimeInput
@@ -53,6 +54,34 @@ describe("Donate activity editor model", () => {
     expect(prizeProbabilityTotal(prizes)).toBe(100);
     prizes[1].probability = 75.01;
     expect(prizeProbabilityTotal(prizes)).toBeGreaterThan(100);
+  });
+
+  it("derives Donate schedule state using explicit UTC boundaries without changing enablement", () => {
+    const activity = createDonateActivity();
+    activity.startsAtUtc = "2026-10-15T12:00:00Z";
+    activity.endsAtUtc = "2026-10-15T13:00:00Z";
+    activity.isEnabled = false;
+
+    expect(getDonateScheduleStatus(activity, new Date("2026-10-15T11:59:59Z"))).toBe("scheduled");
+    expect(getDonateScheduleStatus(activity, new Date("2026-10-15T12:00:00Z"))).toBe("active");
+    expect(getDonateScheduleStatus(activity, new Date("2026-10-15T12:59:59Z"))).toBe("active");
+    expect(getDonateScheduleStatus(activity, new Date("2026-10-15T13:00:00Z"))).toBe("ended");
+    expect(activity.isEnabled).toBe(false);
+  });
+
+  it("treats an empty end as open-ended and rejects ambiguous or invalid date ranges", () => {
+    const activity = createDonateActivity();
+    activity.startsAtUtc = "2026-10-15T12:00:00Z";
+    activity.endsAtUtc = "";
+    expect(getDonateScheduleStatus(activity, new Date("2026-10-16T00:00:00Z"))).toBe("active");
+
+    activity.startsAtUtc = "2026-10-15T12:00:00";
+    expect(getDonateScheduleStatus(activity, new Date("2026-10-16T00:00:00Z"))).toBe("incomplete");
+    activity.startsAtUtc = "2026-10-15T12:00:00Z";
+    activity.endsAtUtc = "2026-10-15T11:59:59Z";
+    expect(getDonateScheduleStatus(activity, new Date("2026-10-16T00:00:00Z"))).toBe("incomplete");
+    activity.endsAtUtc = "";
+    expect(getDonateScheduleStatus(activity, new Date("invalid"))).toBe("incomplete");
   });
 
   it("keeps OBS session tokens in the URL fragment, never the query", () => {

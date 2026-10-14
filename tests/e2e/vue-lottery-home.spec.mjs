@@ -229,6 +229,7 @@ test("lottery workspace fits a phone viewport without a hidden drawer gap", asyn
     status: 200, contentType: "application/json", body: JSON.stringify({ configured: false })
   }));
   await page.goto(baseURL, { waitUntil: "networkidle" });
+  await expect(page.getByRole("link", { name: "設定 YouTube 直播" })).toBeVisible();
 
   const layout = await page.evaluate(() => ({
     viewportWidth: window.innerWidth,
@@ -240,7 +241,7 @@ test("lottery workspace fits a phone viewport without a hidden drawer gap", asyn
   expect(layout.contentLeft).toBeLessThan(40);
   expect(layout.heroRight).toBeLessThanOrEqual(layout.viewportWidth);
 
-  await page.getByRole("button", { name: "管理選單" }).click();
+  await page.getByRole("button", { name: "開啟管理功能導覽" }).click();
   await page.getByRole("link", { name: "Donate 活動" }).click();
   await expect(page).toHaveURL(/\/donate-activities$/);
 });

@@ -338,6 +338,10 @@ onBeforeUnmount(() => {
           <span class="connection-pill" :class="youtubeConfigured ? 'is-ready' : 'is-muted'"><span aria-hidden="true"></span>{{ youtubeConfigured === null ? "檢查 API" : youtubeConfigured ? "API 已設定" : "尚未設定 API" }}</span>
         </div>
         <p class="card-description">符合關鍵字與名單條件的觀眾會加入參加者；YouTube API Key 僅由伺服器使用。</p>
+        <div v-if="youtubeConfigured !== true" class="youtube-setup-hint" role="status">
+          <p>{{ youtubeConfigured === false ? "尚未設定 YouTube Data API Key；設定後才能擷取直播聊天室。" : "目前無法確認 YouTube API 設定，請檢查後再開始擷取。" }}</p>
+          <v-btn color="primary" variant="tonal" to="/system/youtube-login">設定 YouTube 直播</v-btn>
+        </div>
         <div class="field-grid">
           <label class="field full-field">直播網址<input v-model="liveUrl" type="url" placeholder="https://www.youtube.com/watch?v=…" :disabled="chatActive" autocomplete="url"></label>
           <label class="field full-field">通關密語（逗號或換行分隔）<textarea v-model="keyword" rows="2" placeholder="例如：抽獎,參加" :disabled="chatActive"></textarea></label>
@@ -402,7 +406,7 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
-.lottery-page { --ink:#24233c; --muted:#74738a; --line:#ece8f2; display:grid; gap:18px; padding:4px 4px 36px; color:var(--ink); }
+.lottery-page { --ink:var(--creator-ink); --muted:var(--creator-muted); --line:var(--creator-border); display:grid; gap:18px; padding:4px 4px 36px; color:var(--ink); }
 .lottery-hero { position:relative; display:grid; grid-template-columns:minmax(0,.9fr) 1.1fr; align-items:center; gap:22px; overflow:hidden; min-height:178px; padding:26px 30px; border:1px solid #f0dfea; border-radius:22px; background:radial-gradient(ellipse at 12% 110%,#ffd7e8 0,transparent 42%),radial-gradient(ellipse at 98% 0%,#e1dcff 0,transparent 35%),linear-gradient(120deg,#fffaf5 4%,#fff 54%,#f8f5ff 100%); box-shadow:0 14px 38px #6f4a7410; }
 .hero-copy,.hero-stats { position:relative; z-index:1; }.lottery-eyebrow,.card-kicker { color:#9d598b; font-size:.7rem; font-weight:800; letter-spacing:.16em; }.hero-orbit { display:inline-grid; width:21px; height:21px; margin-right:6px; place-items:center; color:#bb4c8d; border:1px solid #e7b8d1; border-radius:50%; animation:orbit-glow 3.8s ease-in-out infinite; }
 .lottery-hero h1 { margin:8px 0 4px; font-size:clamp(1.8rem,3.8vw,2.7rem); letter-spacing:-.035em; }.lottery-hero p { margin:0; color:var(--muted); }.hero-stats { display:grid; grid-template-columns:repeat(4,minmax(70px,1fr)); gap:8px; }.hero-stats>div { display:grid; align-content:center; gap:3px; min-height:78px; padding:12px; border:1px solid #ffffffd9; border-radius:14px; background:#ffffffa8; backdrop-filter:blur(5px); }.hero-stats span { color:var(--muted); font-size:.78rem; }.hero-stats strong { color:#49385d; font-size:1.65rem; line-height:1; }.hero-spark { position:absolute; color:#d896bf; animation:float-sparkle 5s ease-in-out infinite; }.spark-one { top:18px; right:23px; font-size:1.4rem; }.spark-two { right:39%; bottom:20px; font-size:1.1rem; animation-delay:-2s; }
@@ -417,4 +421,10 @@ onBeforeUnmount(() => {
 @media (prefers-reduced-motion:reduce) { *,*::before,*::after { animation-duration:.01ms!important; animation-iteration-count:1!important; scroll-behavior:auto!important; transition-duration:.01ms!important; } }
 @media (max-width:960px) { .lottery-hero { grid-template-columns:1fr; }.hero-stats { max-width:640px; width:100%; }.draw-columns { grid-template-columns:1fr; }.participant-entry { grid-template-columns:repeat(2,minmax(0,1fr)); } }
 @media (max-width:620px) { .lottery-hero { padding:20px; }.hero-stats { grid-template-columns:repeat(2,minmax(0,1fr)); }.lottery-card { padding:15px; }.field-grid,.import-layout { grid-template-columns:1fr; }.full-field { grid-column:auto; }.member-import-row,.rates-heading,.entry-form { align-items:stretch; flex-direction:column; }.member-import-row>span { padding:0; }.participant-entry { display:grid; grid-template-columns:1fr; }.list-heading { align-items:flex-start; }.list-tools { justify-content:start; }.participant-list li { gap:7px; }.card-heading { align-items:flex-start; flex-wrap:wrap; } }
+</style>
+
+<style scoped>
+.youtube-setup-hint { display: flex; align-items: center; justify-content: space-between; gap: 0.85rem; margin: -0.25rem 0 1rem; padding: 0.85rem 1rem; border: 1px solid var(--creator-border); border-radius: 0.85rem; background: #f7f5fc; }
+.youtube-setup-hint p { margin: 0; color: var(--creator-ink); font-size: 0.9rem; }
+@media (max-width: 620px) { .youtube-setup-hint { align-items: stretch; flex-direction: column; } }
 </style>
