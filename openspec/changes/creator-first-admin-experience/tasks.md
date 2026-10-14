@@ -28,4 +28,4 @@
 
 - [x] 5.1 Run frontend Vitest, typecheck, and production build in the project Dev Container.
 - [x] 5.2 Run focused Playwright and strict OpenSpec validation; inspect accessibility, secret/data compatibility, reduced-motion/OBS styles, and unrelated diffs.
-- [ ] 5.3 Record verification, push the branch, create a Ready PR linked to #252/#294–#299, and move the six issue cards to In review. Do not merge/deploy or perform native OBS validation.
+- [x] 5.3 Record verification, push the branch, create a Ready PR linked to #252/#294–#299, and move the six issue cards to In review. Do not merge/deploy or perform native OBS validation.

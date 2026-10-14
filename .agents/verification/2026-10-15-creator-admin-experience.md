@@ -23,3 +23,4 @@ Native OBS, hardware, and OBS software validation were intentionally skipped per
 - The independent-review model profile could not be verified from Host context; no reviewer was dispatched. Coordinator performed a second-pass source/diff review. No code changes touch OBS transparent/reduced-motion rules.
 - Existing dependency advisories were reported by installation/restore: npm found 1 moderate and 2 critical advisories in the frontend dependency tree; NuGet reported high-severity advisories for `Microsoft.AspNetCore.Components.WebAssembly.Server` and `Microsoft.AspNetCore.SignalR.Common` 10.0.12. Dependencies and lockfiles were not changed because this UX scope does not require a dependency update.
 - Merge, deployment, and native OBS verification were not performed.
+- Ready PR #300 is open at https://github.com/KonohaDerek/EasyLottery/pull/300; Project #1 issues #294–#299 are in In review. #252/#269 stayed In progress and #289 stayed Done.
