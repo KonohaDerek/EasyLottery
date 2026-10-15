@@ -17,7 +17,7 @@ Native OBS, hardware, and OBS software validation were intentionally skipped per
 - Theme contrast spot-check: primary 7.41:1, primary-strong 9.99:1, secondary 6.43:1, accent 5.09:1, muted 6.69:1, ink 13.56:1, focus 7.82:1 against their light surfaces.
 - Artwork verified as 768×768 WebP: PokeBox ~111 KB, Roulette ~107 KB; both remain below 150 KB.
 - `node --check` for changed E2E specs and `git diff --check`: passed.
-- PR CI run #422 passed the frontend, .NET, smoke, and OpenSpec steps but failed 2 of 86 browser tests: a stale expected YouTube heading in `passkey-login.spec.mjs` and an ambiguous `role=status` locator in the YouTube retry test. Updated both test expectations; reran the two affected specs in the Dev Container: 12/12 passed. A full PR CI rerun is pending.
+- PR CI run #422 passed the frontend, .NET, smoke, and OpenSpec steps but failed 2 of 86 browser tests: a stale expected YouTube heading in `passkey-login.spec.mjs` and an ambiguous `role=status` locator in the YouTube retry test. Updated both test expectations; reran the two affected specs in the Dev Container: 12/12 passed. Full PR CI run [#425](https://github.com/KonohaDerek/EasyLottery/actions/runs/38765089337) then passed all workflow steps, including browser E2E: 86/86.
 
 ## Limits and follow-up risk
 
