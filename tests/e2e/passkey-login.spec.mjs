@@ -67,7 +67,7 @@ test("admin can register and use a Passkey", async ({ browser, baseURL }) => {
 
     for (const [path, heading] of [
       ["/system/payment", "支付配置"],
-      ["/system/youtube-login", "YouTube API Key"],
+      ["/system/youtube-login", "YouTube 直播設定"],
       ["/system/audit", "審計紀錄"]
     ]) {
       await page.goto(`${origin}${path}`, { waitUntil: "networkidle" });

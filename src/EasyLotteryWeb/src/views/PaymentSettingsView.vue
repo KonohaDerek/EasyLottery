@@ -49,11 +49,6 @@ function setProviderField(providerKey: string, fieldKey: string, value: string) 
   connectionSettings(providerKey)[fieldKey] = value;
 }
 
-function youtubeSettings() {
-  settings.value.youTube ??= {};
-  return settings.value.youTube;
-}
-
 function text(section: Record<string, unknown>, key: string): string {
   return typeof section[key] === "string" ? section[key] as string : "";
 }
@@ -152,8 +147,13 @@ onMounted(load);
             </div>
             <label class="checkbox-label"><input type="checkbox" :checked="connectionSettings(provider.key).isEnabled === true" @change="connectionSettings(provider.key).isEnabled = ($event.target as HTMLInputElement).checked" /> 啟用</label>
           </div>
-          <label class="checkbox-label"><input v-model="settings.enableYouTubeSuperChat" type="checkbox" /> 啟用 YouTube Super Chat</label>
-          <div class="form-grid single-margin"><label class="field-label" for="youtube-key">YouTube API Key（遮罩值會原樣保留）</label><input id="youtube-key" :value="text(youtubeSettings(), 'apiKey')" class="settings-input" type="password" autocomplete="new-password" @input="youtubeSettings().apiKey = ($event.target as HTMLInputElement).value" /></div>
+          <div class="youtube-settings-link">
+            <div>
+              <strong>YouTube Live Chat 與 Super Chat</strong>
+              <p>API Key 與 Super Chat 開關集中在 YouTube 直播設定，避免在支付頁重複輸入。</p>
+            </div>
+            <v-btn color="primary" variant="tonal" to="/system/youtube-login">前往 YouTube 直播設定</v-btn>
+          </div>
         </v-card-text>
       </v-card>
 

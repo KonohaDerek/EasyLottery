@@ -191,6 +191,10 @@ test("platform credentials remain masked; unchanged and explicit-clear saves use
 
   await page.goto(`${baseURL}/system/platform-connections`, { waitUntil: "networkidle" });
   await expect(page.getByRole("heading", { name: "直播平台串接" })).toBeVisible();
+  const youtubeCard = page.locator(".connection-card").filter({ has: page.getByText("YouTube", { exact: true }) });
+  await expect(youtubeCard.getByLabel("互動平台 YouTube API Key")).toBeVisible();
+  await expect(youtubeCard.getByText(/獨立的互動平台設定/)).toBeVisible();
+  await expect(youtubeCard.getByRole("link", { name: "YouTube 直播設定" })).toHaveAttribute("href", "/system/youtube-login");
   await expect(page.locator("body")).not.toContainText("__EASYLOTTERY_SECRET_UNCHANGED__");
   await page.reload({ waitUntil: "networkidle" });
   await page.getByRole("button", { name: "儲存 YouTube" }).click();

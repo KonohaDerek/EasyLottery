@@ -8,6 +8,7 @@ import {
   MarketplacePublicationError,
   marketplaceEditorPath,
   publishMarketplaceCopy,
+  type MarketplaceKind,
   type MarketplaceEntry
 } from "../marketplace/api";
 
@@ -17,7 +18,16 @@ const loading = ref(true);
 const error = ref("");
 const busyEntry = ref("");
 const pendingCopy = ref<{ entry: MarketplaceEntry; id: number } | null>(null);
+const failedArtwork = ref<MarketplaceKind[]>([]);
 const installedKey = (entry: MarketplaceEntry) => `${entry.kind}:${entry.id}`;
+const artwork = {
+  pokebox: `${import.meta.env.BASE_URL}images/marketplace/pokebox-moonlit-prizes.webp`,
+  roulette: `${import.meta.env.BASE_URL}images/marketplace/roulette-starry-prize.webp`
+} satisfies Record<MarketplaceKind, string>;
+
+function artworkFailed(kind: MarketplaceKind): void {
+  if (!failedArtwork.value.includes(kind)) failedArtwork.value = [...failedArtwork.value, kind];
+}
 
 async function reload(): Promise<void> {
   loading.value = true;
@@ -101,10 +111,23 @@ onMounted(() => void reload());
     <v-row v-else-if="entries.length" class="marketplace-grid">
       <v-col v-for="entry in entries" :key="installedKey(entry)" cols="12" sm="6" xl="4">
         <v-card class="market-card" height="100%" rounded="xl" elevation="2">
+          <div v-if="failedArtwork.includes(entry.kind)" class="market-artwork-fallback" role="img" :aria-label="`${entry.kind === 'pokebox' ? '戳戳樂' : '轉盤'}範本預覽`">
+            <span aria-hidden="true">{{ entry.kind === "pokebox" ? "戳" : "轉" }}</span>
+            <strong>{{ entry.kind === "pokebox" ? "戳戳樂範本" : "轉盤範本" }}</strong>
+          </div>
+          <div v-else class="market-artwork-frame">
+            <img
+              class="market-artwork"
+              :src="artwork[entry.kind]"
+              :alt="entry.kind === 'pokebox' ? '原創動畫風格戳戳樂獎品盒預覽' : '原創動畫風格魔法獎項轉盤預覽'"
+              width="768"
+              height="768"
+              loading="lazy"
+              decoding="async"
+              @error="artworkFailed(entry.kind)"
+            />
+          </div>
           <v-card-item>
-            <template #prepend>
-              <div class="market-card-mark" :class="entry.kind" aria-hidden="true">{{ entry.kind === "pokebox" ? "戳" : "轉" }}</div>
-            </template>
             <v-card-title>{{ entry.name }}</v-card-title>
             <v-card-subtitle>{{ entry.kind === "pokebox" ? "戳戳樂範本" : "轉盤範本" }}</v-card-subtitle>
             <template #append>
@@ -137,11 +160,13 @@ onMounted(() => void reload());
 <style scoped>
 .marketplace-page { max-width: 1200px; margin-inline: auto; }
 .marketplace-grid { margin-top: 0.25rem; }
-.market-card { border: 1px solid rgba(37, 99, 235, 0.1); background: linear-gradient(155deg, #fff 25%, #f5f7ff 100%); }
-.market-card-mark { width: 2.75rem; height: 2.75rem; display: grid; place-items: center; border-radius: 1rem; color: white; font-size: 1.25rem; font-weight: 800; background: linear-gradient(145deg, #7c3aed, #ec4899); box-shadow: 0 8px 18px rgba(124, 58, 237, 0.25); }
-.market-card-mark.roulette { background: linear-gradient(145deg, #2563eb, #14b8a6); box-shadow: 0 8px 18px rgba(37, 99, 235, 0.22); }
-.market-card-description { min-height: 4.5rem; color: #58677d; }
+.market-card { overflow: hidden; border: 1px solid var(--creator-border); background: linear-gradient(155deg, #fff 25%, #f6f3fc 100%); }
+.market-artwork-frame, .market-artwork-fallback { display: grid; width: 100%; aspect-ratio: 16 / 9; place-items: center; overflow: hidden; background: radial-gradient(circle at 50% 45%, #453a72, #211b3d 78%); }
+.market-artwork { width: 100%; height: 100%; object-fit: contain; }
+.market-artwork-fallback { align-content: center; gap: 0.45rem; color: #fff; text-align: center; }
+.market-artwork-fallback span { display: grid; width: 3.25rem; height: 3.25rem; place-items: center; border: 1px solid rgba(255,255,255,.55); border-radius: 1rem; background: linear-gradient(145deg, var(--creator-primary), var(--creator-secondary)); font-size: 1.35rem; font-weight: 800; }
+.market-card-description { min-height: 4.5rem; color: var(--creator-muted); }
 .market-card-actions { padding: 0.25rem 1rem 1rem; flex-wrap: wrap; }
 .recovery-actions { display: flex; flex-wrap: wrap; }
-.state-card { padding: 1.25rem; color: #526179; background: rgba(255,255,255,.85); border: 1px solid #dbe4f0; border-radius: 1rem; }
+.state-card { padding: 1.25rem; color: var(--creator-muted); background: var(--creator-surface); border: 1px solid var(--creator-border); border-radius: 1rem; }
 </style>

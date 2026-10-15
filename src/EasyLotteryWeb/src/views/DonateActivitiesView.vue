@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from "vue";
 import { apiRequest } from "../api/client";
 import ObsAssetUrlPicker from "../components/ObsAssetUrlPicker.vue";
 import {
@@ -8,6 +8,7 @@ import {
   createDonateActivity,
   createDonatePrize,
   formatLocalDateTime,
+  getDonateScheduleStatus,
   localDateTimeToUtc,
   prizeProbabilityTotal,
   toLocalDateTimeInput,
@@ -25,6 +26,8 @@ const error = ref("");
 const success = ref("");
 const saving = ref(false);
 const deletingId = ref<number | null>(null);
+const currentTime = ref(new Date());
+let scheduleTimer: number | undefined;
 
 const probabilityTotal = computed(() => editing.value ? prizeProbabilityTotal(editing.value.prizes) : 0);
 const probabilityExceeded = computed(() => probabilityTotal.value > 100);
@@ -150,7 +153,20 @@ function inventory(activity: DonateActivity, remaining: boolean) {
   return activity.prizes.reduce((total, prize) => total + (remaining ? prize.remainingQuantity : prize.quantity), 0);
 }
 
-onMounted(() => { void loadActivities(); });
+function scheduleLabel(activity: DonateActivity): string {
+  return {
+    scheduled: "已排程",
+    active: "進行中",
+    ended: "已結束",
+    incomplete: "時間未完整"
+  }[getDonateScheduleStatus(activity, currentTime.value)];
+}
+
+onMounted(() => {
+  void loadActivities();
+  scheduleTimer = window.setInterval(() => { currentTime.value = new Date(); }, 60_000);
+});
+onBeforeUnmount(() => { if (scheduleTimer !== undefined) window.clearInterval(scheduleTimer); });
 </script>
 
 <template>
@@ -187,7 +203,12 @@ onMounted(() => { void loadActivities(); });
               <td>{{ formatLocalDateTime(activity.startsAtUtc) }} — {{ formatLocalDateTime(activity.endsAtUtc) }}</td>
               <td>NT$ {{ activity.minimumDonationAmount }}</td>
               <td>{{ inventory(activity, true) }} / {{ inventory(activity, false) }}</td>
-              <td><span :class="activity.isEnabled ? 'state-enabled' : 'state-disabled'">{{ activity.isEnabled ? "啟用" : "停用" }}</span></td>
+              <td>
+                <div class="activity-statuses">
+                  <span :class="activity.isEnabled ? 'state-enabled' : 'state-disabled'">設定：{{ activity.isEnabled ? "啟用" : "停用" }}</span>
+                  <span class="schedule-status" :class="`schedule-${getDonateScheduleStatus(activity, currentTime)}`">時段：{{ scheduleLabel(activity) }}</span>
+                </div>
+              </td>
               <td class="row-actions">
                 <button class="secondary-button" type="button" @click="edit(activity)">編輯</button>
                 <button class="secondary-button" type="button" :disabled="!activity.isEnabled" @click="openTestObs(activity)">開啟測試 OBS</button>
@@ -281,7 +302,7 @@ onMounted(() => { void loadActivities(); });
 </template>
 
 <style scoped>
-.donate-page { display: grid; gap: 1.25rem; color: #172033; }
+.donate-page { display: grid; gap: 1.25rem; color: var(--creator-ink); }
 .donate-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem; }
 .donate-heading .lead { max-width: 46rem; }
 .heading-actions, .row-actions, .editor-footer { display: flex; flex-wrap: wrap; align-items: center; gap: .55rem; }
@@ -289,10 +310,16 @@ onMounted(() => { void loadActivities(); });
 .activity-card { padding: 1.1rem 1.25rem; border-radius: .65rem; background: #fff; }
 .activity-card h2 { margin: 0 0 .8rem; color: #1e293b; font-size: 1.2rem; }
 .activity-row td { vertical-align: middle; }
+.activity-statuses { display: grid; justify-items: start; gap: .35rem; }
 .row-actions { min-width: 16rem; }
 .state-enabled, .state-disabled { display: inline-block; padding: .15rem .5rem; border-radius: 1rem; font-size: .85rem; }
 .state-enabled { color: #166534; background: #dcfce7; }
 .state-disabled { color: #475569; background: #e2e8f0; }
+.schedule-status { display: inline-block; padding: .15rem .5rem; border-radius: 1rem; font-size: .85rem; }
+.schedule-scheduled { color: #423292; background: #eeeafd; }
+.schedule-active { color: #075d61; background: #ddf5f3; }
+.schedule-ended { color: #8b1e35; background: #fde8ed; }
+.schedule-incomplete { color: #4b465a; background: #eceaf1; }
 .success-banner { margin: 0; padding: .75rem 1rem; color: #166534; background: #dcfce7; border-radius: .4rem; }
 .load-error { display: flex; align-items: center; flex-wrap: wrap; gap: .8rem; color: #7f1d1d; }
 .load-error p { margin: 0; }
