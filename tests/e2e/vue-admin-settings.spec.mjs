@@ -187,7 +187,7 @@ test("YouTube settings cannot save after a failed initial load until retry succe
   await page.getByRole("button", { name: "重新載入" }).click();
   await expect(page.getByRole("button", { name: "儲存 YouTube 設定" })).toBeVisible();
   await page.getByRole("button", { name: "儲存 YouTube 設定" }).click();
-  await expect(page.getByRole("status")).toContainText("已儲存");
+  await expect(page.locator(".success-text")).toContainText("已儲存");
   expect(putCount).toBe(1);
 });
 
