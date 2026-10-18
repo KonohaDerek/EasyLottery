@@ -485,6 +485,57 @@ public sealed class SecurityEndpointTests
     }
 
     [TestMethod]
+    public async Task AuthenticationRateLimit_TestOverrideRequiresDevelopmentAndTestSession()
+    {
+        var settings = new Dictionary<string, string?>
+        {
+            ["Testing:EnableAdminSessionToken"] = "true",
+            ["Testing:AuthenticationPermitLimit"] = "600"
+        };
+
+        await using var developmentFactory = CreateFactory(settings);
+        using var developmentClient = developmentFactory.CreateClient();
+        for (var attempt = 0; attempt < 6; attempt++)
+        {
+            using var response = await developmentClient.PostAsJsonAsync(
+                "/api/auth/passkey/options",
+                new { email = "admin@example.com", flow = "login" });
+            Assert.AreEqual(HttpStatusCode.Conflict, response.StatusCode);
+        }
+
+        await using var withoutTestSessionFactory = CreateFactory(new Dictionary<string, string?>
+        {
+            ["Testing:AuthenticationPermitLimit"] = "600"
+        });
+        using var withoutTestSessionClient = withoutTestSessionFactory.CreateClient();
+        for (var attempt = 0; attempt < 5; attempt++)
+        {
+            using var response = await withoutTestSessionClient.PostAsJsonAsync(
+                "/api/auth/passkey/options",
+                new { email = "admin@example.com", flow = "login" });
+            Assert.AreEqual(HttpStatusCode.Conflict, response.StatusCode);
+        }
+        using var withoutTestSessionLimited = await withoutTestSessionClient.PostAsJsonAsync(
+            "/api/auth/passkey/options",
+            new { email = "admin@example.com", flow = "login" });
+        Assert.AreEqual(HttpStatusCode.TooManyRequests, withoutTestSessionLimited.StatusCode);
+
+        await using var productionFactory = CreateFactory(settings, "Production");
+        using var productionClient = productionFactory.CreateClient();
+        for (var attempt = 0; attempt < 5; attempt++)
+        {
+            using var response = await productionClient.PostAsJsonAsync(
+                "/api/auth/passkey/options",
+                new { email = "admin@example.com", flow = "login" });
+            Assert.AreEqual(HttpStatusCode.Conflict, response.StatusCode);
+        }
+        using var limited = await productionClient.PostAsJsonAsync(
+            "/api/auth/passkey/options",
+            new { email = "admin@example.com", flow = "login" });
+        Assert.AreEqual(HttpStatusCode.TooManyRequests, limited.StatusCode);
+    }
+
+    [TestMethod]
     public async Task SensitiveRateLimit_TestOverrideRequiresDevelopmentAndTestSession()
     {
         var settings = new Dictionary<string, string?>

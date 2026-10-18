@@ -1,17 +1,17 @@
 # Current work state
 
-- Task ID: creator-admin-experience-2026-10-15
-- Status: Pull request open; CI test follow-up is complete; native OBS verification remains user-owned.
-- Source: GitHub Issues #294–#299 under migration epic #252; user asked to implement all non-OBS creator UX items and create a direct Ready PR.
-- Scope completed: Accessible logout and grouped navigation; clear, single-entry YouTube Live Chat setup; consistent VTuber-first Vue tokens; original Roulette/PokeBox marketplace previews; read-only Donate schedule state distinct from saved enablement.
-- Non-goals: Native OBS/hardware/software verification (user-owned under #269), backend/API/Domain/credential/payment contract changes, production changes, merge, or deployment.
-- OpenSpec: `openspec/changes/creator-first-admin-experience`.
-- Branch/worktree: `codex/creator-ux-improvements` / `.worktrees/creator-ux-improvements`, based on latest `origin/main` at `42a3ff917d15c26265e4c953fa98b32ed932aa22`.
-- Dev Container: running container `2062a4df92f7`; use `/workspaces/EasyLottery/.worktrees/creator-ux-improvements` for all tests/builds.
-- Board: Project #1 #294–#299 moved to In review after PR #300 opened. #252 and #269 remain In progress; #289 remains Done.
-- Routing: Jev `balanced` / confidence `0.99`; selected Host model/effort unavailable, so no worker was dispatched and no model profile is claimed. See `.agents/decisions/2026-10-15-creator-admin-experience.json`.
-- Implementation: Completed; no backend/API/Domain or OBS-specific code changes.
-- Verification: Base change passed Vitest 120/120, typecheck, build, focused Playwright 16/16, OpenSpec strict validation 44/44, and diff checks. PR CI run #422 found two stale E2E assertions; both are fixed, the affected specs pass 12/12 in the Dev Container, and full CI run #425 passed all steps including browser E2E 86/86. See `.agents/verification/2026-10-15-creator-admin-experience.md`.
-- Delivery: branch pushed; Ready PR #300 is open and attached to this task: https://github.com/KonohaDerek/EasyLottery/pull/300. It references #252 and closes #294–#299. No merge or deployment.
-- Flags: `verification_complete: true`, `branch_pushed: true`, `pull_request_created: true`.
-- Updated: 2026-10-16
+- Task ID: issue-301-passkey-ci-2026-10-18
+- Status: In progress; implementation and verification not yet complete.
+- Source: GitHub Issue #301, investigating CI failures from PR #300; retain the agreed Vue migration state and existing production WebAuthn policy.
+- Scope: Deterministic real-CDP Passkey browser coverage, safe retry-state isolation, non-persistent YouTube retry/save coverage, test-only rate-limit configuration, CI evidence and hardware boundary documentation.
+- Non-goals: Production auth policy changes, merge, deployment, OBS, physical authenticator, iOS, device-sync or QR validation.
+- OpenSpec: `openspec/changes/fix-passkey-e2e-ci` (`skip_specs: true`, tooling/test-only change).
+- Branch/worktree: `codex/issue-301-passkey-ci` / `.worktrees/issue-301-passkey-ci`, based on `origin/main` at `09ccad1b13cb940b0828d9a15cee10f3a7381dce`.
+- Dev Container: container `2062a4df92f7`; run all Git, build and test commands in `/workspaces/EasyLottery/.worktrees/issue-301-passkey-ci`.
+- Board: Project #1 issue #301 is In progress; move to In review after opening the PR.
+- Routing: Jev route result balanced / 0.52 confidence, below threshold; direct Coordinator fallback. Host profile is unverified. See `.agents/decisions/2026-10-18-issue-301.json`.
+- Implementation: Pending.
+- Verification: Pending; exact commands and results will be recorded in `.agents/verification/2026-10-18-issue-301.md`.
+- Delivery: No push or PR yet. User authorized direct Ready-for-review PR in this workflow; do not merge or deploy.
+- Flags: `verification_complete: false`, `branch_pushed: false`, `pull_request_created: false`.
+- Updated: 2026-10-18

@@ -1,0 +1,5 @@
+schema: spec-driven
+created: 2026-10-18
+goal: "Make Issue #301 browser verification deterministic without weakening
+  production WebAuthn policy."
+skip_specs: true

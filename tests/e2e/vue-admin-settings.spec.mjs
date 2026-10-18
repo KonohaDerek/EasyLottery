@@ -168,27 +168,65 @@ test("YouTube settings cannot save after a failed initial load until retry succe
   const session = await response.json();
   await page.addInitScript(token => sessionStorage.setItem("easy-lottery.session-token", token), session.token);
 
+  const paymentSettings = {
+    donationIntegration: {},
+    publicCallback: { customDomain: "", tunnelProvider: "cloudflare-quick", activePublicBaseUrl: "" },
+    mailDelivery: { smtpHost: "", smtpPort: 587, smtpUsername: "", smtpPassword: "", fromAddress: "", fromName: "" },
+    youTube: { apiKey: "__configured_server_key__", futureOption: "preserve-me" },
+    enableYouTubeSuperChat: true,
+    resultNotificationEmail: "keep@example.com",
+    futurePaymentSetting: { enabled: true, source: "newer-server" }
+  };
   let getCount = 0;
-  let putCount = 0;
+  const writes = [];
   await page.route("**/api/settings/payments", async route => {
-    if (route.request().method() === "PUT") putCount++;
-    if (route.request().method() === "GET" && getCount++ === 0) {
+    const request = route.request();
+    if (request.method() === "GET" && getCount++ === 0) {
       await route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ message: "temporary failure" }) });
       return;
     }
-    await route.continue();
+    if (request.method() === "GET") {
+      await route.fulfill({
+        status: 200, headers: { ETag: '"payment-retry-v2"' }, contentType: "application/json", body: JSON.stringify(paymentSettings)
+      });
+      return;
+    }
+    const body = request.postDataJSON();
+    writes.push({ etag: request.headers()["if-match"], body });
+    await route.fulfill({
+      status: 200, headers: { ETag: '"payment-retry-v3"' }, contentType: "application/json", body: JSON.stringify(body)
+    });
+  });
+  let statusCount = 0;
+  await page.route("**/api/lottery/youtube/status", route => {
+    statusCount++;
+    return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ configured: true }) });
   });
 
   await page.goto(`${baseURL}/system/youtube-login`, { waitUntil: "networkidle" });
   await expect(page.getByRole("alert")).toBeVisible();
   await expect(page.getByRole("button", { name: "儲存 YouTube 設定" })).toHaveCount(0);
-  expect(putCount).toBe(0);
+  await expect(page.locator(".youtube-status")).toContainText("伺服器已設定 API Key");
+  expect(getCount).toBe(1);
+  expect(writes).toHaveLength(0);
 
   await page.getByRole("button", { name: "重新載入" }).click();
   await expect(page.getByRole("button", { name: "儲存 YouTube 設定" })).toBeVisible();
   await page.getByRole("button", { name: "儲存 YouTube 設定" }).click();
-  await expect(page.locator(".success-text")).toContainText("已儲存");
-  expect(putCount).toBe(1);
+  await expect(page.locator(".success-text")).toHaveText("已儲存");
+  await expect(page.locator(".youtube-status")).toHaveText("伺服器已設定 API Key（此狀態不代表 Google API 已完成實測）。");
+  expect(getCount).toBe(2);
+  expect(statusCount).toBe(2);
+  expect(writes).toHaveLength(1);
+  expect(writes[0]).toMatchObject({
+    etag: '"payment-retry-v2"',
+    body: {
+      youTube: { apiKey: "__configured_server_key__", futureOption: "preserve-me" },
+      enableYouTubeSuperChat: true,
+      resultNotificationEmail: "keep@example.com",
+      futurePaymentSetting: { enabled: true, source: "newer-server" }
+    }
+  });
 });
 
 test("audit settings cannot save after a failed initial load until retry succeeds", async ({ page, baseURL }) => {
