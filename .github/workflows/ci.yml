@@ -81,9 +81,10 @@ jobs:
       - name: Start API for browser tests
         env:
           ASPNETCORE_ENVIRONMENT: Development
-          Storage__Directory: ${{ runner.temp }}/easy-lottery-e2e
+          Storage__Directory: ${{ runner.temp }}/easy-lottery-e2e-${{ github.run_id }}-${{ github.run_attempt }}
           Testing__EnableAdminSessionToken: true
           Testing__SensitivePermitLimit: 600
+          Testing__AuthenticationPermitLimit: 600
           Admin__Passkey__RpId: localhost
           Admin__Passkey__Origins__0: http://localhost:18930
         run: |
@@ -103,6 +104,7 @@ jobs:
         working-directory: tests/e2e
         env:
           BASE_URL: http://127.0.0.1:18930
+          E2E_STORAGE_DIRECTORY: ${{ runner.temp }}/easy-lottery-e2e-${{ github.run_id }}-${{ github.run_attempt }}
         run: npm test
 
       - name: Upload browser test artifacts

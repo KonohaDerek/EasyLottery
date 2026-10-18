@@ -59,12 +59,16 @@ var sensitivePermitLimit = builder.Environment.IsDevelopment()
     && builder.Configuration.GetValue<bool>("Testing:EnableAdminSessionToken")
     ? Math.Max(60, builder.Configuration.GetValue<int?>("Testing:SensitivePermitLimit") ?? 60)
     : 60;
+var authenticationPermitLimit = builder.Environment.IsDevelopment()
+    && builder.Configuration.GetValue<bool>("Testing:EnableAdminSessionToken")
+    ? Math.Max(5, builder.Configuration.GetValue<int?>("Testing:AuthenticationPermitLimit") ?? 5)
+    : 5;
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
     options.AddPolicy("authentication", context => RateLimitPartition.GetFixedWindowLimiter(
         context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-        _ => new FixedWindowRateLimiterOptions { PermitLimit = 5, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = authenticationPermitLimit, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
     options.AddPolicy("sensitive", context => RateLimitPartition.GetSlidingWindowLimiter(
         context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
         _ => new SlidingWindowRateLimiterOptions { PermitLimit = sensitivePermitLimit, Window = TimeSpan.FromMinutes(1), SegmentsPerWindow = 6, QueueLimit = 0 }));

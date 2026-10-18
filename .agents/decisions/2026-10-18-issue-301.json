@@ -1,0 +1,34 @@
+{
+  "task_id": "issue-301-passkey-ci-2026-10-18",
+  "issue": 301,
+  "date": "2026-10-18",
+  "assessment": {
+    "source": "agent_fallback",
+    "jev": {
+      "provider": "TypeSafe",
+      "model_preference": "jev-latest",
+      "attempted": true,
+      "outcome": "low_confidence_fallback",
+      "raw_confidence": 0.52,
+      "note": "Route result was balanced at confidence 0.52, below the 0.75 acceptance threshold; Coordinator executes directly."
+    },
+    "typed_project_judgments": {
+      "complexity": { "value": "medium", "confidence": 0.97, "probabilities": { "small": 0.0, "medium": 0.98, "large": 0.02 } },
+      "risk": { "value": "moderate", "confidence": 0.98, "probabilities": { "low": 0.01, "moderate": 0.99, "high": 0.0 } },
+      "parallel_safety": { "value": "main_plus_readonly_survey", "confidence": 0.2, "probabilities": { "main_only": 0.18, "main_plus_readonly_survey": 0.47, "parallel_implementation": 0.35 } },
+      "verification": { "value": "browser_integration", "confidence": 0.82, "probabilities": { "unit_build": 0.0, "browser_integration": 0.88, "browser_plus_independent_review": 0.12 } },
+      "additional_approval": { "value": "not_required", "confidence": 0.96, "probabilities": { "not_required": 0.98, "required": 0.02 } }
+    },
+    "coordinator_profile": "Host model and effort unavailable; actual profile unverified. No worker profile or model switch is claimed."
+  },
+  "execution": {
+    "decomposition": "One integrated Passkey/YouTube E2E issue; no separate write task because the available tools do not expose a scoped subagent dispatch action.",
+    "environment": "Dedicated issue worktree inside the existing .devcontainer/local container; main checkout remains untouched.",
+    "verification": ["OpenSpec", "API tests", "Vue checks", "Playwright Chromium", "container smoke", "PR CI"],
+    "authorization": "User authorized continued issue processing and prior workflow established branch push, Ready-for-review PR, and Project #1 synchronization. No merge, deployment, OBS, or hardware verification."
+  },
+  "notes": [
+    "Jev outputs are advisory and do not replace implementation verification.",
+    "Only minimal task context was sent for TypeSafe judgments; no source or credentials were sent."
+  ]
+}
