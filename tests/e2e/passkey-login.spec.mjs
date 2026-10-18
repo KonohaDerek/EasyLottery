@@ -1,4 +1,5 @@
 import { expect, test } from "./fixtures.mjs";
+import { createHash, createPrivateKey, createPublicKey, sign, verify } from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -27,12 +28,34 @@ async function isolatePasskeyState() {
   }
 }
 
-async function rejectMutatedAssertion(page, mutate) {
+async function rejectMutatedAssertion(page, privateKey, mutate) {
   const verifyPath = "**/api/auth/passkey/verify";
   await page.route(verifyPath, async route => {
     const body = route.request().postDataJSON();
     expect(body.flow).toBe("login");
-    mutate(body.credential);
+    const clientDataJSON = Buffer.from(body.credential.response.clientDataJSON, "base64url");
+    const clientData = JSON.parse(clientDataJSON.toString("utf8"));
+    const authenticatorData = Buffer.from(body.credential.response.authenticatorData, "base64url");
+    mutate(clientData, authenticatorData);
+
+    const updatedClientData = Buffer.from(JSON.stringify(clientData));
+    const signedData = Buffer.concat([
+      authenticatorData,
+      createHash("sha256").update(updatedClientData).digest()
+    ]);
+    const isEd25519 = privateKey.asymmetricKeyType === "ed25519";
+    const signature = isEd25519
+      ? sign(null, signedData, privateKey)
+      : sign("sha256", signedData, {
+          key: privateKey,
+          dsaEncoding: "der"
+        });
+    const publicKey = createPublicKey(privateKey);
+    expect(verify(isEd25519 ? null : "sha256", signedData, publicKey, signature)).toBe(true);
+
+    body.credential.response.clientDataJSON = updatedClientData.toString("base64url");
+    body.credential.response.authenticatorData = authenticatorData.toString("base64url");
+    body.credential.response.signature = signature.toString("base64url");
     await route.continue({ postData: JSON.stringify(body) });
   });
 
@@ -92,7 +115,7 @@ test("admin can register and use a Passkey", async ({ browser, baseURL }) => {
     }
   });
   await cdp.send("WebAuthn.enable");
-  await cdp.send("WebAuthn.addVirtualAuthenticator", {
+  const { authenticatorId } = await cdp.send("WebAuthn.addVirtualAuthenticator", {
     options: {
       protocol: "ctap2",
       transport: "internal",
@@ -108,6 +131,15 @@ test("admin can register and use a Passkey", async ({ browser, baseURL }) => {
     await page.getByRole("button", { name: "使用 Passkey 登入" }).click();
     await expect(page.getByText("管理員 Passkey 管理", { exact: true })).toBeVisible();
     await expect(page).toHaveURL(`${origin}/system/access`);
+
+    const { credentials } = await cdp.send("WebAuthn.getCredentials", { authenticatorId });
+    expect(credentials).toHaveLength(1);
+    const privateKey = createPrivateKey({
+      key: Buffer.from(credentials[0].privateKey, "base64"),
+      format: "der",
+      type: "pkcs8"
+    });
+    expect(["ec", "ed25519"]).toContain(privateKey.asymmetricKeyType);
 
     await page.getByRole("button", { name: "登出並清除管理員工作階段" }).click();
     await expect(page).toHaveURL(`${origin}/login`);
@@ -163,23 +195,17 @@ test("admin can register and use a Passkey", async ({ browser, baseURL }) => {
     await page.getByRole("button", { name: "登出並清除管理員工作階段" }).click();
     await expect(page).toHaveURL(`${origin}/login`);
     const invalidAssertions = [
-      credential => {
-        const data = JSON.parse(Buffer.from(credential.response.clientDataJSON, "base64url").toString("utf8"));
-        data.origin = "https://not-allowed.example";
-        credential.response.clientDataJSON = Buffer.from(JSON.stringify(data)).toString("base64url");
+      (clientData) => {
+        clientData.origin = "https://not-allowed.example";
       },
-      credential => {
-        const data = Buffer.from(credential.response.authenticatorData, "base64url");
-        data[0] ^= 0xff;
-        credential.response.authenticatorData = data.toString("base64url");
+      (_clientData, authenticatorData) => {
+        createHash("sha256").update("not-allowed.example").digest().copy(authenticatorData, 0);
       },
-      credential => {
-        const data = Buffer.from(credential.response.authenticatorData, "base64url");
-        data[32] &= ~0x04;
-        credential.response.authenticatorData = data.toString("base64url");
+      (_clientData, authenticatorData) => {
+        authenticatorData[32] &= ~0x04;
       }
     ];
-    for (const mutate of invalidAssertions) await rejectMutatedAssertion(page, mutate);
+    for (const mutate of invalidAssertions) await rejectMutatedAssertion(page, privateKey, mutate);
     expect(ceremonies.slice(-6)).toEqual([
       { pathname: "/api/auth/passkey/options", status: 200 },
       { pathname: "/api/auth/passkey/verify", status: 401 },
