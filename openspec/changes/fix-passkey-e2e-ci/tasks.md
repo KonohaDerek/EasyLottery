@@ -14,9 +14,9 @@
 
 ## 3. Integrate and deliver evidence
 
-- [x] 3.1 Run frontend, API, full Playwright, smoke, and strict OpenSpec checks; record exact results and inspect `git diff --check`. (Local full E2E 86/86; GitHub Actions run #428 passed, including smoke and OpenSpec.)
-- [ ] 3.2 Push the review correction, keep PR #308 Ready for review, reference #301, and verify Project #1 card #301 is In review.
+- [x] 3.1 Run frontend, API, full Playwright, smoke, and strict OpenSpec checks; record exact results and inspect `git diff --check`. (Local full E2E 86/86; GitHub Actions run #429 passed all steps.)
+- [x] 3.2 Push the review correction, keep PR #308 Ready for review, reference #301, and verify Project #1 card #301 is In review. (Pushed as `17d933b`; board verified.)
 
 ## Workflow follow-up
 
-- Reconcile CI for the pushed signed-assertion correction before marking delivery complete; hardware and cross-device smoke remain outside this issue's automated CI boundary.
+- CI #429 passed for the signed-assertion correction; hardware and cross-device smoke remain outside this issue's automated CI boundary.
