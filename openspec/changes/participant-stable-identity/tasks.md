@@ -9,4 +9,5 @@
 - [x] Add unit tests for same ID rename/case, distinct IDs with same name, same ID across platforms, ID-less fallback, cooldown, and import/export compatibility.
 - [x] Add a mocked lottery Playwright E2E covering stable-ID deduplication and distinct same-name accounts; do not contact real accounts.
 - [x] Run full Vue tests, typecheck/build, API/Domain tests, focused E2E, strict OpenSpec, and local diff checks. The local container smoke script is unavailable because the Dev Container has no Docker CLI; final-commit CI remains the authoritative smoke check.
-- [ ] Complete final review, push branch, open a Ready-for-review PR linked to #303, verify final-commit CI, and move Project #1 #303 to In review. Do not merge/deploy.
+- [x] Complete final review, push branch, open Ready PR #309 linked to #303, and move Project #1 #303 to In review. Do not merge/deploy.
+- [ ] Verify GitHub Actions CI for the final PR commit; do not merge/deploy.
