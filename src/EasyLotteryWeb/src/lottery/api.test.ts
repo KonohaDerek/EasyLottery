@@ -10,6 +10,23 @@ afterEach(async () => {
 });
 
 describe("lottery API", () => {
+  it("marks live chat messages as YouTube when the server DTO omits its source field", async () => {
+    setSessionTokenFallback("admin-token");
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify([{
+      id: "message-1",
+      authorId: "UC-author",
+      authorName: "Alice",
+      type: "TextMessageEvent",
+      displayMessage: "hello",
+      publishedAt: "2026-10-11T10:00:00Z"
+    }]), { status: 200, headers: { "Content-Type": "application/json" } })));
+
+    const { listYouTubeLiveChatMessages } = await import("./api");
+    await expect(listYouTubeLiveChatMessages("chat-123")).resolves.toMatchObject([
+      { id: "message-1", platform: "youtube", authorId: "UC-author" }
+    ]);
+  });
+
   it("keeps DrawingRules rates positive and stable", async () => {
     const { normalizeLevelRates } = await import("./api");
     expect(normalizeLevelRates({ " 白金 ": 0, "黃金": 2.9, "": 7, "新手": "bad" }))

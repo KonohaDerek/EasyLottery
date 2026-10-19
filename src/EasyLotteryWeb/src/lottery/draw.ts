@@ -2,10 +2,16 @@ export interface Participant {
   id: string;
   lotteryGroupId: string;
   name: string;
+  identity?: ParticipantIdentity;
   level: string;
   group: string;
   tags: string[];
   isWinner: boolean;
+}
+
+export interface ParticipantIdentity {
+  platform: string;
+  accountId: string;
 }
 
 export interface Winner {
@@ -40,15 +46,31 @@ export function normalizeTags(tags: unknown): string[] {
   return result;
 }
 
+export function normalizeParticipantIdentity(value: unknown): ParticipantIdentity | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const candidate = value as Record<string, unknown>;
+  if (typeof candidate.platform !== "string" || typeof candidate.accountId !== "string") return undefined;
+  const platform = candidate.platform.trim().toLowerCase();
+  const accountId = candidate.accountId.trim();
+  return platform && accountId ? { platform, accountId } : undefined;
+}
+
+export function participantIdentityKey(value: unknown): string | undefined {
+  const identity = normalizeParticipantIdentity(value);
+  return identity ? JSON.stringify([identity.platform, identity.accountId]) : undefined;
+}
+
 export function createParticipant(
   value: Partial<Participant> & Pick<Participant, "name">,
   idFactory: () => string = createId
 ): Participant {
   const id = idFactory();
+  const identity = normalizeParticipantIdentity(value.identity);
   return {
     id,
     lotteryGroupId: value.lotteryGroupId?.trim() || id,
     name: value.name.trim(),
+    ...(identity ? { identity } : {}),
     level: value.level?.trim() ?? "",
     group: value.group?.trim() ?? "",
     tags: normalizeTags(value.tags),

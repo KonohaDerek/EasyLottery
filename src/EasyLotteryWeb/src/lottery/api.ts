@@ -68,7 +68,9 @@ export async function resolveYouTubeLiveChat(liveUrl: string, signal?: AbortSign
 
 export async function listYouTubeLiveChatMessages(chatId: string, signal?: AbortSignal): Promise<ChatMessage[]> {
   const response = await apiRequest<ChatMessage[]>(`/api/lottery/youtube/live-chat/${encodeURIComponent(chatId)}/messages`, { signal });
-  return Array.isArray(response.data) ? response.data : [];
+  return Array.isArray(response.data)
+    ? response.data.map(message => ({ ...message, platform: "youtube" }))
+    : [];
 }
 
 export async function publishSuperChatToOvertime(message: ChatMessage, event: OvertimeSupportEvent, signal?: AbortSignal): Promise<void> {

@@ -1,5 +1,11 @@
 import type { OvertimeSupportEvent } from "../overtime/api";
-import { createParticipant, type Participant } from "./draw";
+import {
+  createParticipant,
+  normalizeParticipantIdentity,
+  participantIdentityKey,
+  type Participant,
+  type ParticipantIdentity
+} from "./draw";
 
 export interface ChatRules {
   keyword: string;
@@ -13,6 +19,8 @@ export interface ChatMessage {
   publishedAt: string;
   type: string;
   authorName: string;
+  platform?: string;
+  authorId?: string | null;
   displayMessage: string;
   authorImageUrl?: string;
   superChat?: {
@@ -32,6 +40,15 @@ function ruleTokens(value: string): string[] {
 
 function authorKey(value: string): string {
   return value.trim().toLocaleLowerCase();
+}
+
+function messageIdentity(message: ChatMessage): ParticipantIdentity | undefined {
+  return normalizeParticipantIdentity({ platform: message.platform, accountId: message.authorId });
+}
+
+function cooldownKey(message: ChatMessage): string | undefined {
+  const identityKey = participantIdentityKey(messageIdentity(message));
+  return identityKey ? `account:${identityKey}` : undefined;
 }
 
 export function isChatMessageAllowed(
@@ -54,7 +71,8 @@ export function isChatMessageAllowed(
   if (whiteList.length && !whiteList.includes(normalizedAuthor)) return { allowed: false, reason: "whitelist" };
 
   const cooldownSeconds = Math.max(0, Math.trunc(rules.cooldownSeconds));
-  const lastAt = lastAccepted.get(normalizedAuthor);
+  const key = cooldownKey(message);
+  const lastAt = key ? lastAccepted.get(key) : undefined;
   const publishedAt = Date.parse(message.publishedAt);
   if (!Number.isFinite(publishedAt)) return { allowed: false, reason: "author" };
   if (cooldownSeconds > 0 && lastAt !== undefined && publishedAt - lastAt < cooldownSeconds * 1000) {
@@ -92,16 +110,25 @@ export function processChatBatch(
   const accepted: ChatMessage[] = [];
   const lastAccepted = new Map(previousLastAccepted);
   const addedParticipants: Participant[] = [];
-  const knownAuthors = new Set(participants.map(participant => participant.name));
+  const knownIdentities = new Set(participants
+    .map(participant => participantIdentityKey(participant.identity))
+    .filter((key): key is string => key !== undefined));
 
   for (const { item, publishedAt } of newMessages) {
     latestSeen = Math.max(latestSeen, publishedAt);
     if (!isChatMessageAllowed(item, rules, lastAccepted).allowed) continue;
     accepted.push(item);
-    lastAccepted.set(authorKey(item.authorName), publishedAt);
-    if (!knownAuthors.has(item.authorName)) {
-      addedParticipants.push(createParticipant({ name: item.authorName, group: "聊天室" }, idFactory));
-      knownAuthors.add(item.authorName);
+    const key = cooldownKey(item);
+    if (key) lastAccepted.set(key, publishedAt);
+    const identity = messageIdentity(item);
+    const identityKey = participantIdentityKey(identity);
+    if (!identityKey || !knownIdentities.has(identityKey)) {
+      addedParticipants.push(createParticipant({
+        name: item.authorName,
+        group: "聊天室",
+        ...(identity ? { identity } : {})
+      }, idFactory));
+      if (identityKey) knownIdentities.add(identityKey);
     }
   }
 

@@ -5,6 +5,7 @@ export type DataFormat = "json" | "csv";
 export interface YoutubeMember {
   name: string;
   level: string;
+  accountId?: string;
 }
 
 interface LotteryParticipantExport {
@@ -14,6 +15,8 @@ interface LotteryParticipantExport {
   LotteryGroupId: string;
   Tags: string[];
   IsWinner: boolean;
+  Platform?: string;
+  AccountId?: string;
 }
 
 export function parseCsvRows(content: string): string[][] {
@@ -86,7 +89,11 @@ function exportRows(participants: readonly Participant[]): LotteryParticipantExp
     Group: participant.group,
     LotteryGroupId: participant.lotteryGroupId,
     Tags: [...participant.tags],
-    IsWinner: participant.isWinner
+    IsWinner: participant.isWinner,
+    ...(participant.identity ? {
+      Platform: participant.identity.platform,
+      AccountId: participant.identity.accountId
+    } : {})
   }));
 }
 
@@ -108,10 +115,16 @@ export function parseParticipantImport(content: string, format: DataFormat, idFa
       .map(value => {
         const rawTags = value.Tags ?? value.tags;
         const inputTags = Array.isArray(rawTags) ? rawTags : typeof rawTags === "string" ? rawTags : [];
+        const platform = value.Platform ?? value.platform;
+        const accountId = value.AccountId ?? value.accountId;
         return createParticipant({
           name: String(value.Name ?? value.name ?? ""),
           level: String(value.Level ?? value.level ?? ""),
           group: String(value.Group ?? value.group ?? ""),
+          identity: {
+            platform: typeof platform === "string" ? platform : "",
+            accountId: typeof accountId === "string" ? accountId : ""
+          },
           lotteryGroupId: typeof (value.LotteryGroupId ?? value.lotteryGroupId) === "string"
             ? String(value.LotteryGroupId ?? value.lotteryGroupId)
             : undefined,
@@ -128,12 +141,15 @@ export function parseParticipantImport(content: string, format: DataFormat, idFa
   const levelColumn = columnIndex(headers, ["level"]);
   const groupColumn = columnIndex(headers, ["group"]);
   const lotteryGroupColumn = columnIndex(headers, ["lotterygroupid"]);
+  const platformColumn = columnIndex(headers, ["platform"]);
+  const accountIdColumn = columnIndex(headers, ["accountid"]);
   const tagsColumn = columnIndex(headers, ["tags"]);
   const winnerColumn = columnIndex(headers, ["iswinner"]);
   return rows.map(row => createParticipant({
     name: cell(row, nameColumn),
     level: cell(row, levelColumn),
     group: cell(row, groupColumn),
+    identity: { platform: cell(row, platformColumn), accountId: cell(row, accountIdColumn) },
     lotteryGroupId: cell(row, lotteryGroupColumn) || undefined,
     tags: cell(row, tagsColumn).split(/[,，\n\r;|]/),
     isWinner: parseBoolean(cell(row, winnerColumn))
@@ -159,8 +175,8 @@ export function exportParticipants(participants: readonly Participant[], format:
   const rows = exportRows(participants);
   if (format === "json") return JSON.stringify(rows, null, 2);
   return serializeCsv(
-    ["Name", "Level", "Group", "LotteryGroupId", "Tags", "IsWinner"],
-    rows.map(row => [row.Name, row.Level, row.Group, row.LotteryGroupId, row.Tags.join("|"), String(row.IsWinner).toLowerCase()])
+    ["Name", "Level", "Group", "LotteryGroupId", "Tags", "IsWinner", "Platform", "AccountId"],
+    rows.map(row => [row.Name, row.Level, row.Group, row.LotteryGroupId, row.Tags.join("|"), String(row.IsWinner).toLowerCase(), row.Platform ?? "", row.AccountId ?? ""])
   );
 }
 
@@ -173,9 +189,30 @@ export function parseYoutubeMembers(content: string): YoutubeMember[] {
   const [headers = [], ...rows] = parseCsvRows(content);
   const nameColumn = columnIndex(headers, ["會員", "name"]);
   const levelColumn = columnIndex(headers, ["目前級別", "level"]);
+  const profileColumn = columnIndex(headers, ["連結到個人資料", "profile link", "profile url"]);
   if (nameColumn < 0) throw new TypeError("找不到 YouTube 會員欄位「會員」。");
-  return rows.map(row => ({ name: cell(row, nameColumn), level: cell(row, levelColumn) }))
+  return rows.map(row => {
+    const accountId = youtubeChannelId(cell(row, profileColumn));
+    return {
+      name: cell(row, nameColumn),
+      level: cell(row, levelColumn),
+      ...(accountId ? { accountId } : {})
+    };
+  })
     .filter(member => member.name.length > 0);
+}
+
+function youtubeChannelId(profileUrl: string): string | undefined {
+  if (!profileUrl) return undefined;
+  try {
+    const url = new URL(profileUrl);
+    const allowedHosts = ["youtube.com", "www.youtube.com", "m.youtube.com"];
+    if (url.protocol !== "https:" || !allowedHosts.includes(url.hostname)
+      || url.username || url.password || (url.port && url.port !== "443")) return undefined;
+    return url.pathname.match(/^\/channel\/(UC[A-Za-z0-9_-]{22})\/?$/)?.[1];
+  } catch {
+    return undefined;
+  }
 }
 
 export function expandYoutubeMembers(
@@ -202,6 +239,7 @@ export function expandYoutubeMembers(
         id: idFactory(),
         lotteryGroupId,
         name: member.name.trim(),
+        ...(member.accountId ? { identity: { platform: "youtube", accountId: member.accountId } } : {}),
         level,
         group: "YT會員",
         tags: [],
