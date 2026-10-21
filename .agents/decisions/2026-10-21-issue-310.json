@@ -1,0 +1,45 @@
+{
+  "task_id": "issue-310-participant-unique-removal-2026-10-21",
+  "issue": 310,
+  "date": "2026-10-21",
+  "source": {
+    "provider": "TypeSafe",
+    "model": "jev-1.13.0",
+    "endpoint": "https://api.typesafe.ai/v1/systemone"
+  },
+  "state_summary": "Fix the Vue lottery participant removal action to target one unique participant ID, preserving distinct same-name accounts after issue #303.",
+  "answers": {
+    "complexity": {
+      "type": "choice",
+      "value": "small",
+      "confidence": 0.98,
+      "probabilities": { "small": 0.99, "medium": 0.01, "large": 0.0 }
+    },
+    "execution": {
+      "type": "choice",
+      "value": "main_only",
+      "confidence": 0.88,
+      "probabilities": { "main_only": 0.92, "main_plus_readonly_survey": 0.04, "parallel_implementation": 0.04 }
+    },
+    "risk": {
+      "type": "choice",
+      "value": "low",
+      "confidence": 0.8,
+      "probabilities": { "low": 0.87, "moderate": 0.13, "high": 0.0 }
+    },
+    "verification": {
+      "type": "choice",
+      "value": "browser_integration",
+      "confidence": 0.98,
+      "probabilities": { "unit_build": 0.0, "browser_integration": 0.99, "browser_plus_independent_review": 0.01 }
+    },
+    "additional_approval": { "type": "noul", "probability": 0.15 }
+  },
+  "agent_application": {
+    "execution": "Main agent owns the local Vue fix, focused Playwright regression, verification, push, and Ready PR. The bounded change has one implementation surface, so no worker or parallel group is used.",
+    "verification": ["Vue tests", "typecheck and production build", "focused Playwright regression", "strict OpenSpec validation", "diff review"],
+    "authorization": "The user directed continued issue processing after PR #309 merged. Do not merge, deploy, or claim OBS verification.",
+    "codex_route_advisor": "Not verified: workspace configuration is enabled with executionMode=confirm, but current Host model and effort are not exposed. The repository-native workflow is used per workspace guidance; no Advisor Dispatch Plan is claimed."
+  },
+  "usage": { "input_tokens": 981, "output_tokens": 191 }
+}

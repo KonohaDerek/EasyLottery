@@ -111,6 +111,32 @@ test("chat participants deduplicate by YouTube channel ID, not display name", as
   await expect(page.locator(".participant-list li")).toHaveCount(2);
 });
 
+test("removing one same-name participant leaves the other identity in the list", async ({ page, baseURL }) => {
+  await installAdminToken(page, baseURL);
+  await page.route("**/api/settings/drawing-rules", route => route.fulfill({
+    status: 200, headers: { ETag: '"rates-v1"' }, contentType: "application/json", body: JSON.stringify({ levelRates: {} })
+  }));
+  await page.route("**/api/lottery/youtube/status", route => route.fulfill({
+    status: 200, contentType: "application/json", body: JSON.stringify({ configured: false })
+  }));
+
+  await page.goto(baseURL, { waitUntil: "networkidle" });
+  const participantImport = page.locator(".import-panel").first();
+  await participantImport.locator("textarea").fill(JSON.stringify([
+    { name: "Alice", group: "Members", identity: { platform: "youtube", accountId: "UC-one" } },
+    { name: "Alice", group: "Guests", identity: { platform: "youtube", accountId: "UC-two" } }
+  ]));
+  await participantImport.getByRole("button", { name: "匯入名單", exact: true }).click();
+
+  const rows = page.locator(".participant-list li");
+  await expect(rows).toHaveCount(2);
+  await expect(rows.nth(0)).toContainText("[Members] Alice");
+  await expect(rows.nth(1)).toContainText("[Guests] Alice");
+  await rows.nth(0).getByRole("button", { name: "移除參加者 Alice" }).click();
+  await expect(rows).toHaveCount(1);
+  await expect(rows.first()).toContainText("[Guests] Alice");
+});
+
 test("canceling a pending chat connection does not start a stale polling session", async ({ page, baseURL }) => {
   await installAdminToken(page, baseURL);
   await page.route("**/api/settings/drawing-rules", route => route.fulfill({

@@ -211,8 +211,8 @@ function addParticipant() {
   notice.value = `已新增參加者「${name}」。`;
 }
 
-function removeParticipant(name: string) {
-  participants.value = participants.value.filter(item => item.name !== name);
+function removeParticipant(participantId: string) {
+  participants.value = participants.value.filter(item => item.id !== participantId);
   if (selectedGroup.value && !groups.value.some(group => group.toLocaleLowerCase() === selectedGroup.value.toLocaleLowerCase())) selectedGroup.value = "";
 }
 
@@ -393,7 +393,7 @@ onBeforeUnmount(() => {
           </section>
           <section class="draw-list people-list"><div class="list-heading"><h3>參加者 <span>{{ visibleParticipants.length }} / {{ participants.length }}</span></h3><div class="list-tools"><select v-model="selectedGroup" aria-label="群組篩選"><option value="">全部群組</option><option v-for="group in groups" :key="group" :value="group">{{ group }}</option></select><button v-if="participants.length" class="text-action" type="button" @click="participants = []; winners = []; selectedGroup = ''">清除名單</button></div></div>
             <p v-if="!visibleParticipants.length" class="empty-copy">匯入名單或新增參加者，抽獎舞台就會亮起。</p>
-            <ul v-else class="participant-list"><li v-for="participant in visibleParticipants" :key="participant.id" :class="{ 'is-winner': participant.isWinner }"><span class="participant-avatar" aria-hidden="true">{{ participant.name.slice(0, 1) || "?" }}</span><div class="participant-details"><strong>{{ participantLabel(participant) }}</strong><span v-if="participant.tags.length" class="tag-list"><i v-for="tag in participant.tags" :key="tag">{{ tag }}</i></span></div><button v-if="!participant.isWinner" type="button" :aria-label="`移除參加者 ${participant.name}`" @click="removeParticipant(participant.name)">移除</button><span v-else class="winner-mark">已中獎</span></li></ul>
+            <ul v-else class="participant-list"><li v-for="participant in visibleParticipants" :key="participant.id" :class="{ 'is-winner': participant.isWinner }"><span class="participant-avatar" aria-hidden="true">{{ participant.name.slice(0, 1) || "?" }}</span><div class="participant-details"><strong>{{ participantLabel(participant) }}</strong><span v-if="participant.tags.length" class="tag-list"><i v-for="tag in participant.tags" :key="tag">{{ tag }}</i></span></div><button v-if="!participant.isWinner" type="button" :aria-label="`移除參加者 ${participant.name}`" @click="removeParticipant(participant.id)">移除</button><span v-else class="winner-mark">已中獎</span></li></ul>
           </section>
         </div>
         <section class="winner-list"><div class="list-heading"><h3>得獎名單 <span>{{ winners.length }}</span></h3><button v-if="winners.length" class="text-action" type="button" @click="winners = []">清除得獎紀錄</button></div>
