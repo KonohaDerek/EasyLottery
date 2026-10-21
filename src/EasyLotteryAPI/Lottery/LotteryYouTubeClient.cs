@@ -24,7 +24,9 @@ public sealed record LotteryYouTubeMessage(
     string DisplayMessage,
     string PublishedAt,
     string? AuthorImageUrl,
-    LotterySuperChatDetails? SuperChat);
+    LotterySuperChatDetails? SuperChat,
+    string? AuthorId = null,
+    string Platform = "youtube");
 
 public sealed record ResolveYouTubeLiveChatResponse(string ChatId);
 
@@ -50,10 +52,13 @@ public sealed class LotteryYouTubeClient(YouTubeServiceHelper helper) : ILottery
         return messages.Select(Project).ToArray();
     }
 
-    private static LotteryYouTubeMessage Project(LiveChatMessage message)
+    internal static LotteryYouTubeMessage Project(LiveChatMessage message)
     {
         var snippet = message.Snippet;
         var superChat = snippet?.SuperChatDetails;
+        var authorId = string.IsNullOrWhiteSpace(message.AuthorDetails?.ChannelId)
+            ? snippet?.AuthorChannelId
+            : message.AuthorDetails.ChannelId;
         return new LotteryYouTubeMessage(
             message.Id ?? "",
             snippet?.Type?.ToString() ?? "",
@@ -65,6 +70,8 @@ public sealed class LotteryYouTubeClient(YouTubeServiceHelper helper) : ILottery
                 superChat.AmountMicros?.ToString(CultureInfo.InvariantCulture),
                 superChat.AmountDisplayString,
                 superChat.Currency,
-                superChat.UserComment));
+                superChat.UserComment),
+            authorId,
+            "youtube");
     }
 }

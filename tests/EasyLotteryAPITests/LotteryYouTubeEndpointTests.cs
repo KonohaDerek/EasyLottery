@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using EasyLotteryApi.Lottery;
 using EasyLotteryApi.Security;
+using Google.Apis.YouTube.v3.Data;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
@@ -12,6 +13,27 @@ namespace EasyLotteryApiTests;
 [TestClass]
 public sealed class LotteryYouTubeEndpointTests
 {
+    [TestMethod]
+    public void Project_UsesAuthorChannelIdAndFallsBackToSnippetAuthorChannelId()
+    {
+        var fromAuthorDetails = LotteryYouTubeClient.Project(new LiveChatMessage
+        {
+            Id = "message-1",
+            AuthorDetails = new LiveChatMessageAuthorDetails { ChannelId = "UC-author", DisplayName = "Alice" },
+            Snippet = new LiveChatMessageSnippet { AuthorChannelId = "UC-snippet" }
+        });
+        var fromSnippet = LotteryYouTubeClient.Project(new LiveChatMessage
+        {
+            Id = "message-2",
+            AuthorDetails = new LiveChatMessageAuthorDetails { ChannelId = "", DisplayName = "Bob" },
+            Snippet = new LiveChatMessageSnippet { AuthorChannelId = "UC-fallback" }
+        });
+
+        Assert.AreEqual("UC-author", fromAuthorDetails.AuthorId);
+        Assert.AreEqual("youtube", fromAuthorDetails.Platform);
+        Assert.AreEqual("UC-fallback", fromSnippet.AuthorId);
+    }
+
     [TestMethod]
     public async Task SpaFallbacks_RouteRootToVueAndPreserveBlazorLegacyPage()
     {
@@ -38,7 +60,7 @@ public sealed class LotteryYouTubeEndpointTests
             [
                 new LotteryYouTubeMessage(
                     "message-1", "SuperChatEvent", "Viewer", "抽獎", "2026-10-11T00:00:00Z", "https://example.test/avatar.png",
-                    new LotterySuperChatDetails("5000000", "NT$5", "TWD", "支持抽獎"))
+                    new LotterySuperChatDetails("5000000", "NT$5", "TWD", "支持抽獎"), "UC-author", "youtube")
             ]
         };
         await using var factory = CreateFactory(fake);
@@ -72,6 +94,8 @@ public sealed class LotteryYouTubeEndpointTests
         var payload = await messages.Content.ReadAsStringAsync();
         StringAssert.Contains(payload, "SuperChatEvent");
         StringAssert.Contains(payload, "5000000");
+        StringAssert.Contains(payload, "\"authorId\":\"UC-author\"");
+        StringAssert.Contains(payload, "\"platform\":\"youtube\"");
         Assert.IsFalse(payload.Contains("apiKey", StringComparison.OrdinalIgnoreCase));
         Assert.IsFalse(payload.Contains("super-secret", StringComparison.Ordinal));
     }

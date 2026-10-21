@@ -1,17 +1,18 @@
 # Current work state
 
-- Task ID: issue-301-passkey-ci-2026-10-18
-- Status: Verified; corrected source commit `17d933b` is pushed, PR #308 CI #429 passed, and the review finding is resolved.
-- Source: GitHub Issue #301, investigating CI failures from PR #300; preserve the agreed Vue migration state and existing production WebAuthn policy.
-- Scope: Deterministic real-CDP Passkey browser coverage, safe retry-state isolation, non-persistent YouTube retry/save coverage, test-only rate-limit configuration, CI evidence and hardware boundary documentation.
-- Non-goals: Production auth policy changes, merge, deployment, OBS, physical authenticator, iOS, device-sync or QR validation.
-- OpenSpec: `openspec/changes/fix-passkey-e2e-ci` (`skip_specs: true`, tooling/test-only change).
-- Branch/worktree: `codex/issue-301-passkey-ci` / `.worktrees/issue-301-passkey-ci`, based on `origin/main` at `09ccad1b13cb940b0828d9a15cee10f3a7381dce`.
-- Dev Container: container `2062a4df92f7`; run all Git, build and test commands in `/workspaces/EasyLottery/.worktrees/issue-301-passkey-ci`.
-- Board: Project #1 issue #301 is In review; issue #269 remains In progress for user-owned OBS validation.
-- Routing: Reusing the recorded Jev result (balanced / 0.52 confidence, below threshold; direct Coordinator fallback). Host profile remains unverified. See `.agents/decisions/2026-10-18-issue-301.json`.
-- Implementation: Complete. The three negative WebAuthn E2E cases now alter only origin, RP ID hash, or UV and re-sign each assertion with the CDP virtual authenticator key; local signature verification ensures they remain cryptographically valid.
-- Verification: Vue, .NET, API, strict OpenSpec and CI run #429 passed; after the review correction, focused Passkey E2E passed 1/1 and the full Chromium suite passed 86/86. See `.agents/verification/2026-10-18-issue-301.md`.
-- Delivery: Branch pushed; Ready-for-review PR #308 is open and attached: https://github.com/KonohaDerek/EasyLottery/pull/308. The review finding is resolved. Do not merge or deploy.
-- Flags: `verification_complete: true`, `branch_pushed: true`, `pull_request_created: true`.
-- Updated: 2026-10-18
+- Task ID: issue-303-stable-participant-identity-2026-10-20
+- Status: Local implementation and review complete; PR #309 is open and final-commit CI is pending. Issue #303 remains open.
+- Source: GitHub Issue #303, stable platform-account identity for lottery participants.
+- Scope: Pass YouTube channel IDs through the existing REST DTO; store optional platform identity on lottery participants; deduplicate and apply cooldown using platform + stable account ID; keep name-based allow/deny rules; preserve old JSON/CSV while round-tripping identity; explicitly avoid identity inference or account-level cooldown attribution when stable IDs are absent; add unit, API, and mocked browser coverage.
+- Non-goals: Real YouTube accounts, native OBS, production changes, deployment, merge, changing identity-link protocols, or rewriting the legacy Blazor rollback page.
+- OpenSpec: `openspec/changes/participant-stable-identity`.
+- Branch/worktree: `codex/issue-303-stable-participant-identity` / `.worktrees/issue-303-stable-participant-identity`, based on `origin/main` at `48328e8`.
+- Dev Container: container `2062a4df92f7`; use `/workspaces/EasyLottery/.worktrees/issue-303-stable-participant-identity` for Git, builds, and tests.
+- Board: Project #1 issue #303 is In review; #269 remains In progress for user-owned OBS validation.
+- Routing: Reusing the prior TypeSafe Jev assessment for the same approved scope (medium complexity, moderate risk, main-only execution, browser integration verification). Coordinator model/effort remain unverified; no worker is claimed. See `.agents/decisions/2026-10-20-issue-303.json`.
+- Implementation: Complete. YouTube channel ID now reaches the Vue client; participant identity is optional and source-scoped; chat dedupe/cooldown use the stable tuple; missing IDs are not inferred; JSON/CSV and canonical YouTube Studio channel imports preserve identity.
+- Verification: Vue tests 130/130; typecheck and Vite build passed; Release solution build passed with 0 warnings/errors; Domain tests 112/112; API tests 142/142; lottery Playwright 10/10 with intercepted API calls; strict OpenSpec 46/46. The local Docker smoke script could not run because the Dev Container has no Docker CLI. Final-commit CI remains pending.
+- Delivery: Branch `codex/issue-303-stable-participant-identity` is pushed at `f08a693e112c3c52273feccababfde0cc8b7ad44`; Ready PR [#309](https://github.com/KonohaDerek/EasyLottery/pull/309) links and fixes #303. Do not merge or deploy.
+- CI: Workflow run `39285077236` is queued for commit `f08a693e112c3c52273feccababfde0cc8b7ad44`; final-commit CI verification is pending.
+- Flags: `verification_complete: false`, `branch_pushed: true`, `pull_request_created: true`.
+- Updated: 2026-10-20

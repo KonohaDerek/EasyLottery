@@ -83,6 +83,34 @@ test("admin can draw in Vue and capture mocked YouTube chat without contacting Y
   expect(providerRequests).toEqual([]);
 });
 
+test("chat participants deduplicate by YouTube channel ID, not display name", async ({ page, baseURL }) => {
+  await installAdminToken(page, baseURL);
+  const firstMessageAt = Date.now() + 30_000;
+  await page.route("**/api/settings/drawing-rules", route => route.fulfill({
+    status: 200, headers: { ETag: '"rates-v1"' }, contentType: "application/json", body: JSON.stringify({ levelRates: {} })
+  }));
+  await page.route("**/api/lottery/youtube/status", route => route.fulfill({
+    status: 200, contentType: "application/json", body: JSON.stringify({ configured: true })
+  }));
+  await page.route("**/api/lottery/youtube/live-chat/resolve", route => route.fulfill({
+    status: 200, contentType: "application/json", body: JSON.stringify({ chatId: "identity-chat" })
+  }));
+  await page.route("**/api/lottery/youtube/live-chat/identity-chat/messages", route => route.fulfill({
+    status: 200, contentType: "application/json", body: JSON.stringify([
+      { id: "one", type: "TextMessageEvent", platform: "youtube", authorId: "UC-one", authorName: "Alice", displayMessage: "抽獎", publishedAt: new Date(firstMessageAt).toISOString() },
+      { id: "renamed", type: "TextMessageEvent", platform: "youtube", authorId: "UC-one", authorName: "alice VT", displayMessage: "抽獎", publishedAt: new Date(firstMessageAt + 1_000).toISOString() },
+      { id: "homonym", type: "TextMessageEvent", platform: "youtube", authorId: "UC-two", authorName: "Alice", displayMessage: "抽獎", publishedAt: new Date(firstMessageAt + 2_000).toISOString() }
+    ])
+  }));
+
+  await page.goto(baseURL, { waitUntil: "networkidle" });
+  await page.getByLabel("直播網址").fill("https://www.youtube.com/watch?v=mock-video");
+  await page.getByLabel(/通關密語/).fill("抽獎");
+  await page.getByRole("button", { name: "開始擷取" }).click();
+  await expect(page.locator(".chat-message-list li")).toHaveCount(3);
+  await expect(page.locator(".participant-list li")).toHaveCount(2);
+});
+
 test("canceling a pending chat connection does not start a stale polling session", async ({ page, baseURL }) => {
   await installAdminToken(page, baseURL);
   await page.route("**/api/settings/drawing-rules", route => route.fulfill({

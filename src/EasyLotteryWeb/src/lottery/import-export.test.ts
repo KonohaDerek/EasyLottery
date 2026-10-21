@@ -54,6 +54,42 @@ describe("lottery imports and exports", () => {
       .toMatchObject([{ id: "fresh", lotteryGroupId: "fresh", name: "Ada", group: "", tags: ["x", "y"], isWinner: true }]);
   });
 
+  it("does not infer an account identity from non-string legacy JSON fields", () => {
+    const imported = parseParticipantImport(
+      JSON.stringify([{ Name: "Legacy", Platform: "youtube", AccountId: 42 }]),
+      "json",
+      () => "legacy-id"
+    );
+    expect(imported[0].identity).toBeUndefined();
+  });
+
+  it.each(["json", "csv"] as const)("round-trips optional platform identity through %s while accepting legacy records", format => {
+    const participants = [{
+      id: "internal-id",
+      lotteryGroupId: "draw-id",
+      name: "Alice",
+      identity: { platform: "YouTube", accountId: "UC1234567890123456789012" },
+      level: "",
+      group: "",
+      tags: [],
+      isWinner: false
+    }];
+    const imported = parseParticipantImport(exportParticipants(participants, format), format, () => "new-id");
+
+    expect(imported).toMatchObject([{
+      id: "new-id",
+      name: "Alice",
+      identity: { platform: "youtube", accountId: "UC1234567890123456789012" }
+    }]);
+    const legacy = parseParticipantImport(
+      format === "json" ? '[{"Name":"Legacy"}]' : "Name,Level,Group,LotteryGroupId,Tags,IsWinner\r\nLegacy,,,,,false",
+      format,
+      () => "legacy-id"
+    );
+    expect(legacy[0].name).toBe("Legacy");
+    expect(legacy[0].identity).toBeUndefined();
+  });
+
   it("imports YouTube Studio member CSV by Chinese headings and defaults new level weights to one", () => {
     const members = parseYoutubeMembers("\uFEFF會員,連結到個人資料,目前級別\r\nAlice,https://youtube.test/a,銀牌\r\nBob,https://youtube.test/b,\r\n");
     expect(members).toEqual([{ name: "Alice", level: "銀牌" }, { name: "Bob", level: "" }]);
@@ -66,6 +102,31 @@ describe("lottery imports and exports", () => {
         { name: "Bob", level: "", group: "YT會員" }
       ]
     });
+  });
+
+  it("imports only canonical YouTube channel IDs from Studio profile links", () => {
+    const channelId = "UC1234567890123456789012";
+    const members = parseYoutubeMembers([
+      "會員,連結到個人資料,目前級別",
+      `Alice,https://www.youtube.com/channel/${channelId},Gold`,
+      "Handle,https://www.youtube.com/@mutable,Gold",
+      "External,https://example.test/channel/UC1234567890123456789012,Gold"
+    ].join("\n"));
+    const expanded = expandYoutubeMembers(members, { Gold: 2 }, (() => {
+      let id = 0;
+      return () => `id-${++id}`;
+    })());
+
+    expect(members).toEqual([
+      { name: "Alice", level: "Gold", accountId: channelId },
+      { name: "Handle", level: "Gold" },
+      { name: "External", level: "Gold" }
+    ]);
+    expect(expanded.participants.slice(0, 2).map(item => item.identity)).toEqual([
+      { platform: "youtube", accountId: channelId },
+      { platform: "youtube", accountId: channelId }
+    ]);
+    expect(expanded.participants.slice(2).every(item => item.identity === undefined)).toBe(true);
   });
 
   it("preserves prize CSV/JSON shape and rejects malformed or empty data without replacing state", () => {
