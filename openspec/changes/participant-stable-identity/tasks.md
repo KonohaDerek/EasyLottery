@@ -8,6 +8,7 @@
 - [x] Preserve YouTube Studio channel identity when canonical profile URL data is present; leave handles/unknown URLs ID-less.
 - [x] Add unit tests for same ID rename/case, distinct IDs with same name, same ID across platforms, ID-less fallback, cooldown, and import/export compatibility.
 - [x] Add a mocked lottery Playwright E2E covering stable-ID deduplication and distinct same-name accounts; do not contact real accounts.
+- [x] Address follow-up issue #310: remove only the selected participant by entry ID and cover same-name participants in Playwright.
 - [x] Run full Vue tests, typecheck/build, API/Domain tests, focused E2E, strict OpenSpec, and local diff checks. The local container smoke script is unavailable because the Dev Container has no Docker CLI; final-commit CI remains the authoritative smoke check.
 - [x] Complete final review, push branch, open Ready PR #309 linked to #303, and move Project #1 #303 to In review. Do not merge/deploy.
-- [ ] Verify GitHub Actions CI for the final PR commit; do not merge/deploy.
+- [x] Verify GitHub Actions CI for PR #309 final commit; workflow run #433 passed after merge. Do not merge/deploy.

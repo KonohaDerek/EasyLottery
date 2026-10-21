@@ -11,6 +11,10 @@ The lottery system MUST use the pair of platform source and stable account ID to
 - **WHEN** accepted messages have the same display name but different stable account IDs on one platform
 - **THEN** each account remains a distinct participant
 
+#### Scenario: Remove one of two same-name participants
+- **WHEN** an operator removes one participant entry while another has the same display name and a different stable identity
+- **THEN** only the selected participant, identified by its unique participant ID, is removed
+
 #### Scenario: Same identifier exists on multiple platforms
 - **WHEN** two messages have the same account-ID string but different platform sources
 - **THEN** they remain distinct participants unless an existing explicit verified identity link is applied outside this behavior
