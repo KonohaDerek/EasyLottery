@@ -89,7 +89,7 @@ test("core lottery history is admin-only and directly refreshable", async ({ pag
   const nav = page.locator(".admin-drawer .admin-nav");
   await expect(nav.locator("details")).toHaveCount(7);
   await expect(nav.locator('.admin-nav-link[aria-current="page"]')).toHaveCount(1);
-  await expect(nav.getByRole("link", { name: "抽獎紀錄" })).toHaveAttribute("aria-current", "page");
+  await expect(nav.getByRole("link", { name: "抽獎紀錄", exact: true })).toHaveAttribute("aria-current", "page");
   await page.reload({ waitUntil: "networkidle" });
   await expect(page.locator(".lottery-records-table tbody tr")).toHaveCount(1);
 });
