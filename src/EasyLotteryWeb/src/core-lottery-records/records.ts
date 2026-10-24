@@ -183,17 +183,19 @@ export function matchesPendingCoreLotteryDraw(
   record: CoreLotteryDrawRecord,
   expected: CoreLotteryDrawPayload
 ): boolean {
-  if (!isUuid(record.drawId) || record.drawId.toLowerCase() !== expected.drawId.toLowerCase()) return false;
+  if (!isUuid(record.drawId)) return false;
   try {
+    const normalizedExpected = validateAndNormalizePending(expected);
+    if (record.drawId.toLowerCase() !== normalizedExpected.drawId.toLowerCase()) return false;
     const savedPayload = validateAndNormalizePending({
       drawId: record.drawId,
       winnerParticipantId: record.winnerParticipantId,
       ruleSnapshot: record.ruleSnapshot,
       participants: record.participants
     });
-    return JSON.stringify(savedPayload) === JSON.stringify(expected)
-      && record.winnerDisplayName === winnerForPayload(expected).displayName
-      && record.prizeName === expected.ruleSnapshot.prizeQueue[0];
+    return JSON.stringify(savedPayload) === JSON.stringify(normalizedExpected)
+      && record.winnerDisplayName === winnerForPayload(normalizedExpected).displayName
+      && record.prizeName === normalizedExpected.ruleSnapshot.prizeQueue[0];
   } catch {
     return false;
   }

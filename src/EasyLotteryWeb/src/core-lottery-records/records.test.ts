@@ -97,4 +97,28 @@ describe("core lottery history helpers", () => {
     expect(matchesPendingCoreLotteryDraw({ ...record, participants: record.participants.slice(1) }, pending)).toBe(false);
     expect(matchesPendingCoreLotteryDraw({ ...record, ruleSnapshot: { ...record.ruleSnapshot, prizeQueue: ["別的獎"] } }, pending)).toBe(false);
   });
+
+  it("reconciles a reloaded result from its summary and complete paged roster", () => {
+    const drawId = "fd366ac8-0dae-4677-a3c6-515b5baf137b";
+    const pending = createCoreLotteryDrawPayload(drawId, [participants[0]], ["已保存獎項"], "ticket-1");
+    const storage = memoryStorage();
+    storage.setItem(pendingCoreLotteryDrawStorageKey, JSON.stringify(pending));
+    const expected = readPendingCoreLotteryDrawId(storage);
+    expect(expected?.phase).toBe("result");
+    if (!expected || expected.phase !== "result") throw new Error("expected saved pending draw");
+
+    const summary = {
+      drawId,
+      drawnAtUtc: "2026-10-24T10:00:00Z",
+      winnerParticipantId: pending.winnerParticipantId,
+      winnerDisplayName: "Mika",
+      prizeName: "已保存獎項",
+      participantCount: pending.participants.length,
+      eligibleEntryCount: pending.ruleSnapshot.eligibleEntryCount,
+      ruleSnapshot: pending.ruleSnapshot
+    };
+    const reconciled = { ...summary, participants: [...pending.participants] };
+
+    expect(matchesPendingCoreLotteryDraw(reconciled, expected)).toBe(true);
+  });
 });

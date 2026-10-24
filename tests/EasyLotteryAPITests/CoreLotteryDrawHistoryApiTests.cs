@@ -220,7 +220,7 @@ public sealed class CoreLotteryDrawHistoryApiTests
             prizeSelectionPolicyVersion = "first-remaining-prize-v1",
             prizeQueue = new[] { prize, alteredRule ? "不同合成次獎" : "合成次獎" }
         },
-        participants = new[]
+        participants = new object[]
         {
             new
             {

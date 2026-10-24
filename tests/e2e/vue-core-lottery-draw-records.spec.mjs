@@ -77,11 +77,11 @@ test("core lottery history is admin-only and directly refreshable", async ({ pag
   await expect(page.locator(".lottery-records-table tbody tr")).toContainText("合成特獎");
   await expect(page.locator(".lottery-records-table tbody tr")).toContainText(drawId);
   await page.getByRole("button", { name: `檢視紀錄 ${drawId}` }).click();
-  await expect(page.getByRole("dialog")).toContainText("抽獎紀錄明細");
-  await expect(page.getByRole("dialog")).toContainText("合成觀眾 1");
-  await expect(page.getByRole("dialog")).toContainText("synthetic-account-1");
-  await expect(page.getByRole("dialog")).toContainText("not-previously-won-v1");
-  await expect(page.getByRole("dialog")).toContainText("已得獎排除");
+  await expect(page.getByText("抽獎紀錄明細", { exact: true })).toBeVisible();
+  await expect(page.getByText("合成觀眾 1", { exact: true })).toBeVisible();
+  await expect(page.getByText("synthetic-account-1", { exact: true })).toBeVisible();
+  await expect(page.getByText("not-previously-won-v1", { exact: true })).toBeVisible();
+  await expect(page.getByText("已得獎排除", { exact: true })).toBeVisible();
   await expect(page.getByText("共 51 張籤")).toBeVisible();
   await page.getByRole("button", { name: "下一頁" }).last().click();
   await expect(page.getByText("第 2 / 2 頁")).toBeVisible();
@@ -152,7 +152,7 @@ test("core history handles loading, empty, errors, search, date filters and pagi
   await page.getByLabel("搜尋得獎者或獎項").fill("無符合");
   await page.getByRole("button", { name: "套用篩選" }).click();
   await expect(page.getByRole("heading", { name: "找不到符合條件的抽獎紀錄" })).toBeVisible();
-  await page.getByRole("button", { name: "清除篩選" }).click();
+  await page.getByLabel("抽獎紀錄篩選").getByRole("button", { name: "清除篩選" }).click();
   await expect(page.getByRole("alert")).toContainText("載入失敗");
   await page.getByRole("button", { name: "重新載入" }).click();
   await expect(page.getByRole("heading", { name: "尚無已保存的抽獎紀錄" })).toBeVisible();
@@ -169,7 +169,7 @@ test("narrow view keeps core-history page visible and marks one active nav item"
   const nav = page.locator(".admin-nav--mobile");
   await expect(nav).toBeVisible();
   await expect(nav.locator('.admin-nav-link[aria-current="page"]')).toHaveCount(1);
-  await expect(nav.getByRole("link", { name: "抽獎紀錄" })).toHaveAttribute("aria-current", "page");
+  await expect(nav.getByRole("link", { name: "抽獎紀錄", exact: true })).toHaveAttribute("aria-current", "page");
   await expect(page.locator(".lottery-records-table")).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 });
