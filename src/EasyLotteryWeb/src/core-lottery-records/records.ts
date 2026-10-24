@@ -34,6 +34,9 @@ export interface CoreLotteryDrawPreparedState {
   drawId: string;
   ruleSnapshot: CoreLotteryDrawRuleSnapshot;
   participants: CoreLotteryDrawParticipantSnapshot[];
+  /** Missing on legacy entries written before the selected outcome was persisted. */
+  selectionState?: "ready" | "selected";
+  winnerParticipantId?: string;
 }
 
 export type PendingCoreLotteryDrawState = CoreLotteryDrawPreparedState | (CoreLotteryDrawPayload & { phase: "result" });
@@ -126,17 +129,35 @@ export function createCoreLotteryDrawPayload(
 export function createCoreLotteryDrawPreparedState(
   drawId: string,
   participants: readonly Participant[],
-  prizes: readonly string[]
+  prizes: readonly string[],
+  winnerParticipantId?: string
 ): CoreLotteryDrawPreparedState {
   const eligibleParticipant = participants.find(participant => !participant.isWinner);
   if (!eligibleParticipant) throw new Error("目前沒有尚未得獎的參加者。");
-  const payload = createCoreLotteryDrawPayload(drawId, participants, prizes, eligibleParticipant.id);
+  const payload = createCoreLotteryDrawPayload(drawId, participants, prizes, winnerParticipantId ?? eligibleParticipant.id);
   return {
     phase: "prepared",
     drawId: payload.drawId,
     ruleSnapshot: payload.ruleSnapshot,
-    participants: payload.participants
+    participants: payload.participants,
+    ...(winnerParticipantId
+      ? { selectionState: "selected" as const, winnerParticipantId: payload.winnerParticipantId }
+      : { selectionState: "ready" as const })
   };
+}
+
+export function createCoreLotteryDrawPayloadFromPreparedState(
+  prepared: CoreLotteryDrawPreparedState
+): CoreLotteryDrawPayload {
+  const normalized = validateAndNormalizePrepared(prepared);
+  if (normalized.selectionState !== "selected" || !normalized.winnerParticipantId)
+    throw new Error("抽獎保護快照尚未保存選定的得獎籤。");
+  return validateAndNormalizePending({
+    drawId: normalized.drawId,
+    winnerParticipantId: normalized.winnerParticipantId,
+    ruleSnapshot: normalized.ruleSnapshot,
+    participants: normalized.participants
+  });
 }
 
 export function storePendingCoreLotteryDrawId(storage: Storage, pending: CoreLotteryDrawPayload): void {
@@ -203,10 +224,14 @@ export function matchesPendingCoreLotteryDraw(
 
 export function matchesPreparedCoreLotteryDraw(record: CoreLotteryDrawRecord, expected: CoreLotteryDrawPreparedState): boolean {
   if (!isUuid(record.drawId) || record.drawId.toLowerCase() !== expected.drawId.toLowerCase()) return false;
+  if (expected.selectionState === "ready") return false;
+  if (expected.winnerParticipantId && expected.winnerParticipantId !== record.winnerParticipantId) return false;
   try {
     const actual = validateAndNormalizePrepared({
       phase: "prepared",
       drawId: record.drawId,
+      ...(expected.selectionState ? { selectionState: expected.selectionState } : {}),
+      ...(expected.winnerParticipantId ? { winnerParticipantId: record.winnerParticipantId } : {}),
       ruleSnapshot: record.ruleSnapshot,
       participants: record.participants
     });
@@ -228,13 +253,28 @@ export function validateAndNormalizePrepared(value: unknown): CoreLotteryDrawPre
   const participants = candidate.participants as CoreLotteryDrawParticipantSnapshot[];
   const eligible = participants.find(participant => participant?.eligibilityStatus === "eligible");
   if (!eligible) throw new Error("待對帳的抽獎意圖沒有合格參與籤。");
+  if (candidate.selectionState !== undefined && candidate.selectionState !== "ready" && candidate.selectionState !== "selected")
+    throw new Error("待對帳的抽獎意圖狀態無效。");
+  if (candidate.selectionState === "selected" && (typeof candidate.winnerParticipantId !== "string" || !candidate.winnerParticipantId.trim()))
+    throw new Error("已選定的抽獎意圖缺少得獎籤識別碼。");
+  if (candidate.selectionState === "ready" && candidate.winnerParticipantId !== undefined)
+    throw new Error("尚未抽選的意圖不應包含得獎籤識別碼。");
+  if (candidate.winnerParticipantId !== undefined && typeof candidate.winnerParticipantId !== "string")
+    throw new Error("待對帳的得獎籤識別碼格式無效。");
   const payload = validateAndNormalizePending({
     drawId: candidate.drawId,
-    winnerParticipantId: eligible.participantId,
+    winnerParticipantId: candidate.winnerParticipantId ?? eligible.participantId,
     ruleSnapshot: candidate.ruleSnapshot,
     participants: candidate.participants
   });
-  return { phase: "prepared", drawId: payload.drawId, ruleSnapshot: payload.ruleSnapshot, participants: payload.participants };
+  return {
+    phase: "prepared",
+    drawId: payload.drawId,
+    ruleSnapshot: payload.ruleSnapshot,
+    participants: payload.participants,
+    ...(candidate.selectionState ? { selectionState: candidate.selectionState } : {}),
+    ...(candidate.winnerParticipantId ? { winnerParticipantId: payload.winnerParticipantId } : {})
+  };
 }
 
 export function validateAndNormalizePending(value: unknown): CoreLotteryDrawPayload {

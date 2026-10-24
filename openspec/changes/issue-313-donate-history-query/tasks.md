@@ -20,12 +20,14 @@
 - [x] 3.6 落實得獎籤 ID、演算法／資格／群組／獎項策略版本、合格籤數與完整獎項佇列快照。
 - [x] 3.7 歷史列表只回摘要；管理員單筆規則與參與名單有獨立分頁查詢。
 - [x] 3.8 保存參與者既有 platform/accountId 與完整參與欄位；不收集 API key、token、密碼或聊天室內容。
+- [x] 3.9 保護快照先保存選定得獎籤，再套用抽獎結果；重新載入後以原識別碼恢復同一 payload，舊版不確定意圖維持鎖定。
 
 ## 4. 驗證與紀錄
 
 - [x] 4.1 增加導覽、查詢 helper 與 pending payload 的 Vitest。
 - [x] 4.2 增加 Donate／核心歷史 API 權限、冪等、查詢、分頁、資料最小化及 YAML／SQLite roundtrip 測試。
 - [x] 4.3 增加桌面／窄版、直接路由／重新整理、詳情、空／錯誤／載入／分頁及不確定保存對帳 Playwright 覆蓋。
-- [x] 4.4 跑前端 Vitest（29 檔案／141 測試）、typecheck、build、Playwright browser tests 與 diff check；exit code 記於 verification。
-- [x] 4.5 在隔離 Dev Container image 執行完整 solution Release build、Domain/API 測試（API 147/147）、相關 Playwright browser tests（29/29）與 OpenSpec strict 驗證（47/47）；完整環境及限制詳見專案驗證報告。
+- [x] 4.4 跑前端 Vitest（29 檔案／142 測試）、typecheck、build、Playwright browser tests（103/103）與 diff check；exit code 記於 verification。
+- [x] 4.5 在隔離 Dev Container image 執行完整 solution Release build、Domain/API 測試（Domain 112/112、API 147/147）、完整 Playwright browser tests（103/103）與 OpenSpec strict 驗證（47/47）；完整環境及限制詳見專案驗證報告。
 - [x] 4.6 完成完整快照設計與獨立 diff review，記錄驗收範圍及剩餘限制。
+- [x] 4.7 驗證「選定得獎籤後、伺服器保存前崩潰」時可由本機保護快照恢復並提交同一結果。

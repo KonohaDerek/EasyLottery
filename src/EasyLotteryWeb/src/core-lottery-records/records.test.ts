@@ -4,6 +4,7 @@ import {
   clearPendingCoreLotteryDrawId,
   createCoreLotteryDrawId,
   createCoreLotteryDrawPayload,
+  createCoreLotteryDrawPayloadFromPreparedState,
   createCoreLotteryDrawPreparedState,
   matchesPendingCoreLotteryDraw,
   matchesPreparedCoreLotteryDraw,
@@ -64,19 +65,41 @@ describe("core lottery history helpers", () => {
   it("stores a complete pre-draw intent so a refresh never starts a second draw", () => {
     const storage = memoryStorage();
     const drawId = "fd366ac8-0dae-4677-a3c6-515b5baf137b";
-    const prepared = createCoreLotteryDrawPreparedState(drawId, participants, ["禮盒", "小禮物"]);
+    const prepared = createCoreLotteryDrawPreparedState(drawId, participants, ["禮盒", "小禮物"], "ticket-2");
     storePendingCoreLotteryDrawPreparedState(storage, prepared);
-    expect(readPendingCoreLotteryDrawId(storage)).toEqual(prepared);
+    const restored = readPendingCoreLotteryDrawId(storage);
+    expect(restored).toEqual(prepared);
+    if (!restored || restored.phase !== "prepared") throw new Error("expected a saved prepared draw");
+    expect(restored.selectionState).toBe("selected");
+    expect(restored.winnerParticipantId).toBe("ticket-2");
 
-    const completed = createCoreLotteryDrawPayload(drawId, participants, ["禮盒", "小禮物"], "ticket-1");
+    const completed = createCoreLotteryDrawPayloadFromPreparedState(restored);
+    expect(completed.winnerParticipantId).toBe("ticket-2");
+    expect(completed.participants).toHaveLength(3);
+    expect(completed.ruleSnapshot.prizeQueue).toEqual(["禮盒", "小禮物"]);
     const record = {
       ...completed,
       drawnAtUtc: "2026-10-24T10:00:00Z",
-      winnerDisplayName: "Mika",
+      winnerDisplayName: "Ren",
       prizeName: "禮盒"
     };
-    expect(matchesPreparedCoreLotteryDraw(record, prepared)).toBe(true);
-    expect(matchesPreparedCoreLotteryDraw({ ...record, participants: record.participants.slice(1) }, prepared)).toBe(false);
+    expect(matchesPreparedCoreLotteryDraw(record, restored)).toBe(true);
+    expect(matchesPreparedCoreLotteryDraw({ ...record, winnerParticipantId: "ticket-1", winnerDisplayName: "Mika" }, restored)).toBe(false);
+    expect(matchesPreparedCoreLotteryDraw({ ...record, participants: record.participants.slice(1) }, restored)).toBe(false);
+  });
+
+  it("distinguishes a prepared snapshot with no selected outcome from a legacy unknown outcome", () => {
+    const drawId = "fd366ac8-0dae-4677-a3c6-515b5baf137b";
+    const ready = createCoreLotteryDrawPreparedState(drawId, participants, ["禮盒"]);
+    expect(ready.selectionState).toBe("ready");
+    expect(() => createCoreLotteryDrawPayloadFromPreparedState(ready)).toThrow("尚未保存選定的得獎籤");
+
+    const legacy = { ...ready } as { phase: "prepared"; drawId: string; ruleSnapshot: typeof ready.ruleSnapshot; participants: typeof ready.participants };
+    delete (legacy as Partial<typeof ready>).selectionState;
+    expect(readPendingCoreLotteryDrawId({
+      ...memoryStorage(),
+      getItem: () => JSON.stringify(legacy)
+    } as Storage)).toEqual(legacy);
   });
 
   it("builds bounded pages and local-date UTC boundaries", () => {

@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { ApiError, apiRequest } from "../api/client";
-import { createParticipant, drawLottery, filterParticipantsByGroup, participantGroups, participantLabel, type DrawResult, type Participant, type Winner } from "../lottery/draw";
-import { clearPendingCoreLotteryDrawId, createCoreLotteryDrawId, createCoreLotteryDrawPayload, createCoreLotteryDrawPreparedState, matchesPendingCoreLotteryDraw, matchesPreparedCoreLotteryDraw, pendingCoreLotteryDrawStorageKey, preflightPendingCoreLotteryDrawStorage, readPendingCoreLotteryDrawId, storePendingCoreLotteryDrawId, storePendingCoreLotteryDrawPreparedState, type CoreLotteryDrawPayload, type CoreLotteryDrawPreparedState, type CoreLotteryDrawRecord, type CoreLotteryDrawSummary, type CoreLotteryDrawParticipantSnapshot } from "../core-lottery-records/records";
+import { createParticipant, drawLottery, filterParticipantsByGroup, participantGroups, participantLabel, secureRandomIndex, type DrawResult, type Participant, type Winner } from "../lottery/draw";
+import { clearPendingCoreLotteryDrawId, createCoreLotteryDrawId, createCoreLotteryDrawPayload, createCoreLotteryDrawPayloadFromPreparedState, createCoreLotteryDrawPreparedState, matchesPendingCoreLotteryDraw, matchesPreparedCoreLotteryDraw, pendingCoreLotteryDrawStorageKey, preflightPendingCoreLotteryDrawStorage, readPendingCoreLotteryDrawId, storePendingCoreLotteryDrawId, storePendingCoreLotteryDrawPreparedState, type CoreLotteryDrawPayload, type CoreLotteryDrawPreparedState, type CoreLotteryDrawRecord, type CoreLotteryDrawSummary, type CoreLotteryDrawParticipantSnapshot } from "../core-lottery-records/records";
 import { expandYoutubeMembers, exportParticipants, exportPrizes, parseParticipantImport, parsePrizes, parseYoutubeMembers, type DataFormat } from "../lottery/import-export";
 import { clearOvertimeToken, getYouTubeCredentialStatus, listYouTubeLiveChatMessages, publishSuperChatToOvertime, readDrawingRules, resolveYouTubeLiveChat, writeDrawingRules } from "../lottery/api";
 import { processChatBatch, toOvertimeSuperChat, type ChatMessage, type ChatRules } from "../lottery/chat";
@@ -318,10 +318,36 @@ async function reconcilePendingDraw() {
     pendingDrawMessage.value = "";
   } catch (cause) {
     if (cause instanceof ApiError && cause.status === 404) {
-      canRetryPendingDraw.value = Boolean(current);
-      pendingDrawMessage.value = current
-        ? "查無此識別碼的已保存結果。可用相同結果與識別碼重試保存；請勿重新抽獎。"
-        : "只找到抽獎前的保護快照，尚無可對帳結果；為避免重複抽獎，已鎖定此工作區，請管理員核對後再處理。";
+      if (current) {
+        canRetryPendingDraw.value = true;
+        pendingDrawMessage.value = "查無此識別碼的已保存結果。可用相同結果與識別碼重試保存；請勿重新抽獎。";
+      } else if (prepared?.selectionState === "selected" && prepared.winnerParticipantId) {
+        const exactResult = createCoreLotteryDrawPayloadFromPreparedState(prepared);
+        setPendingDraw(exactResult);
+        canRetryPendingDraw.value = true;
+        try {
+          storePendingCoreLotteryDrawId(window.localStorage, exactResult);
+          pendingDrawMessage.value = "已從保護快照恢復先前選定的得獎籤；可用相同結果與識別碼重試保存，不會重新抽獎。";
+        } catch (storageError) {
+          pendingStorageAvailable.value = false;
+          pendingDrawMessage.value = `已恢復先前選定的得獎籤，但無法更新瀏覽器暫存；目前頁面仍保留同一結果，可重試保存：${messageOf(storageError)}`;
+        }
+      } else if (prepared?.selectionState === "ready") {
+        try {
+          clearPendingCoreLotteryDrawId(window.localStorage, prepared.drawId);
+          pendingDraw.value = null;
+          pendingPreparedDraw.value = null;
+          pendingDrawId.value = null;
+          canRetryPendingDraw.value = false;
+          pendingDrawMessage.value = "";
+          notice.value = "前次只建立了抽獎保護快照，尚未選定得獎籤；已解除暫存，可以重新開始抽獎。";
+        } catch (storageError) {
+          pendingStorageAvailable.value = false;
+          pendingDrawMessage.value = `尚未選定得獎籤，但無法清除抽獎保護快照；工作區維持鎖定：${messageOf(storageError)}`;
+        }
+      } else {
+        pendingDrawMessage.value = "只找到舊版抽獎前保護快照，無法確認當時是否已選定得獎籤；為避免重複抽獎，已鎖定此工作區，請管理員核對。";
+      }
     } else {
       pendingDrawMessage.value = `保存結果仍未知：${messageOf(cause)}。目前只會重新查詢，不會重新抽獎或重送。`;
     }
@@ -434,8 +460,8 @@ async function drawPrize() {
   }
   catch (cause) { error.value = messageOf(cause); return; }
   let result: DrawResult;
-  const eligibleBeforeDraw = participants.value.find(participant => !participant.isWinner);
-  if (!eligibleBeforeDraw || prizes.value.length === 0) {
+  const eligibleBeforeDraw = participants.value.filter(participant => !participant.isWinner);
+  if (eligibleBeforeDraw.length === 0 || prizes.value.length === 0) {
     result = drawLottery(participants.value, prizes.value);
     notice.value = result.reason === "no-prizes" ? "請先加入獎項再抽獎。" : "目前沒有尚未得獎的參加者。";
     return;
@@ -443,18 +469,37 @@ async function drawPrize() {
   let preparedState: CoreLotteryDrawPreparedState;
   try {
     preparedState = createCoreLotteryDrawPreparedState(drawId, participants.value, prizes.value);
-    const preflightPayload = createCoreLotteryDrawPayload(drawId, participants.value, prizes.value, eligibleBeforeDraw.id);
+    const preflightPayload = createCoreLotteryDrawPayload(drawId, participants.value, prizes.value, eligibleBeforeDraw[0].id);
     preflightPendingCoreLotteryDrawStorage(pendingStorage, preflightPayload);
     storePendingCoreLotteryDrawPreparedState(pendingStorage, preparedState);
   } catch (cause) {
     error.value = `完整名單快照無法安全暫存，尚未抽選：${messageOf(cause)}`;
     return;
   }
-  try { result = drawLottery(participants.value, prizes.value); }
+  try {
+    result = drawLottery(participants.value, prizes.value, candidateCount => {
+      if (candidateCount !== eligibleBeforeDraw.length) throw new Error("抽獎候選名單在選定前發生變化。");
+      const selectedIndex = secureRandomIndex(candidateCount);
+      const selectedParticipant = eligibleBeforeDraw[selectedIndex];
+      if (!selectedParticipant) throw new Error("安全亂數回傳了無效的抽獎候選索引。");
+      const selectedState = createCoreLotteryDrawPreparedState(drawId, participants.value, prizes.value, selectedParticipant.id);
+      // Persist the selected outcome before drawLottery mutates participant and prize state.
+      storePendingCoreLotteryDrawPreparedState(pendingStorage, selectedState);
+      preparedState = selectedState;
+      return selectedIndex;
+    });
+  }
   catch (cause) {
-    try { clearPendingCoreLotteryDrawId(pendingStorage, drawId); }
-    catch { pendingStorageAvailable.value = false; }
-    error.value = `無法安全抽選：${messageOf(cause)}`;
+    if (preparedState.selectionState === "selected") {
+      setPreparedDraw(preparedState);
+      pendingDrawMessage.value = "得獎籤已安全暫存，但本次抽獎尚未完成；正在查詢原識別碼以恢復同一結果。";
+      error.value = `抽獎中止，保留已選定結果供對帳：${messageOf(cause)}`;
+      await reconcilePendingDraw();
+    } else {
+      try { clearPendingCoreLotteryDrawId(pendingStorage, drawId); }
+      catch { pendingStorageAvailable.value = false; }
+      error.value = `無法安全抽選：${messageOf(cause)}`;
+    }
     return;
   }
   if (!result.winner) {
