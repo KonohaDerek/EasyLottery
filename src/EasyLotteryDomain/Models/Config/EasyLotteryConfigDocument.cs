@@ -16,6 +16,7 @@ namespace EasyLotteryDomain.Models.Config
         public List<RouletteTemplate> RouletteTemplates { get; set; } = new();
 
         public List<ActivityResultRecord> ActivityResults { get; set; } = new();
+        public List<CoreLotteryDrawRecord> CoreLotteryDrawRecords { get; set; } = [];
 
         public List<DrawingRulePreset> DrawingRulePresets { get; set; } = new();
 

@@ -132,6 +132,7 @@ namespace EasyLotteryWasm.Services
             document.PokeTemplates ??= new List<PokeTemplate>();
             document.RouletteTemplates ??= new List<RouletteTemplate>();
             document.ActivityResults ??= new List<ActivityResultRecord>();
+            document.CoreLotteryDrawRecords ??= new List<CoreLotteryDrawRecord>();
             document.DrawingRulePresets ??= new List<DrawingRulePreset>();
             document.DrawingRules ??= new DrawingRuleSettings();
             document.DonateLotteryActivities ??= new List<DonateLotteryActivity>();

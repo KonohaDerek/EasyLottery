@@ -23,6 +23,8 @@ import IdentityLinkView from "./interactions/admin/IdentityLinkView.vue";
 import MarketplaceView from "./views/MarketplaceView.vue";
 import PlatformConnectionsView from "./views/PlatformConnectionsView.vue";
 import OvertimeSettingsView from "./views/OvertimeSettingsView.vue";
+import DonateDrawRecordsView from "./views/DonateDrawRecordsView.vue";
+import LotteryDrawRecordsView from "./views/LotteryDrawRecordsView.vue";
 
 export const publicRoutes: RouteRecordRaw[] = [
   { path: "/about", component: AboutView, meta: { title: "關於 EasyLottery" } },
@@ -34,6 +36,8 @@ export const adminRoutes: RouteRecordRaw[] = [
   { path: "/", component: LotteryHomeView, meta: { title: "抽獎工作區｜EasyLottery", requiresAuth: true } },
   { path: "/donate-activities", component: DonateActivitiesView, meta: { title: "Donate 活動｜EasyLottery", requiresAuth: true } },
   { path: "/activity-results", component: ActivityResultsView, meta: { title: "活動結果｜EasyLottery", requiresAuth: true } },
+  { path: "/lottery-draw-records", component: LotteryDrawRecordsView, meta: { title: "抽獎紀錄｜EasyLottery", requiresAuth: true } },
+  { path: "/donate-lottery-records", component: DonateDrawRecordsView, meta: { title: "Donate 抽獎紀錄｜EasyLottery", requiresAuth: true } },
   { path: "/roulette", component: RouletteView, meta: { title: "轉盤模板｜EasyLottery", requiresAuth: true } },
   { path: "/roulette/preview/:id", component: RoulettePreviewView, meta: { title: "轉盤 OBS 預覽｜EasyLottery", requiresAuth: true } },
   { path: "/pokebox", component: PokeBoxView, meta: { title: "戳戳樂模板｜EasyLottery", requiresAuth: true } },

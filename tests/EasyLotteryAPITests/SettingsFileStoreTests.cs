@@ -154,6 +154,32 @@ public sealed class SettingsFileStoreTests
                     EndsAtUtc = new DateTimeOffset(2026, 8, 2, 10, 0, 0, TimeSpan.Zero)
                 });
                 document.ProcessedDonatePaymentIds.Add("payment-2");
+                document.CoreLotteryDrawRecords.Add(new CoreLotteryDrawRecord
+                {
+                    DrawId = Guid.Parse("fd366ac8-0dae-4677-a3c6-515b5baf137b"),
+                    DrawnAtUtc = new DateTimeOffset(2026, 10, 24, 10, 0, 0, TimeSpan.Zero),
+                    WinnerParticipantId = "ticket-winner",
+                    WinnerDisplayName = "合成觀眾",
+                    PrizeName = "合成禮盒",
+                    RuleSnapshot = new CoreLotteryDrawRuleSnapshot
+                    {
+                        AlgorithmVersion = "secure-random-index-v1",
+                        EligibilityPolicyVersion = "not-previously-won-v1",
+                        GroupWinnerPolicyVersion = "exclude-lottery-group-after-win-v1",
+                        EligibleEntryCount = 1,
+                        PrizeSelectionPolicyVersion = "first-remaining-prize-v1",
+                        PrizeQueue = ["合成禮盒"]
+                    },
+                    Participants =
+                    [
+                        new CoreLotteryDrawParticipantSnapshot
+                        {
+                            ParticipantId = "ticket-winner", LotteryGroupId = "group-winner", DisplayName = "合成觀眾",
+                            ExternalIdentity = new CoreLotteryDrawExternalIdentity { Platform = "youtube", AccountId = "synthetic-account-1" },
+                            Level = "Gold", Group = "Members", Tags = ["synthetic"], EligibilityStatus = "eligible"
+                        }
+                    ]
+                });
                 return true;
             }, CancellationToken.None);
 
@@ -164,6 +190,10 @@ public sealed class SettingsFileStoreTests
             Assert.AreEqual("results@example.test", settings.SystemSettings.ResultNotificationEmail);
             Assert.AreEqual("測試活動", activities.DonateLotteryActivities[0].Name);
             CollectionAssert.Contains(results.ProcessedDonatePaymentIds, "payment-2");
+            Assert.AreEqual("合成觀眾", results.CoreLotteryDrawRecords.Single().WinnerDisplayName);
+            Assert.AreEqual("合成禮盒", (await store.ReadAsync(CancellationToken.None)).CoreLotteryDrawRecords.Single().PrizeName);
+            Assert.AreEqual("synthetic-account-1", results.CoreLotteryDrawRecords.Single().Participants.Single().ExternalIdentity?.AccountId);
+            Assert.AreEqual("secure-random-index-v1", results.CoreLotteryDrawRecords.Single().RuleSnapshot.AlgorithmVersion);
         }
         finally
         {

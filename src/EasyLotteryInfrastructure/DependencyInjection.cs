@@ -77,6 +77,7 @@ public static class DependencyInjection
         services.AddSingleton<YamlActivitiesDocumentRepository>();
         services.AddSingleton<IActivitiesYamlDocumentRepository>(sp => sp.GetRequiredService<YamlActivitiesDocumentRepository>());
         services.AddSingleton<YamlActivityResultsDocumentRepository>();
+        services.AddSingleton<CoreLotteryDrawHistoryRepository>();
         services.AddSingleton<IActivityResultsYamlDocumentRepository>(sp => sp.GetRequiredService<YamlActivityResultsDocumentRepository>());
         services.AddSingleton<YamlInteractionsDocumentRepository>();
         services.AddSingleton<SqliteInteractionsDocumentRepository>();
