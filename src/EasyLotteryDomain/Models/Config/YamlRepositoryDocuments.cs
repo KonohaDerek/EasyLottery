@@ -38,6 +38,7 @@ public sealed class ActivityResultsYamlDocument : IYamlVersionedDocument
 {
     public int ConfigVersion { get; set; } = YamlDocumentSchema.CurrentVersion;
     public List<ActivityResultRecord> ActivityResults { get; set; } = [];
+    public List<CoreLotteryDrawRecord> CoreLotteryDrawRecords { get; set; } = [];
     public List<DonateLotteryDrawRecord> DonateLotteryDrawRecords { get; set; } = [];
     public List<string> ProcessedDonatePaymentIds { get; set; } = [];
 }

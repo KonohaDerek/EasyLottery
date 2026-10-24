@@ -231,12 +231,16 @@ article p {
   text-decoration: none;
 }
 
-.admin-nav-link:hover,
-.admin-nav-link.router-link-active,
+.admin-nav-link:hover:not([aria-current="page"]) {
+  color: var(--creator-primary-strong);
+  background: #f6f4fc;
+}
+
 .admin-nav-link[aria-current="page"] {
   color: var(--creator-primary-strong);
   background: #eeeafd;
   font-weight: 750;
+  box-shadow: inset 3px 0 var(--creator-primary);
 }
 
 .admin-main {

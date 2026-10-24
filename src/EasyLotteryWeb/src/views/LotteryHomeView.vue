@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
-import { ApiError } from "../api/client";
-import { createParticipant, drawLottery, filterParticipantsByGroup, participantGroups, participantLabel, type Participant, type Winner } from "../lottery/draw";
+import { ApiError, apiRequest } from "../api/client";
+import { createParticipant, drawLottery, filterParticipantsByGroup, participantGroups, participantLabel, secureRandomIndex, type DrawResult, type Participant, type Winner } from "../lottery/draw";
+import { clearPendingCoreLotteryDrawId, createCoreLotteryDrawId, createCoreLotteryDrawPayload, createCoreLotteryDrawPayloadFromPreparedState, createCoreLotteryDrawPreparedState, matchesPendingCoreLotteryDraw, matchesPreparedCoreLotteryDraw, pendingCoreLotteryDrawStorageKey, preflightPendingCoreLotteryDrawStorage, readPendingCoreLotteryDrawId, storePendingCoreLotteryDrawId, storePendingCoreLotteryDrawPreparedState, type CoreLotteryDrawPayload, type CoreLotteryDrawPreparedState, type CoreLotteryDrawRecord, type CoreLotteryDrawSummary, type CoreLotteryDrawParticipantSnapshot } from "../core-lottery-records/records";
 import { expandYoutubeMembers, exportParticipants, exportPrizes, parseParticipantImport, parsePrizes, parseYoutubeMembers, type DataFormat } from "../lottery/import-export";
 import { clearOvertimeToken, getYouTubeCredentialStatus, listYouTubeLiveChatMessages, publishSuperChatToOvertime, readDrawingRules, resolveYouTubeLiveChat, writeDrawingRules } from "../lottery/api";
 import { processChatBatch, toOvertimeSuperChat, type ChatMessage, type ChatRules } from "../lottery/chat";
@@ -9,6 +10,15 @@ import { processChatBatch, toOvertimeSuperChat, type ChatMessage, type ChatRules
 const participants = ref<Participant[]>([]);
 const prizes = ref<string[]>([]);
 const winners = ref<Winner[]>([]);
+const pendingDrawId = ref<string | null>(null);
+const pendingDraw = ref<CoreLotteryDrawPayload | null>(null);
+const pendingPreparedDraw = ref<CoreLotteryDrawPreparedState | null>(null);
+const pendingDrawMessage = ref("");
+const canRetryPendingDraw = ref(false);
+const isSavingDraw = ref(false);
+const isReconcilingDraw = ref(false);
+const isCheckingPendingDraw = ref(true);
+const pendingStorageAvailable = ref(true);
 const selectedGroup = ref("");
 const busy = ref(false);
 const error = ref("");
@@ -46,6 +56,16 @@ let chatSessionController: AbortController | null = null;
 const groups = computed(() => participantGroups(participants.value));
 const visibleParticipants = computed(() => filterParticipantsByGroup(participants.value, selectedGroup.value));
 const eligibleCount = computed(() => participants.value.filter(item => !item.isWinner).length);
+const drawLocked = computed(() => isCheckingPendingDraw.value || Boolean(pendingDrawId.value) || isSavingDraw.value || isReconcilingDraw.value || !pendingStorageAvailable.value);
+
+interface PendingLocalDraw {
+  drawId: string;
+  participantsAfter: Participant[];
+  prizesAfter: string[];
+  winner: Winner;
+}
+
+let pendingLocalDraw: PendingLocalDraw | null = null;
 
 async function loadInitialSettings() {
   const [rules, status] = await Promise.allSettled([readDrawingRules(), getYouTubeCredentialStatus()]);
@@ -124,6 +144,7 @@ function ensureLevelRates(levels: readonly string[]): boolean {
 }
 
 function importParticipants() {
+  if (drawLocked.value) return;
   error.value = "";
   try {
     const imported = parseParticipantImport(participantText.value, participantFormat.value);
@@ -138,6 +159,7 @@ function importParticipants() {
 }
 
 function importPrizes() {
+  if (drawLocked.value) return;
   error.value = "";
   try {
     const imported = parsePrizes(prizeText.value, prizeFormat.value);
@@ -149,6 +171,7 @@ function importPrizes() {
 }
 
 async function importYoutubeMembers(event: Event) {
+  if (drawLocked.value) return;
   const input = event.target as HTMLInputElement;
   const file = input.files?.[0];
   input.value = "";
@@ -195,6 +218,7 @@ function exportPrizeList() {
 }
 
 function addPrize() {
+  if (drawLocked.value) return;
   const value = newPrize.value.trim();
   if (!value) return;
   prizes.value.push(value);
@@ -202,6 +226,7 @@ function addPrize() {
 }
 
 function addParticipant() {
+  if (drawLocked.value) return;
   const name = newName.value.trim();
   if (!name) return;
   participants.value.push(createParticipant({ name, group: newGroup.value, tags: newTags.value }));
@@ -212,17 +237,293 @@ function addParticipant() {
 }
 
 function removeParticipant(participantId: string) {
+  if (drawLocked.value) return;
   participants.value = participants.value.filter(item => item.id !== participantId);
   if (selectedGroup.value && !groups.value.some(group => group.toLocaleLowerCase() === selectedGroup.value.toLocaleLowerCase())) selectedGroup.value = "";
 }
 
-function drawPrize() {
-  const result = drawLottery(participants.value, prizes.value);
-  if (!result.winner) { notice.value = result.reason === "no-prizes" ? "請先加入獎項再抽獎。" : "目前沒有尚未得獎的參加者。"; return; }
-  participants.value = result.participants;
-  prizes.value = result.prizes;
-  winners.value = [{ ...result.winner }, ...winners.value];
-  notice.value = `恭喜 ${participantLabel(result.winner.member)} 獲得「${result.winner.prize}」！`;
+function applyPersistedWinner(record: CoreLotteryDrawRecord) {
+  const local = pendingLocalDraw;
+  if (local) {
+    participants.value = local.participantsAfter;
+    prizes.value = local.prizesAfter;
+  }
+  const snapshotWinner = record.participants?.find(participant => participant.participantId === record.winnerParticipantId);
+  const member = local?.winner.member ?? (snapshotWinner ? participantFromSnapshot(snapshotWinner) : null);
+  if (!member) {
+    pendingDrawMessage.value = "伺服器保存結果缺少得獎籤快照，已鎖定抽獎；請由管理員核對。";
+    return;
+  }
+  winners.value = [{ member, prize: record.prizeName, drawId: record.drawId }, ...winners.value];
+  notice.value = `已保存抽獎紀錄：${record.winnerDisplayName} 獲得「${record.prizeName}」。`;
+  pendingLocalDraw = null;
+  try {
+    clearPendingCoreLotteryDrawId(window.localStorage, record.drawId);
+  } catch {
+    pendingStorageAvailable.value = false;
+    pendingDrawMessage.value = "結果已確認保存，但瀏覽器無法清除待對帳狀態；目前不會開始下一次抽獎。";
+    error.value = pendingDrawMessage.value;
+  }
+  pendingDraw.value = null;
+  pendingDrawId.value = null;
+  canRetryPendingDraw.value = false;
+}
+
+function participantFromSnapshot(snapshot: CoreLotteryDrawParticipantSnapshot): Participant {
+  return {
+    id: snapshot.participantId,
+    lotteryGroupId: snapshot.lotteryGroupId,
+    name: snapshot.displayName,
+    ...(snapshot.externalIdentity ? { identity: { ...snapshot.externalIdentity } } : {}),
+    level: snapshot.level,
+    group: snapshot.group,
+    tags: [...snapshot.tags],
+    isWinner: true
+  };
+}
+
+function setPendingDraw(value: CoreLotteryDrawPayload) {
+  pendingDraw.value = value;
+  pendingPreparedDraw.value = null;
+  pendingDrawId.value = value.drawId;
+  canRetryPendingDraw.value = false;
+}
+
+function setPreparedDraw(value: CoreLotteryDrawPreparedState) {
+  pendingDraw.value = null;
+  pendingPreparedDraw.value = value;
+  pendingDrawId.value = value.drawId;
+  canRetryPendingDraw.value = false;
+}
+
+async function reconcilePendingDraw() {
+  const current = pendingDraw.value;
+  const prepared = pendingPreparedDraw.value;
+  const drawId = current?.drawId ?? prepared?.drawId;
+  if (!drawId) return;
+  isReconcilingDraw.value = true;
+  canRetryPendingDraw.value = false;
+  pendingDrawMessage.value = "正在以原抽獎識別碼查詢保存結果…";
+  try {
+    const summaryResponse = await apiRequest<CoreLotteryDrawSummary>(`/api/lottery-draw-records/${encodeURIComponent(drawId)}/summary`);
+    const record = await loadReconciliationRecord(summaryResponse.data);
+    const matches = current
+      ? matchesPendingCoreLotteryDraw(record, current)
+      : prepared ? matchesPreparedCoreLotteryDraw(record, prepared) : false;
+    if (!matches) {
+      pendingDrawMessage.value = "查到的紀錄與待保存結果不一致，已鎖定抽獎；請由管理員人工核對。";
+      return;
+    }
+    applyPersistedWinner(record);
+    pendingDrawMessage.value = "";
+  } catch (cause) {
+    if (cause instanceof ApiError && cause.status === 404) {
+      if (current) {
+        canRetryPendingDraw.value = true;
+        pendingDrawMessage.value = "查無此識別碼的已保存結果。可用相同結果與識別碼重試保存；請勿重新抽獎。";
+      } else if (prepared?.selectionState === "selected" && prepared.winnerParticipantId) {
+        const exactResult = createCoreLotteryDrawPayloadFromPreparedState(prepared);
+        setPendingDraw(exactResult);
+        canRetryPendingDraw.value = true;
+        try {
+          storePendingCoreLotteryDrawId(window.localStorage, exactResult);
+          pendingDrawMessage.value = "已從保護快照恢復先前選定的得獎籤；可用相同結果與識別碼重試保存，不會重新抽獎。";
+        } catch (storageError) {
+          pendingStorageAvailable.value = false;
+          pendingDrawMessage.value = `已恢復先前選定的得獎籤，但無法更新瀏覽器暫存；目前頁面仍保留同一結果，可重試保存：${messageOf(storageError)}`;
+        }
+      } else if (prepared?.selectionState === "ready") {
+        try {
+          clearPendingCoreLotteryDrawId(window.localStorage, prepared.drawId);
+          pendingDraw.value = null;
+          pendingPreparedDraw.value = null;
+          pendingDrawId.value = null;
+          canRetryPendingDraw.value = false;
+          pendingDrawMessage.value = "";
+          notice.value = "前次只建立了抽獎保護快照，尚未選定得獎籤；已解除暫存，可以重新開始抽獎。";
+        } catch (storageError) {
+          pendingStorageAvailable.value = false;
+          pendingDrawMessage.value = `尚未選定得獎籤，但無法清除抽獎保護快照；工作區維持鎖定：${messageOf(storageError)}`;
+        }
+      } else {
+        pendingDrawMessage.value = "只找到舊版抽獎前保護快照，無法確認當時是否已選定得獎籤；為避免重複抽獎，已鎖定此工作區，請管理員核對。";
+      }
+    } else {
+      pendingDrawMessage.value = `保存結果仍未知：${messageOf(cause)}。目前只會重新查詢，不會重新抽獎或重送。`;
+    }
+  } finally {
+    isReconcilingDraw.value = false;
+    isCheckingPendingDraw.value = false;
+  }
+}
+
+async function loadReconciliationRecord(summary: CoreLotteryDrawSummary): Promise<CoreLotteryDrawRecord> {
+  if (!summary.ruleSnapshot) throw new Error("抽獎紀錄摘要缺少規則快照。");
+  const participants: CoreLotteryDrawParticipantSnapshot[] = [];
+  const pageSize = 100;
+  let page = 1;
+  let expectedCount: number | null = null;
+  let totalPages = 0;
+  do {
+    const response = await apiRequest<{ items: CoreLotteryDrawParticipantSnapshot[]; page: number; pageSize: number; totalCount: number; totalPages: number }>(
+      `/api/lottery-draw-records/${encodeURIComponent(summary.drawId)}/participants?page=${page}&pageSize=${pageSize}`
+    );
+    const result = response.data;
+    if (!Array.isArray(result.items) || result.page !== page || result.pageSize !== pageSize
+      || !Number.isSafeInteger(result.totalCount) || result.totalCount < 1
+      || !Number.isSafeInteger(result.totalPages) || result.totalPages < 1
+      || result.items.length > pageSize || (expectedCount !== null && result.totalCount !== expectedCount)) {
+      throw new Error("抽獎名單分頁回應不完整，仍需人工核對。");
+    }
+    expectedCount = result.totalCount;
+    totalPages = result.totalPages;
+    participants.push(...result.items);
+    page++;
+  } while (page <= totalPages);
+
+  if (expectedCount !== participants.length || expectedCount !== summary.participantCount)
+    throw new Error("抽獎名單分頁筆數與紀錄摘要不一致。");
+  return { ...summary, ruleSnapshot: summary.ruleSnapshot, participants };
+}
+
+async function submitPendingDraw() {
+  const current = pendingDraw.value;
+  if (!current || isSavingDraw.value || isReconcilingDraw.value) return;
+  isSavingDraw.value = true;
+  canRetryPendingDraw.value = false;
+  pendingDrawMessage.value = "正在保存抽獎結果…";
+  try {
+    const response = await apiRequest<CoreLotteryDrawSummary>("/api/lottery-draw-records", {
+      method: "POST",
+      body: JSON.stringify(current)
+    });
+    const saved = response.data.ruleSnapshot ? { ...response.data, ruleSnapshot: response.data.ruleSnapshot, participants: current.participants } : null;
+    if (!saved || !matchesPendingCoreLotteryDraw(saved, current)) {
+      pendingDrawMessage.value = "伺服器回傳結果與本次抽獎不一致，正在查詢同一識別碼對帳。";
+      await reconcilePendingDraw();
+      return;
+    }
+    applyPersistedWinner(saved);
+    pendingDrawMessage.value = "";
+  } catch (cause) {
+    if (cause instanceof ApiError && (cause.status === 400 || cause.status === 413)) {
+      canRetryPendingDraw.value = false;
+      pendingDrawMessage.value = cause.status === 413
+        ? "伺服器拒絕過大的完整參與名單快照；原抽選已鎖定且不會重抽。請保留此頁並聯絡管理員處理。"
+        : "伺服器拒絕此抽獎快照；原抽選已鎖定且不會重抽。請由管理員核對資料。";
+      return;
+    }
+    pendingDrawMessage.value = `保存回應未確認（${messageOf(cause)}），正在查詢同一識別碼；不會重新抽獎。`;
+    await reconcilePendingDraw();
+  } finally {
+    isSavingDraw.value = false;
+  }
+}
+
+async function retryPendingDraw() {
+  if (!canRetryPendingDraw.value || !pendingDraw.value) return;
+  await submitPendingDraw();
+}
+
+async function restorePendingDraw() {
+  try {
+    const stored = readPendingCoreLotteryDrawId(window.localStorage);
+    if (stored) {
+      if (stored.phase === "result") {
+        setPendingDraw(stored);
+        pendingDrawMessage.value = "發現尚待對帳的抽獎結果。先查詢保存紀錄，不會再次抽獎。";
+      } else {
+        setPreparedDraw(stored);
+        pendingDrawMessage.value = "發現抽獎前保存的完整名單保護快照。先查詢原識別碼，不會再次抽獎。";
+      }
+      await reconcilePendingDraw();
+      return;
+    }
+    isCheckingPendingDraw.value = false;
+  } catch (cause) {
+    pendingStorageAvailable.value = false;
+    isCheckingPendingDraw.value = false;
+    error.value = `無法讀取瀏覽器待對帳狀態，為避免重複抽獎已停用抽獎：${messageOf(cause)}`;
+  }
+}
+
+async function drawPrize() {
+  if (drawLocked.value || chatConnecting.value) return;
+  let drawId: string;
+  let pendingStorage: Storage;
+  try {
+    drawId = createCoreLotteryDrawId();
+    pendingStorage = window.localStorage;
+    const probeKey = `${pendingCoreLotteryDrawStorageKey}.probe.${drawId}`;
+    pendingStorage.setItem(probeKey, "x".repeat(1024));
+    pendingStorage.removeItem(probeKey);
+  }
+  catch (cause) { error.value = messageOf(cause); return; }
+  let result: DrawResult;
+  const eligibleBeforeDraw = participants.value.filter(participant => !participant.isWinner);
+  if (eligibleBeforeDraw.length === 0 || prizes.value.length === 0) {
+    result = drawLottery(participants.value, prizes.value);
+    notice.value = result.reason === "no-prizes" ? "請先加入獎項再抽獎。" : "目前沒有尚未得獎的參加者。";
+    return;
+  }
+  let preparedState: CoreLotteryDrawPreparedState;
+  try {
+    preparedState = createCoreLotteryDrawPreparedState(drawId, participants.value, prizes.value);
+    const preflightPayload = createCoreLotteryDrawPayload(drawId, participants.value, prizes.value, eligibleBeforeDraw[0].id);
+    preflightPendingCoreLotteryDrawStorage(pendingStorage, preflightPayload);
+    storePendingCoreLotteryDrawPreparedState(pendingStorage, preparedState);
+  } catch (cause) {
+    error.value = `完整名單快照無法安全暫存，尚未抽選：${messageOf(cause)}`;
+    return;
+  }
+  try {
+    result = drawLottery(participants.value, prizes.value, candidateCount => {
+      if (candidateCount !== eligibleBeforeDraw.length) throw new Error("抽獎候選名單在選定前發生變化。");
+      const selectedIndex = secureRandomIndex(candidateCount);
+      const selectedParticipant = eligibleBeforeDraw[selectedIndex];
+      if (!selectedParticipant) throw new Error("安全亂數回傳了無效的抽獎候選索引。");
+      const selectedState = createCoreLotteryDrawPreparedState(drawId, participants.value, prizes.value, selectedParticipant.id);
+      // Persist the selected outcome before drawLottery mutates participant and prize state.
+      storePendingCoreLotteryDrawPreparedState(pendingStorage, selectedState);
+      preparedState = selectedState;
+      return selectedIndex;
+    });
+  }
+  catch (cause) {
+    if (preparedState.selectionState === "selected") {
+      setPreparedDraw(preparedState);
+      pendingDrawMessage.value = "得獎籤已安全暫存，但本次抽獎尚未完成；正在查詢原識別碼以恢復同一結果。";
+      error.value = `抽獎中止，保留已選定結果供對帳：${messageOf(cause)}`;
+      await reconcilePendingDraw();
+    } else {
+      try { clearPendingCoreLotteryDrawId(pendingStorage, drawId); }
+      catch { pendingStorageAvailable.value = false; }
+      error.value = `無法安全抽選：${messageOf(cause)}`;
+    }
+    return;
+  }
+  if (!result.winner) {
+    try { clearPendingCoreLotteryDrawId(pendingStorage, drawId); }
+    catch { pendingStorageAvailable.value = false; }
+    notice.value = result.reason === "no-prizes" ? "請先加入獎項再抽獎。" : "目前沒有尚未得獎的參加者。";
+    return;
+  }
+  const operation = createCoreLotteryDrawPayload(drawId, participants.value, prizes.value, result.winner.member.id);
+  pendingLocalDraw = { drawId, participantsAfter: result.participants, prizesAfter: result.prizes, winner: result.winner };
+  try {
+    storePendingCoreLotteryDrawId(pendingStorage, operation);
+  } catch (cause) {
+    pendingStorageAvailable.value = false;
+    setPendingDraw(operation);
+    pendingDrawMessage.value = `抽選已完成但完整快照未能寫入瀏覽器暫存，已鎖定後續抽獎；此分頁仍保留原結果，請勿重新抽選：${messageOf(cause)}`;
+    error.value = pendingDrawMessage.value;
+    await submitPendingDraw();
+    return;
+  }
+  if (chatActive.value) stopChatCapture();
+  setPendingDraw(operation);
+  pendingDrawMessage.value = "抽獎結果已暫存於本機待提交；確認伺服器保存後才會顯示為完成。";
+  await submitPendingDraw();
 }
 
 function chatRules(): ChatRules {
@@ -230,7 +531,7 @@ function chatRules(): ChatRules {
 }
 
 async function startChatCapture() {
-  if (chatConnecting.value || chatActive.value) return;
+  if (drawLocked.value || chatConnecting.value || chatActive.value) return;
   const generation = ++chatGeneration;
   const controller = new AbortController();
   chatSessionController?.abort();
@@ -306,7 +607,7 @@ function messageOf(cause: unknown): string {
   return cause instanceof Error ? cause.message : "發生未預期錯誤，請稍後重試。";
 }
 
-onMounted(() => { void loadInitialSettings(); });
+onMounted(() => { void loadInitialSettings(); void restorePendingDraw(); });
 onBeforeUnmount(() => {
   stopChatCapture();
 });
@@ -331,6 +632,14 @@ onBeforeUnmount(() => {
 
     <div v-if="error" class="lottery-alert error" role="alert"><span>{{ error }}</span><button type="button" aria-label="關閉錯誤訊息" @click="error = ''">關閉</button></div>
     <div v-if="notice" class="lottery-alert notice" role="status" aria-live="polite"><span>{{ notice }}</span><button type="button" aria-label="關閉提示" @click="notice = ''">關閉</button></div>
+    <section v-if="pendingDrawId" class="lottery-alert pending-draw" role="status" aria-live="polite">
+      <div><strong>抽獎結果待對帳</strong><span>{{ pendingDrawMessage }}</span></div>
+      <div class="pending-draw-actions">
+        <v-btn size="small" variant="outlined" :disabled="isReconcilingDraw || isSavingDraw" @click="reconcilePendingDraw">重新查詢紀錄</v-btn>
+        <v-btn v-if="canRetryPendingDraw" size="small" color="primary" :disabled="isReconcilingDraw || isSavingDraw" @click="retryPendingDraw">以相同結果重試保存</v-btn>
+        <v-btn size="small" variant="tonal" to="/lottery-draw-records">查看抽獎紀錄</v-btn>
+      </div>
+    </section>
 
     <div class="lottery-column">
       <section class="lottery-card chat-card">
@@ -365,15 +674,15 @@ onBeforeUnmount(() => {
           <article class="import-panel"><h3>參加者</h3>
             <label class="field">資料格式<select v-model="participantFormat"><option value="json">JSON</option><option value="csv">CSV</option></select></label>
             <label class="field">匯入資料<textarea v-model="participantText" rows="6" placeholder="貼上參加者 JSON 或 CSV"></textarea></label>
-            <div class="compact-actions"><v-btn size="small" variant="tonal" @click="exportParticipantList">匯出名單</v-btn><v-btn size="small" color="primary" @click="importParticipants">匯入名單</v-btn></div>
+            <div class="compact-actions"><v-btn size="small" variant="tonal" @click="exportParticipantList">匯出名單</v-btn><v-btn size="small" color="primary" :disabled="drawLocked" @click="importParticipants">匯入名單</v-btn></div>
           </article>
           <article class="import-panel"><h3>獎項</h3>
             <label class="field">資料格式<select v-model="prizeFormat"><option value="json">JSON</option><option value="csv">CSV</option></select></label>
             <label class="field">匯入資料<textarea v-model="prizeText" rows="6" placeholder="貼上獎項 JSON 或 CSV"></textarea></label>
-            <div class="compact-actions"><v-btn size="small" variant="tonal" @click="exportPrizeList">匯出獎項</v-btn><v-btn size="small" color="primary" @click="importPrizes">匯入獎項</v-btn></div>
+            <div class="compact-actions"><v-btn size="small" variant="tonal" @click="exportPrizeList">匯出獎項</v-btn><v-btn size="small" color="primary" :disabled="drawLocked" @click="importPrizes">匯入獎項</v-btn></div>
           </article>
         </div>
-        <div class="member-import-row"><label class="field">YouTube Studio 會員 CSV<input type="file" accept=".csv,text/csv" :disabled="!ratesReady || busy" @change="importYoutubeMembers"></label><span>支援「會員」與「目前級別」欄位；依等級倍率展開抽獎籤。</span></div>
+        <div class="member-import-row"><label class="field">YouTube Studio 會員 CSV<input type="file" accept=".csv,text/csv" :disabled="!ratesReady || busy || drawLocked" @change="importYoutubeMembers"></label><span>支援「會員」與「目前級別」欄位；依等級倍率展開抽獎籤。</span></div>
         <div v-if="Object.keys(levelRates).length" class="rates-panel">
           <div class="rates-heading"><div><h3>會員等級倍率</h3><p>每位會員依倍率取得抽獎籤，至少為 1。</p></div><div class="compact-actions"><v-btn size="small" variant="outlined" @click="refreshLevelRates">重新載入</v-btn><v-btn size="small" color="primary" :disabled="!ratesReady || !ratesDirty || busy" @click="saveLevelRates">儲存倍率</v-btn></div></div>
           <div class="rate-list"><label v-for="level in Object.keys(levelRates).sort()" :key="level" class="rate-item">{{ level }}<input :aria-label="`${level} 會員倍率`" type="number" min="1" step="1" :value="levelRates[level]" @input="setLevelRate(level, ($event.target as HTMLInputElement).value)"><span>倍</span></label></div>
@@ -381,24 +690,25 @@ onBeforeUnmount(() => {
       </section>
 
       <section class="lottery-card roster-card">
-        <div class="card-heading"><div><div class="card-kicker">DRAWING STAGE</div><h2>抽獎名單</h2></div><v-btn class="draw-button" color="primary" size="large" :disabled="!eligibleCount || !prizes.length" @click="drawPrize"><span aria-hidden="true">✦</span> 抽獎</v-btn></div>
+        <div class="card-heading"><div><div class="card-kicker">DRAWING STAGE</div><h2>抽獎名單</h2></div><v-btn class="draw-button" color="primary" size="large" :disabled="drawLocked || chatConnecting || !eligibleCount || !prizes.length" @click="drawPrize"><span aria-hidden="true">✦</span> {{ isSavingDraw ? "保存中…" : "抽獎" }}</v-btn></div>
         <div class="entry-grid">
-          <form class="entry-form" @submit.prevent="addPrize"><label class="field">新增獎項<input v-model="newPrize" placeholder="輸入獎項名稱"></label><v-btn type="submit" size="small" variant="tonal">新增獎項</v-btn></form>
-          <form class="entry-form participant-entry" @submit.prevent="addParticipant"><label class="field">參加者名稱<input v-model="newName" placeholder="輸入名稱"></label><label class="field">群組<input v-model="newGroup" placeholder="例如：VIP、備用"></label><label class="field">標籤<input v-model="newTags" placeholder="例如：A 區,高倍率"></label><v-btn type="submit" size="small" variant="tonal">新增參加者</v-btn></form>
+          <form class="entry-form" @submit.prevent="addPrize"><label class="field">新增獎項<input v-model="newPrize" :disabled="drawLocked" placeholder="輸入獎項名稱"></label><v-btn type="submit" size="small" variant="tonal" :disabled="drawLocked">新增獎項</v-btn></form>
+          <form class="entry-form participant-entry" @submit.prevent="addParticipant"><label class="field">參加者名稱<input v-model="newName" :disabled="drawLocked" placeholder="輸入名稱"></label><label class="field">群組<input v-model="newGroup" :disabled="drawLocked" placeholder="例如：VIP、備用"></label><label class="field">標籤<input v-model="newTags" :disabled="drawLocked" placeholder="例如：A 區,高倍率"></label><v-btn type="submit" size="small" variant="tonal" :disabled="drawLocked">新增參加者</v-btn></form>
         </div>
         <div class="draw-columns">
-          <section class="draw-list prize-list"><div class="list-heading"><h3>待抽獎項 <span>{{ prizes.length }}</span></h3><button v-if="prizes.length" class="text-action" type="button" @click="prizes = []">清除全部</button></div>
+          <section class="draw-list prize-list"><div class="list-heading"><h3>待抽獎項 <span>{{ prizes.length }}</span></h3><button v-if="prizes.length" class="text-action" type="button" :disabled="drawLocked" @click="prizes = []">清除全部</button></div>
             <p v-if="!prizes.length" class="empty-copy">新增獎項後就能開始抽獎。</p>
-            <ol v-else><li v-for="(prize, index) in prizes" :key="`${prize}-${index}`"><span class="prize-number">{{ String(index + 1).padStart(2, "0") }}</span><span>{{ prize }}</span><button type="button" :aria-label="`移除獎項 ${prize}`" @click="prizes.splice(index, 1)">×</button></li></ol>
+            <ol v-else><li v-for="(prize, index) in prizes" :key="`${prize}-${index}`"><span class="prize-number">{{ String(index + 1).padStart(2, "0") }}</span><span>{{ prize }}</span><button type="button" :disabled="drawLocked" :aria-label="`移除獎項 ${prize}`" @click="prizes.splice(index, 1)">×</button></li></ol>
           </section>
-          <section class="draw-list people-list"><div class="list-heading"><h3>參加者 <span>{{ visibleParticipants.length }} / {{ participants.length }}</span></h3><div class="list-tools"><select v-model="selectedGroup" aria-label="群組篩選"><option value="">全部群組</option><option v-for="group in groups" :key="group" :value="group">{{ group }}</option></select><button v-if="participants.length" class="text-action" type="button" @click="participants = []; winners = []; selectedGroup = ''">清除名單</button></div></div>
+          <section class="draw-list people-list"><div class="list-heading"><h3>參加者 <span>{{ visibleParticipants.length }} / {{ participants.length }}</span></h3><div class="list-tools"><select v-model="selectedGroup" aria-label="群組篩選" :disabled="drawLocked"><option value="">全部群組</option><option v-for="group in groups" :key="group" :value="group">{{ group }}</option></select><button v-if="participants.length" class="text-action" type="button" :disabled="drawLocked" @click="participants = []; winners = []; selectedGroup = ''">清除名單</button></div></div>
             <p v-if="!visibleParticipants.length" class="empty-copy">匯入名單或新增參加者，抽獎舞台就會亮起。</p>
-            <ul v-else class="participant-list"><li v-for="participant in visibleParticipants" :key="participant.id" :class="{ 'is-winner': participant.isWinner }"><span class="participant-avatar" aria-hidden="true">{{ participant.name.slice(0, 1) || "?" }}</span><div class="participant-details"><strong>{{ participantLabel(participant) }}</strong><span v-if="participant.tags.length" class="tag-list"><i v-for="tag in participant.tags" :key="tag">{{ tag }}</i></span></div><button v-if="!participant.isWinner" type="button" :aria-label="`移除參加者 ${participant.name}`" @click="removeParticipant(participant.id)">移除</button><span v-else class="winner-mark">已中獎</span></li></ul>
+            <ul v-else class="participant-list"><li v-for="participant in visibleParticipants" :key="participant.id" :class="{ 'is-winner': participant.isWinner }"><span class="participant-avatar" aria-hidden="true">{{ participant.name.slice(0, 1) || "?" }}</span><div class="participant-details"><strong>{{ participantLabel(participant) }}</strong><span v-if="participant.tags.length" class="tag-list"><i v-for="tag in participant.tags" :key="tag">{{ tag }}</i></span></div><button v-if="!participant.isWinner" type="button" :disabled="drawLocked" :aria-label="`移除參加者 ${participant.name}`" @click="removeParticipant(participant.id)">移除</button><span v-else class="winner-mark">已中獎</span></li></ul>
           </section>
         </div>
-        <section class="winner-list"><div class="list-heading"><h3>得獎名單 <span>{{ winners.length }}</span></h3><button v-if="winners.length" class="text-action" type="button" @click="winners = []">清除得獎紀錄</button></div>
+        <section class="winner-list"><div class="list-heading"><h3>得獎名單 <span>{{ winners.length }}</span></h3><button v-if="winners.length" class="text-action" type="button" :disabled="drawLocked" @click="winners = []">清除得獎紀錄</button></div>
           <p v-if="!winners.length" class="empty-copy">幸運時刻將會在這裡揭曉。</p>
-          <ol v-else><li v-for="(winner, index) in winners" :key="`${winner.member.id}-${index}`"><span class="winner-star" aria-hidden="true">✦</span><div><span>恭喜 {{ participantLabel(winner.member) }}</span><strong>{{ winner.prize }}</strong></div></li></ol>
+          <ol v-else><li v-for="(winner, index) in winners" :key="winner.drawId ?? `${winner.member.id}-${index}`"><span class="winner-star" aria-hidden="true">✦</span><div><span>恭喜 {{ participantLabel(winner.member) }}</span><strong>{{ winner.prize }}</strong></div></li></ol>
+          <v-btn class="history-link" variant="outlined" to="/lottery-draw-records">查看已保存的抽獎紀錄</v-btn>
         </section>
       </section>
     </div>
@@ -426,5 +736,9 @@ onBeforeUnmount(() => {
 <style scoped>
 .youtube-setup-hint { display: flex; align-items: center; justify-content: space-between; gap: 0.85rem; margin: -0.25rem 0 1rem; padding: 0.85rem 1rem; border: 1px solid var(--creator-border); border-radius: 0.85rem; background: #f7f5fc; }
 .youtube-setup-hint p { margin: 0; color: var(--creator-ink); font-size: 0.9rem; }
+.pending-draw { align-items: flex-start; flex-direction: column; border: 1px solid #f0c36d; color: #6f4a09; background: #fff9e8; }
+.pending-draw > div:first-child { display: grid; gap: 4px; }
+.pending-draw-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.history-link { margin-top: 12px; }
 @media (max-width: 620px) { .youtube-setup-hint { align-items: stretch; flex-direction: column; } }
 </style>

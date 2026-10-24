@@ -7,6 +7,46 @@ async function installAdminToken(page, baseURL) {
   await page.addInitScript(token => sessionStorage.setItem("easy-lottery.session-token", token), session.token);
 }
 
+function persistedRecord(payload) {
+  const winner = payload.participants.find(participant => participant.participantId === payload.winnerParticipantId);
+  return {
+    ...payload,
+    drawnAtUtc: "2026-10-24T10:00:00Z",
+    winnerDisplayName: winner.displayName,
+    prizeName: payload.ruleSnapshot.prizeQueue[0]
+  };
+}
+
+function persistedSummary(payload) {
+  const record = persistedRecord(payload);
+  return {
+    drawId: record.drawId,
+    drawnAtUtc: record.drawnAtUtc,
+    winnerParticipantId: record.winnerParticipantId,
+    winnerDisplayName: record.winnerDisplayName,
+    prizeName: record.prizeName,
+    participantCount: record.participants.length,
+    eligibleEntryCount: record.ruleSnapshot.eligibleEntryCount,
+    ruleSnapshot: record.ruleSnapshot
+  };
+}
+
+function fulfillReconciliationPage(route, payload, page = 1, pageSize = 100) {
+  const participants = payload.participants;
+  const totalPages = Math.ceil(participants.length / pageSize);
+  return route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({
+      items: participants.slice((page - 1) * pageSize, page * pageSize),
+      page,
+      pageSize,
+      totalCount: participants.length,
+      totalPages
+    })
+  });
+}
+
 test("unauthenticated root redirects to Passkey login without loading admin APIs", async ({ page, baseURL }) => {
   const apiRequests = [];
   page.on("request", request => {
@@ -52,6 +92,14 @@ test("admin can draw in Vue and capture mocked YouTube chat without contacting Y
       id: "chat-message-1", type: "TextMessageEvent", authorName: "Viewer", displayMessage: "抽獎", publishedAt: liveMessageAt
     }])
   }));
+  await page.route("**/api/lottery-draw-records", async route => {
+    const body = route.request().postDataJSON();
+    await route.fulfill({
+      status: 201,
+      contentType: "application/json",
+      body: JSON.stringify(persistedSummary(body))
+    });
+  });
 
   const providerRequests = [];
   page.on("request", request => {
@@ -74,6 +122,8 @@ test("admin can draw in Vue and capture mocked YouTube chat without contacting Y
   await page.getByRole("button", { name: "抽獎", exact: true }).click();
   await expect(page.locator(".winner-list")).toContainText("Mika");
   await expect(page.locator(".winner-list")).toContainText("動畫限定禮盒");
+  await expect(page.locator(".pending-draw")).toHaveCount(0);
+  expect(await page.evaluate(() => localStorage.getItem("easy-lottery.pending-core-draw-id"))).toBeNull();
 
   await page.getByLabel("直播網址").fill("https://www.youtube.com/watch?v=mock-video");
   await page.getByLabel(/通關密語/).fill("抽獎");
@@ -81,6 +131,301 @@ test("admin can draw in Vue and capture mocked YouTube chat without contacting Y
   await expect(page.locator(".chat-message-list")).toContainText("Viewer", { timeout: 12_000 });
   await expect(page.locator(".participant-list")).toContainText("Viewer");
   expect(providerRequests).toEqual([]);
+});
+
+test("unknown save response reconciles by the same ID without redrawing", async ({ page, baseURL }) => {
+  await installAdminToken(page, baseURL);
+  await page.route("**/api/settings/drawing-rules", route => route.fulfill({
+    status: 200, headers: { ETag: '"rates-v1"' }, contentType: "application/json", body: JSON.stringify({ levelRates: {} })
+  }));
+  await page.route("**/api/lottery/youtube/status", route => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ configured: false }) }));
+  let postCount = 0;
+  let getCount = 0;
+  let saved;
+  await page.route("**/api/lottery-draw-records**", async route => {
+    if (route.request().method() === "POST") {
+      postCount++;
+      saved = route.request().postDataJSON();
+      await route.abort("failed");
+      return;
+    }
+    getCount++;
+    const path = new URL(route.request().url()).pathname;
+    if (path.endsWith("/summary")) {
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(persistedSummary(saved)) });
+      return;
+    }
+    if (path.endsWith("/participants")) {
+      const query = new URL(route.request().url()).searchParams;
+      await fulfillReconciliationPage(route, saved, Number(query.get("page") ?? "1"), Number(query.get("pageSize") ?? "100"));
+      return;
+    }
+    await route.fulfill({ status: 404, contentType: "application/json", body: JSON.stringify({ error: "not found" }) });
+  });
+
+  await page.goto(baseURL, { waitUntil: "networkidle" });
+  await page.getByLabel("新增獎項").fill("合成禮盒");
+  await page.getByRole("button", { name: "新增獎項" }).click();
+  const participantImport = page.locator(".import-panel").first();
+  await participantImport.locator("textarea").fill(JSON.stringify([
+    { Name: "測試觀眾", Group: "Members", LotteryGroupId: "synthetic-group-1", Tags: ["synthetic"], IsWinner: false, Platform: "youtube", AccountId: "synthetic-channel-1" },
+    { Name: "第二合成觀眾", Group: "Guests", LotteryGroupId: "synthetic-group-2", Tags: ["candidate"], IsWinner: false, Platform: "twitch", AccountId: "synthetic-user-2" },
+    { Name: "先前得獎者", Group: "Guests", LotteryGroupId: "synthetic-group-3", Tags: ["excluded"], IsWinner: true, Platform: "youtube", AccountId: "synthetic-channel-3" }
+  ]));
+  await participantImport.getByRole("button", { name: "匯入名單" }).click();
+  await page.getByRole("button", { name: "抽獎", exact: true }).click();
+
+  await expect(page.locator(".winner-list")).toContainText("觀眾");
+  await expect(page.locator(".pending-draw")).toHaveCount(0);
+  expect(postCount).toBe(1);
+  expect(getCount).toBe(2);
+  expect(saved.drawId).toMatch(/^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/i);
+  expect(saved.participants).toHaveLength(3);
+  expect(saved.participants.map(participant => participant.externalIdentity?.accountId)).toEqual(["synthetic-channel-1", "synthetic-user-2", "synthetic-channel-3"]);
+  expect(saved.participants.map(participant => participant.eligibilityStatus)).toEqual(["eligible", "eligible", "already-won"]);
+  expect(saved.ruleSnapshot).toMatchObject({ algorithmVersion: "secure-random-index-v1", eligibleEntryCount: 2, prizeQueue: ["合成禮盒"] });
+  expect(saved.participants.some(participant => participant.participantId === saved.winnerParticipantId)).toBe(true);
+});
+
+test("a rejected oversized snapshot stays locked and is not offered for repeat submission", async ({ page, baseURL }) => {
+  await installAdminToken(page, baseURL);
+  await page.route("**/api/settings/drawing-rules", route => route.fulfill({
+    status: 200, headers: { ETag: '"rates-v1"' }, contentType: "application/json", body: JSON.stringify({ levelRates: {} })
+  }));
+  await page.route("**/api/lottery/youtube/status", route => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ configured: false }) }));
+  let posts = 0;
+  let gets = 0;
+  await page.route("**/api/lottery-draw-records**", route => {
+    if (route.request().method() === "POST") {
+      posts++;
+      return route.fulfill({ status: 413, contentType: "application/json", body: JSON.stringify({ error: "too large" }) });
+    }
+    gets++;
+    return route.fulfill({ status: 404, contentType: "application/json", body: JSON.stringify({ error: "not found" }) });
+  });
+
+  await page.goto(baseURL, { waitUntil: "networkidle" });
+  await page.getByLabel("新增獎項").fill("合成禮盒");
+  await page.getByRole("button", { name: "新增獎項" }).click();
+  await page.getByLabel("參加者名稱").fill("合成觀眾");
+  await page.getByRole("button", { name: "新增參加者" }).click();
+  const drawButton = page.getByRole("button", { name: "抽獎", exact: true });
+  await drawButton.click();
+  await expect(page.locator(".pending-draw")).toContainText("過大的完整參與名單快照");
+  await expect(drawButton).toBeDisabled();
+  await expect(page.getByRole("button", { name: "以相同結果重試保存" })).toHaveCount(0);
+  expect(posts).toBe(1);
+  expect(gets).toBe(0);
+});
+
+test("unresolved save stays locked; manual retry reuses the exact saved outcome and ID", async ({ page, baseURL }) => {
+  await installAdminToken(page, baseURL);
+  await page.route("**/api/settings/drawing-rules", route => route.fulfill({
+    status: 200, headers: { ETag: '"rates-v1"' }, contentType: "application/json", body: JSON.stringify({ levelRates: {} })
+  }));
+  await page.route("**/api/lottery/youtube/status", route => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ configured: false }) }));
+  let postBodies = [];
+  let getCount = 0;
+  await page.route("**/api/lottery-draw-records**", async route => {
+    if (route.request().method() === "POST") {
+      postBodies.push(route.request().postDataJSON());
+      if (postBodies.length === 1) { await route.abort("failed"); return; }
+      await route.fulfill({ status: 201, contentType: "application/json", body: JSON.stringify(persistedSummary(postBodies[1])) });
+      return;
+    }
+    getCount++;
+    if (new URL(route.request().url()).pathname.endsWith("/summary")) {
+      if (getCount === 1) { await route.abort("failed"); return; }
+      await route.fulfill({ status: 404, contentType: "application/json", body: JSON.stringify({ error: "not found" }) });
+      return;
+    }
+    await route.fulfill({ status: 404, contentType: "application/json", body: JSON.stringify({ error: "not found" }) });
+  });
+
+  await page.goto(baseURL, { waitUntil: "networkidle" });
+  await page.getByLabel("新增獎項").fill("同一結果獎項");
+  await page.getByRole("button", { name: "新增獎項" }).click();
+  await page.getByLabel("參加者名稱").fill("Mika");
+  await page.getByRole("button", { name: "新增參加者" }).click();
+  const drawButton = page.getByRole("button", { name: "抽獎", exact: true });
+  await drawButton.click();
+  await expect(page.locator(".pending-draw")).toContainText("結果仍未知");
+  await expect(drawButton).toBeDisabled();
+  await expect(page.getByRole("button", { name: "重新查詢紀錄" })).toBeEnabled();
+
+  await page.getByRole("button", { name: "重新查詢紀錄" }).click();
+  await expect(page.getByRole("button", { name: "以相同結果重試保存" })).toBeVisible();
+  await page.getByRole("button", { name: "以相同結果重試保存" }).click();
+  await expect(page.locator(".winner-list")).toContainText("Mika");
+  expect(postBodies).toHaveLength(2);
+  expect(postBodies[1]).toEqual(postBodies[0]);
+});
+
+test("refresh checks the persisted pending ID before offering the draw action", async ({ page, baseURL }) => {
+  await installAdminToken(page, baseURL);
+  const pending = {
+    drawId: "fd366ac8-0dae-4677-a3c6-515b5baf137b",
+    winnerParticipantId: "saved-ticket",
+    ruleSnapshot: {
+      algorithmVersion: "secure-random-index-v1", eligibilityPolicyVersion: "not-previously-won-v1",
+      groupWinnerPolicyVersion: "exclude-lottery-group-after-win-v1", eligibleEntryCount: 1,
+      prizeSelectionPolicyVersion: "first-remaining-prize-v1", prizeQueue: ["已保存獎項"]
+    },
+    participants: [{ participantId: "saved-ticket", lotteryGroupId: "saved-group", displayName: "已保存觀眾", externalIdentity: { platform: "youtube", accountId: "synthetic-saved-account" }, level: "Gold", group: "Members", tags: ["saved"], eligibilityStatus: "eligible" }]
+  };
+  await page.addInitScript(value => localStorage.setItem("easy-lottery.pending-core-draw-id", JSON.stringify(value)), pending);
+  await page.route("**/api/settings/drawing-rules", route => route.fulfill({
+    status: 200, headers: { ETag: '"rates-v1"' }, contentType: "application/json", body: JSON.stringify({ levelRates: {} })
+  }));
+  await page.route("**/api/lottery/youtube/status", route => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ configured: false }) }));
+  let posts = 0;
+  let queries = 0;
+  await page.route("**/api/lottery-draw-records**", async route => {
+    if (route.request().method() === "POST") { posts++; await route.abort("failed"); return; }
+    queries++;
+    const path = new URL(route.request().url()).pathname;
+    if (path.endsWith("/summary")) {
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(persistedSummary(pending)) });
+      return;
+    }
+    if (path.endsWith("/participants")) {
+      await fulfillReconciliationPage(route, pending);
+      return;
+    }
+    await route.fulfill({ status: 404, contentType: "application/json", body: JSON.stringify({ error: "not found" }) });
+  });
+
+  await page.goto(baseURL, { waitUntil: "networkidle" });
+  await expect(page.locator(".winner-list")).toContainText("已保存觀眾");
+  await expect(page.locator(".pending-draw")).toHaveCount(0);
+  expect(posts).toBe(0);
+  expect(queries).toBe(2);
+  expect(await page.evaluate(() => localStorage.getItem("easy-lottery.pending-core-draw-id"))).toBeNull();
+});
+
+test("a selected outcome in a prepared snapshot is recovered and saved without drawing again", async ({ page, baseURL }) => {
+  await installAdminToken(page, baseURL);
+  const prepared = {
+    phase: "prepared",
+    selectionState: "selected",
+    drawId: "f2e63f56-0587-4857-90ca-3724acfeb9d4",
+    winnerParticipantId: "synthetic-ticket-2",
+    ruleSnapshot: {
+      algorithmVersion: "secure-random-index-v1", eligibilityPolicyVersion: "not-previously-won-v1",
+      groupWinnerPolicyVersion: "exclude-lottery-group-after-win-v1", eligibleEntryCount: 2,
+      prizeSelectionPolicyVersion: "first-remaining-prize-v1", prizeQueue: ["合成獎品", "備用獎品"]
+    },
+    participants: [
+      { participantId: "synthetic-ticket-1", lotteryGroupId: "synthetic-viewer-1", displayName: "合成觀眾一", externalIdentity: { platform: "youtube", accountId: "synthetic-account-1" }, level: "Gold", group: "Members", tags: ["candidate"], eligibilityStatus: "eligible" },
+      { participantId: "synthetic-ticket-2", lotteryGroupId: "synthetic-viewer-2", displayName: "合成觀眾二", externalIdentity: { platform: "twitch", accountId: "synthetic-account-2" }, level: "Silver", group: "Guests", tags: ["selected"], eligibilityStatus: "eligible" },
+      { participantId: "synthetic-ticket-3", lotteryGroupId: "synthetic-viewer-3", displayName: "先前得獎者", externalIdentity: { platform: "youtube", accountId: "synthetic-account-3" }, level: "", group: "Guests", tags: ["excluded"], eligibilityStatus: "already-won" }
+    ]
+  };
+  await page.addInitScript(value => localStorage.setItem("easy-lottery.pending-core-draw-id", JSON.stringify(value)), prepared);
+  await page.route("**/api/settings/drawing-rules", route => route.fulfill({
+    status: 200, headers: { ETag: '"rates-v1"' }, contentType: "application/json", body: JSON.stringify({ levelRates: {} })
+  }));
+  await page.route("**/api/lottery/youtube/status", route => route.fulfill({
+    status: 200, contentType: "application/json", body: JSON.stringify({ configured: false })
+  }));
+  const postBodies = [];
+  await page.route("**/api/lottery-draw-records**", async route => {
+    if (route.request().method() === "POST") {
+      postBodies.push(route.request().postDataJSON());
+      await route.fulfill({ status: 201, contentType: "application/json", body: JSON.stringify(persistedSummary(postBodies[0])) });
+      return;
+    }
+    await route.fulfill({ status: 404, contentType: "application/json", body: JSON.stringify({ error: "not found" }) });
+  });
+
+  await page.goto(baseURL, { waitUntil: "networkidle" });
+  await expect(page.locator(".pending-draw")).toContainText("先前選定的得獎籤");
+  const drawButton = page.getByRole("button", { name: "抽獎", exact: true });
+  await expect(drawButton).toBeDisabled();
+  await page.getByRole("button", { name: "以相同結果重試保存" }).click();
+
+  await expect(page.locator(".winner-list")).toContainText("合成觀眾二");
+  await expect(page.locator(".pending-draw")).toHaveCount(0);
+  expect(postBodies).toEqual([{
+    drawId: prepared.drawId,
+    winnerParticipantId: prepared.winnerParticipantId,
+    ruleSnapshot: prepared.ruleSnapshot,
+    participants: prepared.participants
+  }]);
+  expect(await page.evaluate(() => localStorage.getItem("easy-lottery.pending-core-draw-id"))).toBeNull();
+});
+
+test("a ready snapshot with no selected winner is cleared after a confirmed 404", async ({ page, baseURL }) => {
+  await installAdminToken(page, baseURL);
+  const ready = {
+    phase: "prepared",
+    selectionState: "ready",
+    drawId: "ea65c74c-3c19-4d5e-b33d-90db7b73ac5f",
+    ruleSnapshot: {
+      algorithmVersion: "secure-random-index-v1", eligibilityPolicyVersion: "not-previously-won-v1",
+      groupWinnerPolicyVersion: "exclude-lottery-group-after-win-v1", eligibleEntryCount: 1,
+      prizeSelectionPolicyVersion: "first-remaining-prize-v1", prizeQueue: ["合成獎品"]
+    },
+    participants: [{ participantId: "synthetic-ready-ticket", lotteryGroupId: "synthetic-ready-viewer", displayName: "尚未抽選觀眾", level: "", group: "Guests", tags: [], eligibilityStatus: "eligible" }]
+  };
+  await page.addInitScript(value => localStorage.setItem("easy-lottery.pending-core-draw-id", JSON.stringify(value)), ready);
+  await page.route("**/api/settings/drawing-rules", route => route.fulfill({
+    status: 200, headers: { ETag: '"rates-v1"' }, contentType: "application/json", body: JSON.stringify({ levelRates: {} })
+  }));
+  await page.route("**/api/lottery/youtube/status", route => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ configured: false }) }));
+  let posts = 0;
+  const summaryPaths = [];
+  await page.route("**/api/lottery-draw-records**", route => {
+    if (route.request().method() === "POST") posts++;
+    else summaryPaths.push(new URL(route.request().url()).pathname);
+    return route.fulfill({ status: 404, contentType: "application/json", body: JSON.stringify({ error: "not found" }) });
+  });
+
+  await page.goto(baseURL, { waitUntil: "networkidle" });
+  await expect(page.locator(".pending-draw")).toHaveCount(0);
+  await expect(page.locator(".lottery-alert.notice")).toContainText("尚未選定得獎籤");
+  await page.getByLabel("新增獎項").fill("清理後的合成獎品");
+  await page.getByRole("button", { name: "新增獎項" }).click();
+  await page.getByLabel("參加者名稱").fill("清理後的合成觀眾");
+  await page.getByRole("button", { name: "新增參加者" }).click();
+  await expect(page.getByRole("button", { name: "抽獎", exact: true })).toBeEnabled();
+  expect(posts).toBe(0);
+  expect(summaryPaths).toEqual([`/api/lottery-draw-records/${ready.drawId}/summary`]);
+  expect(await page.evaluate(() => localStorage.getItem("easy-lottery.pending-core-draw-id"))).toBeNull();
+});
+
+test("a legacy prepared snapshot with unknown selection state stays locked on 404", async ({ page, baseURL }) => {
+  await installAdminToken(page, baseURL);
+  const legacyPrepared = {
+    phase: "prepared",
+    drawId: "15cfd672-250c-4773-aedc-4dcb27718ec6",
+    ruleSnapshot: {
+      algorithmVersion: "secure-random-index-v1", eligibilityPolicyVersion: "not-previously-won-v1",
+      groupWinnerPolicyVersion: "exclude-lottery-group-after-win-v1", eligibleEntryCount: 1,
+      prizeSelectionPolicyVersion: "first-remaining-prize-v1", prizeQueue: ["舊版合成獎品"]
+    },
+    participants: [{ participantId: "synthetic-legacy-ticket", lotteryGroupId: "synthetic-legacy-viewer", displayName: "舊版觀眾", level: "", group: "Guests", tags: [], eligibilityStatus: "eligible" }]
+  };
+  await page.addInitScript(value => localStorage.setItem("easy-lottery.pending-core-draw-id", JSON.stringify(value)), legacyPrepared);
+  await page.route("**/api/settings/drawing-rules", route => route.fulfill({
+    status: 200, headers: { ETag: '"rates-v1"' }, contentType: "application/json", body: JSON.stringify({ levelRates: {} })
+  }));
+  await page.route("**/api/lottery/youtube/status", route => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ configured: false }) }));
+  let posts = 0;
+  const summaryPaths = [];
+  await page.route("**/api/lottery-draw-records**", route => {
+    if (route.request().method() === "POST") posts++;
+    else summaryPaths.push(new URL(route.request().url()).pathname);
+    return route.fulfill({ status: 404, contentType: "application/json", body: JSON.stringify({ error: "not found" }) });
+  });
+
+  await page.goto(baseURL, { waitUntil: "networkidle" });
+  await expect(page.locator(".pending-draw")).toContainText("舊版抽獎前保護快照");
+  await expect(page.getByRole("button", { name: "抽獎", exact: true })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "以相同結果重試保存" })).toHaveCount(0);
+  expect(posts).toBe(0);
+  expect(summaryPaths).toEqual([`/api/lottery-draw-records/${legacyPrepared.drawId}/summary`]);
+  expect(await page.evaluate(() => localStorage.getItem("easy-lottery.pending-core-draw-id"))).toBe(JSON.stringify(legacyPrepared));
 });
 
 test("chat participants deduplicate by YouTube channel ID, not display name", async ({ page, baseURL }) => {
