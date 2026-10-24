@@ -78,7 +78,7 @@ test("core lottery history is admin-only and directly refreshable", async ({ pag
   await expect(page.locator(".lottery-records-table tbody tr")).toContainText(drawId);
   await page.getByRole("button", { name: `檢視紀錄 ${drawId}` }).click();
   await expect(page.getByText("抽獎紀錄明細", { exact: true })).toBeVisible();
-  await expect(page.getByText("合成觀眾 1", { exact: true })).toBeVisible();
+  await expect(page.getByLabel("完整參與名單").getByRole("row", { name: /合成觀眾 1/ })).toBeVisible();
   await expect(page.getByText("synthetic-account-1", { exact: true })).toBeVisible();
   await expect(page.getByText("not-previously-won-v1", { exact: true })).toBeVisible();
   await expect(page.getByText("已得獎排除", { exact: true })).toBeVisible();
