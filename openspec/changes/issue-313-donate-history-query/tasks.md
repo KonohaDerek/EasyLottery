@@ -26,6 +26,6 @@
 - [x] 4.1 增加導覽、查詢 helper 與 pending payload 的 Vitest。
 - [x] 4.2 增加 Donate／核心歷史 API 權限、冪等、查詢、分頁、資料最小化及 YAML／SQLite roundtrip 測試。
 - [x] 4.3 增加桌面／窄版、直接路由／重新整理、詳情、空／錯誤／載入／分頁及不確定保存對帳 Playwright 覆蓋。
-- [x] 4.4 跑前端測試、typecheck、build、Playwright 測試列舉與 diff check；exit code 記於 verification。
-- [ ] 4.5 在可用的隔離 API host 執行 API integration tests 和 Playwright browser tests；本地環境缺少 NuGet assets 且無法啟動 Vite host，詳見專案驗證報告。
+- [x] 4.4 跑前端 Vitest（29 檔案／141 測試）、typecheck、build、Playwright browser tests 與 diff check；exit code 記於 verification。
+- [x] 4.5 在隔離 Dev Container image 執行相關 API integration tests（5/5）與 Playwright browser tests（29/29）；完整環境及限制詳見專案驗證報告。
 - [x] 4.6 完成完整快照設計與獨立 diff review，記錄驗收範圍及剩餘限制。
