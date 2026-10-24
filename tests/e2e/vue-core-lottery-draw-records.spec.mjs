@@ -84,7 +84,7 @@ test("core lottery history is admin-only and directly refreshable", async ({ pag
   await expect(page.getByText("已得獎排除", { exact: true })).toBeVisible();
   await expect(page.getByText("共 51 張籤", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "下一頁" }).last().click();
-  await expect(page.getByText("第 2 / 2 頁")).toBeVisible();
+  await expect(page.getByText("第 2 / 2 頁", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "關閉" }).click();
   const nav = page.locator(".admin-drawer .admin-nav");
   await expect(nav.locator("details")).toHaveCount(7);
@@ -137,7 +137,7 @@ test("core history handles loading, empty, errors, search, date filters and pagi
   resolveInitial();
   await expect(page.locator(".lottery-records-table tbody tr")).toHaveCount(20);
   await page.getByRole("button", { name: "下一頁" }).click();
-  await expect(page.getByText("第 2 / 2 頁")).toBeVisible();
+  await expect(page.getByText("第 2 / 2 頁", { exact: true })).toBeVisible();
   expect(seenQueries.at(-1).get("page")).toBe("2");
 
   await page.getByLabel("搜尋得獎者或獎項").fill("合成特獎");
