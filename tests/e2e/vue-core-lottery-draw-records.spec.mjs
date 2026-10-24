@@ -82,7 +82,7 @@ test("core lottery history is admin-only and directly refreshable", async ({ pag
   await expect(page.getByText("synthetic-account-1", { exact: true })).toBeVisible();
   await expect(page.getByText("not-previously-won-v1", { exact: true })).toBeVisible();
   await expect(page.getByText("已得獎排除", { exact: true })).toBeVisible();
-  await expect(page.getByText("共 51 張籤")).toBeVisible();
+  await expect(page.getByText("共 51 張籤", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "下一頁" }).last().click();
   await expect(page.getByText("第 2 / 2 頁")).toBeVisible();
   await page.getByRole("button", { name: "關閉" }).click();
