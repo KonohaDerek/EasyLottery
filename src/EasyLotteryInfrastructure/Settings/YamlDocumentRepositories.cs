@@ -218,6 +218,7 @@ public sealed class YamlSettingsDocumentRepository : YamlDocumentRepositoryBase<
 
     private static bool HasResultData(ActivityResultsYamlDocument document) =>
         document.ActivityResults is { Count: > 0 } ||
+        document.CoreLotteryDrawRecords is { Count: > 0 } ||
         document.DonateLotteryDrawRecords is { Count: > 0 } ||
         document.ProcessedDonatePaymentIds is { Count: > 0 };
 

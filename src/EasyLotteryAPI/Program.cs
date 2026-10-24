@@ -7,6 +7,7 @@ using EasyLotteryApi.Activities.Donate;
 using EasyLotteryApi.Activities.Donate.Endpoints;
 using EasyLotteryApi.Activities.PokeBox.Endpoints;
 using EasyLotteryApi.Activities.ActivityResults.Endpoints;
+using EasyLotteryApi.Activities.LotteryDraws.Endpoints;
 using EasyLotteryApi.Activities.Roulette.Endpoints;
 using EasyLotteryApi.Passkey;
 using EasyLotteryApi.Passkey.Endpoints;
@@ -176,7 +177,10 @@ app.Use(async (context, next) =>
     // Normal API payloads stay small; media assets have their own repository limit
     // and need enough room for multipart boundaries.
     var configuredAssetBytes = ObsAssetLimits.ReadMaxAssetBytes(app.Configuration["Storage:MaxAssetBytes"]);
-    var maxRequestBytes = context.Request.Path.StartsWithSegments("/api/obs-assets/import")
+    var maxRequestBytes = context.Request.Method == HttpMethods.Post
+        && context.Request.Path.Value?.Equals("/api/lottery-draw-records", StringComparison.OrdinalIgnoreCase) == true
+        ? 16L * 1024 * 1024
+        : context.Request.Path.StartsWithSegments("/api/obs-assets/import")
         ? ObsAssetLimits.MaximumPackageBytes + ObsAssetLimits.RequestOverheadBytes
         : context.Request.Path.StartsWithSegments("/api/obs-assets")
         ? configuredAssetBytes + ObsAssetLimits.RequestOverheadBytes
@@ -217,6 +221,7 @@ app.MapDonateActivityEndpoints();
 app.MapPokeTemplateEndpoints();
 app.MapRouletteTemplateEndpoints();
 app.MapActivityResultEndpoints();
+app.MapCoreLotteryDrawEndpoints();
 app.MapLotteryYouTubeEndpoints();
 app.MapObsAssetEndpoints();
 app.MapStorageEndpoints();
@@ -247,6 +252,8 @@ app.MapFallbackToFile("/system/obs-assets", "vue/index.html");
 app.MapFallbackToFile("/system/sound-cues", "vue/index.html");
 app.MapFallbackToFile("/system/visual-styles", "vue/index.html");
 app.MapFallbackToFile("/activity-results", "vue/index.html");
+app.MapFallbackToFile("/lottery-draw-records", "vue/index.html");
+app.MapFallbackToFile("/donate-lottery-records", "vue/index.html");
 app.MapFallbackToFile("/donate-activities", "vue/index.html");
 app.MapFallbackToFile("/roulette", "vue/index.html");
 app.MapFallbackToFile("/roulette/preview/{id}", "vue/index.html");

@@ -1,25 +1,19 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useSessionStore } from "../stores/session";
 import { clearOvertimeToken } from "../lottery/api";
+import { adminNavigationGroups, getActiveAdminNavigationPath } from "../navigation/admin-navigation";
 
 const router = useRouter();
 const route = useRoute();
 const session = useSessionStore();
 const mobileMenuOpen = ref(false);
-
-const groups = [
-  { title: "開台工作區", links: [["/", "抽獎工作區"], ["/donate-activities", "Donate 活動"], ["/activity-results", "活動結果"], ["/market", "活動市集"]] },
-  { title: "直播互動與模板", links: [["/interactions/rounds", "直播互動回合"], ["/interactions/identity-link", "觀眾身份綁定"], ["/activity/overtime", "加班台設定"], ["/roulette", "轉盤模板"], ["/pokebox", "戳戳樂模板"]] },
-  { title: "外觀與直播素材", links: [["/system/obs-layouts", "OBS 版面"], ["/system/obs-assets", "OBS 資產"], ["/system/sound-cues", "音效預設"], ["/system/visual-styles", "視覺樣式"]] },
-  { title: "平台與系統管理", links: [["/system/platform-connections", "直播平台串接"], ["/system/youtube-login", "YouTube 直播設定"], ["/system/payment", "支付配置"], ["/system/access", "管理員 Passkey"], ["/system/audit", "審計紀錄"], ["/system/backups", "設定備份"]] }
-] as const;
+const groups = adminNavigationGroups;
+const activeNavigationPath = computed(() => getActiveAdminNavigationPath(route.path));
 
 function groupContainsCurrentPath(links: readonly (readonly [string, string])[]): boolean {
-  return links.some(([path]) => path === "/"
-    ? route.path === path
-    : route.path === path || route.path.startsWith(`${path}/`));
+  return links.some(([path]) => activeNavigationPath.value === path);
 }
 
 function logout() {
@@ -39,7 +33,7 @@ function logout() {
         <nav class="admin-nav admin-nav--mobile" aria-label="管理功能分組">
           <details v-for="group in groups" :key="group.title" class="admin-nav-group" :open="groupContainsCurrentPath(group.links)">
             <summary>{{ group.title }}</summary>
-            <RouterLink v-for="[path, label] in group.links" :key="path" :to="path" class="admin-nav-link" :aria-current="route.path === path ? 'page' : undefined" @click="mobileMenuOpen = false">
+            <RouterLink v-for="[path, label] in group.links" :key="path" :to="path" class="admin-nav-link" :aria-current="activeNavigationPath === path ? 'page' : undefined" @click="mobileMenuOpen = false">
               {{ label }}
             </RouterLink>
           </details>
@@ -55,7 +49,7 @@ function logout() {
     <nav class="admin-nav" aria-label="管理功能分組">
       <details v-for="group in groups" :key="group.title" class="admin-nav-group" :open="groupContainsCurrentPath(group.links)">
         <summary>{{ group.title }}</summary>
-        <RouterLink v-for="[path, label] in group.links" :key="path" :to="path" class="admin-nav-link" :aria-current="route.path === path ? 'page' : undefined">
+        <RouterLink v-for="[path, label] in group.links" :key="path" :to="path" class="admin-nav-link" :aria-current="activeNavigationPath === path ? 'page' : undefined">
           {{ label }}
         </RouterLink>
       </details>

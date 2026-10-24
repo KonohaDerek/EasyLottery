@@ -3,6 +3,7 @@ using EasyLotteryDomain.Models.Config;
 using EasyLotteryApi.Security;
 using MediatR;
 using EasyLotteryDomain.Services;
+using System.Globalization;
 using Results = Microsoft.AspNetCore.Http.Results;
 
 namespace EasyLotteryApi.Activities.Donate.Endpoints;
@@ -11,6 +12,72 @@ internal static class DonateActivityEndpoints
 {
     public static void MapDonateActivityEndpoints(this WebApplication app)
     {
+        app.MapGet("/api/donate-lottery-draw-records", async (
+            HttpContext context,
+            int? page,
+            int? pageSize,
+            int? activityId,
+            string? outcome,
+            string? search,
+            DateTimeOffset? fromUtc,
+            DateTimeOffset? beforeUtc,
+            IEasyLotteryConfigStore configStore,
+            ObsSessionAccess sessionAccess) =>
+        {
+            var denied = ObsSessionAccess.DeniedResult(sessionAccess.RequireAdmin(context.Request));
+            if (denied is not null) return denied;
+
+            var pageNumber = page ?? 1;
+            var resultPageSize = pageSize ?? 20;
+            var resultType = (outcome ?? "all").Trim().ToLowerInvariant();
+            var searchText = search?.Trim() ?? "";
+            if (pageNumber < 1 || resultPageSize is < 1 or > 100 || (activityId.HasValue && activityId.Value < 1)
+                || (fromUtc.HasValue && beforeUtc.HasValue && fromUtc.Value > beforeUtc.Value) || searchText.Length > 120
+                || resultType is not ("all" or "winning" or "miss"))
+            {
+                return Results.BadRequest(new { error = "查詢條件或分頁參數無效。" });
+            }
+
+            var document = await configStore.LoadAsync(context.RequestAborted);
+            var activityNames = (document.DonateLotteryActivities ?? [])
+                .GroupBy(activity => activity.Id)
+                .ToDictionary(group => group.Key, group => group.First().Name);
+            var filtered = (document.DonateLotteryDrawRecords ?? []).AsEnumerable();
+            if (activityId.HasValue) filtered = filtered.Where(record => record.ActivityId == activityId.Value);
+            if (fromUtc.HasValue) filtered = filtered.Where(record => record.DrawnAtUtc >= fromUtc.Value);
+            if (beforeUtc.HasValue) filtered = filtered.Where(record => record.DrawnAtUtc < beforeUtc.Value);
+            if (resultType == "winning") filtered = filtered.Where(record => record.IsWinning);
+            if (resultType == "miss") filtered = filtered.Where(record => !record.IsWinning);
+            if (searchText.Length > 0)
+            {
+                filtered = filtered.Where(record =>
+                    record.ActivityId.ToString(CultureInfo.InvariantCulture).Contains(searchText, StringComparison.OrdinalIgnoreCase)
+                    || GetActivityName(record.ActivityId, activityNames).Contains(searchText, StringComparison.OrdinalIgnoreCase)
+                    || (record.DonorName ?? "").Contains(searchText, StringComparison.OrdinalIgnoreCase)
+                    || (record.PrizeName ?? "").Contains(searchText, StringComparison.OrdinalIgnoreCase));
+            }
+
+            var ordered = filtered.OrderByDescending(record => record.DrawnAtUtc).ThenByDescending(record => record.Id);
+            var totalCount = ordered.Count();
+            var totalPages = totalCount == 0 ? 0 : (int)Math.Ceiling(totalCount / (double)resultPageSize);
+            var offset = (long)(pageNumber - 1) * resultPageSize;
+            var skip = (int)Math.Min(offset, totalCount);
+            var items = ordered.Skip(skip).Take(resultPageSize)
+                .Select(record => new DonateLotteryDrawHistoryItem(
+                    record.Id,
+                    record.ActivityId,
+                    GetActivityName(record.ActivityId, activityNames),
+                    record.DrawnAtUtc,
+                    record.DonorName,
+                    record.Amount,
+                    record.DrawCount,
+                    record.PrizeName,
+                    record.IsWinning))
+                .ToArray();
+
+            return Results.Ok(new DonateLotteryDrawHistoryPage(items, pageNumber, resultPageSize, totalCount, totalPages));
+        });
+
         Func<HttpContext, IMediator, ObsSessionAccess, Task<IResult>> listDonateActivities = async (context, mediator, sessionAccess) =>
         {
             var denied = ObsSessionAccess.DeniedResult(sessionAccess.RequireAdmin(context.Request));
@@ -112,7 +179,28 @@ internal static class DonateActivityEndpoints
             return Results.Ok(new DonateObsTestResponse(processed.Processed, processed.Reason, records));
         }).RequireRateLimiting("sensitive");
     }
+
+    private static string GetActivityName(int activityId, IReadOnlyDictionary<int, string> activityNames) =>
+        activityNames.TryGetValue(activityId, out var name) && !string.IsNullOrWhiteSpace(name)
+            ? name
+            : $"已刪除活動 #{activityId}";
 }
 
 internal sealed record DonateObsTestRequest(string DonorName, decimal Amount, string Message, string PaymentMethod);
 internal sealed record DonateObsTestResponse(bool Processed, string Reason, DonateLotteryDrawRecord[] Records);
+internal sealed record DonateLotteryDrawHistoryItem(
+    int Id,
+    int ActivityId,
+    string ActivityName,
+    DateTimeOffset DrawnAtUtc,
+    string DonorName,
+    decimal Amount,
+    int DrawCount,
+    string PrizeName,
+    bool IsWinning);
+internal sealed record DonateLotteryDrawHistoryPage(
+    IReadOnlyList<DonateLotteryDrawHistoryItem> Items,
+    int Page,
+    int PageSize,
+    int TotalCount,
+    int TotalPages);

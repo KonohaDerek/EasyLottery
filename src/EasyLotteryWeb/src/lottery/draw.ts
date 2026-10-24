@@ -17,6 +17,7 @@ export interface ParticipantIdentity {
 export interface Winner {
   member: Participant;
   prize: string;
+  drawId?: string;
 }
 
 export interface DrawResult {

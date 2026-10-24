@@ -31,10 +31,17 @@ test("admin navigation is grouped and logout remains visible, accessible, and cl
   await expect(page.getByRole("heading", { name: "YouTube 直播設定" })).toBeVisible();
   const nav = page.locator(".admin-drawer .admin-nav");
   const groups = nav.locator("details");
-  await expect(groups).toHaveCount(4);
-  await expect(groups.nth(3)).toHaveAttribute("open", "");
+  await expect(groups).toHaveCount(7);
+  await expect(groups.nth(5)).toHaveAttribute("open", "");
   await expect(groups.nth(0)).not.toHaveAttribute("open", "");
-  await expect(nav.getByRole("link", { name: "YouTube 直播設定" })).toHaveAttribute("aria-current", "page");
+  const activeLink = nav.getByRole("link", { name: "YouTube 直播設定" });
+  await expect(activeLink).toHaveAttribute("aria-current", "page");
+  await expect(nav.locator('.admin-nav-link[aria-current="page"]')).toHaveCount(1);
+  const activeBackground = await activeLink.evaluate(element => getComputedStyle(element).backgroundColor);
+  const hoveredLink = nav.getByRole("link", { name: "直播平台串接" });
+  await hoveredLink.hover();
+  await expect.poll(() => activeLink.evaluate(element => getComputedStyle(element).backgroundColor)).toBe(activeBackground);
+  expect(await hoveredLink.evaluate(element => getComputedStyle(element).backgroundColor)).not.toBe(activeBackground);
 
   const firstGroup = groups.nth(0);
   await firstGroup.locator("summary").focus();

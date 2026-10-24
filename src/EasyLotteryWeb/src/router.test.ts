@@ -20,6 +20,8 @@ describe("admin route guard", () => {
 
   it("registers activity results as an authenticated route", () => {
     expect(adminRoutes.find(route => route.path === "/activity-results")?.meta?.requiresAuth).toBe(true);
+    expect(adminRoutes.find(route => route.path === "/lottery-draw-records")?.meta?.requiresAuth).toBe(true);
+    expect(adminRoutes.find(route => route.path === "/donate-lottery-records")?.meta?.requiresAuth).toBe(true);
     expect(adminRoutes.find(route => route.path === "/interactions/rounds")?.meta?.requiresAuth).toBe(true);
     expect(adminRoutes.find(route => route.path === "/interactions/identity-link")?.meta?.requiresAuth).toBe(true);
     expect(adminRoutes.find(route => route.path === "/roulette")?.meta?.requiresAuth).toBe(true);
@@ -35,6 +37,8 @@ describe("admin route guard", () => {
     expect(adminRouteRedirect("/donate-activities", false)).toBe("/login?redirect=%2Fdonate-activities");
     expect(adminRouteRedirect("/system/payment", false)).toBe("/login?redirect=%2Fsystem%2Fpayment");
     expect(adminRouteRedirect("/activity-results", false)).toBe("/login?redirect=%2Factivity-results");
+    expect(adminRouteRedirect("/lottery-draw-records", false)).toBe("/login?redirect=%2Flottery-draw-records");
+    expect(adminRouteRedirect("/donate-lottery-records", false)).toBe("/login?redirect=%2Fdonate-lottery-records");
     expect(adminRouteRedirect("/interactions/rounds", false)).toBe("/login?redirect=%2Finteractions%2Frounds");
     expect(adminRouteRedirect("/interactions/identity-link", false)).toBe("/login?redirect=%2Finteractions%2Fidentity-link");
     expect(adminRouteRedirect("/roulette", false)).toBe("/login?redirect=%2Froulette");

@@ -8,6 +8,11 @@ internal static class YamlDocumentMigrations
         where T : class, IYamlVersionedDocument
     {
         changed = false;
+        if (document is ActivityResultsYamlDocument currentResults && currentResults.CoreLotteryDrawRecords is null)
+        {
+            currentResults.CoreLotteryDrawRecords = [];
+            changed = true;
+        }
         if (document.ConfigVersion > YamlDocumentSchema.CurrentVersion)
         {
             throw new YamlStorageException(
@@ -48,6 +53,7 @@ internal static class YamlDocumentMigrations
         else if (document is ActivityResultsYamlDocument results)
         {
             results.ActivityResults ??= [];
+            results.CoreLotteryDrawRecords ??= [];
             results.DonateLotteryDrawRecords ??= [];
             results.ProcessedDonatePaymentIds ??= [];
         }
