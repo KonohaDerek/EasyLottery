@@ -1,6 +1,6 @@
 # Donate 歷史查詢
 
-## 新增需求
+## ADDED Requirements
 
 ### Requirement: Admin can query persisted Donate draw records
 
