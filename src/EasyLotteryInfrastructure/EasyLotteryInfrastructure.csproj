@@ -5,6 +5,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="Google.Apis.YouTube.v3" Version="1.77.0.4309" />
     <ProjectReference Include="..\EasyLotteryApplication\EasyLotteryApplication.csproj" />
     <ProjectReference Include="..\EasyLotteryDomain\EasyLotteryDomain.csproj" />
     <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.13" />
