@@ -1,4 +1,4 @@
-import type { Participant } from "../lottery/draw";
+import { normalizeInteractionSource, type Participant, type ParticipantInteractionSource } from "../lottery/draw";
 
 export type CoreLotteryEligibilityStatus = "eligible" | "already-won";
 
@@ -7,6 +7,8 @@ export interface CoreLotteryDrawParticipantSnapshot {
   lotteryGroupId: string;
   displayName: string;
   externalIdentity?: { platform: string; accountId: string };
+  /** Admin-only interaction provenance; absent for manual entries and legacy history. */
+  interactionSource?: ParticipantInteractionSource;
   level: string;
   group: string;
   tags: string[];
@@ -22,11 +24,18 @@ export interface CoreLotteryDrawRuleSnapshot {
   prizeQueue: string[];
 }
 
+/** Locked participant-list version; absent for unlocked draws and legacy history. */
+export interface CoreLotteryDrawPoolSnapshotVersion {
+  lockHash: string;
+  lockedAtUtc: string;
+}
+
 export interface CoreLotteryDrawPayload {
   drawId: string;
   winnerParticipantId: string;
   ruleSnapshot: CoreLotteryDrawRuleSnapshot;
   participants: CoreLotteryDrawParticipantSnapshot[];
+  poolSnapshotVersion?: CoreLotteryDrawPoolSnapshotVersion;
 }
 
 export interface CoreLotteryDrawPreparedState {
@@ -34,6 +43,7 @@ export interface CoreLotteryDrawPreparedState {
   drawId: string;
   ruleSnapshot: CoreLotteryDrawRuleSnapshot;
   participants: CoreLotteryDrawParticipantSnapshot[];
+  poolSnapshotVersion?: CoreLotteryDrawPoolSnapshotVersion;
   /** Missing on legacy entries written before the selected outcome was persisted. */
   selectionState?: "ready" | "selected";
   winnerParticipantId?: string;
@@ -41,10 +51,12 @@ export interface CoreLotteryDrawPreparedState {
 
 export type PendingCoreLotteryDrawState = CoreLotteryDrawPreparedState | (CoreLotteryDrawPayload & { phase: "result" });
 
-export interface CoreLotteryDrawRecord extends CoreLotteryDrawPayload {
+export interface CoreLotteryDrawRecord extends Omit<CoreLotteryDrawPayload, "poolSnapshotVersion"> {
   drawnAtUtc: string;
   winnerDisplayName: string;
   prizeName: string;
+  /** The API returns null for unlocked and legacy draws. */
+  poolSnapshotVersion?: CoreLotteryDrawPoolSnapshotVersion | null;
 }
 
 export interface CoreLotteryDrawSummary {
@@ -56,6 +68,7 @@ export interface CoreLotteryDrawSummary {
   participantCount: number;
   eligibleEntryCount: number;
   ruleSnapshot?: CoreLotteryDrawRuleSnapshot | null;
+  poolSnapshotVersion?: CoreLotteryDrawPoolSnapshotVersion | null;
 }
 
 export interface CoreLotteryDrawHistoryPage {
@@ -106,7 +119,8 @@ export function createCoreLotteryDrawPayload(
   drawId: string,
   participants: readonly Participant[],
   prizes: readonly string[],
-  winnerParticipantId: string
+  winnerParticipantId: string,
+  poolSnapshotVersion?: CoreLotteryDrawPoolSnapshotVersion
 ): CoreLotteryDrawPayload {
   const participantSnapshots = participants.map(toParticipantSnapshot);
   const eligibleEntryCount = participantSnapshots.filter(participant => participant.eligibilityStatus === "eligible").length;
@@ -121,7 +135,8 @@ export function createCoreLotteryDrawPayload(
       prizeSelectionPolicyVersion: "first-remaining-prize-v1",
       prizeQueue: prizes.map(prize => prize.trim())
     },
-    participants: participantSnapshots
+    participants: participantSnapshots,
+    ...(poolSnapshotVersion ? { poolSnapshotVersion } : {})
   };
   return validateAndNormalizePending(payload);
 }
@@ -130,16 +145,18 @@ export function createCoreLotteryDrawPreparedState(
   drawId: string,
   participants: readonly Participant[],
   prizes: readonly string[],
-  winnerParticipantId?: string
+  winnerParticipantId?: string,
+  poolSnapshotVersion?: CoreLotteryDrawPoolSnapshotVersion
 ): CoreLotteryDrawPreparedState {
   const eligibleParticipant = participants.find(participant => !participant.isWinner);
   if (!eligibleParticipant) throw new Error("目前沒有尚未得獎的參加者。");
-  const payload = createCoreLotteryDrawPayload(drawId, participants, prizes, winnerParticipantId ?? eligibleParticipant.id);
+  const payload = createCoreLotteryDrawPayload(drawId, participants, prizes, winnerParticipantId ?? eligibleParticipant.id, poolSnapshotVersion);
   return {
     phase: "prepared",
     drawId: payload.drawId,
     ruleSnapshot: payload.ruleSnapshot,
     participants: payload.participants,
+    ...(payload.poolSnapshotVersion ? { poolSnapshotVersion: payload.poolSnapshotVersion } : {}),
     ...(winnerParticipantId
       ? { selectionState: "selected" as const, winnerParticipantId: payload.winnerParticipantId }
       : { selectionState: "ready" as const })
@@ -156,7 +173,8 @@ export function createCoreLotteryDrawPayloadFromPreparedState(
     drawId: normalized.drawId,
     winnerParticipantId: normalized.winnerParticipantId,
     ruleSnapshot: normalized.ruleSnapshot,
-    participants: normalized.participants
+    participants: normalized.participants,
+    ...(normalized.poolSnapshotVersion ? { poolSnapshotVersion: normalized.poolSnapshotVersion } : {})
   });
 }
 
@@ -212,7 +230,8 @@ export function matchesPendingCoreLotteryDraw(
       drawId: record.drawId,
       winnerParticipantId: record.winnerParticipantId,
       ruleSnapshot: record.ruleSnapshot,
-      participants: record.participants
+      participants: record.participants,
+      poolSnapshotVersion: record.poolSnapshotVersion
     });
     return JSON.stringify(savedPayload) === JSON.stringify(normalizedExpected)
       && record.winnerDisplayName === winnerForPayload(normalizedExpected).displayName
@@ -233,9 +252,10 @@ export function matchesPreparedCoreLotteryDraw(record: CoreLotteryDrawRecord, ex
       ...(expected.selectionState ? { selectionState: expected.selectionState } : {}),
       ...(expected.winnerParticipantId ? { winnerParticipantId: record.winnerParticipantId } : {}),
       ruleSnapshot: record.ruleSnapshot,
-      participants: record.participants
+      participants: record.participants,
+      poolSnapshotVersion: record.poolSnapshotVersion
     });
-    return JSON.stringify(actual) === JSON.stringify(expected)
+    return JSON.stringify(actual) === JSON.stringify(validateAndNormalizePrepared(expected))
       && record.winnerParticipantId === record.participants.find(participant => participant.participantId === record.winnerParticipantId)?.participantId
       && record.winnerDisplayName === record.participants.find(participant => participant.participantId === record.winnerParticipantId)?.displayName
       && record.prizeName === expected.ruleSnapshot.prizeQueue[0];
@@ -265,13 +285,15 @@ export function validateAndNormalizePrepared(value: unknown): CoreLotteryDrawPre
     drawId: candidate.drawId,
     winnerParticipantId: candidate.winnerParticipantId ?? eligible.participantId,
     ruleSnapshot: candidate.ruleSnapshot,
-    participants: candidate.participants
+    participants: candidate.participants,
+    poolSnapshotVersion: candidate.poolSnapshotVersion
   });
   return {
     phase: "prepared",
     drawId: payload.drawId,
     ruleSnapshot: payload.ruleSnapshot,
     participants: payload.participants,
+    ...(payload.poolSnapshotVersion ? { poolSnapshotVersion: payload.poolSnapshotVersion } : {}),
     ...(candidate.selectionState ? { selectionState: candidate.selectionState } : {}),
     ...(candidate.winnerParticipantId ? { winnerParticipantId: payload.winnerParticipantId } : {})
   };
@@ -318,11 +340,18 @@ export function validateAndNormalizePending(value: unknown): CoreLotteryDrawPayl
       externalIdentity = { platform: identity.platform.trim().toLowerCase(), accountId: identity.accountId.trim() };
     }
 
+    let interactionSource: ParticipantInteractionSource | undefined;
+    if (row.interactionSource !== undefined && row.interactionSource !== null) {
+      interactionSource = normalizeInteractionSource(row.interactionSource);
+      if (!interactionSource) throw new Error("互動來源識別格式無效。");
+    }
+
     return {
       participantId: row.participantId,
       lotteryGroupId: row.lotteryGroupId,
       displayName: row.displayName,
       ...(externalIdentity ? { externalIdentity } : {}),
+      ...(interactionSource ? { interactionSource } : {}),
       level: row.level,
       group: row.group,
       tags: [...row.tags] as string[],
@@ -340,15 +369,28 @@ export function validateAndNormalizePending(value: unknown): CoreLotteryDrawPayl
     prizeSelectionPolicyVersion: "first-remaining-prize-v1",
     prizeQueue: (rawRules.prizeQueue as string[]).map(prize => prize.trim())
   };
+  const poolSnapshotVersion = normalizePoolSnapshotVersion(candidate.poolSnapshotVersion);
   const normalized: CoreLotteryDrawPayload = {
     drawId: candidate.drawId,
     winnerParticipantId: candidate.winnerParticipantId.trim(),
     ruleSnapshot,
-    participants
+    participants,
+    ...(poolSnapshotVersion ? { poolSnapshotVersion } : {})
   };
   const winner = winnerForPayload(normalized);
   if (!winner || winner.eligibilityStatus !== "eligible") throw new Error("得獎籤不在本次合格參與名單中。");
   return normalized;
+}
+
+/** null/undefined mean "not locked"; anything else must be a valid lock hash plus timestamp (normalized to ISO UTC). */
+function normalizePoolSnapshotVersion(value: unknown): CoreLotteryDrawPoolSnapshotVersion | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (typeof value !== "object" || Array.isArray(value)) throw new Error("鎖定名單版本格式無效。");
+  const candidate = value as Record<string, unknown>;
+  const lockedAt = typeof candidate.lockedAtUtc === "string" ? Date.parse(candidate.lockedAtUtc) : Number.NaN;
+  if (typeof candidate.lockHash !== "string" || !/^[\da-f]{16}$/i.test(candidate.lockHash) || !Number.isFinite(lockedAt))
+    throw new Error("鎖定名單版本格式無效。");
+  return { lockHash: candidate.lockHash.toLowerCase(), lockedAtUtc: new Date(lockedAt).toISOString() };
 }
 
 function toParticipantSnapshot(participant: Participant): CoreLotteryDrawParticipantSnapshot {
@@ -358,6 +400,13 @@ function toParticipantSnapshot(participant: Participant): CoreLotteryDrawPartici
     displayName: participant.name,
     ...(participant.identity ? {
       externalIdentity: { platform: participant.identity.platform, accountId: participant.identity.accountId }
+    } : {}),
+    ...(participant.source ? {
+      interactionSource: {
+        roundId: participant.source.roundId,
+        snapshotId: participant.source.snapshotId,
+        audienceProfileId: participant.source.audienceProfileId
+      }
     } : {}),
     level: participant.level,
     group: participant.group,

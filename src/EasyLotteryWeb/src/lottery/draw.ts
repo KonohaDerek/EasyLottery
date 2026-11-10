@@ -3,6 +3,8 @@ export interface Participant {
   lotteryGroupId: string;
   name: string;
   identity?: ParticipantIdentity;
+  /** Immutable interaction provenance; only set from an imported eligibility snapshot, never inferred from names. */
+  source?: ParticipantInteractionSource;
   level: string;
   group: string;
   tags: string[];
@@ -12,6 +14,34 @@ export interface Participant {
 export interface ParticipantIdentity {
   platform: string;
   accountId: string;
+  /**
+   * Platform channel scope, part of the domain identity key (platform + channelScope + accountId).
+   * Absent on older or manually entered identities; such identities never auto-link to an imported profile.
+   */
+  channelScope?: string;
+}
+
+export interface ParticipantInteractionSource {
+  roundId: string;
+  snapshotId: string;
+  audienceProfileId: string;
+}
+
+const uuidPattern = /^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/i;
+
+export function isUuid(value: unknown): value is string {
+  return typeof value === "string" && uuidPattern.test(value);
+}
+
+export function normalizeInteractionSource(value: unknown): ParticipantInteractionSource | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const candidate = value as Record<string, unknown>;
+  if (!isUuid(candidate.roundId) || !isUuid(candidate.snapshotId) || !isUuid(candidate.audienceProfileId)) return undefined;
+  return {
+    roundId: candidate.roundId.toLowerCase(),
+    snapshotId: candidate.snapshotId.toLowerCase(),
+    audienceProfileId: candidate.audienceProfileId.toLowerCase()
+  };
 }
 
 export interface Winner {
@@ -51,14 +81,24 @@ export function normalizeParticipantIdentity(value: unknown): ParticipantIdentit
   if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
   const candidate = value as Record<string, unknown>;
   if (typeof candidate.platform !== "string" || typeof candidate.accountId !== "string") return undefined;
+  if (candidate.channelScope !== undefined && candidate.channelScope !== null && typeof candidate.channelScope !== "string") return undefined;
   const platform = candidate.platform.trim().toLowerCase();
   const accountId = candidate.accountId.trim();
-  return platform && accountId ? { platform, accountId } : undefined;
+  const channelScope = typeof candidate.channelScope === "string" ? candidate.channelScope.trim() : "";
+  if (!platform || !accountId) return undefined;
+  return channelScope ? { platform, accountId, channelScope } : { platform, accountId };
 }
 
+/** Platform + account only, ignoring channel scope. Use for conflict detection, never for linking. */
 export function participantIdentityKey(value: unknown): string | undefined {
   const identity = normalizeParticipantIdentity(value);
   return identity ? JSON.stringify([identity.platform, identity.accountId]) : undefined;
+}
+
+/** Exact domain identity key (platform + channelScope + accountId); undefined when the scope is unknown. */
+export function participantScopedIdentityKey(value: unknown): string | undefined {
+  const identity = normalizeParticipantIdentity(value);
+  return identity?.channelScope ? JSON.stringify([identity.platform, identity.channelScope, identity.accountId]) : undefined;
 }
 
 export function createParticipant(
@@ -67,11 +107,13 @@ export function createParticipant(
 ): Participant {
   const id = idFactory();
   const identity = normalizeParticipantIdentity(value.identity);
+  const source = normalizeInteractionSource(value.source);
   return {
     id,
     lotteryGroupId: value.lotteryGroupId?.trim() || id,
     name: value.name.trim(),
     ...(identity ? { identity } : {}),
+    ...(source ? { source } : {}),
     level: value.level?.trim() ?? "",
     group: value.group?.trim() ?? "",
     tags: normalizeTags(value.tags),
