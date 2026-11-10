@@ -2,7 +2,7 @@ import { apiRequest, type ApiResponse } from "../api/client";
 
 export type PlatformName = "YouTube" | "Twitch" | "Discord";
 export type CredentialAction = "unchanged" | "replace" | "clear";
-export type PlatformConnectionState = "unconfigured" | "adapter_unavailable" | "unverified" | "connected" | "failed" | string;
+export type PlatformConnectionState = "unconfigured" | "adapter_unavailable" | "unverified" | "connected" | "failed";
 
 export interface PlatformConnection {
   platform: PlatformName;
@@ -29,7 +29,9 @@ export interface PlatformConnectionUpdate {
   degrade: boolean;
 }
 
-export function platformStatusLabel(state: PlatformConnectionState): string {
+// Helpers accept any string because the server value is not validated at runtime;
+// unknown states fall back to an explicit "unknown" label and the default color.
+export function platformStatusLabel(state: string): string {
   switch (state) {
     case "unconfigured": return "尚未設定憑證";
     case "adapter_unavailable": return "adapter 尚未實作";
@@ -40,7 +42,7 @@ export function platformStatusLabel(state: PlatformConnectionState): string {
   }
 }
 
-export function platformStatusColor(state: PlatformConnectionState): string {
+export function platformStatusColor(state: string): string {
   switch (state) {
     case "connected": return "success";
     case "failed": return "error";

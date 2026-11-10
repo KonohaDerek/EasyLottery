@@ -23,6 +23,11 @@ public sealed class PlatformConnectionEndpointTests
 
         using var update = await client.PutAsJsonAsync("/api/interactions/connections/youtube", new { apiKey = "youtube-secret", channelScope = "channel-abc" });
         update.EnsureSuccessStatusCode();
+        var saved = await update.Content.ReadFromJsonAsync<PlatformConnectionStatus>();
+        Assert.IsNotNull(saved);
+        Assert.AreEqual("YouTube", saved.Platform);
+        Assert.AreEqual("adapter_unavailable", saved.State);
+        Assert.IsTrue(saved.Configured);
         using var response = await client.GetAsync("/api/interactions/connections");
 
         Assert.AreEqual(HttpStatusCode.OK, response.StatusCode);
@@ -48,7 +53,7 @@ public sealed class PlatformConnectionEndpointTests
     }
 
     [TestMethod]
-    public async Task TwitchDegradation_DoesNotChangeYouTubeStatus()
+    public async Task LegacyDegradeRequest_DoesNotClaimConnectivityOrDegradedState()
     {
         await using var factory = CreateFactory();
         using var client = factory.CreateClient();
@@ -150,7 +155,9 @@ public sealed class PlatformConnectionEndpointTests
                 configuration.AddInMemoryCollection(new Dictionary<string, string?>
                 {
                     ["Testing:EnableAdminSessionToken"] = "true",
-                    ["AdminAuth:SigningKey"] = "test-signing-key-for-platform-connections-1234567890"
+                    ["AdminAuth:SigningKey"] = "test-signing-key-for-platform-connections-1234567890",
+                    // Each factory gets its own storage so saved credentials never leak between tests.
+                    ["Storage:Directory"] = Path.Combine(Path.GetTempPath(), "easylottery-platform-connection-tests", Guid.NewGuid().ToString("N"))
                 }));
             if (connectors.Length > 0)
                 builder.ConfigureServices(services =>

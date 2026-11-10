@@ -8,6 +8,7 @@ import {
   savePlatformConnection,
   savedPlatformStatus,
   toPlatformDraft,
+  type PlatformConnection,
   type PlatformConnectionDraft
 } from "./api";
 
@@ -90,9 +91,9 @@ describe("platform connection API", () => {
   });
 
   it("takes the saved platform's fresh status from a full-list save response", () => {
-    const list = [
-      { platform: "YouTube" as const, state: "adapter_unavailable", configured: true, channelScope: "c", apiKey: "__EASYLOTTERY_SECRET_UNCHANGED__", accessToken: null },
-      { platform: "Twitch" as const, state: "unconfigured", configured: false, channelScope: "", apiKey: null, accessToken: null }
+    const list: PlatformConnection[] = [
+      { platform: "YouTube", state: "adapter_unavailable", configured: true, channelScope: "c", apiKey: "__EASYLOTTERY_SECRET_UNCHANGED__", accessToken: null },
+      { platform: "Twitch", state: "unconfigured", configured: false, channelScope: "", apiKey: null, accessToken: null }
     ];
     expect(savedPlatformStatus("Twitch", list)).toMatchObject({ state: "unconfigured", configured: false });
     expect(savedPlatformStatus("YouTube", list[0])).toMatchObject({ state: "adapter_unavailable", configured: true });
