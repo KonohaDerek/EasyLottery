@@ -8,9 +8,18 @@ using System.Net.Http.Json;
 
 namespace EasyLotteryApi.Interactions;
 
+public enum PlatformAdapterHealth
+{
+    Unimplemented,
+    Unverified,
+    Connected,
+    Failed
+}
+
 public interface IPlatformConnector
 {
     string Platform { get; }
+    PlatformAdapterHealth AdapterHealth { get; }
     Task StartAsync(CancellationToken cancellationToken = default);
     Task StopAsync(CancellationToken cancellationToken = default);
 }
@@ -22,15 +31,17 @@ public sealed record PlatformConnectionsSnapshot(IReadOnlyList<PlatformConnectio
 public sealed record TwitchOAuthChallenge(string State, string CodeChallenge, string AuthorizationUrl, DateTimeOffset ExpiresAtUtc);
 internal sealed record PendingTwitchOAuth(string CodeVerifier, DateTimeOffset ExpiresAtUtc);
 
-public sealed class PlatformConnectionService(IInteractionsYamlDocumentRepository repository, TimeProvider clock, IHttpClientFactory clients, IConfiguration configuration)
+public sealed class PlatformConnectionService(IInteractionsYamlDocumentRepository repository, TimeProvider clock, IHttpClientFactory clients, IConfiguration configuration, IEnumerable<IPlatformConnector> connectors)
 {
     private readonly ConcurrentDictionary<string, PendingTwitchOAuth> _twitchChallenges = new(StringComparer.Ordinal);
+    private readonly IReadOnlyDictionary<string, IPlatformConnector> _connectors = connectors
+        .ToDictionary(connector => connector.Platform, StringComparer.OrdinalIgnoreCase);
 
     public async Task<PlatformConnectionsSnapshot> ListAsync(CancellationToken cancellationToken = default)
     {
         var document = await repository.ReadAsync(cancellationToken);
         var connections = new[] { "YouTube", "Twitch", "Discord" }
-            .Select(platform => StatusFor(platform, document.PlatformConnections.SingleOrDefault(item => item.Platform.Equals(platform, StringComparison.OrdinalIgnoreCase))))
+            .Select(platform => StatusFor(platform, document.PlatformConnections.SingleOrDefault(item => item.Platform.Equals(platform, StringComparison.OrdinalIgnoreCase)), _connectors.GetValueOrDefault(platform)?.AdapterHealth ?? PlatformAdapterHealth.Unimplemented))
             .ToList();
         return new PlatformConnectionsSnapshot(connections, ETagFor(document));
     }
@@ -112,7 +123,7 @@ public sealed class PlatformConnectionService(IInteractionsYamlDocumentRepositor
         return true;
     }
 
-    private static PlatformConnectionStatus StatusFor(string platform, PlatformConnectionSettings? settings)
+    private static PlatformConnectionStatus StatusFor(string platform, PlatformConnectionSettings? settings, PlatformAdapterHealth adapterHealth)
     {
         if (settings is null)
         {
@@ -122,7 +133,14 @@ public sealed class PlatformConnectionService(IInteractionsYamlDocumentRepositor
         var configured = platform == "YouTube"
             ? !string.IsNullOrWhiteSpace(settings.ApiKey)
             : !string.IsNullOrWhiteSpace(settings.AccessToken);
-        var state = !configured ? "unconfigured" : settings.Degrade ? "degraded" : "configured";
+        var state = !configured ? "unconfigured" : adapterHealth switch
+        {
+            PlatformAdapterHealth.Unimplemented => "adapter_unavailable",
+            PlatformAdapterHealth.Unverified => "unverified",
+            PlatformAdapterHealth.Connected => "connected",
+            PlatformAdapterHealth.Failed => "failed",
+            _ => "unverified"
+        };
         return new PlatformConnectionStatus(platform, state, configured, settings.ChannelScope, Mask(settings.ApiKey), Mask(settings.AccessToken));
     }
 

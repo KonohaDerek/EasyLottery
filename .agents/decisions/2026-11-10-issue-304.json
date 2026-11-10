@@ -1,0 +1,24 @@
+{
+  "task_id": "issue-304-platform-status-2026-11-10",
+  "source": "GitHub issue #304",
+  "routing": {
+    "complexity": "medium",
+    "model": "active_host_default",
+    "parallel": false,
+    "reason": "One cross-layer status contract with shared API and UI files; no independent workstream.",
+    "jev_fallback": "active_agent_host_default",
+    "jev_reason": "No TypeSafe/Jev tool transport or approved known no-charge health check is available in this session."
+  },
+  "risk": {
+    "level": "low_to_medium",
+    "areas": ["API response semantics", "credential-status presentation"],
+    "mitigations": ["Do not read or change production credentials.", "Do not infer connectivity from stored credentials.", "Use mocked/synthetic tests."]
+  },
+  "verification": ["API unit/integration contract", "Vue unit tests", "focused browser test", "diff review"],
+  "human_approval": {
+    "local_implementation": "authorized by user request",
+    "push_or_pull_request": "confirmation required by repository confirm-mode policy",
+    "production_changes": "separate explicit approval required"
+  },
+  "configuration_source": "When configuration is needed, use the main-branch snapshot at ~/Documents/Project/EasyLottery; do not read production secrets or use another worktree's settings files."
+}
