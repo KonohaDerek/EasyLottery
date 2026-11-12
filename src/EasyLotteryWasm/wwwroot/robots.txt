@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /about$
+Allow: /privacy-policy$
+Disallow: /obs/
+Disallow: /system/
+Disallow: /api/
+Disallow: /hubs/
+Disallow: /legacy
+Disallow: /

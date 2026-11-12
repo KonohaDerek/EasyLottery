@@ -1,5 +1,5 @@
 <template>
-  <v-app-bar flat border>
+  <v-app-bar flat border :height="xs ? 112 : 64">
     <v-container class="public-nav d-flex align-center py-0">
       <RouterLink class="brand" to="/about">EasyLottery</RouterLink>
       <v-spacer />
@@ -15,3 +15,9 @@
     </v-container>
   </v-main>
 </template>
+
+<script setup lang="ts">
+import { useDisplay } from "vuetify";
+
+const { xs } = useDisplay();
+</script>

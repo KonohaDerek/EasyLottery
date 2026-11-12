@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute } from "vue-router";
-import { ApiError } from "../api/client";
+import { obsErrorMessage, obsRecoveryHint } from "../obs/errors";
+import ObsErrorState from "../obs/ObsErrorState.vue";
 import { generateDonateCongratulation, readDonateSnapshot, sendTestDonation, type DonateActivity } from "../donate-obs/api";
 import {
   acceptDonateSnapshot,
@@ -77,10 +78,7 @@ const fallbackCongratulation = computed(() => {
 });
 
 function friendlyError(cause: unknown): string {
-  if (cause instanceof ApiError && [401, 403].includes(cause.status)) {
-    return "OBS 工作階段無效或權限不足，請從管理頁重新開啟預覽。";
-  }
-  return cause instanceof Error ? cause.message : "無法載入 Donate OBS 畫面。";
+  return obsErrorMessage(cause, " Donate 活動");
 }
 
 function clearVideoWatchdog(): void {
@@ -146,7 +144,7 @@ async function refresh(): Promise<void> {
         lifecycle.value = acceptDonateSnapshot(lifecycle.value, snapshot.activity.id, snapshot.records);
         progressLifecycle();
       }
-      error.value = "";
+      error.value = snapshot.activity ? "" : `找不到此 Donate 活動，${obsRecoveryHint}`;
     } catch (cause) {
       if (!disposed && generation === routeGeneration) error.value = friendlyError(cause);
     } finally {
@@ -314,7 +312,7 @@ onBeforeUnmount(() => {
         </div>
       </section>
       <div v-else-if="loading && controlsEnabled" class="donate-obs-state" role="status">載入 Donate OBS…</div>
-      <div v-else-if="error && controlsEnabled" class="donate-obs-state" role="alert">{{ error }}</div>
+      <ObsErrorState v-else-if="!loading && (!activity || (error && controlsEnabled))" :message="error || `找不到此 Donate 活動，${obsRecoveryHint}`" />
     </div>
 
     <section v-if="controlsEnabled && testPanelOpen" class="donate-test-panel" aria-label="Donate 測試面板">
