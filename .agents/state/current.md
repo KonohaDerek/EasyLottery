@@ -1,5 +1,20 @@
 # Current work state
 
+- Task ID: live-site-qa-2026-11-12
+- Status: Read-only production-site QA complete; test cases and manual routing evidence recorded locally.
+- Source: User request to test `https://easylotter.k-derek.synology.me/` with ego-lite / Playwright and preserve every case.
+- Scope: Unauthenticated public routes, protected-route redirect, login-page semantics, three responsive widths, and sampled HTTP security headers.
+- Non-goals: No authentication attempt, real draw/payment, data mutation, application implementation, push, PR, merge, or deployment.
+- Release route: GitHub latest stable release `v0.0.7` was published (non-draft, non-prerelease) on 2026-10-22 UTC; Claude-plans/Codex-implements policy applies, but no implementation was required.
+- Jev: `TYPESAFE_API_KEY` absent; manual structured route was bounded, main-agent, low application-data risk and browser integration verification. See `.agents/decisions/2026-11-12-live-site-qa.json`.
+- Branch/worktree: `claude/live-site-e2e-20261112` / `.worktrees/live-site-e2e-20261112`, based on `43f69b802bb12e3c1bda2b4636f892bbc8d775fd`; existing worktree was clean before this task.
+- Verification: 9 retained manual cases are in `.agents/verification/2026-11-12-live-site-ego-browser.md`. Findings: About persistence wording filed as #317; HTTP-to-HTTPS behavior is tracked by #253; login semantic heading is tracked by #321. Current branch also contains commit `01aa1d1cfafde98e1c14ca28ba38efd4f636eb2c` with the retained Playwright suite and an evidence report recording 28 passing tests (including 13 expected known-defect failures); this run was not performed by this session. My separate subset rerun was inconclusive (4 passed, 15 failed because Chromium launch was sandbox-blocked and API requests could not resolve DNS); manual ego-browser checks reached the site. No duplicate issues were opened.
+- Playwright suite (parallel Claude session): read-only `tests/e2e/live/` suite, `npx playwright test -c live/live.config.mjs` → 28 passed (13 `test.fail` known defects linked to #253, #318–#323). Evidence: `.agents/verification/2026-11-12-live-site-e2e.md`. Competitor-based proposals filed as #324–#333.
+- Flags: `verification_complete: true`, `branch_pushed: true`, `pull_request_created: true` (user requested push and PR on 2026-11-12; no merge or deployment).
+- Updated: 2026-11-12
+
+## Previous task snapshot
+
 - Task ID: issue-310-participant-unique-removal-2026-10-21
 - Status: Implementation and verification complete; Ready PR #311 is open and its initial CI run passed.
 - Source: GitHub Issue #310, created from the valid P2 review finding on merged PR #309; #303 is completed and closed.
