@@ -123,6 +123,15 @@ async function authorizedRequest<T>(path: string, method: string, body?: Record<
   return payload as T;
 }
 
+export function passkeyInteractionError(cause: unknown, flow: PasskeyFlow): unknown {
+  if (cause instanceof Error && ["NotAllowedError", "AbortError"].includes(cause.name)) {
+    return new Error(flow === "register"
+      ? "Passkey 註冊已取消，請確認裝置是否支援 Passkey。"
+      : "Passkey 登入已取消，或此裝置沒有可用的 Passkey。");
+  }
+  return cause;
+}
+
 async function completeFlow(email: string, flow: PasskeyFlow): Promise<PasskeyTokenResponse> {
   if (!window.isSecureContext || !window.PublicKeyCredential || !navigator.credentials) {
     throw new Error("目前網址或瀏覽器不支援 Passkey，請使用 HTTPS 與支援 WebAuthn 的瀏覽器。");
@@ -130,9 +139,14 @@ async function completeFlow(email: string, flow: PasskeyFlow): Promise<PasskeyTo
 
   const begin = await request<PasskeyOptionsResponse>("/api/auth/passkey/options", { email, flow });
   const publicKey = clonePublicKeyOptions(begin.options) as unknown as PublicKeyCredentialCreationOptions & PublicKeyCredentialRequestOptions;
-  const credential = flow === "register"
-    ? await navigator.credentials.create({ publicKey: publicKey as PublicKeyCredentialCreationOptions })
-    : await navigator.credentials.get({ publicKey: publicKey as PublicKeyCredentialRequestOptions });
+  let credential: Credential | null;
+  try {
+    credential = flow === "register"
+      ? await navigator.credentials.create({ publicKey: publicKey as PublicKeyCredentialCreationOptions })
+      : await navigator.credentials.get({ publicKey: publicKey as PublicKeyCredentialRequestOptions });
+  } catch (cause) {
+    throw passkeyInteractionError(cause, flow);
+  }
   if (!credential || !(credential instanceof PublicKeyCredential)) {
     throw new Error(flow === "register" ? "Passkey 註冊已取消。" : "Passkey 登入已取消。");
   }

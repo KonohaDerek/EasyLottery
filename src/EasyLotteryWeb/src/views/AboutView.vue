@@ -16,9 +16,5 @@
 </template>
 
 <script setup lang="ts">
-const highlights = [
-  { title: "為直播而設計", description: "用 Donate、戳戳樂、轉盤與加班台建立可重複使用的直播互動體驗。" },
-  { title: "OBS 友善", description: "每個呈現畫面都能以透明背景嵌入 OBS，並可用專屬網址隔離不同活動。" },
-  { title: "可控且可追溯", description: "活動設定、抽獎結果與稽核紀錄分離保存，方便管理、備份與日後擴充。" }
-];
+import { highlights } from "../about/highlights";
 </script>

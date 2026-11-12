@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { adminRoutes, obsRoutes, publicRoutes } from "./routes";
+import { adminRoutes, obsRoutes, publicRoutes, routes } from "./routes";
 import { adminRouteRedirect } from "./router-guard";
 
 describe("public Vue routes", () => {
@@ -69,5 +69,16 @@ describe("OBS overlay routes", () => {
       "/obs/interaction-leaderboard/:roundId"
     ]);
     expect(obsRoutes.every(route => route.meta?.obs === true && route.meta?.requiresAuth !== true)).toBe(true);
+  });
+});
+
+
+describe("unknown routes", () => {
+  it("ends with a public catch-all outside the admin and OBS layouts", () => {
+    const fallback = routes.at(-1);
+    expect(fallback?.path).toBe("/:pathMatch(.*)*");
+    expect(fallback?.meta?.title).toBe("找不到頁面｜EasyLottery");
+    expect(fallback?.meta?.requiresAuth).not.toBe(true);
+    expect(fallback?.meta?.obs).not.toBe(true);
   });
 });

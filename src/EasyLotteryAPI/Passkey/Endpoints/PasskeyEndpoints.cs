@@ -28,12 +28,13 @@ internal static class PasskeyEndpoints
 
         app.MapPost("/api/auth/passkey/verify", async (
             PasskeyVerifyRequest request,
+            HttpContext context,
             PasskeyAuthenticationService authentication,
             CancellationToken cancellationToken) =>
         {
             try
             {
-                var issued = await authentication.FinishAsync(request, cancellationToken);
+                var issued = await authentication.FinishAsync(context, request, cancellationToken);
                 return Results.Ok(new SessionTokenResponse(issued.Token, issued.ExpiresAtUtc));
             }
             catch (PasskeyAuthenticationException exception)

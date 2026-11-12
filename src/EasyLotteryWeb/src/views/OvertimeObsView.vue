@@ -2,7 +2,8 @@
 import { HubConnectionBuilder, type HubConnection } from "@microsoft/signalr";
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute } from "vue-router";
-import { ApiError } from "../api/client";
+import { obsErrorMessage } from "../obs/errors";
+import ObsErrorState from "../obs/ObsErrorState.vue";
 import { appendOvertimeEvent, readOvertimeFeed, readOvertimeSnapshot, saveOvertimeSettings, type OvertimeOverlaySettings, type OvertimeSettingsUpdate, type OvertimeSupportEvent } from "../overtime/api";
 import { calculateProgressPercent, extendEndForPause, getDisplaySessionState, getRewardSummary, isEventVisible, remainingTimeText } from "../overtime/overlay";
 import { readObsSessionToken } from "../obs/session-token";
@@ -71,9 +72,7 @@ watch(state, (next, previous) => {
 });
 
 function safeError(cause: unknown): string {
-  if (cause instanceof ApiError && cause.status === 403) return "OBS 權限不足（HTTP 403），此工作階段不能控制加班台。";
-  if (cause instanceof ApiError && cause.status === 401) return "OBS 工作階段無效或已過期（HTTP 401），請重新開啟預覽。";
-  return cause instanceof Error ? cause.message : "加班台 OBS 操作失敗。";
+  return obsErrorMessage(cause, "加班台 OBS");
 }
 
 async function loadSnapshot(): Promise<void> {
@@ -399,5 +398,5 @@ onBeforeUnmount(() => {
       </div>
     </div>
   </main>
-  <div v-if="error && (controlsEnabled || !settings)" class="overtime-error" role="alert">{{ error }}</div>
+  <ObsErrorState v-if="error && (controlsEnabled || !settings)" :message="error" />
 </template>
