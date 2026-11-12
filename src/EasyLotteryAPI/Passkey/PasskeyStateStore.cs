@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using EasyLotteryInfrastructure.Storage;
@@ -34,6 +35,38 @@ public sealed class PasskeyStateStore
     {
         await using var gate = await _storageGates.AcquireAsync(cancellationToken, _path);
         return await ReadUnsafeAsync(cancellationToken);
+    }
+
+    public async Task<byte[]> GetOrCreateDecoySeedAsync(CancellationToken cancellationToken = default)
+    {
+        await using var gate = await _storageGates.AcquireAsync(cancellationToken, _path);
+        var state = await ReadUnsafeAsync(cancellationToken);
+        if (state.DecoySeed is not { Length: 32 })
+        {
+            state.DecoySeed = RandomNumberGenerator.GetBytes(32);
+            await WriteUnsafeAsync(state, cancellationToken);
+        }
+        return state.DecoySeed;
+    }
+
+    public async Task RecordLoginAttemptAsync(PasskeyPendingCeremony? pending, CancellationToken cancellationToken = default)
+    {
+        await using var gate = await _storageGates.AcquireAsync(cancellationToken, _path);
+        var state = await ReadUnsafeAsync(cancellationToken);
+        if (pending is not null) state.Authentication = pending;
+        await WriteUnsafeAsync(state, cancellationToken);
+    }
+
+    public async Task<PasskeyPendingCeremony?> TakeLoginPendingAsync(string email, CancellationToken cancellationToken = default)
+    {
+        await using var gate = await _storageGates.AcquireAsync(cancellationToken, _path);
+        var state = await ReadUnsafeAsync(cancellationToken);
+        var pending = state.Authentication;
+        var matches = pending is not null && string.Equals(pending.Email, email, StringComparison.Ordinal);
+        if (matches) state.Authentication = null;
+        // Keep equivalent storage work for unknown emails without consuming another login.
+        await WriteUnsafeAsync(state, cancellationToken);
+        return matches && pending!.ExpiresAtUtc > DateTimeOffset.UtcNow ? pending : null;
     }
 
     public async Task SetPendingAsync(PasskeyFlow flow, PasskeyPendingCeremony pending, CancellationToken cancellationToken = default)
@@ -117,6 +150,8 @@ public sealed class PasskeyStateStore
 
 public sealed class PasskeyState
 {
+    public byte[]? DecoySeed { get; set; }
+
     public List<PasskeyCredentialRecord> Credentials { get; set; } = [];
 
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
