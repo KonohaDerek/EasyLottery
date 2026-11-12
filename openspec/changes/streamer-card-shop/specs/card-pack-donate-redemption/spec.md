@@ -9,7 +9,7 @@ A Donate card-pack activity MUST require an email address and explicit consent b
 
 #### Scenario: Eligible donation draws once
 - **WHEN** a paid callback over the threshold with a consented email arrives, including duplicate callbacks for the same payment
-- **THEN** exactly one card is drawn, the OBS overlay plays the pack-opening animation, and one redemption code is emailed
+- **THEN** the site calls the Hub once per payment reference, exactly one card is drawn on the Hub, the OBS overlay plays the pack-opening animation, and the Hub emails one redemption code
 
 ### Requirement: Single-use redemption codes
 Redemption codes MUST be high-entropy, stored only as hashes, expire, and be redeemable exactly once through the viewer app.
@@ -21,6 +21,10 @@ Redemption codes MUST be high-entropy, stored only as hashes, expire, and be red
 #### Scenario: Expired or void code
 - **WHEN** an expired or voided code is submitted
 - **THEN** redemption is rejected and repeated failures are rate-limited
+
+#### Scenario: Card Hub is unreachable
+- **WHEN** the site cannot reach the Hub after an eligible donation
+- **THEN** the draw request is queued and retried with the same idempotency key, and OBS and admin show a pending state
 
 #### Scenario: Admin re-sends a code
 - **WHEN** the admin re-sends a code for an unredeemed draw

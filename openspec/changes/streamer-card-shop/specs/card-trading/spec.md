@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: Atomic viewer-to-viewer trades
-Viewers of the same streamer site MUST be able to propose, accept, decline, or cancel trades of owned card instances; acceptance MUST transfer ownership atomically after re-checking ownership.
+Viewers on the Card Hub MUST, including across different streamers, be able to propose, accept, decline, or cancel trades of owned card instances; acceptance MUST transfer ownership atomically after re-checking ownership.
 
 #### Scenario: Accepted trade swaps ownership
 - **WHEN** the recipient accepts a trade whose instances are still owned as proposed

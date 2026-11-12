@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: Viewer email-code sign-in
-The system MUST let a viewer sign in with an email address and a one-time code delivered by email, and MUST issue a viewer token that is distinct from admin credentials.
+The Card Hub MUST let a viewer sign in with an email address and a one-time code delivered by email, and MUST issue a viewer token that is distinct from admin credentials.
 
 #### Scenario: Valid code signs the viewer in
 - **WHEN** a viewer submits the code sent to their email within 10 minutes
@@ -11,8 +11,8 @@ The system MUST let a viewer sign in with an email address and a one-time code d
 - **WHEN** five wrong codes are submitted for one email
 - **THEN** the code is invalidated and further attempts are rate-limited
 
-#### Scenario: Viewer token cannot call admin APIs
-- **WHEN** a request to any admin endpoint carries a viewer token
+#### Scenario: Viewer token cannot call streamer APIs
+- **WHEN** a request to any streamer-site or Hub streamer-admin endpoint carries a viewer token
 - **THEN** the system responds 401 or 403 and performs no admin action
 
 ### Requirement: Card ownership and grouping
