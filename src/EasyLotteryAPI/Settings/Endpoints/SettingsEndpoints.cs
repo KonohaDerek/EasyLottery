@@ -15,6 +15,15 @@ internal static class SettingsEndpoints
     {
         Func<HttpContext, IEasyLotteryConfigRepository, ObsSettingsProjectionService, ObsSessionAccess, Task<IResult>> readSettings = async (context, settingsStore, projection, sessionAccess) =>
         {
+            // Fetch clients keep the legacy YAML/authentication contract. Only
+            // document navigation should enter the Vue login/workspace flow.
+            if (context.Request.Path.Equals("/settings", StringComparison.OrdinalIgnoreCase)
+                && (string.Equals(context.Request.Headers["Sec-Fetch-Mode"], "navigate", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(context.Request.Headers["Sec-Fetch-Dest"], "document", StringComparison.OrdinalIgnoreCase)))
+            {
+                return Results.Redirect("/");
+            }
+
             MarkCompatibilityEndpoint(context);
             var adminDecision = sessionAccess.RequireAdmin(context.Request);
             if (adminDecision == ApiAccessDecision.Allowed)
@@ -33,7 +42,7 @@ internal static class SettingsEndpoints
             var yaml = await projection.ReadAsync(kind, resourceId, context.RequestAborted);
             return yaml is null ? Results.NotFound() : Results.Text(yaml, "text/yaml", Encoding.UTF8);
         };
-        app.MapGet("/settings", readSettings);
+        app.MapMethods("/settings", [HttpMethods.Get, HttpMethods.Head], readSettings);
         app.MapGet("/easy-lottery-config.yaml", readSettings);
 
         Func<HttpContext, IHubContext<OvertimeHub>, IEasyLotteryConfigRepository, ObsSettingsProjectionService, ObsSessionAccess, Task<IResult>> writeSettings = async (context, hub, settingsStore, projection, sessionAccess) =>

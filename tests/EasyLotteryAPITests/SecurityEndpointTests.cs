@@ -96,7 +96,7 @@ public sealed class SecurityEndpointTests
     }
 
     [TestMethod]
-    public async Task PasskeyEndpoints_RejectNonAdminEmail()
+    public async Task PasskeyLogin_ProvidesDecoyOptionsForNonAdminEmail()
     {
         await using var factory = CreateFactory();
         using var client = factory.CreateClient();
@@ -105,7 +105,10 @@ public sealed class SecurityEndpointTests
             "/api/auth/passkey/options",
             new { email = "other@example.com", flow = "login" });
 
-        Assert.AreEqual(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.AreEqual(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<PasskeyBeginResult>();
+        Assert.AreEqual("login", body!.Flow);
+        Assert.AreEqual(1, body.Options.GetProperty("allowCredentials").GetArrayLength());
     }
 
     [TestMethod]
