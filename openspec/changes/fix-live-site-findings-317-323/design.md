@@ -25,3 +25,9 @@
 ## Verification
 
 完整 Vue tests/typecheck/build、API/Domain tests、WebAuthn 與本機 browser E2E、OpenSpec、diff check、同一 SHA 的真實 Codex/Claude 獨立審查及 CI。最多五個候選審查輪；證據外置，任何候選變更都重新審查。正式驗收未授權，不移除 live 預期失敗標記。
+
+## Review-driven implementation refinement
+
+Round 1 identified that a credential index is not a stable credential identity: removal shifts indices, and initial registration replaces the empty credential state. Decoy HKDF context is now keyed by normalized email and the stored credential ID, with a distinct unregistered marker. This supersedes any index-based design in the original plan. Tests verify stable IDs, initial replacement, append preservation and removal evolution for real and decoy paths.
+
+Donate control previews (controls=1) preserve visible polling errors after a successful initial load. Formal overlays (controls=0) remain transparent while idle and retain their current content during transient failures. Both behaviours have normal-suite browser regressions.
