@@ -102,7 +102,7 @@ test("加班台 OBS shares controls, feed notifications, and transparent renderi
       await readonlyControl.goto(obsUrl(baseURL, readToken, true));
       await expect(readonlyControl).toHaveURL(`${baseURL}/obs/overtime?controls=1`);
       await readonlyControl.getByRole("button", { name: "開始加班" }).click();
-      await expect(readonlyControl.getByRole("alert")).toContainText("403");
+      await expect(readonlyControl.getByRole("alert")).toContainText("權限不足");
       expect((await readSettings(request, adminToken)).value.sessionState).toBe("idle");
 
       const idleSettings = await readSettings(request, adminToken);
