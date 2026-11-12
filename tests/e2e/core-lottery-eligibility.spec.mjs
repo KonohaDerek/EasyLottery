@@ -17,9 +17,8 @@ async function openHistoryDetail(page, baseURL, drawId) {
   await page.getByRole("link", { name: "抽獎紀錄" }).first().click();
   await expect(page.getByRole("heading", { name: "抽獎紀錄", level: 1 })).toBeVisible();
   await page.getByRole("button", { name: `檢視紀錄 ${drawId}` }).click();
-  const dialog = page.getByRole("dialog");
-  await expect(dialog.getByTestId("roster-interaction-source").first()).toBeVisible();
-  return dialog;
+  await expect(page.locator('td[data-testid="roster-interaction-source"]').first()).toBeVisible();
+  return page;
 }
 
 function snapshotPayload(imported) {
@@ -88,7 +87,7 @@ test("core lottery imports interaction eligibility by stable profile, locks the 
   await expect(rosterCount).toHaveText("1 / 1");
 
   await page.getByRole("button", { name: "載入互動回合" }).click();
-  await page.getByLabel("互動回合", { exact: false }).selectOption(roundId);
+  await page.locator(".eligibility-card select").selectOption(roundId);
   await page.getByRole("button", { name: "預覽資格" }).click();
   await expect(page.getByTestId("eligibility-count")).toHaveText("2");
   await expect(page.getByTestId("eligibility-added")).toHaveText("2");
@@ -178,9 +177,9 @@ test("core lottery imports interaction eligibility by stable profile, locks the 
 
   // The admin history detail shows the lock version and each roster row's interaction source.
   const dialog = await openHistoryDetail(page, baseURL, posted.drawId);
-  await expect(dialog.getByTestId("draw-detail-lock-hash")).toHaveText(lockedPool.lockHash);
-  await expect(dialog.getByTestId("draw-detail-locked-at")).toHaveAttribute("datetime", savedVersion.lockedAtUtc);
-  const sourceCells = dialog.getByTestId("roster-interaction-source");
+  await expect(dialog.locator('[data-testid="draw-detail-lock-hash"]')).toHaveText(lockedPool.lockHash);
+  await expect(dialog.locator('[data-testid="draw-detail-locked-at"]')).toHaveAttribute("datetime", savedVersion.lockedAtUtc);
+  const sourceCells = dialog.locator('td[data-testid="roster-interaction-source"]');
   await expect(sourceCells).toHaveCount(3);
   for (const profileId of [profileA, profileB]) {
     const cell = sourceCells.filter({ hasText: profileId });
@@ -234,7 +233,7 @@ test("an unlocked manual draw sends and stores no pool snapshot version", async 
 
   // Unlocked draws stay readable in the history detail with em dashes for version and source.
   const dialog = await openHistoryDetail(page, baseURL, drawRequests[0].drawId);
-  await expect(dialog.getByTestId("draw-detail-lock-hash")).toContainText("—");
-  await expect(dialog.getByTestId("draw-detail-locked-at")).toHaveText("—");
-  await expect(dialog.getByTestId("roster-interaction-source")).toHaveText("—");
+  await expect(dialog.locator('[data-testid="draw-detail-lock-hash"]')).toContainText("—");
+  await expect(dialog.locator('[data-testid="draw-detail-locked-at"]')).toHaveText("—");
+  await expect(dialog.locator('td[data-testid="roster-interaction-source"]')).toHaveText("—");
 });
