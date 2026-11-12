@@ -74,6 +74,28 @@ test("valid idle Donate stays transparent through a transient poll failure and r
   await expect(page.locator(".donate-obs-shell")).toBeEmpty();
 });
 
+test("idle Donate controls show polling errors and clear them after recovery", async ({ page }) => {
+  let failed = false;
+  let polls = 0;
+  await page.route("**/settings", route => {
+    polls++;
+    return failed
+      ? route.fulfill({ status: 503, body: "unavailable" })
+      : route.fulfill({ contentType: "text/yaml", body: "DonateLotteryActivities:\n  - Id: 1\n    PublicId: idle-test\n    Name: Idle\nDonateLotteryDrawRecords: []\n" });
+  });
+  await page.goto("/obs/donate/idle-test?controls=1");
+  await expect.poll(() => polls).toBeGreaterThan(0);
+  await expect(page.locator(".donate-obs-shell")).toBeEmpty();
+  await expect(page.getByRole("alert")).toHaveCount(0);
+  failed = true;
+  await expect(page.getByRole("alert")).toBeVisible();
+  await expect(page.getByRole("alert")).toContainText("請稍後重新整理");
+  await expect(page.locator(".donate-reveal")).toHaveCount(0);
+  failed = false;
+  await expect(page.getByRole("alert")).toHaveCount(0);
+  await expect(page.locator(".donate-obs-shell")).toBeEmpty();
+});
+
 test("valid idle Overtime stays transparent", async ({ page }) => {
   await page.route("**/settings", route => route.fulfill({ contentType: "text/yaml", body: "overtimeOverlay:\n  sessionState: idle\n" }));
   await page.route("**/api/overtime-feed", route => route.fulfill({ json: [] }));

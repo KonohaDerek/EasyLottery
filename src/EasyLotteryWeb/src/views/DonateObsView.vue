@@ -312,7 +312,7 @@ onBeforeUnmount(() => {
         </div>
       </section>
       <div v-else-if="loading && controlsEnabled" class="donate-obs-state" role="status">載入 Donate OBS…</div>
-      <ObsErrorState v-if="!loading && !activity" :message="error || `找不到此 Donate 活動，${obsRecoveryHint}`" />
+      <ObsErrorState v-else-if="!loading && (!activity || (error && controlsEnabled))" :message="error || `找不到此 Donate 活動，${obsRecoveryHint}`" />
     </div>
 
     <section v-if="controlsEnabled && testPanelOpen" class="donate-test-panel" aria-label="Donate 測試面板">
