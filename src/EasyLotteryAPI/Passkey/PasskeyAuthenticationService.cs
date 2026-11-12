@@ -269,7 +269,13 @@ public sealed class PasskeyAuthenticationService
         for (var index = 0; index < Math.Max(1, credentials.Count); index++)
         {
             var length = credentials.Count == 0 ? 32 : credentials[index].CredentialId.Length;
-            var info = Encoding.UTF8.GetBytes($"easylottery-passkey-decoy|{email}|{index}");
+            // Bind the surrogate to credential identity, not list position.
+            // On initial registration every email's IDs change; on removal the
+            // remaining decoys shift exactly like their real counterparts.
+            var identity = credentials.Count == 0
+                ? "unregistered"
+                : Convert.ToBase64String(credentials[index].CredentialId);
+            var info = Encoding.UTF8.GetBytes($"easylottery-passkey-decoy-v2|{email}|{identity}|{length}");
             result.Add(new PasskeyCredentialRecord
             {
                 CredentialId = HKDF.DeriveKey(HashAlgorithmName.SHA256, seed, length, info: info),

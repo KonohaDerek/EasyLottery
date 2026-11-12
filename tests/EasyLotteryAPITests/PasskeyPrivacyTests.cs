@@ -57,6 +57,48 @@ public sealed class PasskeyPrivacyTests
     }
 
     [TestMethod]
+    public async Task DecoyIdentityEvolution_MatchesRealRegistrationAdditionAndRemoval()
+    {
+        await using var factory = CreateFactory();
+        var store = factory.Services.GetRequiredService<PasskeyStateStore>();
+        using var client = factory.CreateClient();
+        var emails = new[] { "admin@example.com", "other@example.com" };
+        var empty = new Dictionary<string, string[]>();
+        var registered = new Dictionary<string, string[]>();
+        var added = new Dictionary<string, string[]>();
+        foreach (var email in emails) empty[email] = CredentialIds(await Options(client, email));
+
+        await store.AddCredentialAsync(Credential(0));
+        foreach (var email in emails)
+        {
+            registered[email] = CredentialIds(await Options(client, email));
+            Assert.AreEqual(1, registered[email].Length);
+            var before = Convert.FromBase64String(ToBase64(empty[email][0]));
+            var after = Convert.FromBase64String(ToBase64(registered[email][0]));
+            Assert.IsFalse(before.Take(Math.Min(before.Length, after.Length))
+                .SequenceEqual(after.Take(Math.Min(before.Length, after.Length))),
+                "Initial registration must replace both real and decoy identities, not retain a decoy prefix.");
+        }
+
+        await store.AddCredentialAsync(Credential(1));
+        foreach (var email in emails)
+        {
+            added[email] = CredentialIds(await Options(client, email));
+            Assert.AreEqual(2, added[email].Length);
+            Assert.AreEqual(registered[email][0], added[email][0],
+                "Adding a credential must preserve each existing credential identity.");
+        }
+
+        Assert.AreEqual(PasskeyRemoveResult.Removed, await store.RemoveCredentialAsync(Credential(0).CredentialId));
+        foreach (var email in emails)
+        {
+            var removed = CredentialIds(await Options(client, email));
+            CollectionAssert.AreEqual(new[] { added[email][1] }, removed,
+                "Removing the first credential must shift the remaining real and decoy identity identically.");
+        }
+    }
+
+    [TestMethod]
     public async Task DecoyOptionsAndVerify_PreserveRealPendingChallenge()
     {
         await using var factory = CreateFactory();
