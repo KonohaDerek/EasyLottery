@@ -196,6 +196,7 @@ test("轉盤 supports keyboard activation and shared result rendering", async ({
     await formal.goto(obsUrl(baseURL, "roulette", template.publicId, readToken));
     await expect(formal.locator(".roulette-container")).toHaveCount(1);
     await expect(formal.locator(".obs-roulette-wrapper")).toHaveClass(/obs-animation-idle/);
+    await expect(formal.getByRole("alert")).toHaveCount(0);
     await expect(formal.locator(".obs-win-result")).toHaveCount(0);
     expect(await formal.evaluate(() => getComputedStyle(document.body).backgroundImage)).toBe("none");
 

@@ -92,6 +92,7 @@ test("control and formal OBS contexts share a transparent Donate lifecycle", asy
     await formal.goto(obsUrl(baseURL, activity.publicId, readToken));
     await expect(formal.locator(".donate-obs-shell")).toBeVisible();
     await expect(formal.locator(".donate-reveal")).toHaveCount(0);
+    await expect(formal.getByRole("alert")).toHaveCount(0);
     await expect(formal.locator(".donate-test-launch")).toHaveCount(0);
     expect(await formal.evaluate(() => `${location.search}${location.hash}`)).not.toContain("sessionToken=");
     const background = await formal.evaluate(() => getComputedStyle(document.documentElement).backgroundColor);

@@ -2,7 +2,7 @@
   <section class="login-page" aria-labelledby="admin-login-title">
     <v-card class="login-card mx-auto" max-width="560">
       <v-card-item>
-        <v-card-title id="admin-login-title" class="text-h4">管理員 Passkey 登入</v-card-title>
+        <v-card-title tag="h1" id="admin-login-title" class="login-title text-h5 text-sm-h4">管理員 Passkey 登入</v-card-title>
         <v-card-subtitle>EasyLottery 只允許設定的管理員 email 使用。</v-card-subtitle>
       </v-card-item>
 
@@ -16,9 +16,12 @@
             autocomplete="username"
             type="email"
             :disabled="busy"
+            :aria-invalid="fieldInvalid ? 'true' : undefined"
+            :aria-describedby="fieldInvalid ? 'admin-email-error' : undefined"
+            @input="clearFieldError"
           />
           <p class="text-body-2 text-medium-emphasis">Passkey 私鑰會留在你的裝置或密碼管理器。</p>
-          <div v-if="error" class="login-error" role="alert">{{ error }}</div>
+          <div v-if="error" id="admin-email-error" class="login-error" role="alert">{{ error }}</div>
           <button class="submit-button" type="submit" :disabled="busy" :aria-busy="busy">
             使用 Passkey 登入
           </button>
@@ -39,13 +42,21 @@ import { useSessionStore } from "../stores/session";
 const email = ref("");
 const error = ref("");
 const busy = ref(false);
+const fieldInvalid = ref(false);
+
+function clearFieldError() {
+  if (fieldInvalid.value) error.value = "";
+  fieldInvalid.value = false;
+}
 const session = useSessionStore();
 const route = useRoute();
 
 async function submit() {
   error.value = "";
+  fieldInvalid.value = false;
   const normalizedEmail = email.value.trim();
   if (!isValidEmail(normalizedEmail)) {
+    fieldInvalid.value = true;
     error.value = "請輸入有效的管理員 email。";
     return;
   }
