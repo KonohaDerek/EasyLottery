@@ -7,6 +7,6 @@
 
 ## 2. Delivery
 
-- [ ] 2.1 整合並跑完整 API/Domain/Vue/browser/OpenSpec 檢查。
+- [x] 2.1 整合並跑完整 API/Domain/Vue/browser/OpenSpec 檢查。
 - [ ] 2.2 同一 SHA 的 Codex/Claude 獨立審查無未解決發現。
 - [ ] 2.3 推送與 PR、CI 核對，不部署。

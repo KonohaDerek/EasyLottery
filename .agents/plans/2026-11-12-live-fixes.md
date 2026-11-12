@@ -177,3 +177,5 @@ These are the migrated, real passing regression cases:
 
 ## Implementation refinements
 Real and decoy options both perform gated storage writes; unknown verify attempts preserve unrelated pending ceremonies while following the same gated IO path. This mitigates an obvious timing distinction, not a claim of constant-time distributed execution. No email, credential or decoy seed logging.
+
+Verification clarification: #317 is covered by a newly added normal-suite regression, not a dedicated original live test.fail case. Public mobile layout uses a verified two-row bar below600px.
