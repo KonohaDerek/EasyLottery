@@ -49,6 +49,9 @@ jobs:
       - name: Build
         run: dotnet build EasyLottery.generated.sln --configuration Release --no-restore
 
+      - name: Verify .NET 10 WebAssembly DevServer
+        run: bash tests/smoke-devserver.sh
+
       - name: Test Domain
         run: dotnet test tests/EasyLotteryDomainTests/EasyLotteryDomainTests.csproj --configuration Release --no-build --logger "console;verbosity=normal" --logger "trx;LogFileName=domain-test-results.trx"
 
