@@ -83,7 +83,7 @@ All user-facing zh-TW strings come from `copy-deck.md` (stable i18n keys). Strin
 - Pack opening (#341): a "quick reveal" preference that is remembered per viewer; no casino or slot-machine imagery; after the reveal, the next actions are share (watermarked) and set as wallpaper.
 - Capture protection (#343): explained once on first use; a watermarked share action is offered right where the block applies; marketing never claims "screenshot-proof" (iOS can only detect screenshots).
 - Trading (#344): a side-by-side review screen showing rarity and serial, hold-to-confirm, offers that expire after 72 hours, a trade hold only for new accounts or new devices, no free-text trade chat, and monitoring of one-way transfer patterns plus an account-recovery support process.
-- Open, owner decision required: Apple App Store Review Guidelines 3.1.1 / 3.1.3(b) / 3.2.1(vii) may reject an iOS app that redeems codes bought through web donations. See Open decisions.
+- **Owner decision (2026-11-14): Android first.** The first app release targets Google Play with in-app code redemption. iOS is deferred until counsel and an App Store pre-review settle the payment model, because Apple guidelines 3.1.1 / 3.1.3(b) / 3.2.1(vii) put in-app redemption of web-donated packs at risk. The RN code stays cross-platform, but iOS store submission is out of scope for #343 phase 1.
 
 ### D10. Compliance
 
@@ -99,7 +99,6 @@ Odds are shown on the shop page and in the app before any donation. Terms state 
 
 ## Open decisions
 
-- iOS payment model under App Store Review Guidelines 3.1.1 / 3.1.3(b): in-app code redemption of web-donated packs is at risk. Options: Android-first with iOS later; iOS app as collection viewer with redemption on the web/auto-claim; or also selling packs as in-app purchases. Needs owner decision and counsel.
 
 - Card Hub hosting, domain, email provider, and the legal entity named in the Hub terms and privacy policy.
 - Redemption code expiry (default 90 days) and email retention (default 180 days).
