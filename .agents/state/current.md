@@ -1,18 +1,14 @@
 # Current work state
 
-- Task ID: issue-305-core-lottery-eligibility-2026-11-10
-- Status: In Progress; dedicated worktree created from `origin/main` at `43f69b802bb12e3c1bda2b4636f892bbc8d775fd`.
-- Source: GitHub Issue #305, P2; depends on completed #303 stable AudienceProfile identity.
-- Scope: Preview and explicitly import a round eligibility snapshot into core lottery, deterministically handle duplicates/manual conflicts, support a recoverable locked pool, and retain immutable source identity provenance in draw history.
-- Non-goals: No provider login, production settings/data, OBS/public identity disclosure, deployment, merge or remote changes.
-- OpenSpec: `openspec/changes/integrate-interaction-eligibility-lottery` (Codex-planned before implementation).
-- Branch/worktree: `codex/issue-305-core-lottery-eligibility` / `.worktrees/issue-305-core-lottery-eligibility`.
-- Routing: User explicitly requested Codex plan and Claude implementation. TypeSafe/Jev transport is not exposed in this host; use documented manual fallback. Claude is restricted to implementation in this worktree; Codex independently verifies.
-- Base evidence: #303 is complete. Current `EligibilitySnapshotService` persists round/profile IDs; core participants have optional platform account identity; core draw history snapshots participants but has no interaction source provenance. Current eligibility API is admin-gated.
-- Plan decisions: stable IDs only (never display-name identity); repeated same profile/snapshot adds no lottery entry; same-name unlinked manual rows remain separate with a warning; only a resolvable linked external identity may merge into an existing manual row. Lock freezes participants/prizes/chat-added eligibility and is tab-session restorable; history preserves source IDs across future profile changes.
-- Delivery gates: no production changes; verification, final-SHA Codex/Claude review, push and Ready PR remain separate. Do not merge/deploy.
-- Implementation (Claude, 2026-11-10/11): OpenSpec tasks 1.1–2.3, 3.1, 3.2, 3.4 implemented. Codex completed task 4.1 on 2026-11-12: full API 157/157, focused Playwright 3/3, Vue Vitest 32 files/172 tests, typecheck/build passed, OpenSpec strict validation 48/48, and `git diff --check` passed. Codex confirmed no public OBS endpoint references to the new history/provenance DTOs. Two stale test assertions/selectors were corrected; details in `.agents/verification/2026-11-11-issue-305.md`. Task 4.2 remains open for independent Claude review on the same final SHA; task 4.3 remains gated on reviewer approval and explicit push/PR authorization.
-- Codex review follow-ups (Claude, 2026-11-11): (A) draw request/history now carry optional `poolSnapshotVersion` (lock hash + lock time) from every locked prepared/result payload, compared in API/repository idempotency, null for unlocked/legacy; (B) manual-entry linking requires platform + channelScope + accountId, missing/different scope reports an identity conflict, `channelScope` carried through eligibility projection, imported participants and locked pools. Tests added in .NET, Vitest and Playwright. The earlier Codex baseline (8 .NET, 162 Vitest, typecheck/build, OpenSpec 48/48) predates these follow-ups and does not cover them; no commands were run for the follow-ups. Task 3.3 stays open (public OBS endpoints not inspected).
-- Traceability presentation fix (Claude, 2026-11-11): paginated admin history list includes `poolSnapshotVersion`; `LotteryDrawRecordsView.vue` detail shows lock hash/time and per-row interaction source. Codex confirmed OBS endpoint non-exposure by repository search on 2026-11-12.
-- verification_complete: true for local task 4.1; final independent review is pending. branch_pushed: false; pull_request_created: false.
-- Blocker inherited from #304: automatic review rejected external Claude read-only review of private code; user authorization request is pending. Claude implementation on #305 may proceed under the explicit route.
+- Task: PR #335 NuGet dependency compatibility, 2026-11-12.
+- Source: authorized maintenance of existing Dependabot PR #335; no new PR.
+- Status: Testing / preparing independent same-SHA review.
+- Branch: `codex/pr335-dependency-compat-20261112`; isolated worktree `EasyLottery-pr335-20261112`.
+- Base: PR head `3f733a886bbc873ea0d85362197adc9047e23457`, integrated main `388f1e9884306a35850ce8a4ebdb2a828534aaf2`, preserving #334.
+- Route: actual Claude Opus5.5 plans, Codex implements, based on published stable v0.0.7. See task plan/decision.
+- OpenSpec: `align-dotnet10-dependency-runtime`.
+- Implemented: DevServer and WASM SignalR10.0.15; other upgrades retained; actual bounded DevServer smoke in CI.
+- Verification: see `.agents/verification/2026-11-12-pr335-dependencies.md`; authoritative immutable-SHA test/review/CI evidence remains external.
+- Delivery: existing PR https://github.com/KonohaDerek/EasyLottery/pull/335; fast-forward push only after verification. No merge/release/deploy. Main branch protection baseline remains unmet; #334 exception does not apply.
+- Flags at historical snapshot: `verification_complete: false`, `branch_pushed: false`, `pull_request_created: true` (existing PR).
+- Next: finish local E2E; freeze candidate; request actual independent Codex and Claude reviews of identical full SHA; fast-forward push existing PR branch and verify new CI. Five candidate rounds maximum.

@@ -1,4 +1,5 @@
 import type { RouteRecordRaw } from "vue-router";
+import NotFoundView from "./views/NotFoundView.vue";
 import AboutView from "./views/AboutView.vue";
 import LoginView from "./views/LoginView.vue";
 import LotteryHomeView from "./views/LotteryHomeView.vue";
@@ -69,4 +70,9 @@ export const obsRoutes: RouteRecordRaw[] = [
   { path: "/obs/interaction-leaderboard/:roundId", component: () => import("./interactions/obs/InteractionObsView.vue"), props: { mode: "leaderboard" }, meta: { title: "互動排行榜 - OBS", obs: true } }
 ];
 
-export const routes: RouteRecordRaw[] = [...publicRoutes, ...adminRoutes, ...obsRoutes];
+export const routes: RouteRecordRaw[] = [
+  ...publicRoutes,
+  ...adminRoutes,
+  ...obsRoutes,
+  { path: "/:pathMatch(.*)*", component: NotFoundView, meta: { title: "找不到頁面｜EasyLottery" } }
+];

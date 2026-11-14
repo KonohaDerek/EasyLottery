@@ -1,0 +1,12 @@
+{
+  "task": "fix-live-site-findings-317-323",
+  "release": "v0.0.7",
+  "release_url": "https://github.com/KonohaDerek/EasyLottery/releases/tag/v0.0.7",
+  "release_lookup_time": "2026-11-12T02:10:16Z",
+  "planner": "Claude Opus 5.5",
+  "planner_session": "c1580a06-9b21-4003-acfe-5243161da38d",
+  "implementer": "Codex host default",
+  "jev_fallback": "active_agent_host_default",
+  "jev_reason": "key absent",
+  "production_authorized": false
+}

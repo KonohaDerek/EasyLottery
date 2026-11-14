@@ -1,0 +1,13 @@
+{
+  "task": "PR335 dependency compatibility",
+  "route": "Claude plans, Codex implements",
+  "release": "v0.0.7 published stable 2026-10-22T03:44:20Z verified 2026-11-12",
+  "planner_provider": "Anthropic",
+  "planner_model": "claude-opus-5-5",
+  "planner_session": "44dd97b8-1533-4dc0-85af-ecc88ac4dd09",
+  "jev_fallback": "active_agent_host_default",
+  "reason": "TYPESAFE_API_KEY absent; no approved known-free check",
+  "risk": "medium cross-package runtime compatibility",
+  "parallelism": "serial implementation; independent reviews",
+  "merge": "prohibited for this assignment; baseline protection gates unmet"
+}

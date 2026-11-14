@@ -235,11 +235,18 @@ app.MapHub<OvertimeHub>("/hubs/overtime");
 app.MapHub<LiveDrawHub>("/hubs/live-draw");
 app.MapHub<InteractionHub>("/hubs/interactions");
 
-// Vue routes coexist with the Blazor fallback. Keep entries narrow so every
-// non-migrated route remains rollback-safe.
+// API namespaces never fall through to an HTML application shell. Specific
+// endpoints (including SignalR negotiate/connect) take precedence over these.
+app.Map("/api/{**path}", () => Results.Problem(statusCode: 404, title: "找不到 API 端點"));
+app.Map("/hubs/{**path}", () => Results.Problem(statusCode: 404, title: "找不到 Hub 端點"));
+
+// Keep known Vue pages and remaining Blazor deep links explicit.
 app.MapFallbackToFile("/about", "vue/index.html");
 app.MapFallbackToFile("/", "vue/index.html");
 app.MapFallbackToFile("/legacy", "index.html");
+app.MapFallbackToFile("/legacy/{**path:nonfile}", "index.html");
+app.MapFallbackToFile("/pokebox/editor/{id:int}", "index.html");
+app.MapFallbackToFile("/roulette/editor/{id:int}", "index.html");
 app.MapFallbackToFile("/privacy-policy", "vue/index.html");
 app.MapFallbackToFile("/login", "vue/index.html");
 app.MapFallbackToFile("/system/access", "vue/index.html");
@@ -285,7 +292,27 @@ app.MapGet("/api/test/session-token", (IHostEnvironment environment, IConfigurat
     return Results.Ok(new SessionTokenResponse(issued.Token, issued.ExpiresAtUtc));
 });
 
-app.MapFallbackToFile("index.html");
+app.MapFallback("{*path:nonfile}", async context =>
+{
+    context.Response.StatusCode = StatusCodes.Status404NotFound;
+    if (!HttpMethods.IsGet(context.Request.Method) && !HttpMethods.IsHead(context.Request.Method))
+    {
+        await Results.Problem(statusCode: 404, title: "找不到端點").ExecuteAsync(context);
+        return;
+    }
+
+    var shell = app.Environment.WebRootFileProvider.GetFileInfo("vue/index.html");
+    if (!shell.Exists) return;
+
+    context.Response.ContentType = "text/html; charset=utf-8";
+    context.Response.Headers.CacheControl = "no-cache";
+    context.Response.ContentLength = shell.Length;
+    if (!HttpMethods.IsHead(context.Request.Method))
+    {
+        await using var stream = shell.CreateReadStream();
+        await stream.CopyToAsync(context.Response.Body, context.RequestAborted);
+    }
+});
 
 await app.RunAsync();
 
