@@ -4,6 +4,7 @@ using EasyLotteryCardHub.Health;
 using EasyLotteryCardHub.Invites;
 using EasyLotteryCardHub.Security;
 using EasyLotteryCardHub.Email;
+using EasyLotteryCardHub.Viewers;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Npgsql;
 using System.Threading.RateLimiting;
@@ -29,16 +30,25 @@ builder.Services.AddRateLimiter(options =>
     options.AddPolicy("streamer-management", context => RateLimitPartition.GetFixedWindowLimiter(
         context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
         _ => new FixedWindowRateLimiterOptions { PermitLimit = 30, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
+    options.AddPolicy("viewer-auth", context => RateLimitPartition.GetFixedWindowLimiter(
+        context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = 20, Window = TimeSpan.FromMinutes(15), QueueLimit = 0 }));
+    options.AddPolicy("viewer-api", context => RateLimitPartition.GetFixedWindowLimiter(
+        context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = 60, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
 });
 
 var connectionString = builder.Configuration.GetConnectionString("CardHub");
 var dataSource = string.IsNullOrWhiteSpace(connectionString) ? null : NpgsqlDataSource.Create(connectionString);
 builder.Services.AddSingleton(new HubDatabase(dataSource));
 builder.Services.AddHostedService<HubDatabaseMigrator>();
+builder.Services.AddHostedService<ViewerRetentionService>();
 builder.Services.AddSingleton<InviteEmailCipher>();
 builder.Services.AddSingleton<PostgresInviteEmailOutbox>();
 builder.Services.AddSingleton<CardHubInviteService>();
 builder.Services.AddSingleton<StreamerPasskeyLoginService>();
+builder.Services.AddSingleton<ViewerEmailOutbox>();
+builder.Services.AddSingleton<ViewerAccountsService>();
 
 if (builder.Environment.IsProduction())
 {
@@ -55,6 +65,7 @@ app.MapInviteEndpoints();
 app.MapStreamerPasskeyLoginEndpoints();
 app.MapSiteOAuthEndpoints();
 app.MapSiteRegistrationEndpoints();
+app.MapViewerEndpoints();
 app.Run();
 
 public partial class Program;

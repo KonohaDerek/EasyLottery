@@ -22,6 +22,13 @@ public sealed class SiteAccessTokenIssuer(IConfiguration configuration, TimeProv
             ["streamer_account_id"] = accountId.ToString("D")
         }, "streamer");
 
+    public (string Token, int ExpiresIn) IssueViewer(Guid viewerId, string ageBracket)
+        => Issue(viewerId, new Dictionary<string, string>
+        {
+            ["viewer_id"] = viewerId.ToString("D"),
+            ["age_bracket"] = ageBracket
+        }, "viewer");
+
     public bool TryValidateStreamerToken(string token, out Guid tenantId, out Guid accountId)
     {
         tenantId = Guid.Empty;
@@ -83,6 +90,35 @@ public sealed class SiteAccessTokenIssuer(IConfiguration configuration, TimeProv
         }
     }
 
+    public bool TryValidateViewerToken(string token, out Guid viewerId, out string ageBracket)
+    {
+        viewerId = Guid.Empty;
+        ageBracket = string.Empty;
+        try
+        {
+            var handler = new JwtSecurityTokenHandler { MapInboundClaims = false };
+            var principal = handler.ValidateToken(token, new TokenValidationParameters
+            {
+                ValidateIssuer = true,
+                ValidIssuer = configuration["CardHub:SiteToken:Issuer"] ?? "EasyLotteryCardHub",
+                ValidateAudience = true,
+                ValidAudience = "card-hub-viewer",
+                ValidateLifetime = true,
+                IssuerSigningKey = new SymmetricSecurityKey(ReadSigningKey()),
+                ValidateIssuerSigningKey = true,
+                ClockSkew = TimeSpan.FromSeconds(30)
+            }, out _);
+            ageBracket = principal.FindFirst("age_bracket")?.Value ?? string.Empty;
+            return principal.FindFirst("role")?.Value == "viewer"
+                && Guid.TryParse(principal.FindFirst("viewer_id")?.Value, out viewerId)
+                && ageBracket is "13_17" or "18_plus";
+        }
+        catch (Exception exception) when (exception is SecurityTokenException or InvalidOperationException or FormatException)
+        {
+            return false;
+        }
+    }
+
     private (string Token, int ExpiresIn) Issue(Guid tenantId, IReadOnlyDictionary<string, string> extraClaims, string role)
     {
         var key = ReadSigningKey();
@@ -90,7 +126,7 @@ public sealed class SiteAccessTokenIssuer(IConfiguration configuration, TimeProv
         var credentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256);
         var claims = new List<Claim>
         {
-            new(JwtRegisteredClaimNames.Sub, extraClaims.GetValueOrDefault("client_id") ?? extraClaims.GetValueOrDefault("streamer_account_id")!),
+            new(JwtRegisteredClaimNames.Sub, extraClaims.GetValueOrDefault("client_id") ?? extraClaims.GetValueOrDefault("streamer_account_id") ?? extraClaims.GetValueOrDefault("viewer_id")!),
             new("tenant_id", tenantId.ToString("D")),
             new("role", role)
         };
@@ -98,7 +134,7 @@ public sealed class SiteAccessTokenIssuer(IConfiguration configuration, TimeProv
         if (role == "site" && extraClaims.TryGetValue("client_id", out var clientId)) claims.Add(new Claim("client_id", clientId));
         var jwt = new JwtSecurityToken(
             issuer: configuration["CardHub:SiteToken:Issuer"] ?? "EasyLotteryCardHub",
-            audience: role == "site" ? Audience : "card-hub-streamer",
+            audience: role switch { "site" => Audience, "streamer" => "card-hub-streamer", "viewer" => "card-hub-viewer", _ => throw new ArgumentOutOfRangeException(nameof(role)) },
             claims: claims,
             notBefore: now.UtcDateTime,
             expires: now.Add(Lifetime).UtcDateTime,

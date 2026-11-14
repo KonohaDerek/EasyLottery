@@ -1,0 +1,10 @@
+# Issue #338 slice 1b viewer accounts plan
+
+- Base: `97d3ce266268c5a58b3d717517b952a3b8770bdc`; dedicated worktree/branch `issue-338-viewer-accounts` / `codex/issue-338-viewer-accounts` was clean at inspection.
+- Source: Card Shop OpenSpec D2/D11, `viewer-accounts/spec.md`, Copy Deck, and reconciliation decision `2026-11-14-issue-345-spec-reconciliation.json`.
+- Scope: PostgreSQL v2 viewer tables/indexes; HMAC-only email identity; 6-digit code request and verification (10m, 5 attempts, 60s resend, per-email/IP limiting); encrypted queued email payload only; distinct viewer access JWT and one-time rotating refresh tokens; consent/terms and age bracket; reserved handle; owner-scoped groups and card membership; account deletion/anonymization; synchronous private JSON export with no-store and audit.
+- Product constraints: ages 13–17 can register and collect/redeem gifted cards, but no guardian-consent claim and future paid-draw routes must reject them. Under-13 requests are rejected before identity persistence. Viewer email is stored only as HMAC, not recoverable plaintext. Existing card_instances/draw/redemption tables arrive later; group item ownership checks and export/deletion integration must be conditional on their presence until those slices land.
+- Non-goals: live email/provider/account, deployment, site Vue/SQLite, paid-draw implementation, legal claims, remote GitHub actions, commit/push.
+- Verification: Dev Container .NET 10 build; focused Hub unit/integration tests using the existing Postgres CI service when available; OpenSpec strict validation; diff check. Exact commands and skipped DB checks go in verification record.
+- Rollback: v2 schema migration is transactional through the migrator; service APIs can be removed from the Hub slice. No production database is touched.
+- Workflow route: host assigned Codex implementation. Jev unavailable because `TYPESAFE_API_KEY` is absent. Official GitHub release page lookup was attempted but returned a web cache miss; this assigned slice proceeds under explicit coordinator routing.

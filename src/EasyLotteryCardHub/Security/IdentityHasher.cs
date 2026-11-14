@@ -10,6 +10,8 @@ public sealed class IdentityHasher(IConfiguration configuration)
         return HMACSHA256.HashData(ReadKey(), Encoding.UTF8.GetBytes(normalizedEmail));
     }
 
+    public byte[] HashPurpose(string purpose, string value) => HMACSHA256.HashData(ReadKey(), Encoding.UTF8.GetBytes($"{purpose}:{value}"));
+
     public static void ValidateConfiguration(IConfiguration configuration) => _ = ReadKey(configuration);
 
     private byte[] ReadKey() => ReadKey(configuration);

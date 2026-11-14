@@ -1,0 +1,11 @@
+{
+  "task": "issue-338-viewer-accounts-1b",
+  "base": "97d3ce266268c5a58b3d717517b952a3b8770bdc",
+  "route": "Codex implementation explicitly assigned by coordinator; official release lookup was attempted but web cache returned miss",
+  "jev": "manual_structured_decision; TYPESAFE_API_KEY absent",
+  "parallelism": "single implementation stream; schema, auth, refresh, groups, deletion, and export share the same Npgsql data boundary",
+  "risk": "high privacy/security: authentication codes, refresh token replay, viewer data export/deletion, age and consent fields",
+  "scope": ["viewer email-code auth", "separate viewer JWT/refresh rotation", "terms and age bracket", "handles", "groups and ownership-aware membership", "account deletion", "no-store audited export"],
+  "constraints": ["HMAC email identifiers", "encrypted email outbox only; no provider or account", "under-13 rejected before email hash persistence", "13-17 may collect/redeem gifts, but cannot enter paid draws", "no guardian-consent claims", "no production, commit, push, PR"],
+  "verification": "unit plus PostgreSQL integration where available; .NET 10 Dev Container only; OpenSpec and diff checks"
+}

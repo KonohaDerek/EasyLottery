@@ -1,10 +1,14 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Text;
 using System.Text.Json;
+using System.Security.Cryptography;
 using EasyLotteryCardHub.Domain;
 using EasyLotteryCardHub.Security;
 using EasyLotteryCardHub.Invites;
 using EasyLotteryCardHub.Email;
+using EasyLotteryCardHub.Viewers;
+using EasyLotteryCardHub.Data;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 
@@ -183,5 +187,50 @@ public sealed class SecurityInvariantTests
         var selection = registrationJson.RootElement.GetProperty("authenticatorSelection");
         Assert.AreEqual("required", selection.GetProperty("residentKey").GetString());
         Assert.AreEqual("required", selection.GetProperty("userVerification").GetString());
+    }
+
+    [TestMethod]
+    public void ViewerTokenHasSeparateAudienceAndCarriesAgeWithoutGuardianClaim()
+    {
+        var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["CardHub:SiteToken:SigningKey"] = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32))
+        }).Build();
+        var issuer = new SiteAccessTokenIssuer(configuration, TimeProvider.System);
+        var viewerId = Guid.NewGuid();
+        var (token, lifetime) = issuer.IssueViewer(viewerId, "13_17");
+        Assert.IsTrue(issuer.TryValidateViewerToken(token, out var actualViewer, out var ageBracket));
+        Assert.AreEqual(viewerId, actualViewer);
+        Assert.AreEqual("13_17", ageBracket);
+        Assert.AreEqual(900, lifetime);
+        Assert.IsFalse(issuer.TryValidateStreamerToken(token, out _, out _));
+        Assert.IsFalse(issuer.TryValidateSiteToken(token, out _, out _, out _));
+        Assert.IsFalse(new JwtSecurityTokenHandler().ReadJwtToken(token).Claims.Any(claim => claim.Type.Contains("guardian", StringComparison.OrdinalIgnoreCase)));
+    }
+
+    [TestMethod]
+    public void ViewerPolicyAllowsTeenCollectionButBlocksPaidDrawsAndReservedHandles()
+    {
+        Assert.IsTrue(ViewerPolicy.CanEnterPaidDraw("18_plus"));
+        Assert.IsFalse(ViewerPolicy.CanEnterPaidDraw("13_17"));
+        Assert.IsTrue(ViewerPolicy.IsValidHandle("alice_2026"));
+        Assert.IsFalse(ViewerPolicy.IsValidHandle("a"));
+        Assert.IsTrue(ViewerPolicy.IsReservedHandle("Admin"));
+        Assert.IsFalse(ViewerPolicy.IsReservedHandle("alice"));
+    }
+
+    [TestMethod]
+    public async Task UnderThirteenIsRejectedBeforeDatabaseOrEmailIdentityIsUsed()
+    {
+        var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["CardHub:EmailOutbox:EncryptionKey"] = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32))
+        }).Build();
+        var service = new ViewerAccountsService(new HubDatabase(null), new IdentityHasher(configuration),
+            new ViewerEmailOutbox(new InviteEmailCipher(configuration)), new SiteAccessTokenIssuer(configuration, TimeProvider.System),
+            TimeProvider.System, configuration);
+        var exception = await Assert.ThrowsExactlyAsync<ViewerServiceException>(() =>
+            service.RequestCodeAsync(new ViewerCodeRequest("under13@example.test", "under13", null), "127.0.0.1", CancellationToken.None));
+        Assert.AreEqual(StatusCodes.Status403Forbidden, exception.StatusCode);
     }
 }

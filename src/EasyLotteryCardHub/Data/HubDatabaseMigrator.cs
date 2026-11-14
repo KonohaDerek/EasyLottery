@@ -11,7 +11,11 @@ public sealed class HubDatabase(NpgsqlDataSource? dataSource) : IDisposable
 
 public sealed class HubDatabaseMigrator(HubDatabase database, ILogger<HubDatabaseMigrator> logger) : IHostedService
 {
-    private const string MigrationResource = "EasyLotteryCardHub.Data.001_hub_foundation.sql";
+    private static readonly (int Version, string Resource)[] Migrations =
+    [
+        (1, "EasyLotteryCardHub.Data.001_hub_foundation.sql"),
+        (2, "EasyLotteryCardHub.Data.002_viewer_accounts.sql")
+    ];
 
     public async Task StartAsync(CancellationToken cancellationToken)
     {
@@ -29,26 +33,26 @@ public sealed class HubDatabaseMigrator(HubDatabase database, ILogger<HubDatabas
         await using (var command = new NpgsqlCommand("CREATE TABLE IF NOT EXISTS card_hub_schema_migrations (version integer PRIMARY KEY, applied_at_utc timestamptz NOT NULL DEFAULT now())", connection, transaction))
             await command.ExecuteNonQueryAsync(cancellationToken);
 
-        await using (var check = new NpgsqlCommand("SELECT EXISTS (SELECT 1 FROM card_hub_schema_migrations WHERE version = 1)", connection, transaction))
+        foreach (var (version, resource) in Migrations)
         {
-            if ((bool)(await check.ExecuteScalarAsync(cancellationToken) ?? false))
+            await using var check = new NpgsqlCommand("SELECT EXISTS (SELECT 1 FROM card_hub_schema_migrations WHERE version = @version)", connection, transaction);
+            check.Parameters.AddWithValue("version", version);
+            if ((bool)(await check.ExecuteScalarAsync(cancellationToken) ?? false)) continue;
+
+            await using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream(resource)
+                ?? throw new InvalidOperationException($"Embedded migration '{resource}' was not found.");
+            using var reader = new StreamReader(stream);
+            var sql = await reader.ReadToEndAsync(cancellationToken);
+            await using (var migration = new NpgsqlCommand(sql, connection, transaction))
+                await migration.ExecuteNonQueryAsync(cancellationToken);
+            await using (var record = new NpgsqlCommand("INSERT INTO card_hub_schema_migrations (version) VALUES (@version)", connection, transaction))
             {
-                await transaction.CommitAsync(cancellationToken);
-                return;
+                record.Parameters.AddWithValue("version", version);
+                await record.ExecuteNonQueryAsync(cancellationToken);
             }
+            logger.LogInformation("Applied Card Hub database migration {Version}.", version);
         }
-
-        await using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream(MigrationResource)
-            ?? throw new InvalidOperationException($"Embedded migration '{MigrationResource}' was not found.");
-        using var reader = new StreamReader(stream);
-        var sql = await reader.ReadToEndAsync(cancellationToken);
-        await using (var migration = new NpgsqlCommand(sql, connection, transaction))
-            await migration.ExecuteNonQueryAsync(cancellationToken);
-        await using (var record = new NpgsqlCommand("INSERT INTO card_hub_schema_migrations (version) VALUES (1)", connection, transaction))
-            await record.ExecuteNonQueryAsync(cancellationToken);
-
         await transaction.CommitAsync(cancellationToken);
-        logger.LogInformation("Applied Card Hub database migration {Version}.", 1);
     }
 
     public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
