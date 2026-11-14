@@ -60,4 +60,12 @@ describe("Card Hub settings API", () => {
     expect(fetchMock).toHaveBeenNthCalledWith(1, "/api/shop/hub-link", expect.objectContaining({ method: "PUT", body: JSON.stringify(request) }));
     expect(fetchMock).toHaveBeenNthCalledWith(2, "/api/shop/hub-link/test", expect.objectContaining({ method: "POST", body: JSON.stringify(request) }));
   });
+
+  it("preserves a disabled-tenant result for test-connection feedback", async () => {
+    const request = { hubBaseUrl: "https://hub.example.test", siteClientId: "site-1", clientSecret: "one-time-secret" };
+    const response = { hubBaseUrl: request.hubBaseUrl, siteClientId: request.siteClientId, hasClientSecret: true, status: "tenant_disabled", tenantId: "streamer-1", lastPublishAt: null };
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(Response.json(response));
+
+    await expect(testHubLink(request)).resolves.toEqual(response);
+  });
 });

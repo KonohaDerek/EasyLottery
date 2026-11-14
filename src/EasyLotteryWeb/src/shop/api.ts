@@ -11,6 +11,10 @@ export interface HubLinkSettings {
   lastPublishAt: string | null;
 }
 
+export type HubLinkTestStatus = HubLinkStatus | "tenant_disabled";
+
+export type HubLinkTestResult = Omit<HubLinkSettings, "status"> & { status: HubLinkTestStatus };
+
 export interface HubLinkWriteRequest {
   hubBaseUrl: string;
   siteClientId: string;
@@ -48,8 +52,8 @@ export async function saveHubLinkSettings(request: HubLinkWriteRequest): Promise
   return data;
 }
 
-export async function testHubLink(request: HubLinkWriteRequest): Promise<HubLinkSettings> {
-  const { data } = await apiRequest<HubLinkSettings>("/api/shop/hub-link/test", {
+export async function testHubLink(request: HubLinkWriteRequest): Promise<HubLinkTestResult> {
+  const { data } = await apiRequest<HubLinkTestResult>("/api/shop/hub-link/test", {
     method: "POST",
     body: JSON.stringify(request)
   });

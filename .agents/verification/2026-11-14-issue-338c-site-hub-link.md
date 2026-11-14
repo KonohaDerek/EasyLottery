@@ -6,3 +6,8 @@
 - `src/EasyLotteryWeb`: `npm run typecheck` passed; `npm test` 166/166 passed; `npm run build` passed.
 - `openspec validate streamer-card-shop --strict`: valid. `git diff --check`: passed.
 - Not run: e2e Playwright suite; live Hub connection (Hub not built yet, covered by fake HTTP handler tests).
+
+## Follow-up: copy deck wiring (2026-11-14)
+- Codex wired copy-deck section 4 (labels, four state descriptions/actions, toasts, rotation note) into `src/shop/copy.ts` and the link page.
+- Product fix by Claude: the status description uses the generic "你的實況主帳號" instead of the raw tenant ID until the Hub returns a display name.
+- `npm run typecheck` passed; `npm test` passed (see count in PR comment); `npm run build` passed; `git diff --check` passed.
