@@ -85,6 +85,17 @@ All user-facing zh-TW strings come from `copy-deck.md` (stable i18n keys). Strin
 - Trading (#344): a side-by-side review screen showing rarity and serial, hold-to-confirm, offers that expire after 72 hours, a trade hold only for new accounts or new devices, no free-text trade chat, and monitoring of one-way transfer patterns plus an account-recovery support process.
 - **Owner decision (2026-11-14): Android first.** The first app release targets Google Play with in-app code redemption. iOS is deferred until counsel and an App Store pre-review settle the payment model, because Apple guidelines 3.1.1 / 3.1.3(b) / 3.2.1(vii) put in-app redemption of web-donated packs at risk. The RN code stays cross-platform, but iOS store submission is out of scope for #343 phase 1.
 
+### D13. Wave 2 product decisions (product lead, 2026-11-14; screens in ux-spec-339.md / ux-spec-340.md)
+
+- Supply: each pack may set a quantity per rarity and an optional total. When a rarity's quantity runs out, its weight is removed, the remaining odds are renormalized, and a new `odds_version` is published automatically before the next draw. A pack whose total runs out stops selling.
+- `odds_version` increments only when odds or supply change what a viewer can draw. A title, description or cover change republishes the pack without a new odds version.
+- Rarity tiers have an immutable key once any card using them is published; display name and color may be edited later and are republished.
+- A published card is never deleted. "停止發行" (stop issuing) is the only removal, and it excludes the card from future draws. Serials are never reused.
+- AI providers: an OpenAI-compatible endpoint may point at a private or LAN host, since generation runs on the self-hosted streamer site. Only the admin can set it. Usage caps reset by the site's time zone (default Asia/Taipei).
+- Packs link to a Donate activity in #342. Until #342 ships, the public shop page shows packs and odds but no Donate button.
+- When the Hub is unreachable, the shop shows the last published odds with an "最後更新" time and disables donating; no sale happens without current odds.
+- Draw history shows a masked donor email (for example `a***@gmail.com`) [需法務確認]. CSV export is audited, and there is no delete action.
+
 ### D10. Compliance
 
 Odds are shown on the shop page and in the app before any donation. Terms state cards have no cash value and must not be sold for money. The privacy policy is updated for email collection, retention, and deletion. App store review notes declare the odds disclosure.
