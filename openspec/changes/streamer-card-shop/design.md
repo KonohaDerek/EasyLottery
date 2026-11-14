@@ -63,6 +63,8 @@ Viewers may trade cards across streamers. A trade is accepted inside one transac
 
 ### D11. Wave 1 product decisions (product lead + dev lead, 2026-11-14)
 
+All user-facing zh-TW strings come from `copy-deck.md` (stable i18n keys). Strings marked [需法務確認] need legal review before production.
+
 - Streamer onboarding is invite-only in beta: a Hub platform admin issues a single-use, time-limited invite bound to the recipient email (stored hashed, redeemed atomically); the streamer then registers with email + Passkey. `Streamer:SelfServeSignupEnabled` exists, separate from `Shop:Enabled`, and defaults to off.
 - Tenant lifecycle: `active | disabled | pending_deletion | deleted`. A disabled tenant's cards stay visible read-only to holders; the Hub rejects new publishes, draws and trades for it. Deletion starts a 30-day notice to holders, after which images are purged; card instances keep name, serial and rarity and render a "removed" placeholder. Card instances and serials are never cascade-deleted or reused. Tenant status is checked on every API call, and site access tokens are short-lived.
 - Viewer sign-up stores `terms_version_accepted`, `terms_accepted_at` and a self-declared `age_bracket` (`13_17 | 18_plus`; under 13 cannot register). No birthdate is stored.
