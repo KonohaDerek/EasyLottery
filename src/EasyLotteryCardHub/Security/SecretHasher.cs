@@ -10,6 +10,8 @@ public static class SecretHasher
 
     public static string CreateSiteSecret() => "chub_" + WebEncoders.Base64UrlEncode(RandomNumberGenerator.GetBytes(32));
 
+    public static string CreateViewerRefreshToken() => WebEncoders.Base64UrlEncode(RandomNumberGenerator.GetBytes(32));
+
     public static string CreateClientId() => "chub_site_" + WebEncoders.Base64UrlEncode(RandomNumberGenerator.GetBytes(18));
 
     public static string Hash(string secret) => Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(secret)));

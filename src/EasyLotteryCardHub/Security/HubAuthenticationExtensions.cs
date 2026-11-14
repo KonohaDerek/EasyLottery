@@ -46,7 +46,12 @@ public static class HubAuthenticationExtensions
                 .AddAuthenticationSchemes(HubAuthSchemes.Jwt)
                 .RequireAuthenticatedUser()
                 .RequireClaim("aud", HubTokenAudiences.Site)
-                .RequireClaim("token_kind", "site"));
+                .RequireClaim("token_kind", "site"))
+            .AddPolicy(HubPolicies.Viewer, policy => policy
+                .AddAuthenticationSchemes(HubAuthSchemes.Jwt)
+                .RequireAuthenticatedUser()
+                .RequireClaim("aud", HubTokenAudiences.Viewer)
+                .RequireClaim("token_kind", "viewer"));
         return services;
     }
 }

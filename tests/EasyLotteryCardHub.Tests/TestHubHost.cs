@@ -1,6 +1,7 @@
 using EasyLotteryCardHub.Data;
 using EasyLotteryCardHub.Endpoints;
 using EasyLotteryCardHub.Hosting;
+using EasyLotteryCardHub.Services;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
@@ -40,6 +41,7 @@ internal sealed class TestHubHost : IAsyncDisposable
     public string ConnectionString { get; }
     public MutableTimeProvider Clock { get; }
     public IServiceProvider Services => _host.Services;
+    public CapturingViewerEmailSender Emails => Services.GetRequiredService<CapturingViewerEmailSender>();
 
     public static async Task StartContainerAsync() => await Container.StartAsync();
 
@@ -77,7 +79,11 @@ internal sealed class TestHubHost : IAsyncDisposable
                 .UseEnvironment("Testing")
                 .ConfigureAppConfiguration(configuration => configuration.AddInMemoryCollection(settings))
                 .ConfigureServices((context, services) =>
-                    services.AddCardHubServices(context.Configuration, connection.ConnectionString, clock))
+                {
+                    services.AddCardHubServices(context.Configuration, connection.ConnectionString, clock);
+                    services.AddSingleton<CapturingViewerEmailSender>();
+                    services.AddSingleton<IViewerEmailSender>(provider => provider.GetRequiredService<CapturingViewerEmailSender>());
+                })
                 .Configure(app =>
                 {
                     app.UseCardHubRequestPipeline();
@@ -121,6 +127,21 @@ internal sealed class TestHubHost : IAsyncDisposable
         await using var command = connection.CreateCommand();
         command.CommandText = $"DROP SCHEMA IF EXISTS \"{schema}\" CASCADE";
         await command.ExecuteNonQueryAsync();
+    }
+}
+
+internal sealed record CapturedViewerEmail(string Recipient, ViewerLoginCodeEmail Email);
+
+internal sealed class CapturingViewerEmailSender : IViewerEmailSender
+{
+    private readonly System.Collections.Concurrent.ConcurrentQueue<CapturedViewerEmail> _messages = new();
+    public IReadOnlyList<CapturedViewerEmail> Messages => _messages.ToArray();
+
+    public Task SendLoginCodeAsync(string recipient, ViewerLoginCodeEmail email, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        _messages.Enqueue(new CapturedViewerEmail(recipient, email));
+        return Task.CompletedTask;
     }
 }
 

@@ -12,9 +12,9 @@
 - [x] Hub platform admin, invite-only streamer onboarding (email + Passkey), tenant lifecycle states, site registration, client-credentials tokens with two-secret rotation (24 h overlap) and revocation.
 - [x] Tests: invite single use/expiry, credential rotation/revocation, disabled-tenant rejection, streamer vs site token isolation.
 ### 1b. Viewer accounts (PR 2, after 1a)
-- [ ] Viewer email-code sign-in (zh-TW email, tenant-aware copy, 60 s resend), viewer JWT audience, refresh tokens, rate limits.
-- [ ] Terms version/acceptance, age bracket, reserved handle, groups, account deletion (instances retired), synchronous JSON export.
-- [ ] Tests: viewer token rejected by streamer/site/admin APIs, code expiry/attempt limits, deletion, export scope.
+- [x] Viewer email-code sign-in (zh-TW email, tenant-aware copy, 60 s resend), viewer JWT audience, refresh tokens, rate limits.
+- [x] Terms version/acceptance, age bracket, reserved handle, groups, account deletion (instances retired), synchronous JSON export.
+- [x] Tests: viewer token rejected by streamer/site/admin APIs, code expiry/attempt limits, deletion, export scope.
 ### 1c. Site side (PR 3, parallel with 1a)
 - [ ] `Shop:Enabled` (default off) gating nav, pages and APIs; site SQLite migration for the D3 site tables.
 - [ ] Vue "Card Hub 連結" settings page: four states, test connection, encrypted secret, show-once secret.

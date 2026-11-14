@@ -64,6 +64,23 @@ public sealed class HubSecurityUnitTests
     }
 
     [TestMethod]
+    public void ViewerCodeRequestLimiterEnforcesIndependentEmailAndIpWindows()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var emailLimiter = new ViewerCodeRequestRateLimiter();
+        for (var attempt = 0; attempt < 5; attempt++)
+            Assert.IsTrue(emailLimiter.TryAcquire("same-email", "ip-" + attempt, now, out _));
+        Assert.IsFalse(emailLimiter.TryAcquire("same-email", "another-ip", now, out var emailRetry));
+        Assert.IsTrue(emailRetry > TimeSpan.Zero);
+
+        var ipLimiter = new ViewerCodeRequestRateLimiter();
+        for (var attempt = 0; attempt < 20; attempt++)
+            Assert.IsTrue(ipLimiter.TryAcquire("email-" + attempt, "same-ip", now, out _));
+        Assert.IsFalse(ipLimiter.TryAcquire("another-email", "same-ip", now, out var ipRetry));
+        Assert.IsTrue(ipRetry > TimeSpan.Zero);
+    }
+
+    [TestMethod]
     public void ProductionConfigurationRequiresPublicHttpsOriginsAndIssuer()
     {
         var values = new Dictionary<string, string?>
