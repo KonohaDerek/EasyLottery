@@ -100,6 +100,59 @@ public sealed class PlatformAdmin
     public DateTimeOffset? DisabledAt { get; set; }
 }
 
+public sealed class Viewer
+{
+    public Guid Id { get; set; }
+    public required string Email { get; set; }
+    public required string EmailNormalized { get; set; }
+    public required string TermsVersionAccepted { get; set; }
+    public DateTimeOffset TermsAcceptedAt { get; set; }
+    public required string AgeBracket { get; set; }
+    public string? Handle { get; set; }
+    public string? HandleNormalized { get; private set; }
+    public DateTimeOffset CreatedAt { get; set; }
+}
+
+public sealed class ViewerLoginCode
+{
+    public Guid Id { get; set; }
+    public required string EmailHash { get; set; }
+    public required string CodeHash { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+    public DateTimeOffset ExpiresAt { get; set; }
+    public int FailedAttempts { get; set; }
+    public DateTimeOffset? ConsumedAt { get; set; }
+}
+
+public sealed class ViewerRefreshToken
+{
+    public Guid Id { get; set; }
+    public Guid ViewerId { get; set; }
+    public Guid SessionFamilyId { get; set; }
+    public required string TokenHash { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+    public DateTimeOffset ExpiresAt { get; set; }
+    public DateTimeOffset? RevokedAt { get; set; }
+    public Guid? ReplacedByTokenId { get; set; }
+}
+
+public sealed class ViewerGroup
+{
+    public Guid Id { get; set; }
+    public Guid ViewerId { get; set; }
+    public required string Name { get; set; }
+    public required string NameNormalized { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+    public DateTimeOffset UpdatedAt { get; set; }
+}
+
+public sealed class ViewerGroupItem
+{
+    public Guid GroupId { get; set; }
+    public Guid CardInstanceId { get; set; }
+    public DateTimeOffset AddedAt { get; set; }
+}
+
 public sealed class AuditEvent
 {
     public long Id { get; set; }
