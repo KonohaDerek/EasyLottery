@@ -1,0 +1,30 @@
+{
+  "task_id": "issue-305-core-lottery-eligibility-2026-11-10",
+  "source": "GitHub Issue #305",
+  "complexity": "large, cross-layer API/domain/infrastructure/Vue change",
+  "route": "Codex plans; Claude implements; Codex independently verifies",
+  "jev": "Unavailable in this host; manual workflow fallback recorded",
+  "parallelism": "single implementation workstream because API, participant provenance, draw snapshot and pool lock share contracts",
+  "base_revision": "43f69b802bb12e3c1bda2b4636f892bbc8d775fd",
+  "worktree": ".worktrees/issue-305-core-lottery-eligibility",
+  "risks": [
+    "Identity must remain keyed by stable AudienceProfile IDs and historical snapshots must not follow future merges or unlinks",
+    "Pool lock must block all participant, prize and chat mutation paths and survive a tab reload safely",
+    "New draw provenance must not leak through public OBS surfaces",
+    "Manual list behavior and existing draw/retry/idempotency contracts must remain unchanged"
+  ],
+  "review_follow_ups": [
+    {
+      "id": "A",
+      "decision": "Persist the locked participant-list version in draw history as optional poolSnapshotVersion {lockHash, lockedAtUtc}; part of draw-ID idempotency; null for unlocked and legacy draws; admin-only summary/detail",
+      "status": "implemented by Claude; not executed or verified"
+    },
+    {
+      "id": "B",
+      "decision": "Manual-entry linking requires platform + channelScope + accountId (PlatformIdentity.EventScopeKey); missing or different scope is an identity conflict, never auto-linked; displayName is never identity; scope-less legacy identities stay readable",
+      "status": "implemented by Claude; not executed or verified"
+    }
+  ],
+  "verification": ["focused .NET tests", "Vue unit/typecheck/build", "focused Playwright", "OpenSpec strict validation", "git diff --check", "Codex and Claude review on same final SHA"],
+  "approval_boundaries": ["No production changes", "No merge or deployment", "External Claude review requires explicit content-sharing authorization if the approval reviewer blocks it"]
+}
