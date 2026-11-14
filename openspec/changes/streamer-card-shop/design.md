@@ -75,6 +75,16 @@ All user-facing zh-TW strings come from `copy-deck.md` (stable i18n keys). Strin
 - Wave 1 export is a synchronous, authenticated JSON download of the viewer's own data with `Cache-Control: no-store`, and each request is audited. Trade and redemption history join the export as those tables land.
 - Hub tables land with the wave that uses them: wave 1 creates the tenant, site, credential, invite, viewer, login-code, group and audit tables. Catalog, draw, redemption and trade tables arrive with #339, #340, #342 and #344.
 
+### D12. Research-driven product decisions (product lead, 2026-11-14; evidence in research-ux.md)
+
+- Odds integrity (Taiwan online-game contract guidance): every published pack has an `odds_version`; each draw records the `odds_version` it used. Draw records are kept at least 180 days after the activity ends. When a finite `supply_limit` runs out for a rarity, the shop page and app show the recalculated odds before the next donation, and that change is a new `odds_version`. Odds are always shown as percentages.
+- Donate page (#342): an age-bracket declaration and an explicit consent checkbox for the digital-content withdrawal-right exemption (消保法 §19), both [需法務確認]. A refund and chargeback procedure for guardian-requested refunds of minors' payments revokes the unredeemed code or retires the card instance.
+- Onboarding (#342/#343): the redemption email carries one universal/app link that opens the redeem screen with the code prefilled, plus a web preview of the pack. The app never reads the clipboard by itself; it offers a paste button instead. The 24-character code remains the fallback.
+- Pack opening (#341): a "quick reveal" preference that is remembered per viewer; no casino or slot-machine imagery; after the reveal, the next actions are share (watermarked) and set as wallpaper.
+- Capture protection (#343): explained once on first use; a watermarked share action is offered right where the block applies; marketing never claims "screenshot-proof" (iOS can only detect screenshots).
+- Trading (#344): a side-by-side review screen showing rarity and serial, hold-to-confirm, offers that expire after 72 hours, a trade hold only for new accounts or new devices, no free-text trade chat, and monitoring of one-way transfer patterns plus an account-recovery support process.
+- Open, owner decision required: Apple App Store Review Guidelines 3.1.1 / 3.1.3(b) / 3.2.1(vii) may reject an iOS app that redeems codes bought through web donations. See Open decisions.
+
 ### D10. Compliance
 
 Odds are shown on the shop page and in the app before any donation. Terms state cards have no cash value and must not be sold for money. The privacy policy is updated for email collection, retention, and deletion. App store review notes declare the odds disclosure.
@@ -88,6 +98,8 @@ Odds are shown on the shop page and in the app before any donation. Terms state 
 4. #343 React Native app against the Hub || #344 Hub trading API; then trading UI in the app.
 
 ## Open decisions
+
+- iOS payment model under App Store Review Guidelines 3.1.1 / 3.1.3(b): in-app code redemption of web-donated packs is at risk. Options: Android-first with iOS later; iOS app as collection viewer with redemption on the web/auto-claim; or also selling packs as in-app purchases. Needs owner decision and counsel.
 
 - Card Hub hosting, domain, email provider, and the legal entity named in the Hub terms and privacy policy.
 - Redemption code expiry (default 90 days) and email retention (default 180 days).
