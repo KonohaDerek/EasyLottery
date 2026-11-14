@@ -1,16 +1,18 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useSessionStore } from "../stores/session";
 import { clearOvertimeToken } from "../lottery/api";
-import { adminNavigationGroups, getActiveAdminNavigationPath } from "../navigation/admin-navigation";
+import { getActiveAdminNavigationPath, getAdminNavigationGroups } from "../navigation/admin-navigation";
+import { isShopEnabled } from "../shop/api";
 
 const router = useRouter();
 const route = useRoute();
 const session = useSessionStore();
 const mobileMenuOpen = ref(false);
-const groups = adminNavigationGroups;
-const activeNavigationPath = computed(() => getActiveAdminNavigationPath(route.path));
+const shopEnabled = ref(false);
+const groups = computed(() => getAdminNavigationGroups(shopEnabled.value));
+const activeNavigationPath = computed(() => getActiveAdminNavigationPath(route.path, shopEnabled.value));
 
 function groupContainsCurrentPath(links: readonly (readonly [string, string])[]): boolean {
   return links.some(([path]) => activeNavigationPath.value === path);
@@ -21,6 +23,10 @@ function logout() {
   session.clearToken();
   router.push("/login");
 }
+
+onMounted(async () => {
+  shopEnabled.value = await isShopEnabled();
+});
 </script>
 
 <template>

@@ -27,6 +27,8 @@ public sealed class SqliteSchemaMigrator(
             VALUES (1, CURRENT_TIMESTAMP);
             INSERT OR IGNORE INTO schema_migrations (version, applied_at_utc)
             VALUES (2, CURRENT_TIMESTAMP);
+            INSERT OR IGNORE INTO schema_migrations (version, applied_at_utc)
+            VALUES (3, CURRENT_TIMESTAMP);
             CREATE TABLE IF NOT EXISTS config_documents (
                 id INTEGER PRIMARY KEY CHECK (id = 1),
                 payload_json TEXT NOT NULL,
@@ -102,6 +104,61 @@ public sealed class SqliteSchemaMigrator(
                 channel_scope TEXT NOT NULL,
                 external_event_id TEXT NOT NULL,
                 PRIMARY KEY (platform, channel_scope, external_event_id)
+            );
+            CREATE TABLE IF NOT EXISTS shop_products (
+                id TEXT PRIMARY KEY,
+                type TEXT NOT NULL,
+                status TEXT NOT NULL,
+                title TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS card_rarities (
+                id TEXT PRIMARY KEY,
+                code TEXT NOT NULL UNIQUE,
+                name TEXT NOT NULL,
+                sort_order INTEGER NOT NULL DEFAULT 0,
+                color TEXT NOT NULL DEFAULT ''
+            );
+            CREATE TABLE IF NOT EXISTS card_sets (
+                id TEXT PRIMARY KEY,
+                code TEXT NOT NULL UNIQUE,
+                name TEXT NOT NULL,
+                description TEXT NOT NULL DEFAULT '',
+                status TEXT NOT NULL DEFAULT 'draft'
+            );
+            CREATE TABLE IF NOT EXISTS cards (
+                id TEXT PRIMARY KEY,
+                set_id TEXT NOT NULL REFERENCES card_sets(id),
+                serial_no TEXT NOT NULL UNIQUE,
+                name TEXT NOT NULL,
+                description TEXT NOT NULL DEFAULT '',
+                rarity_id TEXT NOT NULL REFERENCES card_rarities(id),
+                image_asset_id TEXT REFERENCES obs_assets(id),
+                source TEXT NOT NULL,
+                ai_provider TEXT,
+                ai_prompt TEXT
+            );
+            CREATE TABLE IF NOT EXISTS card_packs (
+                product_id TEXT PRIMARY KEY REFERENCES shop_products(id),
+                set_id TEXT NOT NULL REFERENCES card_sets(id),
+                cover_asset_id TEXT REFERENCES obs_assets(id),
+                odds_json TEXT NOT NULL,
+                supply_limit INTEGER
+            );
+            CREATE TABLE IF NOT EXISTS hub_link (
+                id INTEGER PRIMARY KEY CHECK (id = 1),
+                hub_base_url TEXT NOT NULL,
+                site_client_id TEXT NOT NULL,
+                encrypted_secret TEXT NOT NULL,
+                tenant_id TEXT,
+                last_publish_at TEXT
+            );
+            CREATE TABLE IF NOT EXISTS hub_publish_log (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                snapshot_version INTEGER NOT NULL,
+                status TEXT NOT NULL,
+                created_at_utc TEXT NOT NULL,
+                error_message TEXT,
+                payload_json TEXT NOT NULL DEFAULT '{}'
             );
             """;
         await command.ExecuteNonQueryAsync(cancellationToken);
