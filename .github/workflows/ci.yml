@@ -124,3 +124,32 @@ jobs:
           if [ -f "$RUNNER_TEMP/easy-lottery-api.pid" ]; then
             kill "$(cat "$RUNNER_TEMP/easy-lottery-api.pid")" || true
           fi
+
+  card-hub-build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore Card Hub
+        run: dotnet restore tests/EasyLotteryCardHub.Tests/EasyLotteryCardHub.Tests.csproj
+
+      - name: Build Card Hub
+        run: dotnet build src/EasyLotteryCardHub/EasyLotteryCardHub.csproj --configuration Release --no-restore
+
+      - name: Test Card Hub
+        run: dotnet test tests/EasyLotteryCardHub.Tests/EasyLotteryCardHub.Tests.csproj --configuration Release --no-restore --logger "console;verbosity=normal" --logger "trx;LogFileName=card-hub-test-results.trx"
+
+      - name: Upload Card Hub test results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: card-hub-test-results
+          path: "**/TestResults/**/*.trx"
+          if-no-files-found: warn
