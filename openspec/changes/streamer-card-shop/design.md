@@ -61,6 +61,18 @@ One Vue component (web + OBS) and one React Native implementation share a stage 
 
 Viewers may trade cards across streamers. A trade is accepted inside one transaction that re-checks ownership of every instance and moves `owner_viewer_id`; concurrent trades on the same instance leave exactly one winner. Limits: 20 proposals per viewer per day; each streamer can mark their sets non-tradable. No currency, prices, or cash-out.
 
+### D11. Wave 1 product decisions (product lead + dev lead, 2026-11-14)
+
+- Streamer onboarding is invite-only in beta: a Hub platform admin issues a single-use, time-limited invite bound to the recipient email (stored hashed, redeemed atomically); the streamer then registers with email + Passkey. `Streamer:SelfServeSignupEnabled` exists, separate from `Shop:Enabled`, and defaults to off.
+- Tenant lifecycle: `active | disabled | pending_deletion | deleted`. A disabled tenant's cards stay visible read-only to holders; the Hub rejects new publishes, draws and trades for it. Deletion starts a 30-day notice to holders, after which images are purged; card instances keep name, serial and rarity and render a "removed" placeholder. Card instances and serials are never cascade-deleted or reused. Tenant status is checked on every API call, and site access tokens are short-lived.
+- Viewer sign-up stores `terms_version_accepted`, `terms_accepted_at` and a self-declared `age_bracket` (`13_17 | 18_plus`; under 13 cannot register). No birthdate is stored.
+- Viewers have a reserved `handle` (nullable, unique, case-insensitive). The UI to set it ships with trading (#344). Email is never shown to other viewers.
+- Sign-in email is zh-TW first, names the streamer tenant when sign-in starts from a streamer context, and states the expiry. The server enforces a 60-second resend cooldown.
+- Site credential rotation keeps the current and the previous secret, and the previous one expires automatically after 24 hours. Either secret can be revoked immediately. The Hub stores only secret hashes; the site stores its secret encrypted. The Hub link page shows `not linked | linked | credentials invalid | Hub unreachable`, so a network failure is never reported as invalid credentials. It also has a "test connection" action and shows a new secret only once.
+- `Shop:Enabled=false` hides every shop navigation item and blocks the shop pages and APIs.
+- Wave 1 export is a synchronous, authenticated JSON download of the viewer's own data with `Cache-Control: no-store`, and each request is audited. Trade and redemption history join the export as those tables land.
+- Hub tables land with the wave that uses them: wave 1 creates the tenant, site, credential, invite, viewer, login-code, group and audit tables. Catalog, draw, redemption and trade tables arrive with #339, #340, #342 and #344.
+
 ### D10. Compliance
 
 Odds are shown on the shop page and in the app before any donation. Terms state cards have no cash value and must not be sold for money. The privacy policy is updated for email collection, retention, and deletion. App store review notes declare the odds disclosure.

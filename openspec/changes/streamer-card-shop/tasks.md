@@ -6,12 +6,19 @@
 - [x] Owner decisions: central Card Hub (D1), wallpaper at device resolution with watermark (D8).
 - [ ] Owner decides Hub hosting, domain, email provider, legal entity, code expiry and email retention (operations issue).
 
-## 1. Foundation - #338 (Codex, blocks all later waves)
-- [ ] New `src/EasyLotteryCardHub` ASP.NET Core project with PostgreSQL migrations for every Hub table in D3, health checks, Dockerfile, and CI job.
-- [ ] Hub streamer accounts (email + Passkey), tenants, site registration and client-credentials tokens with rotation/revocation.
-- [ ] Hub viewer email-code sign-in, viewer JWT audience, refresh tokens, rate limits, account deletion/export.
-- [ ] Site: `Shop:Enabled` setting (default off), site SQLite migration for D3 site tables, Hub link settings page with encrypted secret.
-- [ ] Tests: token isolation (viewer vs streamer vs site), credential revocation, code expiry/attempt limits, deletion.
+## 1. Foundation - #338 (Codex, blocks all later waves; three PRs, see D11)
+### 1a. Hub base (PR 1)
+- [ ] New `src/EasyLotteryCardHub` ASP.NET Core project, PostgreSQL migrations for the wave-1 Hub tables (D11), health checks, Dockerfile, CI job.
+- [ ] Hub platform admin, invite-only streamer onboarding (email + Passkey), tenant lifecycle states, site registration, client-credentials tokens with two-secret rotation (24 h overlap) and revocation.
+- [ ] Tests: invite single use/expiry, credential rotation/revocation, disabled-tenant rejection, streamer vs site token isolation.
+### 1b. Viewer accounts (PR 2, after 1a)
+- [ ] Viewer email-code sign-in (zh-TW email, tenant-aware copy, 60 s resend), viewer JWT audience, refresh tokens, rate limits.
+- [ ] Terms version/acceptance, age bracket, reserved handle, groups, account deletion (instances retired), synchronous JSON export.
+- [ ] Tests: viewer token rejected by streamer/site/admin APIs, code expiry/attempt limits, deletion, export scope.
+### 1c. Site side (PR 3, parallel with 1a)
+- [ ] `Shop:Enabled` (default off) gating nav, pages and APIs; site SQLite migration for the D3 site tables.
+- [ ] Vue "Card Hub 連結" settings page: four states, test connection, encrypted secret, show-once secret.
+- [ ] Tests: flag off hides and blocks, secret never returned by APIs, unreachable vs invalid state.
 
 ## 2a. Catalog and images - #339 (Codex)
 - [ ] Site: rarity tiers, sets, serialized cards, product type registry with `card_pack`; publish to Hub with versioned snapshots.
