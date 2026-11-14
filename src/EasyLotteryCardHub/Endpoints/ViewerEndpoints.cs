@@ -39,6 +39,9 @@ public static class ViewerEndpoints
             if (!authorization.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase)
                 || !tokens.TryValidateViewerToken(authorization[7..].Trim(), out var viewerId, out _))
                 return Results.Unauthorized();
+            var viewers = context.HttpContext.RequestServices.GetRequiredService<ViewerAccountsService>();
+            if (!await viewers.IsActiveAsync(viewerId, context.HttpContext.RequestAborted))
+                return Results.Unauthorized();
             context.HttpContext.Items[ViewerIdItem] = viewerId;
             return await next(context);
         });

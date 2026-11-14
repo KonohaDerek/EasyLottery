@@ -94,6 +94,7 @@ public sealed class ViewerFoundationTests
             await Assert.ThrowsExactlyAsync<ViewerServiceException>(() => viewers.RefreshAsync(rotated.RefreshToken, CancellationToken.None));
 
             await viewers.DeleteAccountAsync(alice.ViewerId, CancellationToken.None);
+            Assert.IsFalse(await viewers.IsActiveAsync(alice.ViewerId, CancellationToken.None));
             await using (var verifyDeletion = await dataSource.OpenConnectionAsync())
             {
                 await using var account = new NpgsqlCommand("SELECT deleted_at_utc IS NOT NULL AND email_hash <> @email FROM viewers WHERE id = @viewer", verifyDeletion);

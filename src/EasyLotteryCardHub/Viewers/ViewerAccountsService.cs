@@ -342,6 +342,14 @@ public sealed class ViewerAccountsService(
         }
     }
 
+    public async Task<bool> IsActiveAsync(Guid viewerId, CancellationToken cancellationToken)
+    {
+        await using var connection = await DataSource.OpenConnectionAsync(cancellationToken);
+        await using var command = new NpgsqlCommand("SELECT EXISTS (SELECT 1 FROM viewers WHERE id = @viewer AND deleted_at_utc IS NULL)", connection);
+        command.Parameters.AddWithValue("viewer", viewerId);
+        return (bool)(await command.ExecuteScalarAsync(cancellationToken) ?? false);
+    }
+
     public async Task<IReadOnlyList<ViewerGroup>> ListGroupsAsync(Guid viewerId, CancellationToken cancellationToken)
     {
         await using var connection = await DataSource.OpenConnectionAsync(cancellationToken);
