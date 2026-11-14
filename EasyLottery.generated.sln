@@ -21,12 +21,24 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EasyLotteryDomainTests", "t
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EasyLotteryApiTests", "tests\EasyLotteryAPITests\EasyLotteryApiTests.csproj", "{B4D8E2A5-994C-4B6C-8C45-9136CA0E9309}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EasyLotteryCardHub", "src\EasyLotteryCardHub\EasyLotteryCardHub.csproj", "{AD554A3C-E37B-4032-BAF9-C6E816323EB1}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EasyLotteryCardHub.Tests", "tests\EasyLotteryCardHub.Tests\EasyLotteryCardHub.Tests.csproj", "{9E632CEE-1FE1-4A84-8C52-E99F3FE7E6B6}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{AD554A3C-E37B-4032-BAF9-C6E816323EB1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AD554A3C-E37B-4032-BAF9-C6E816323EB1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AD554A3C-E37B-4032-BAF9-C6E816323EB1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AD554A3C-E37B-4032-BAF9-C6E816323EB1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9E632CEE-1FE1-4A84-8C52-E99F3FE7E6B6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9E632CEE-1FE1-4A84-8C52-E99F3FE7E6B6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9E632CEE-1FE1-4A84-8C52-E99F3FE7E6B6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9E632CEE-1FE1-4A84-8C52-E99F3FE7E6B6}.Release|Any CPU.Build.0 = Release|Any CPU
 		{2DDAB29D-C232-430C-802A-3CD1DDCCBA26}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{2DDAB29D-C232-430C-802A-3CD1DDCCBA26}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{2DDAB29D-C232-430C-802A-3CD1DDCCBA26}.Release|Any CPU.ActiveCfg = Release|Any CPU
@@ -60,6 +72,8 @@ Global
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
+		{AD554A3C-E37B-4032-BAF9-C6E816323EB1} = {78082F60-F272-4FEB-A661-5DABA1DBCF35}
+		{9E632CEE-1FE1-4A84-8C52-E99F3FE7E6B6} = {2C3055C2-5246-4CA2-959E-56B0B304F385}
 		{2DDAB29D-C232-430C-802A-3CD1DDCCBA26} = {78082F60-F272-4FEB-A661-5DABA1DBCF35}
 		{3C3C373D-3DDE-4914-B4E1-C5B3EC2B1D57} = {78082F60-F272-4FEB-A661-5DABA1DBCF35}
 		{F3A8390B-0226-41E1-8EF6-EC39D465A8D0} = {78082F60-F272-4FEB-A661-5DABA1DBCF35}

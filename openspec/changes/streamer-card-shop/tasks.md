@@ -8,9 +8,9 @@
 
 ## 1. Foundation - #338 (Codex, blocks all later waves; three PRs, see D11)
 ### 1a. Hub base (PR 1)
-- [ ] New `src/EasyLotteryCardHub` ASP.NET Core project, PostgreSQL migrations for the wave-1 Hub tables (D11), health checks, Dockerfile, CI job.
-- [ ] Hub platform admin, invite-only streamer onboarding (email + Passkey), tenant lifecycle states, site registration, client-credentials tokens with two-secret rotation (24 h overlap) and revocation.
-- [ ] Tests: invite single use/expiry, credential rotation/revocation, disabled-tenant rejection, streamer vs site token isolation.
+- [x] New `src/EasyLotteryCardHub` ASP.NET Core project, PostgreSQL migrations for the wave-1 Hub tables (D11), health checks, Dockerfile, CI job.
+- [x] Hub platform admin, invite-only streamer onboarding (email + Passkey), tenant lifecycle states, site registration, client-credentials tokens with two-secret rotation (24 h overlap) and revocation.
+- [x] Tests: invite single use/expiry, credential rotation/revocation, disabled-tenant rejection, streamer vs site token isolation.
 ### 1b. Viewer accounts (PR 2, after 1a)
 - [ ] Viewer email-code sign-in (zh-TW email, tenant-aware copy, 60 s resend), viewer JWT audience, refresh tokens, rate limits.
 - [ ] Terms version/acceptance, age bracket, reserved handle, groups, account deletion (instances retired), synchronous JSON export.
