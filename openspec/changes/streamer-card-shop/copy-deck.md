@@ -305,7 +305,7 @@
 | `shop.odds.title` | 抽卡機率 |
 | `shop.odds.line` | 每包抽出 1 張卡牌，各稀有度機率如下：{oddsList} |
 | `shop.odds.item` | {rarity} {percent}% |
-| `shop.odds.footnote` | 同一稀有度內的卡牌機率相同。數量有限的卡包售完後將停止抽卡。 |
+| `shop.odds.footnote` | 同一稀有度內的卡牌機率相同。稀有度抽完後會發布新機率版本；卡包全部抽完後停止抽卡。 |
 | `shop.odds.preDonate` | Donate 前請先確認抽卡機率。 [需法務確認] |
 | `shop.noCashValue` | 卡牌無現金價值、不得轉售換取金錢，僅供收藏與觀眾間交換。 [需法務確認] |
 | `shop.emailConsent.checkbox` | 我同意提供 email，用於寄送卡包兌換碼。email 會在兌換或到期後 180 天刪除，如需提前刪除請聯絡 {supportEmail}。 [需法務確認] |

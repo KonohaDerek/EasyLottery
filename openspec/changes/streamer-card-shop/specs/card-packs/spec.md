@@ -19,12 +19,12 @@ Opening a pack MUST draw exactly one card using a cryptographic RNG by the immut
 - **THEN** each rarity's observed frequency is within statistical tolerance of its weight
 
 #### Scenario: Supply exhausted
-- **WHEN** any rarity in a published finite-supply pack version has no remaining instances
-- **THEN** sales for that pack version stop; its published odds never change, and no further draws are accepted
+- **WHEN** any rarity's lifecycle supply reaches zero
+- **THEN** the Hub stops draws under the current odds version, atomically publishes the next odds version with that rarity removed and remaining weights renormalized, and exposes the new odds before accepting another paid draw; the prior version and its draw records remain immutable
 
-#### Scenario: New odds after depletion
-- **WHEN** a streamer wants to resume sales after a rarity is depleted
-- **THEN** they publish a new pack version with new odds, and the shop displays those odds before accepting another paid draw
+#### Scenario: All finite supply exhausted
+- **WHEN** every rarity pool is exhausted or the optional total pack limit is reached
+- **THEN** the pack stops selling and no further draws are accepted
 
 #### Scenario: Paid callback races with the last instance
 - **WHEN** a paid callback arrives after the last instance has already been reserved

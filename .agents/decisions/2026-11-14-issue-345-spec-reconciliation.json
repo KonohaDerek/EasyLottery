@@ -1,9 +1,11 @@
 {
   "task": "issue-345-card-shop-spec-reconciliation",
-  "source": "user authorized Card Shop development and product-lead/development-lead decisions; independent review at PR #345 head 6dd9ab2822cfea52f0c3a84165e873033b68d243; Claude summary-only consultation",
-  "route": "isolated worktree on a new branch from PR #345 head; no external account operation",
+  "source": "user authorized Card Shop development; PR #345 remote candidate 959f7009d84f75d00786078c320077a99ee4a7e8 is co-authored by Claude Opus 5.5 and contains D13 product decisions; independent rebase review at 23b4210a2bd194118e2106fd2d2042dbea6a4c9c",
+  "route": "isolated worktree; reconciled commit rebased on the newly observed PR branch head, fast-forward pushed to claude/card-shop-openspec, and PR #345 body updated; no merge or deployment",
   "product_decisions": {
-    "finite_supply": "Freeze odds per published pack version; stop sales when any rarity is depleted; publish a new odds version to resume.",
+    "finite_supply": "Align D12 with the newer D13 product decision co-authored by Claude: each published odds version remains immutable; when a rarity pool is depleted, pause draws on that version and auto-publish a new version with that rarity removed and remaining odds renormalized using largest-remainder basis-point rounding before resuming. Stop the pack when all rarity pools or its total limit are exhausted.",
+    "rarity_supply_model": "Store per-rarity quantities separately from the optional total pack limit; track each rarity's lifecycle limit and drawn count independently of odds versions so republishing odds never resets stock.",
+    "openai_compatible_ssrf": "Public HTTPS endpoints are allowed. Private/LAN HTTPS requires explicit site-admin allowlisting of the exact origin and private host/port; validate DNS on every request, allow only the allowlisted RFC1918/ULA target, pin the connection, preserve Host/SNI, disable redirects, and always reject loopback/link-local/unspecified/multicast/reserved/cloud-metadata targets.",
     "paid_minor_access": "Wave 1 allows ages 13-17 to register, collect and redeem gifted cards, but blocks paid pack entry; do not claim guardian consent.",
     "redemption_email": "Keep recoverable address/code only in encrypted delivery data; resend the same still-valid code to the original address without extending expiry; delete all delivery copies no later than 180 days after the later of redemption or expiry.",
     "tenant_notice": "Use Hub and redemption-page banners, in-Hub/email for account holders, consent-scoped service email for unredeemed-code holders, and record notice events.",
@@ -12,7 +14,7 @@
   },
   "human_escalation": "No local specification change incurs cost or touches production/accounts. Leave payment recovery/refund procedure unresolved; obtain human decision before production payment behavior.",
   "limitations": [
-    "PR body remains stale because editing GitHub requires the owner's account authorization.",
+    "Claude Code CLI is installed but not authenticated in this session; the existing D13 commit is co-authored by Claude, but no live consultation or Claude review was performed.",
     "Legal review is still required for age declaration, withdrawal-right copy, privacy notices and service-notice consent.",
     "Operations choices for hosting, domain, email provider and legal entity remain open."
   ]

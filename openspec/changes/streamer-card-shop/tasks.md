@@ -27,7 +27,7 @@
 
 ## 2b. Packs and draw engine - #340 (Codex)
 - [ ] Site: pack configuration, cover upload, odds validation, publish to Hub, public shop page with odds.
-- [ ] Hub: idempotent draw API, atomic crypto-RNG draw with supply limit, statistical distribution test, audit records.
+- [ ] Hub: idempotent draw API, atomic crypto-RNG draw with per-rarity and optional total supply, automatic immutable odds-version publication when a rarity is depleted, statistical distribution test, audit records.
 
 ## 3a. Pack-opening animation - #341 (Codex)
 - [ ] Shared stage timeline spec; Vue component; OBS overlay auto variant; reduced motion; skip; visual regression screenshots.
@@ -35,7 +35,7 @@
 ## 3b. Donate card-pack activity - #342 (Codex)
 - [ ] Site: activity type, 18+ declaration + legally reviewed consent on the donation form, Hub draw call with payment-reference idempotency and retry queue, OBS event and pending state.
 - [ ] Hub: redemption codes (hash-only storage, 90-day expiry, atomic redeem, rate limit), encrypted recoverable recipient address in delivery outbox with 180-day deletion, email retry, and resend of the same still-valid code to its original address.
-- [ ] Stop sales for a finite-supply pack version when a rarity is depleted; block production payment handling until the human owner approves recovery for a paid callback that races with the last instance.
+- [ ] Stop draws on the prior finite-supply odds version when a rarity is depleted; publish and display the next immutable odds version before resuming. Block production payment handling until the human owner approves recovery for a paid callback that races with the last instance.
 - [ ] Privacy policy update; concurrency and idempotency tests.
 
 ## 4a. Mobile app - #343 (Codex)

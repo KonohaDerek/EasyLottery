@@ -10,7 +10,7 @@ Nav additions (inside 「卡牌商店」, after 發布到 Hub): `卡包 /card-sh
 - Admins enter odds in **% with up to 2 decimals**, stored as **basis points** (1 bp = 0.01%). The sum must be exactly **10000 bp (100.00%)**. Odds are always displayed as % with 2 decimals (D12, R2).
 - Every publish of a pack's odds creates `odds_version` = previous + 1 (starting at v1). Every draw records the version it used.
 - Finite supply: when a rarity's remaining count reaches 0, its weight becomes 0 and the remaining rarities are renormalized proportionally: `p_i' = p_i / (1 − p_soldout)`. Rounding to bp uses largest-remainder so the sum stays 10000. The Hub publishes this automatically as a new `odds_version` before the next draw.
-- **[OWNER] Data-model gap:** D3 has one `card_packs.supply_limit` (total packs). D12 talks about a *rarity* selling out. This spec proposes an optional per-rarity quantity (finite pool) **plus** an optional total pack limit. If the owner chooses total-only, drop the per-rarity column and the auto-recalc UI (the pack simply sells out).
+- D3 stores per-rarity finite quantities in `card_packs.rarity_supply_json`, separately from the optional overall pack limit. The Hub tracks each rarity's lifecycle quantity and drawn count independently of odds versions, so a republished odds version cannot reset supply.
 
 ## B1. 卡包列表 (`/card-shop/packs`)
 
@@ -70,7 +70,7 @@ Sections in order:
 - Errors: Hub unreachable `publish.error.unreachable` (from #339). Hub rejects odds (e.g. a sold-out race): show the message and reload the current version.
 
 **Acceptance.**
-- [ ] The first publish shows v1. Changing only the title and republishing keeps the version **[OWNER: proposed]**. Changing any odds or supply value increments it.
+- [ ] The first publish shows v1. Changing only the title and republishing keeps the version. Changing any odds or supply value increments it.
 - [ ] The odds shown in the dialog equal what `/shop` displays after publish (same formatter).
 - [ ] A Hub failure leaves the live version unchanged and shows the error.
 

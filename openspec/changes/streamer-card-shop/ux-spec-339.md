@@ -118,7 +118,7 @@ Card editor (`/card-shop/cards/:id`, or `new?set=`), two columns on ≥md and st
 | Field | zh-TW | Validation |
 |---|---|---|
 | provider | `ai.settings.provider` 供應商 | Select: OpenAI Images / Google Gemini（Imagen）/ Stability AI / FLUX / OpenAI 相容端點 / 不使用 |
-| baseUrl | `ai.settings.baseUrl` 端點網址 | Only for OpenAI 相容. Must be `https://`, max 300 chars. **[OWNER]** Allow private/LAN hosts? (SSRF risk; default deny) |
+| baseUrl | `ai.settings.baseUrl` 端點網址 | Only for OpenAI 相容. Must be `https://`, max 300 chars. Public endpoints are allowed by default. Private/LAN endpoints require the site admin to explicitly allowlist the exact HTTPS origin and private host/port. The server resolves and validates on every request, permits only the allowlisted RFC1918/ULA address, pins the connection to that address, and preserves Host/SNI. Loopback, link-local, unspecified, multicast, reserved, and cloud-metadata destinations are always denied. Redirects are disabled; an endpoint cannot redirect to another host. |
 | apiKey | `ai.settings.apiKey` API 金鑰 | Write-only password field. Placeholder when saved: 「已設定，留白則保留原金鑰」. Max 500 chars. 「移除金鑰」 needs a confirm. |
 | model | `ai.settings.model` 模型 | Select filled by 「重新取得模型清單」 (needs a saved key). For OpenAI 相容, a free-text fallback is allowed. Never hard-coded. |
 | dailyCap | `ai.settings.dailyCap` 每日上限（張） | Integer 1–500, default 20 |
