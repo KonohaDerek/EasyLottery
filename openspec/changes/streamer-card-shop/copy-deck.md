@@ -115,7 +115,7 @@
 | `viewer.signup.age.option.18_plus` | 18 歲以上 |
 | `viewer.signup.age.option.under13` | 未滿 13 歲 |
 | `viewer.signup.age.required` | 請選擇年齡區間。 |
-| `viewer.signup.age.minorNotice` | 未滿 18 歲的使用者，請在法定代理人（例如父母）閱讀並同意條款後再使用。 [需法務確認] |
+| `viewer.signup.age.minorNotice` | 13–17 歲使用者可收藏與兌換獲贈卡牌；Wave 1 尚未開放付費抽卡。 [需法務確認] |
 | `viewer.signup.under13.title` | 目前無法建立帳號 |
 | `viewer.signup.under13.body` | 謝謝你的興趣。Card Hub 目前只開放 13 歲以上的使用者註冊，這次不會建立帳號，也不會保存你剛輸入的 email。 [需法務確認] |
 | `viewer.signup.under13.action` | 返回 |
@@ -274,7 +274,7 @@
 | `app.redeem.error.used` | 這組兌換碼已經使用過。卡牌若在你的帳號中，可以到「我的收藏」查看。 |
 | `app.redeem.error.expired` | 這組兌換碼已過期，無法兌換。如有疑問請聯絡實況主。 |
 | `app.redeem.error.invalid` | 找不到這組兌換碼，請確認輸入是否正確。 |
-| `app.redeem.error.void` | 這組兌換碼已失效，可能已由實況主重新寄送新的兌換碼，請查看最新的信件。 |
+| `app.redeem.error.void` | 這組兌換碼已失效，請聯絡寄送卡牌的實況主。 |
 | `app.redeem.error.format` | 兌換碼格式不正確，應為 24 個字元。 |
 | `app.redeem.error.rateLimited` | 嘗試次數過多，請在 {minutes} 分鐘後再試。 |
 | `app.redeem.error.tenantDisabled` | {streamerName} 的卡牌目前暫停兌換，請稍後再試或聯絡實況主。 |

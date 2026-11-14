@@ -1,0 +1,19 @@
+{
+  "task": "issue-345-card-shop-spec-reconciliation",
+  "source": "user authorized Card Shop development and product-lead/development-lead decisions; independent review at PR #345 head 6dd9ab2822cfea52f0c3a84165e873033b68d243; Claude summary-only consultation",
+  "route": "isolated worktree on a new branch from PR #345 head; no external account operation",
+  "product_decisions": {
+    "finite_supply": "Freeze odds per published pack version; stop sales when any rarity is depleted; publish a new odds version to resume.",
+    "paid_minor_access": "Wave 1 allows ages 13-17 to register, collect and redeem gifted cards, but blocks paid pack entry; do not claim guardian consent.",
+    "redemption_email": "Keep recoverable address/code only in encrypted delivery data; resend the same still-valid code to the original address without extending expiry; delete all delivery copies no later than 180 days after the later of redemption or expiry.",
+    "tenant_notice": "Use Hub and redemption-page banners, in-Hub/email for account holders, consent-scoped service email for unredeemed-code holders, and record notice events.",
+    "export": "Include viewer-owned account/consent, groups, collection, draws and redeemed-code history; exclude other viewers and fraud signals; explain irreversibly anonymized omissions.",
+    "native_ios": "Defer native iOS release, capture requirements and wallpaper export; retain portable React Native source and iOS Safari web support."
+  },
+  "human_escalation": "No local specification change incurs cost or touches production/accounts. Leave payment recovery/refund procedure unresolved; obtain human decision before production payment behavior.",
+  "limitations": [
+    "PR body remains stale because editing GitHub requires the owner's account authorization.",
+    "Legal review is still required for age declaration, withdrawal-right copy, privacy notices and service-notice consent.",
+    "Operations choices for hosting, domain, email provider and legal entity remain open."
+  ]
+}
