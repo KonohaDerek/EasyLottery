@@ -6,6 +6,7 @@ using EasyLotteryInfrastructure.Storage;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Configuration;
 
 namespace EasyLotteryApiTests;
 
@@ -116,7 +117,9 @@ public sealed class SqliteStorageRoundTripTests
             await using var command = connection.CreateCommand();
             command.CommandText = "SELECT MAX(version) FROM schema_migrations";
 
-            Assert.AreEqual(2L, (long)(await command.ExecuteScalarAsync())!);
+            Assert.AreEqual(3L, (long)(await command.ExecuteScalarAsync())!);
+            command.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='hub_link';";
+            Assert.AreEqual(1L, (long)(await command.ExecuteScalarAsync())!);
         }
         finally
         {
@@ -132,7 +135,7 @@ public sealed class SqliteStorageRoundTripTests
         });
 
     private static async Task CreateSchemaAsync(IOptions<StorageProviderOptions> options) =>
-        await new SqliteSchemaMigrator(options, NullLogger<SqliteSchemaMigrator>.Instance)
+        await new SqliteSchemaMigrator(options, new ConfigurationBuilder().Build(), new TestHostEnvironment(Path.GetTempPath()), NullLogger<SqliteSchemaMigrator>.Instance)
             .StartAsync(CancellationToken.None);
 
     private static string CreateDatabasePath() =>

@@ -1,23 +1,26 @@
 using Microsoft.Data.Sqlite;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 
 namespace EasyLotteryInfrastructure.Storage;
 
 public sealed class SqliteSchemaMigrator(
     IOptions<StorageProviderOptions> options,
+    IConfiguration configuration,
+    IHostEnvironment environment,
     ILogger<SqliteSchemaMigrator> logger) : IHostedService
 {
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         var storage = options.Value;
-        if (storage.NormalizedProvider != "sqlite") return;
-
-        await using var connection = new SqliteConnection(storage.ConnectionString);
-        await connection.OpenAsync(cancellationToken);
-        await using var command = connection.CreateCommand();
-        command.CommandText = """
+        if (storage.NormalizedProvider == "sqlite")
+        {
+            await using var connection = new SqliteConnection(storage.ConnectionString);
+            await connection.OpenAsync(cancellationToken);
+            await using var command = connection.CreateCommand();
+            command.CommandText = """
             PRAGMA foreign_keys = ON;
             CREATE TABLE IF NOT EXISTS schema_migrations (
                 version INTEGER PRIMARY KEY,
@@ -27,6 +30,8 @@ public sealed class SqliteSchemaMigrator(
             VALUES (1, CURRENT_TIMESTAMP);
             INSERT OR IGNORE INTO schema_migrations (version, applied_at_utc)
             VALUES (2, CURRENT_TIMESTAMP);
+            INSERT OR IGNORE INTO schema_migrations (version, applied_at_utc)
+            VALUES (3, CURRENT_TIMESTAMP);
             CREATE TABLE IF NOT EXISTS config_documents (
                 id INTEGER PRIMARY KEY CHECK (id = 1),
                 payload_json TEXT NOT NULL,
@@ -103,8 +108,56 @@ public sealed class SqliteSchemaMigrator(
                 external_event_id TEXT NOT NULL,
                 PRIMARY KEY (platform, channel_scope, external_event_id)
             );
+            CREATE TABLE IF NOT EXISTS hub_link (
+                id INTEGER PRIMARY KEY CHECK (id = 1),
+                hub_url TEXT NOT NULL,
+                site_client_id TEXT NOT NULL,
+                encrypted_secret TEXT NOT NULL,
+                tenant_id TEXT,
+                tenant_name TEXT,
+                connection_state TEXT NOT NULL,
+                last_checked_at_utc TEXT,
+                last_publish_at_utc TEXT
+            );
             """;
-        await command.ExecuteNonQueryAsync(cancellationToken);
+            await command.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        if (storage.NormalizedProvider == "sqlite")
+        {
+            logger.LogInformation("SQLite storage schema is ready.");
+            return;
+        }
+
+        // The shop link has domain data with a SQLite migration even when the
+        // legacy settings provider is YAML, so it uses a dedicated local DB.
+        var shopConnectionString = CardShopSqliteConnection.ResolveConnectionString(configuration, environment, storage);
+        await using (var shopConnection = new SqliteConnection(shopConnectionString))
+        {
+            await shopConnection.OpenAsync(cancellationToken);
+            await using var shopCommand = shopConnection.CreateCommand();
+            shopCommand.CommandText = """
+                CREATE TABLE IF NOT EXISTS card_shop_schema_migrations (
+                    version INTEGER PRIMARY KEY,
+                    applied_at_utc TEXT NOT NULL
+                );
+                INSERT OR IGNORE INTO card_shop_schema_migrations (version, applied_at_utc)
+                VALUES (1, CURRENT_TIMESTAMP);
+                CREATE TABLE IF NOT EXISTS hub_link (
+                    id INTEGER PRIMARY KEY CHECK (id = 1),
+                    hub_url TEXT NOT NULL,
+                    site_client_id TEXT NOT NULL,
+                    encrypted_secret TEXT NOT NULL,
+                    tenant_id TEXT,
+                    tenant_name TEXT,
+                    connection_state TEXT NOT NULL,
+                    last_checked_at_utc TEXT,
+                    last_publish_at_utc TEXT
+                );
+                """;
+            await shopCommand.ExecuteNonQueryAsync(cancellationToken);
+        }
+
         logger.LogInformation("SQLite storage schema is ready.");
     }
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { adminRoutes } from "../routes";
-import { adminNavigationGroups, getActiveAdminNavigationPath, type AdminNavigationLink } from "./admin-navigation";
+import { adminNavigationGroups, getActiveAdminNavigationPath, getVisibleAdminNavigationGroups, type AdminNavigationLink } from "./admin-navigation";
 
 describe("admin navigation", () => {
   it("separates daily work, results, integrations, and system settings", () => {
@@ -16,6 +16,7 @@ describe("admin navigation", () => {
     expect(adminNavigationGroups[3].links.map(([, label]) => label)).toEqual([
       "抽獎紀錄", "活動結果", "Donate 抽獎紀錄", "審計紀錄"
     ]);
+    expect(adminNavigationGroups[5].links).toContainEqual(["/system/card-hub", "Card Hub 連結"]);
   });
 
   it("maps every admin route to exactly one visible navigation item", () => {
@@ -39,5 +40,15 @@ describe("admin navigation", () => {
     expect(getActiveAdminNavigationPath("/system/audit/record-1")).toBe("/system/audit");
     expect(getActiveAdminNavigationPath("/")).toBe("/");
     expect(getActiveAdminNavigationPath("/unknown-route")).toBeUndefined();
+  });
+
+  it("keeps Card Hub setup visible while hiding shop navigation when the feature is off", () => {
+    const groups = [
+      ...adminNavigationGroups,
+      { title: "卡牌商店", requiresShop: true, links: [["/shop/catalog", "商品目錄"]] as const }
+    ];
+    expect(getVisibleAdminNavigationGroups(false, groups).map(group => group.title)).not.toContain("卡牌商店");
+    expect(getVisibleAdminNavigationGroups(true, groups).map(group => group.title)).toContain("卡牌商店");
+    expect(adminNavigationGroups[5].links).toContainEqual(["/system/card-hub", "Card Hub 連結"]);
   });
 });

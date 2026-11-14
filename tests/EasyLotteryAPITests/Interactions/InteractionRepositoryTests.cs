@@ -27,7 +27,7 @@ public sealed class InteractionRepositoryTests
                 Provider = "sqlite",
                 ConnectionString = $"Data Source={databasePath}"
             });
-            await new SqliteSchemaMigrator(options, NullLogger<SqliteSchemaMigrator>.Instance)
+            await new SqliteSchemaMigrator(options, new ConfigurationBuilder().Build(), new TestEnvironment(), NullLogger<SqliteSchemaMigrator>.Instance)
                 .StartAsync(CancellationToken.None);
 
             var profile = new AudienceProfile { Id = Guid.NewGuid(), DisplayName = "Derek" };

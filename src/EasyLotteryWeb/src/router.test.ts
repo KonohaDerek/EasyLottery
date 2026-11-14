@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { adminRoutes, obsRoutes, publicRoutes, routes } from "./routes";
-import { adminRouteRedirect } from "./router-guard";
+import { adminRouteRedirect, shopRouteRedirect } from "./router-guard";
 
 describe("public Vue routes", () => {
   it("keeps the Phase 1 routes explicit and public", () => {
@@ -30,6 +30,7 @@ describe("admin route guard", () => {
     expect(adminRoutes.find(route => route.path === "/roulette/preview/:id")?.meta?.requiresAuth).toBe(true);
     expect(adminRoutes.find(route => route.path === "/market")?.meta?.requiresAuth).toBe(true);
     expect(adminRoutes.find(route => route.path === "/system/platform-connections")?.meta?.requiresAuth).toBe(true);
+    expect(adminRoutes.find(route => route.path === "/system/card-hub")?.meta?.requiresAuth).toBe(true);
     expect(adminRoutes.find(route => route.path === "/activity/overtime")?.meta?.requiresAuth).toBe(true);
   });
 
@@ -46,12 +47,18 @@ describe("admin route guard", () => {
     expect(adminRouteRedirect("/pokebox/preview/7", false)).toBe("/login?redirect=%2Fpokebox%2Fpreview%2F7");
     expect(adminRouteRedirect("/market", false)).toBe("/login?redirect=%2Fmarket");
     expect(adminRouteRedirect("/system/platform-connections", false)).toBe("/login?redirect=%2Fsystem%2Fplatform-connections");
+    expect(adminRouteRedirect("/system/card-hub", false)).toBe("/login?redirect=%2Fsystem%2Fcard-hub");
     expect(adminRouteRedirect("/activity/overtime", false)).toBe("/login?redirect=%2Factivity%2Fovertime");
     expect(adminRouteRedirect("/roulette/preview/7", false)).toBe("/login?redirect=%2Froulette%2Fpreview%2F7");
   });
 
   it("allows an authenticated session to continue", () => {
     expect(adminRouteRedirect("/system/payment", true)).toBeNull();
+  });
+
+  it("sends shop pages back to the workspace when Shop:Enabled is off", () => {
+    expect(shopRouteRedirect(false)).toBe("/");
+    expect(shopRouteRedirect(true)).toBeNull();
   });
 });
 

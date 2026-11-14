@@ -135,7 +135,7 @@ public sealed class SqliteProviderRepositoryTests
         });
 
     private static async Task CreateSchemaAsync(IOptions<StorageProviderOptions> options) =>
-        await new SqliteSchemaMigrator(options, NullLogger<SqliteSchemaMigrator>.Instance).StartAsync(CancellationToken.None);
+        await new SqliteSchemaMigrator(options, new ConfigurationBuilder().Build(), new TestHostEnvironment(Path.GetTempPath()), NullLogger<SqliteSchemaMigrator>.Instance).StartAsync(CancellationToken.None);
 
     private static string CreateDatabasePath() =>
         Path.Combine(Path.GetTempPath(), $"easy-lottery-sqlite-repositories-{Guid.NewGuid():N}.db");

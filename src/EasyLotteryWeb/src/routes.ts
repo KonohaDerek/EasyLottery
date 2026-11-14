@@ -25,6 +25,7 @@ import MarketplaceView from "./views/MarketplaceView.vue";
 import PlatformConnectionsView from "./views/PlatformConnectionsView.vue";
 import OvertimeSettingsView from "./views/OvertimeSettingsView.vue";
 import DonateDrawRecordsView from "./views/DonateDrawRecordsView.vue";
+import CardHubLinkView from "./views/CardHubLinkView.vue";
 import LotteryDrawRecordsView from "./views/LotteryDrawRecordsView.vue";
 
 export const publicRoutes: RouteRecordRaw[] = [
@@ -56,6 +57,7 @@ export const adminRoutes: RouteRecordRaw[] = [
   { path: "/interactions/identity-link", component: IdentityLinkView, meta: { title: "觀眾身份綁定｜EasyLottery", requiresAuth: true } },
   { path: "/market", component: MarketplaceView, meta: { title: "活動市集｜EasyLottery", requiresAuth: true } },
   { path: "/system/platform-connections", component: PlatformConnectionsView, meta: { title: "直播平台串接｜EasyLottery", requiresAuth: true } },
+  { path: "/system/card-hub", component: CardHubLinkView, meta: { title: "Card Hub 連結｜EasyLottery", requiresAuth: true } },
   { path: "/activity/overtime", component: OvertimeSettingsView, meta: { title: "加班台設定｜EasyLottery", requiresAuth: true } }
 ];
 

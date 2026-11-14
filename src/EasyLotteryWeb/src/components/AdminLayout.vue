@@ -1,15 +1,16 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useSessionStore } from "../stores/session";
 import { clearOvertimeToken } from "../lottery/api";
-import { adminNavigationGroups, getActiveAdminNavigationPath } from "../navigation/admin-navigation";
+import { adminNavigationGroups, getActiveAdminNavigationPath, getVisibleAdminNavigationGroups, type AdminNavigationGroup } from "../navigation/admin-navigation";
+import { loadShopFeatureStatus } from "../card-hub/api";
 
 const router = useRouter();
 const route = useRoute();
 const session = useSessionStore();
 const mobileMenuOpen = ref(false);
-const groups = adminNavigationGroups;
+const groups = ref<readonly AdminNavigationGroup[]>(adminNavigationGroups);
 const activeNavigationPath = computed(() => getActiveAdminNavigationPath(route.path));
 
 function groupContainsCurrentPath(links: readonly (readonly [string, string])[]): boolean {
@@ -21,6 +22,11 @@ function logout() {
   session.clearToken();
   router.push("/login");
 }
+
+onMounted(async () => {
+  const status = await loadShopFeatureStatus().catch(() => ({ enabled: false }));
+  groups.value = getVisibleAdminNavigationGroups(status.enabled);
+});
 </script>
 
 <template>

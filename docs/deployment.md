@@ -23,6 +23,14 @@ Compose 會拒絕未設定管理員 email、WebAuthn RP ID 或 Origin 的 Produc
 
 `Storage:Provider` 目前可用 `yaml`（預設）與 `sqlite`。`postgresql` 保留為未來 adapter 的 provider 名稱，尚未註冊 adapter 時會在啟動驗證階段直接拒絕，不會靜默退回 YAML。新增 PostgreSQL 支援時，需同步註冊 Repository adapter 與 migration hosted service。
 
+### Card Hub site link secret protection
+
+The Card Hub site link is stored in the SQLite `hub_link` table. With `Storage:Provider=sqlite`, that table is added to the configured database. With the default YAML provider, it is stored in `Storage:Directory/card-hub.sqlite` (override with `Shop:SiteDatabasePath`). The default ASP.NET Data Protection key ring is stored in `Storage:Directory/card-hub-keyring`; override it with `Security:DataProtection:KeyRingPath`.
+
+Before submitting a site credential, the API requires the configured Card Hub URL to match an exact HTTPS origin in `Shop:TrustedHubOrigins` (for example, `Shop:TrustedHubOrigins__0=https://cardhub.example.org`). Configure additional origins with subsequent numeric keys. Wildcards and URL paths are not accepted. HTTP is allowed only for loopback addresses while the app is running in the `Development` environment.
+
+The default key-ring path is for local development and self-hosted evaluation. A database backup and key ring on the same volume must not be treated as protected at-rest storage. Before production use, operators must provide a separately protected, persistent key ring (for example, a certificate-backed key-encryption configuration managed out of band). Do not copy or include key material in application logs or source control.
+
 SQLite 範例：
 
 ```bash

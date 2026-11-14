@@ -1,0 +1,27 @@
+{
+  "task": "EasyLottery #338 Card Hub site-side slice (1c)",
+  "source": "User-authorized Card Shop work (#338-#346); PR #345 OpenSpec head 6dd9ab2822cfea52f0c3a84165e873033b68d243",
+  "route": "Codex implementation; separate worktree assigned to site/frontend scope",
+  "jev": {
+    "attempted": false,
+    "fallback_reason": "TYPESAFE_API_KEY is absent; no Jev call was made."
+  },
+  "scope": [
+    "Shop:Enabled default-off gate for shop pages and APIs",
+    "SQLite site schema migration from D3",
+    "Card Hub link settings page and connection-state flow",
+    "Credential encryption and redacted API responses"
+  ],
+  "dependencies": [
+    "Existing site configuration supports YAML by default and SQLite optionally; the OpenSpec only specifies a SQLite hub_link table. Product/architecture clarification requested from the development lead before selecting a persistence fallback."
+  ],
+  "risk": "medium-high: security-sensitive credential storage and feature gating",
+  "verification": [
+    "Dev Container only for .NET and Node commands",
+    "Focused API tests for disabled gate, status, secret redaction, and Hub error classification",
+    "Focused Vue unit tests for route/nav gating and Card Hub settings states",
+    "git diff --check"
+  ],
+  "human_approval_required": false,
+  "human_approval_reason": "No nonzero cost, production environment, or user account is needed for local implementation."
+}

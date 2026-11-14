@@ -24,12 +24,14 @@ using EasyLotteryApi.Storage.Endpoints;
 using EasyLotteryApi.Tunnel;
 using EasyLotteryApi.Tunnel.Endpoints;
 using EasyLotteryApi.Interactions;
+using EasyLotteryApi.CardShop;
 using EasyLotteryApi.Lottery;
 using EasyLotteryApplication.Interactions;
 using EasyLotteryDomain.Services;
 using EasyLotteryDomain.Models.Obs;
 using EasyLotteryInfrastructure.Settings;
 using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpsPolicy;
 using Microsoft.AspNetCore.HttpOverrides;
 using System.Threading.RateLimiting;
@@ -95,6 +97,22 @@ builder.Services.AddScoped<AiCongratulationProvider>();
 var storageDirectory = builder.Configuration["Storage:Directory"]
     ?? Path.Combine(builder.Environment.ContentRootPath, "App_Data");
 Directory.CreateDirectory(storageDirectory);
+var dataProtectionKeyDirectory = builder.Configuration["Security:DataProtection:KeyRingPath"];
+if (string.IsNullOrWhiteSpace(dataProtectionKeyDirectory))
+    dataProtectionKeyDirectory = Path.Combine(storageDirectory, "card-hub-keyring");
+else if (!Path.IsPathRooted(dataProtectionKeyDirectory))
+    dataProtectionKeyDirectory = Path.Combine(storageDirectory, dataProtectionKeyDirectory);
+Directory.CreateDirectory(dataProtectionKeyDirectory);
+// The default path is convenient for local/self-hosted setups only. Operators
+// must configure a separately protected key ring before production use.
+builder.Services.AddDataProtection()
+    .SetApplicationName("EasyLottery")
+    .PersistKeysToFileSystem(new DirectoryInfo(dataProtectionKeyDirectory));
+builder.Services.AddSingleton<ICardHubLinkRepository, SqliteCardHubLinkRepository>();
+builder.Services.AddSingleton<ICardHubSecretProtector, CardHubSecretProtector>();
+builder.Services.AddSingleton<CardHubOriginPolicy>();
+builder.Services.AddHttpClient<ICardHubConnectionVerifier, CardHubConnectionVerifier>(client => client.Timeout = TimeSpan.FromSeconds(5))
+    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
 
 var forwardedHeadersOptions = new ForwardedHeadersOptions
 {
@@ -200,6 +218,7 @@ app.Use(async (context, next) =>
     }
 });
 app.UseRateLimiter();
+app.UseShopFeatureGate(app.Configuration);
 
 app.MapHealthChecks("/health/live", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
 {
@@ -211,6 +230,8 @@ app.MapHealthChecks("/health/ready", new Microsoft.AspNetCore.Diagnostics.Health
 });
 
 app.MapSettingsEndpoints();
+app.MapShopFeatureEndpoints();
+app.MapCardHubLinkEndpoints();
 app.MapSettingsResourceEndpoints();
 app.MapPasskeyEndpoints();
 app.MapObsSessionEndpoints();

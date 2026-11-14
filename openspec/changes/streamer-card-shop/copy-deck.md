@@ -167,9 +167,12 @@
 | `hub.link.field.clientSecret.label` | 站台 Client Secret |
 | `hub.link.field.clientSecret.helper` | 密鑰會加密保存在此網站，儲存後不會再顯示於瀏覽器。 |
 | `hub.link.field.clientSecret.placeholderSaved` | 已設定時可留白保留伺服器值 |
+| `hub.link.field.clientSecret.placeholderNew` | 輸入 Client Secret |
 | `hub.link.field.tenant.label` | 實況主名稱 |
 | `hub.link.field.lastPublish.label` | 最後發布時間 |
 | `hub.link.field.lastCheck.label` | 最後檢查時間 |
+| `hub.link.section.status` | 連線狀態 |
+| `hub.link.loading` | 載入 Card Hub 連結設定… |
 | `hub.link.save` | 儲存並驗證 |
 | `hub.link.saving` | 驗證中… |
 | `hub.link.testConnection` | 測試連線 |
@@ -207,7 +210,16 @@
 | `hub.link.toast.testTenantDisabled` | 連線成功，但此實況主帳號目前已停用，暫時無法發布或抽卡。 |
 | `hub.link.toast.saved` | Card Hub 連結已儲存並驗證。 |
 | `hub.link.toast.saveFailed` | Card Hub 連結儲存失敗。 |
+| `hub.link.toast.saveInvalid` | 設定已儲存，但 Card Hub 憑證無效。請確認 Client ID 與 Secret。 |
+| `hub.link.toast.saveUnreachable` | 設定已儲存，但目前無法連線到 Card Hub。可稍後再測試。 |
 | `hub.link.toast.unlinked` | 已解除 Card Hub 連結。 |
+| `hub.link.error.load` | 無法載入 Card Hub 連結設定。 |
+| `hub.link.error.save` | Card Hub 連結儲存失敗。 |
+| `hub.link.error.test` | Card Hub 連線測試失敗。 |
+| `hub.link.error.unlink` | 解除 Card Hub 連結失敗。 |
+| `hub.link.unlink.title` | 解除 Card Hub 連結？ |
+| `hub.link.unlink.cancel` | 取消 |
+| `hub.link.unlink.confirmAction` | 確定解除 |
 
 ### 4.4 Secret 只顯示一次（Card Hub 實況主後台）
 
