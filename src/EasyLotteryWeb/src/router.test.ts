@@ -4,7 +4,7 @@ import { adminRouteRedirect } from "./router-guard";
 
 describe("public Vue routes", () => {
   it("keeps the Phase 1 routes explicit and public", () => {
-    expect(publicRoutes.map(route => route.path)).toEqual(["/about", "/privacy-policy", "/login"]);
+    expect(publicRoutes.map(route => route.path)).toEqual(["/about", "/privacy-policy", "/login", "/shop"]);
     expect(publicRoutes.every(route => !route.meta?.requiresAdmin)).toBe(true);
   });
 });

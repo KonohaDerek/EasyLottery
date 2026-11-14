@@ -26,11 +26,14 @@ import PlatformConnectionsView from "./views/PlatformConnectionsView.vue";
 import OvertimeSettingsView from "./views/OvertimeSettingsView.vue";
 import DonateDrawRecordsView from "./views/DonateDrawRecordsView.vue";
 import LotteryDrawRecordsView from "./views/LotteryDrawRecordsView.vue";
+import CardHubLinkView from "./views/CardHubLinkView.vue";
+import CardShopView from "./views/CardShopView.vue";
 
 export const publicRoutes: RouteRecordRaw[] = [
   { path: "/about", component: AboutView, meta: { title: "關於 EasyLottery" } },
   { path: "/privacy-policy", component: PrivacyPolicyView, meta: { title: "隱私權政策｜EasyLottery" } },
-  { path: "/login", component: LoginView, meta: { title: "管理員登入｜EasyLottery" } }
+  { path: "/login", component: LoginView, meta: { title: "管理員登入｜EasyLottery" } },
+  { path: "/shop", component: CardShopView, meta: { title: "卡牌商店｜EasyLottery" } }
 ];
 
 export const adminRoutes: RouteRecordRaw[] = [
@@ -45,6 +48,7 @@ export const adminRoutes: RouteRecordRaw[] = [
   { path: "/pokebox/preview/:id", component: PokeBoxPreviewView, meta: { title: "戳戳樂 OBS 預覽｜EasyLottery", requiresAuth: true } },
   { path: "/system/access", component: AdminAccessView, meta: { title: "管理員 Passkey 管理｜EasyLottery", requiresAuth: true } },
   { path: "/system/payment", component: PaymentSettingsView, meta: { title: "支付配置｜EasyLottery", requiresAuth: true } },
+  { path: "/system/card-hub", component: CardHubLinkView, meta: { title: "Card Hub 連結｜EasyLottery", requiresAuth: true } },
   { path: "/system/youtube-login", component: YoutubeLoginView, meta: { title: "YouTube 直播設定｜EasyLottery", requiresAuth: true } },
   { path: "/system/audit", component: AuditView, meta: { title: "審計紀錄｜EasyLottery", requiresAuth: true } },
   { path: "/system/backups", component: BackupsView, meta: { title: "設定備份與回復｜EasyLottery", requiresAuth: true } },
@@ -74,5 +78,5 @@ export const routes: RouteRecordRaw[] = [
   ...publicRoutes,
   ...adminRoutes,
   ...obsRoutes,
-  { path: "/:pathMatch(.*)*", component: NotFoundView, meta: { title: "找不到頁面｜EasyLottery" } }
+  { path: "/:pathMatch(.*)*", name: "not-found", component: NotFoundView, meta: { title: "找不到頁面｜EasyLottery" } }
 ];

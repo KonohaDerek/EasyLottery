@@ -16,9 +16,9 @@
 - [ ] Terms version/acceptance, age bracket, reserved handle, groups, account deletion (instances retired), synchronous JSON export.
 - [ ] Tests: viewer token rejected by streamer/site/admin APIs, code expiry/attempt limits, deletion, export scope.
 ### 1c. Site side (PR 3, parallel with 1a)
-- [ ] `Shop:Enabled` (default off) gating nav, pages and APIs; site SQLite migration for the D3 site tables.
-- [ ] Vue "Card Hub 連結" settings page: four states, test connection, encrypted secret, show-once secret.
-- [ ] Tests: flag off hides and blocks, secret never returned by APIs, unreachable vs invalid state.
+- [x] `Shop:Enabled` (default off) gating nav, pages and APIs; site SQLite migration for the D3 site tables.
+- [x] Vue "Card Hub 連結" settings page: four states, test connection, encrypted secret, show-once secret.
+- [x] Tests: flag off hides and blocks, secret never returned by APIs, unreachable vs invalid state.
 
 ## 2a. Catalog and images - #339 (Codex)
 - [ ] Site: rarity tiers, sets, serialized cards, product type registry with `card_pack`; publish to Hub with versioned snapshots.

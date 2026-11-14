@@ -11,6 +11,7 @@ using EasyLotteryInfrastructure.Storage;
 using EasyLotteryInfrastructure.Templates;
 using EasyLotteryInfrastructure.ObsAssets;
 using EasyLotteryInfrastructure.Interactions;
+using EasyLotteryInfrastructure.Shop;
 using EasyLotteryDomain.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -27,6 +28,8 @@ public static class DependencyInjection
             .ValidateOnStart();
         services.AddHostedService<SqliteSchemaMigrator>();
         services.AddSingleton<IStorageGateProvider, StorageGateProvider>();
+        services.AddSingleton<SqliteHubLinkRepository>(sp =>
+            new SqliteHubLinkRepository(sp.GetRequiredService<IOptions<StorageProviderOptions>>().Value));
         services.AddSingleton<YamlDonateActivityEventStore>();
         services.AddSingleton<IDonateActivityEventStore>(sp => sp.GetRequiredService<YamlDonateActivityEventStore>());
         services.AddSingleton<YamlDonateActivityRepository>();

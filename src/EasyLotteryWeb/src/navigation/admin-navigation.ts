@@ -15,15 +15,35 @@ export const adminNavigationGroups = [
   { title: "系統設定與安全", links: [["/system/access", "管理員 Passkey"], ["/system/backups", "設定備份"]] }
 ] as const satisfies readonly AdminNavigationGroup[];
 
-export function getActiveAdminNavigationPath(currentPath: string): string | undefined {
+export function getAdminNavigationGroups(shopEnabled: boolean): readonly AdminNavigationGroup[] {
+  return shopEnabled
+    ? [...adminNavigationGroups, { title: "卡牌商店", links: [["/system/card-hub", "Card Hub 連結"]] }]
+    : adminNavigationGroups;
+}
+
+export function getActiveAdminNavigationPath(currentPath: string, shopEnabled = false): string | undefined {
   const normalizedPath = normalizePath(currentPath);
   const links: AdminNavigationLink[] = [];
-  for (const group of adminNavigationGroups) links.push(...group.links);
+  for (const group of getAdminNavigationGroups(shopEnabled)) links.push(...group.links);
   return links
     .filter(([path]) => path === "/"
       ? normalizedPath === "/"
       : normalizedPath === path || normalizedPath.startsWith(`${path}/`))
     .sort((left, right) => right[0].length - left[0].length)[0]?.[0];
+}
+
+export type PublicNavigationLink = readonly [path: string, label: string];
+
+const publicNavigationLinks = [
+  ["/about", "關於"],
+  ["/privacy-policy", "隱私權政策"],
+  ["/login", "管理員登入"]
+] as const satisfies readonly PublicNavigationLink[];
+
+export function getPublicNavigationLinks(shopEnabled: boolean): readonly PublicNavigationLink[] {
+  return shopEnabled
+    ? [...publicNavigationLinks.slice(0, 1), ["/shop", "卡牌商店"], ...publicNavigationLinks.slice(1)]
+    : publicNavigationLinks;
 }
 
 function normalizePath(path: string): string {
