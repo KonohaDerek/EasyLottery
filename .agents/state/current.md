@@ -1,23 +1,14 @@
 # Current work state
 
-- Task ID: issue-304-platform-status-2026-11-10
-- Status: Implementation and verification complete at `206e01849ca6d9a2eea42106e24a20957dfbd825`; waiting for explicit approval before push/Ready PR.
-- Source: GitHub Issue #304, P1: distinguish configured credentials from actual platform connectivity.
-- Scope: Correct the API/UI status contract so credentials do not imply connectivity; state adapter availability and only report verified health when runtime evidence exists; add mocked API/UI coverage.
-- Non-goals: No real provider login, external account connection, production settings, secret access, deployment, merge, or production changes.
-- Configuration source: If configuration files are needed, read only the main-branch snapshot in `~/Documents/Project/EasyLottery`; no configuration/secret files are currently needed.
-- OpenSpec: Extend `openspec/changes/migrate-vue-remaining-routes` with explicit platform-status semantics and tests.
-- Branch/worktree: `codex/issue-304-platform-status` / `.worktrees/issue-304-platform-status`.
-- Routing: Manual fallback to active host default; no Jev transport or approved no-charge health check was exposed. No sub-agent because the work shares the API/UI contract.
-- Route override (2026-11-10, user-explicit): Codex plans and coordinates; Claude implements in this worktree using read/edit tools only (no shell, tests, git, or remote calls); Codex independently verifies afterwards.
-- Implementation progress (Claude, 2026-11-10): Reviewed the Codex draft (API status enum, placeholder connectors reporting `Unimplemented`, Vue labels/colors). Fixes: load-failure alert now always starts with `無法載入平台串接設定`; save handling picks the saved platform's status from a single-item or full-list PUT response and shows "unknown" instead of `undefined` or the pre-save state; added a .NET test proving missing credentials stay `unconfigured` with masked-null secrets even when an adapter reports health; added Vitest coverage for full-list save responses and default colors; extended Playwright to assert unconfigured Discord text, no `已驗證連線` from saved credentials, post-save status, awaited Twitch save, and no cards after a failed read. OpenSpec task 1.7 is now verified and checked complete.
-- Independent verification: confirmed PUT returns a single platform status; the Vue helper also accepts full-list responses. Legacy Blazor displays the API state directly and does not infer connection from credentials. The active connectors report `Unimplemented` until actual adapters exist.
-- Verification after Claude's review fixes: focused .NET endpoint tests 6/6 passed; isolated-container `npm test` 29 files / 145 tests passed; `npm run typecheck` passed; `npm run build -- --outDir /tmp/issue304-web-dist` passed (two existing SignalR Rollup annotation notices); `openspec validate --all --strict` had passed 47/47 (OpenSpec unchanged by the follow-up fixes); `git diff --check` passed.
-- Playwright: focused platform connection suite passed 3/3 against a disposable local API container with synthetic settings/storage. Full Playwright suite was not run. No production/provider connection was attempted.
-- Independent Codex review: no remaining correctness issue found in the API/UI contract, response parsing, connector state or secret masking; confirm final diff and Claude review against the same committed revision.
-- Review fixes (Claude, 2026-11-11, read/edit only on `ef1adc0`): four #304 review findings addressed. (1) `PlatformConnectionEndpointTests.CreateFactory` sets `Storage:Directory` to a unique `Path.Combine(Path.GetTempPath(), "easylottery-platform-connection-tests", <guid>)` so saved credentials cannot leak between tests or into developer storage. (2) `Connections_GetMasksSecretsAndReportsHealth` now asserts the PUT response body is a `PlatformConnectionStatus` for YouTube with `State == "adapter_unavailable"` and `Configured == true`. (3) `TwitchDegradation_DoesNotChangeYouTubeStatus` renamed to `LegacyDegradeRequest_DoesNotClaimConnectivityOrDegradedState` to match what it asserts. (4) `PlatformConnectionState` no longer includes `| string`; `platformStatusLabel`/`platformStatusColor` take `string` so unknown server values still fall back to `連線狀態未知`/`default`; `api.test.ts` types its full-list fixture as `PlatformConnection[]` for the narrowed union. Earlier verification results predate these edits and must be re-run; no tests were run by Claude.
-- Review-fix notes: Codex confirmed `Storage:Directory` is the API's configured storage key (`src/EasyLotteryAPI/Program.cs:95-96`); each factory uses a fresh temp directory. The temp directory is left to the OS temp cleanup. `npm run typecheck` passed with the narrowed state union.
-- Verification plan: implementation, focused tests, and final browser regression are complete. OpenSpec validation passed 47/47 before the final task-checkbox bookkeeping update; that one-line update was not revalidated.
-- Delivery gate: `verification_complete: true`, `branch_pushed: false`, `pull_request_created: false`. Push/Ready PR require explicit approval under repository `executionMode=confirm`.
-- Allowed interruption: external authorization is required before pushing the branch or creating a PR; no remote mutation has been performed.
-- Blockers: Repository instruction references `workflows/ai-agent-development.md`, which is absent from `origin/main`; remaining workflow rules and the pinned release skill are followed.
+- Task: PR #335 NuGet dependency compatibility, 2026-11-12.
+- Source: authorized maintenance of existing Dependabot PR #335; no new PR.
+- Status: Testing / preparing independent same-SHA review.
+- Branch: `codex/pr335-dependency-compat-20261112`; isolated worktree `EasyLottery-pr335-20261112`.
+- Base: PR head `3f733a886bbc873ea0d85362197adc9047e23457`, integrated main `388f1e9884306a35850ce8a4ebdb2a828534aaf2`, preserving #334.
+- Route: actual Claude Opus5.5 plans, Codex implements, based on published stable v0.0.7. See task plan/decision.
+- OpenSpec: `align-dotnet10-dependency-runtime`.
+- Implemented: DevServer and WASM SignalR10.0.15; other upgrades retained; actual bounded DevServer smoke in CI.
+- Verification: see `.agents/verification/2026-11-12-pr335-dependencies.md`; authoritative immutable-SHA test/review/CI evidence remains external.
+- Delivery: existing PR https://github.com/KonohaDerek/EasyLottery/pull/335; fast-forward push only after verification. No merge/release/deploy. Main branch protection baseline remains unmet; #334 exception does not apply.
+- Flags at historical snapshot: `verification_complete: false`, `branch_pushed: false`, `pull_request_created: true` (existing PR).
+- Next: finish local E2E; freeze candidate; request actual independent Codex and Claude reviews of identical full SHA; fast-forward push existing PR branch and verify new CI. Five candidate rounds maximum.

@@ -2,6 +2,8 @@
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { HubConnectionBuilder, type HubConnection } from "@microsoft/signalr";
 import { useRoute } from "vue-router";
+import { obsErrorMessage, obsRecoveryHint } from "../obs/errors";
+import ObsErrorState from "../obs/ObsErrorState.vue";
 import { ApiError, apiRequest } from "../api/client";
 import { readObsSessionToken } from "../obs/session-token";
 import { reconnectLiveDraw } from "../obs/reconnect";
@@ -78,9 +80,7 @@ const cues: Record<string, { countdown: string; poke: string; reveal: string }> 
 };
 
 function friendlyError(cause: unknown): string {
-  if (cause instanceof ApiError && [401, 403].includes(cause.status)) return "OBS 工作階段無效或已過期，請回管理頁重新開啟預覽。";
-  if (cause instanceof ApiError && cause.status === 429) return "請求過於頻繁，稍候再試。";
-  return cause instanceof Error ? cause.message : "無法載入戳戳樂 OBS 畫面。";
+  return obsErrorMessage(cause, "戳戳樂活動");
 }
 
 async function loadSettings(): Promise<void> {
@@ -176,7 +176,7 @@ async function applyLiveState(state: PokeLiveDrawState): Promise<void> {
 
 async function readSessionToken(): Promise<string> {
   const token = readObsSessionToken();
-  if (!token) throw new Error("OBS 工作階段 token 不存在，請從管理頁重新開啟預覽。");
+  if (!token) throw new ApiError("", 401);
   return token;
 }
 
@@ -264,7 +264,7 @@ async function initialize(): Promise<void> {
   loading.value = true;
   error.value = "";
   try {
-    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(publicId)) throw new Error("戳戳樂 OBS 網址無效。");
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(publicId)) throw new Error(`戳戳樂 OBS 網址無效，${obsRecoveryHint}`);
     await refreshTemplate();
     await loadSettings();
     await connect();
@@ -371,12 +371,9 @@ onBeforeUnmount(() => {
 <template>
   <main class="obs-layout" :class="{ 'obs-controls-enabled': controlsEnabled, 'obs-motion-reduced': motionReduced, 'obs-quality-low': lowQuality }">
     <div v-if="loading" class="sr-only" role="status">正在載入戳戳樂 OBS 畫面…</div>
-    <div v-else-if="error && controlsEnabled" class="obs-state obs-state-error" role="alert">
-      <strong>無法載入戳戳樂 OBS</strong>
-      <p>{{ error }}</p>
-      <button type="button" @click="reload">重新載入</button>
-    </div>
-    <div v-else-if="error" class="sr-only" role="status">{{ error }}</div>
+    <ObsErrorState v-else-if="error" :message="error">
+      <button v-if="controlsEnabled" type="button" @click="reload">重新載入</button>
+    </ObsErrorState>
     <template v-else-if="template">
       <div class="obs-poke-wrapper" :class="isIdle ? 'obs-animation-idle' : 'obs-animation-visible'" :style="wrapperStyle">
         <section class="obs-stage">
