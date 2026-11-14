@@ -380,6 +380,7 @@ public sealed class ViewerAccountsService(
             throw new ViewerServiceException(StatusCodes.Status400BadRequest, "viewer_group_name_invalid", "viewer.groups.name.invalid");
         await using var connection = await DataSource.OpenConnectionAsync(cancellationToken);
         await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+        await RequireActiveViewerAsync(connection, transaction, viewerId, cancellationToken);
         if (streamerId is { } tenantId)
         {
             await using var tenant = new NpgsqlCommand("SELECT EXISTS (SELECT 1 FROM streamers WHERE id = @id AND status = 'active')", connection, transaction);
@@ -604,6 +605,15 @@ public sealed class ViewerAccountsService(
         owns.Parameters.AddWithValue("viewer", viewerId);
         if (!(bool)(await owns.ExecuteScalarAsync(cancellationToken) ?? false))
             throw new ViewerServiceException(StatusCodes.Status404NotFound, "viewer_card_not_found", "viewer.collection.cardNotFound");
+    }
+
+    private static async Task RequireActiveViewerAsync(NpgsqlConnection connection, NpgsqlTransaction transaction,
+        Guid viewerId, CancellationToken cancellationToken)
+    {
+        await using var command = new NpgsqlCommand("SELECT id FROM viewers WHERE id = @viewer AND deleted_at_utc IS NULL FOR UPDATE", connection, transaction);
+        command.Parameters.AddWithValue("viewer", viewerId);
+        if (await command.ExecuteScalarAsync(cancellationToken) is null)
+            throw new ViewerServiceException(StatusCodes.Status401Unauthorized, "viewer_account_unavailable", "viewer.auth.session.invalid");
     }
 
     private static async Task<bool> TableExistsAsync(NpgsqlConnection connection, NpgsqlTransaction? transaction,
