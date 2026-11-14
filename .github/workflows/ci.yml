@@ -15,6 +15,46 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  card-hub:
+    runs-on: ubuntu-latest
+    env:
+      CARD_HUB_TEST_CONNECTION: Host=localhost;Port=5432;Database=cardhub_test;Username=postgres;Password=postgres
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: cardhub_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d cardhub_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore Card Hub
+        run: dotnet restore tests/EasyLotteryCardHubTests/EasyLotteryCardHubTests.csproj
+
+      - name: Build Card Hub
+        run: dotnet build src/EasyLotteryCardHub/EasyLotteryCardHub.csproj --configuration Release --no-restore
+
+      - name: Test Card Hub
+        run: dotnet test tests/EasyLotteryCardHubTests/EasyLotteryCardHubTests.csproj --configuration Release --logger "console;verbosity=normal"
+
+      - name: Build Card Hub container
+        run: docker build --file src/EasyLotteryCardHub/Dockerfile --tag easy-lottery-card-hub:ci .
+
   build-and-test:
     runs-on: ubuntu-latest
 

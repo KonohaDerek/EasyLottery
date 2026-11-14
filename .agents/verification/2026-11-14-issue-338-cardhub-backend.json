@@ -1,0 +1,13 @@
+{
+  "change": "issue-338-cardhub-backend",
+  "tested_revision": "6dd9ab2822cfea52f0c3a84165e873033b68d243",
+  "working_tree_changes_included": true,
+  "runtime": "approved Dev Container, .NET 10; no local .NET SDK",
+  "checks": [
+    {"name": "dotnet build EasyLottery.generated.sln --configuration Release --no-restore", "result": "passed", "warnings": 2, "notes": "Existing NU1902 System.Formats.Cbor 9.0.0 warnings."},
+    {"name": "dotnet test tests/EasyLotteryCardHubTests/EasyLotteryCardHubTests.csproj --configuration Release --no-restore", "result": "passed", "passed": 11, "skipped": 3, "failed": 0, "notes": "PostgreSQL migration, invite transaction, and discoverable Passkey/counter tests skipped because CARD_HUB_TEST_CONNECTION was not configured."},
+    {"name": "git diff --check", "result": "passed"}
+  ],
+  "not_run": ["PostgreSQL migration/transaction/replay integration tests", "Deployment", "Real email delivery"],
+  "external_actions": "none"
+}

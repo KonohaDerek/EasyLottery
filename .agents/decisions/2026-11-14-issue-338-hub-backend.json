@@ -1,0 +1,16 @@
+{
+  "task": "issue-338-cardhub-foundation-slice-1a",
+  "source": "user authorized Card Shop development; issue #338 and PR #345 OpenSpec",
+  "revision": "6dd9ab2822cfea52f0c3a84165e873033b68d243",
+  "route": "complex cross-cutting backend work; active host default; no model override",
+  "jev": "active_agent_host_default; no approved no-charge health-check transport used",
+  "parallelism": "1a is independent of 1c; separate worktrees required; coordinator owns integration",
+  "risk": "high security/data boundary; no production data or environment touched",
+  "verification": ["build", "focused unit tests", "migration/schema review", "diff check"],
+  "human_escalation": "none for local code; stop before nonzero cost, production changes, or required user-account operations",
+  "assumptions": [
+    "Use D1/D11/D12 as current product scope.",
+    "This slice does not issue real invitations or send email; invite delivery/passkey onboarding needs a provider-neutral outbox and follow-up design.",
+    "Site credentials are one-time returned secrets, persisted as hashes, with the previous rotated secret valid for 24 hours unless revoked."
+  ]
+}
