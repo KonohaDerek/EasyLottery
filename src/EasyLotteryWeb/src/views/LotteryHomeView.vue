@@ -6,6 +6,9 @@ import { clearPendingCoreLotteryDrawId, createCoreLotteryDrawId, createCoreLotte
 import { expandYoutubeMembers, exportParticipants, exportPrizes, parseParticipantImport, parsePrizes, parseYoutubeMembers, type DataFormat } from "../lottery/import-export";
 import { clearOvertimeToken, getYouTubeCredentialStatus, listYouTubeLiveChatMessages, publishSuperChatToOvertime, readDrawingRules, resolveYouTubeLiveChat, writeDrawingRules } from "../lottery/api";
 import { processChatBatch, toOvertimeSuperChat, type ChatMessage, type ChatRules } from "../lottery/chat";
+import { importInteractionEligibility, listInteractionRounds, previewInteractionEligibility, type InteractionRound } from "../interactions/admin/api";
+import { applyEligibilityImport, classifyEligibility, entryDisplayName, importableRoundStatuses, parseEligibilityPreview, summarizeEligibility, type EligibilityPreview } from "../lottery/interaction-eligibility";
+import { advanceLockedPool, applyConfirmedWinner, clearLockedPool, createLockedPool, lockedPoolVersion, readLockedPool, storeLockedPool, type LockedPool, type LockedPoolReadResult } from "../lottery/locked-pool";
 
 const participants = ref<Participant[]>([]);
 const prizes = ref<string[]>([]);
@@ -57,6 +60,28 @@ const groups = computed(() => participantGroups(participants.value));
 const visibleParticipants = computed(() => filterParticipantsByGroup(participants.value, selectedGroup.value));
 const eligibleCount = computed(() => participants.value.filter(item => !item.isWinner).length);
 const drawLocked = computed(() => isCheckingPendingDraw.value || Boolean(pendingDrawId.value) || isSavingDraw.value || isReconcilingDraw.value || !pendingStorageAvailable.value);
+const lockedPool = ref<LockedPool | null>(null);
+const lockError = ref("");
+const confirmingUnlock = ref(false);
+const poolLocked = computed(() => lockedPool.value !== null);
+// Pool lock (or an unverifiable persisted lock) freezes every participant/prize/chat mutation; draws stay allowed only on a valid lock or no lock.
+const mutationsLocked = computed(() => drawLocked.value || poolLocked.value || Boolean(lockError.value));
+const drawBlocked = computed(() => drawLocked.value || Boolean(lockError.value));
+const lockShortCode = computed(() => lockedPool.value?.lockHash.slice(0, 8) ?? "");
+const lockedAtLabel = computed(() => lockedPool.value ? new Date(lockedPool.value.lockedAtUtc).toLocaleString() : "");
+
+const interactionRounds = ref<InteractionRound[] | null>(null);
+const selectedRoundId = ref("");
+const eligibilityPreview = ref<EligibilityPreview | null>(null);
+const eligibilityBusy = ref(false);
+const eligibilityMessage = ref("");
+const eligibilityClassifications = computed(() => eligibilityPreview.value ? classifyEligibility(participants.value, eligibilityPreview.value.entries) : []);
+const eligibilitySummary = computed(() => summarizeEligibility(eligibilityClassifications.value));
+const eligibilityNameCollisions = computed(() => eligibilityClassifications.value.filter(item => item.nameCollisionIds.length).map(item => entryDisplayName(item.entry)));
+const eligibilityRoundImportable = computed(() => Boolean(eligibilityPreview.value
+  && (eligibilityPreview.value.imported || importableRoundStatuses.includes(eligibilityPreview.value.roundStatus))));
+const canImportEligibility = computed(() => Boolean(eligibilityPreview.value?.entries.length)
+  && eligibilityRoundImportable.value && !eligibilityBusy.value && !mutationsLocked.value);
 
 interface PendingLocalDraw {
   drawId: string;
@@ -144,7 +169,7 @@ function ensureLevelRates(levels: readonly string[]): boolean {
 }
 
 function importParticipants() {
-  if (drawLocked.value) return;
+  if (mutationsLocked.value) return;
   error.value = "";
   try {
     const imported = parseParticipantImport(participantText.value, participantFormat.value);
@@ -159,7 +184,7 @@ function importParticipants() {
 }
 
 function importPrizes() {
-  if (drawLocked.value) return;
+  if (mutationsLocked.value) return;
   error.value = "";
   try {
     const imported = parsePrizes(prizeText.value, prizeFormat.value);
@@ -171,7 +196,7 @@ function importPrizes() {
 }
 
 async function importYoutubeMembers(event: Event) {
-  if (drawLocked.value) return;
+  if (mutationsLocked.value) return;
   const input = event.target as HTMLInputElement;
   const file = input.files?.[0];
   input.value = "";
@@ -218,7 +243,7 @@ function exportPrizeList() {
 }
 
 function addPrize() {
-  if (drawLocked.value) return;
+  if (mutationsLocked.value) return;
   const value = newPrize.value.trim();
   if (!value) return;
   prizes.value.push(value);
@@ -226,7 +251,7 @@ function addPrize() {
 }
 
 function addParticipant() {
-  if (drawLocked.value) return;
+  if (mutationsLocked.value) return;
   const name = newName.value.trim();
   if (!name) return;
   participants.value.push(createParticipant({ name, group: newGroup.value, tags: newTags.value }));
@@ -237,16 +262,26 @@ function addParticipant() {
 }
 
 function removeParticipant(participantId: string) {
-  if (drawLocked.value) return;
+  if (mutationsLocked.value) return;
   participants.value = participants.value.filter(item => item.id !== participantId);
   if (selectedGroup.value && !groups.value.some(group => group.toLocaleLowerCase() === selectedGroup.value.toLocaleLowerCase())) selectedGroup.value = "";
 }
 
 function applyPersistedWinner(record: CoreLotteryDrawRecord) {
   const local = pendingLocalDraw;
+  // A reload between advancing the locked pool and clearing the pending draw must not apply the same winner twice.
+  const alreadyInLockedPool = lockedPool.value?.winners.some(winner => winner.drawId === record.drawId) ?? false;
   if (local) {
     participants.value = local.participantsAfter;
     prizes.value = local.prizesAfter;
+  } else if (lockedPool.value && !alreadyInLockedPool) {
+    const next = restoredPoolMatchesRecord(record) ? applyConfirmedWinner(participants.value, prizes.value, record.winnerParticipantId) : null;
+    if (next) {
+      participants.value = next.participants;
+      prizes.value = next.prizes;
+    } else {
+      lockError.value = "已保存的抽獎結果與本分頁恢復的鎖定名單不一致，已停用抽獎；請先核對抽獎紀錄再清除鎖定。";
+    }
   }
   const snapshotWinner = record.participants?.find(participant => participant.participantId === record.winnerParticipantId);
   const member = local?.winner.member ?? (snapshotWinner ? participantFromSnapshot(snapshotWinner) : null);
@@ -254,7 +289,8 @@ function applyPersistedWinner(record: CoreLotteryDrawRecord) {
     pendingDrawMessage.value = "伺服器保存結果缺少得獎籤快照，已鎖定抽獎；請由管理員核對。";
     return;
   }
-  winners.value = [{ member, prize: record.prizeName, drawId: record.drawId }, ...winners.value];
+  if (!alreadyInLockedPool) winners.value = [{ member, prize: record.prizeName, drawId: record.drawId }, ...winners.value];
+  if (lockedPool.value && !lockError.value) persistLockProgress();
   notice.value = `已保存抽獎紀錄：${record.winnerDisplayName} 獲得「${record.prizeName}」。`;
   pendingLocalDraw = null;
   try {
@@ -275,11 +311,180 @@ function participantFromSnapshot(snapshot: CoreLotteryDrawParticipantSnapshot): 
     lotteryGroupId: snapshot.lotteryGroupId,
     name: snapshot.displayName,
     ...(snapshot.externalIdentity ? { identity: { ...snapshot.externalIdentity } } : {}),
+    ...(snapshot.interactionSource ? { source: { ...snapshot.interactionSource } } : {}),
     level: snapshot.level,
     group: snapshot.group,
     tags: [...snapshot.tags],
     isWinner: true
   };
+}
+
+function restoredPoolMatchesRecord(record: CoreLotteryDrawRecord): boolean {
+  try {
+    const expected = createCoreLotteryDrawPayload(record.drawId, participants.value, prizes.value, record.winnerParticipantId,
+      lockedPool.value ? lockedPoolVersion(lockedPool.value) : undefined);
+    return matchesPendingCoreLotteryDraw(record, expected);
+  } catch {
+    return false;
+  }
+}
+
+function persistLockProgress() {
+  const pool = lockedPool.value;
+  if (!pool) return;
+  try {
+    const next = advanceLockedPool(pool, participants.value, prizes.value, winners.value);
+    storeLockedPool(window.sessionStorage, next);
+    lockedPool.value = next;
+  } catch (cause) {
+    lockError.value = `抽獎結果已保存，但無法更新本分頁的鎖定名單，已停用下一次抽獎：${messageOf(cause)}`;
+  }
+}
+
+function lockPool() {
+  if (mutationsLocked.value || chatConnecting.value) return;
+  try {
+    const pool = createLockedPool(participants.value, prizes.value, winners.value);
+    storeLockedPool(window.sessionStorage, pool);
+    if (chatActive.value) stopChatCapture();
+    lockedPool.value = pool;
+    confirmingUnlock.value = false;
+    notice.value = `已鎖定抽獎名單：${pool.participants.length} 張抽獎籤、${pool.prizes.length} 個獎項（代碼 ${pool.lockHash.slice(0, 8)}）。`;
+  } catch (cause) {
+    error.value = `無法鎖定抽獎名單，名單維持可編輯：${messageOf(cause)}`;
+  }
+}
+
+function unlockPool() {
+  if (!poolLocked.value || isSavingDraw.value || isReconcilingDraw.value) return;
+  if (!confirmingUnlock.value) {
+    confirmingUnlock.value = true;
+    return;
+  }
+  try {
+    // Only the tab-scoped lock is cleared; pending draws and saved history are untouched.
+    clearLockedPool(window.sessionStorage);
+  } catch (cause) {
+    error.value = `無法解除鎖定：${messageOf(cause)}`;
+    return;
+  }
+  lockedPool.value = null;
+  confirmingUnlock.value = false;
+  notice.value = "已解除抽獎名單鎖定；名單與獎項可再次編輯，抽獎前請重新確認並鎖定。";
+}
+
+function clearInvalidLock() {
+  try {
+    clearLockedPool(window.sessionStorage);
+  } catch (cause) {
+    lockError.value = `無法清除鎖定名單資料，抽獎維持停用：${messageOf(cause)}`;
+    return;
+  }
+  lockedPool.value = null;
+  lockError.value = "";
+  confirmingUnlock.value = false;
+  notice.value = "已清除無法驗證的鎖定名單；目前名單未被自動還原，請確認名單後重新鎖定。";
+}
+
+function restoreLockedPool() {
+  let result: LockedPoolReadResult;
+  try {
+    result = readLockedPool(window.sessionStorage);
+  } catch (cause) {
+    lockError.value = `無法讀取本分頁的鎖定名單，已停用抽獎：${messageOf(cause)}`;
+    return;
+  }
+  if (result.status === "none") return;
+  if (result.status === "invalid") {
+    lockError.value = `本分頁的鎖定名單無法驗證，已停用抽獎：${result.reason}`;
+    return;
+  }
+  lockedPool.value = result.pool;
+  participants.value = result.pool.participants.map(participant => ({ ...participant, tags: [...participant.tags] }));
+  prizes.value = [...result.pool.prizes];
+  winners.value = result.pool.winners.map(winner => ({ ...winner, member: { ...winner.member, tags: [...winner.member.tags] } }));
+  notice.value = `已恢復本分頁鎖定的抽獎名單（代碼 ${result.pool.lockHash.slice(0, 8)}）。`;
+}
+
+function eligibilityErrorMessage(cause: unknown): string {
+  if (cause instanceof ApiError) {
+    if (cause.status === 401 || cause.status === 403) return "管理員工作階段已失效，請重新登入後再試。";
+    if (cause.status === 404) return "找不到此互動回合，可能已被移除。";
+    if (cause.status === 429) return "操作太頻繁，請稍後再試。";
+  }
+  return messageOf(cause);
+}
+
+async function loadInteractionRounds() {
+  if (eligibilityBusy.value) return;
+  eligibilityBusy.value = true;
+  eligibilityMessage.value = "";
+  try {
+    const rounds = await listInteractionRounds();
+    interactionRounds.value = rounds;
+    if (!rounds.some(round => round.id === selectedRoundId.value)) {
+      selectedRoundId.value = "";
+      eligibilityPreview.value = null;
+    }
+  } catch (cause) {
+    eligibilityMessage.value = `互動回合載入失敗：${eligibilityErrorMessage(cause)}`;
+  } finally {
+    eligibilityBusy.value = false;
+  }
+}
+
+function selectInteractionRound(roundId: string) {
+  if (eligibilityBusy.value) return;
+  selectedRoundId.value = roundId;
+  eligibilityPreview.value = null;
+  eligibilityMessage.value = "";
+}
+
+async function previewEligibility() {
+  const roundId = selectedRoundId.value;
+  if (!roundId || eligibilityBusy.value) return;
+  eligibilityBusy.value = true;
+  eligibilityMessage.value = "";
+  eligibilityPreview.value = null;
+  try {
+    const preview = parseEligibilityPreview(await previewInteractionEligibility(roundId), roundId);
+    if (selectedRoundId.value === roundId) eligibilityPreview.value = preview;
+  } catch (cause) {
+    eligibilityMessage.value = `資格預覽失敗，名單未變更：${eligibilityErrorMessage(cause)}`;
+  } finally {
+    eligibilityBusy.value = false;
+  }
+}
+
+async function confirmEligibilityImport() {
+  const preview = eligibilityPreview.value;
+  if (!preview || !canImportEligibility.value) return;
+  eligibilityBusy.value = true;
+  eligibilityMessage.value = "";
+  try {
+    const imported = parseEligibilityPreview(await importInteractionEligibility(preview.roundId), preview.roundId);
+    if (mutationsLocked.value) {
+      eligibilityMessage.value = "匯入回應抵達時名單已鎖定，未套用變更；解除鎖定後可重試，同一快照不會重複加籤。";
+      return;
+    }
+    if (!imported.entries.length) {
+      eligibilityMessage.value = "資格快照沒有觀眾，名單保持不變。";
+      return;
+    }
+    const result = applyEligibilityImport(participants.value, imported);
+    participants.value = result.participants;
+    eligibilityPreview.value = imported;
+    const { added, duplicates, linked, nameCollisions } = result.summary;
+    notice.value = `已匯入「${imported.roundName || imported.roundId}」資格快照 ${imported.snapshotId?.slice(0, 8)}：新增 ${added}、重複 ${duplicates}、連結手動身份 ${linked}${nameCollisions ? `、同名待確認 ${nameCollisions}` : ""}。`;
+  } catch (cause) {
+    eligibilityMessage.value = `資格匯入失敗，名單與鎖定狀態未變更：${eligibilityErrorMessage(cause)}。可直接重試，同一快照不會重複加籤。`;
+  } finally {
+    eligibilityBusy.value = false;
+  }
+}
+
+function roundStatusLabel(status: string): string {
+  return ({ Draft: "草稿", Scheduled: "已排程", Live: "進行中", Paused: "已暫停", Settled: "已結算", Cancelled: "已取消" } as Record<string, string>)[status] ?? status;
 }
 
 function setPendingDraw(value: CoreLotteryDrawPayload) {
@@ -448,7 +653,7 @@ async function restorePendingDraw() {
 }
 
 async function drawPrize() {
-  if (drawLocked.value || chatConnecting.value) return;
+  if (drawBlocked.value || chatConnecting.value) return;
   let drawId: string;
   let pendingStorage: Storage;
   try {
@@ -466,10 +671,12 @@ async function drawPrize() {
     notice.value = result.reason === "no-prizes" ? "請先加入獎項再抽獎。" : "目前沒有尚未得獎的參加者。";
     return;
   }
+  // Captured once so every prepared/result payload of this draw carries the same locked-pool version (undefined when unlocked).
+  const poolVersion = lockedPool.value ? lockedPoolVersion(lockedPool.value) : undefined;
   let preparedState: CoreLotteryDrawPreparedState;
   try {
-    preparedState = createCoreLotteryDrawPreparedState(drawId, participants.value, prizes.value);
-    const preflightPayload = createCoreLotteryDrawPayload(drawId, participants.value, prizes.value, eligibleBeforeDraw[0].id);
+    preparedState = createCoreLotteryDrawPreparedState(drawId, participants.value, prizes.value, undefined, poolVersion);
+    const preflightPayload = createCoreLotteryDrawPayload(drawId, participants.value, prizes.value, eligibleBeforeDraw[0].id, poolVersion);
     preflightPendingCoreLotteryDrawStorage(pendingStorage, preflightPayload);
     storePendingCoreLotteryDrawPreparedState(pendingStorage, preparedState);
   } catch (cause) {
@@ -482,7 +689,7 @@ async function drawPrize() {
       const selectedIndex = secureRandomIndex(candidateCount);
       const selectedParticipant = eligibleBeforeDraw[selectedIndex];
       if (!selectedParticipant) throw new Error("安全亂數回傳了無效的抽獎候選索引。");
-      const selectedState = createCoreLotteryDrawPreparedState(drawId, participants.value, prizes.value, selectedParticipant.id);
+      const selectedState = createCoreLotteryDrawPreparedState(drawId, participants.value, prizes.value, selectedParticipant.id, poolVersion);
       // Persist the selected outcome before drawLottery mutates participant and prize state.
       storePendingCoreLotteryDrawPreparedState(pendingStorage, selectedState);
       preparedState = selectedState;
@@ -508,7 +715,7 @@ async function drawPrize() {
     notice.value = result.reason === "no-prizes" ? "請先加入獎項再抽獎。" : "目前沒有尚未得獎的參加者。";
     return;
   }
-  const operation = createCoreLotteryDrawPayload(drawId, participants.value, prizes.value, result.winner.member.id);
+  const operation = createCoreLotteryDrawPayload(drawId, participants.value, prizes.value, result.winner.member.id, poolVersion);
   pendingLocalDraw = { drawId, participantsAfter: result.participants, prizesAfter: result.prizes, winner: result.winner };
   try {
     storePendingCoreLotteryDrawId(pendingStorage, operation);
@@ -531,7 +738,7 @@ function chatRules(): ChatRules {
 }
 
 async function startChatCapture() {
-  if (drawLocked.value || chatConnecting.value || chatActive.value) return;
+  if (mutationsLocked.value || chatConnecting.value || chatActive.value) return;
   const generation = ++chatGeneration;
   const controller = new AbortController();
   chatSessionController?.abort();
@@ -583,7 +790,8 @@ async function pollChat(generation: number) {
     const batch = processChatBatch(messages, chatCursor.value, chatRules(), lastAccepted.value, participants.value);
     chatCursor.value = batch.cursor;
     lastAccepted.value = batch.lastAccepted;
-    if (batch.addedParticipants.length) participants.value = [...participants.value, ...batch.addedParticipants];
+    // A locked (or unverifiable) pool never accepts chat-added eligibility, even from an in-flight poll.
+    if (batch.addedParticipants.length && !poolLocked.value && !lockError.value) participants.value = [...participants.value, ...batch.addedParticipants];
     if (batch.accepted.length) {
       recentMessages.value = [...recentMessages.value, ...batch.accepted].slice(-5);
       for (const message of batch.accepted) {
@@ -607,7 +815,8 @@ function messageOf(cause: unknown): string {
   return cause instanceof Error ? cause.message : "發生未預期錯誤，請稍後重試。";
 }
 
-onMounted(() => { void loadInitialSettings(); void restorePendingDraw(); });
+// Restore the tab-scoped locked pool first so pending-draw reconciliation can apply a confirmed winner to it.
+onMounted(() => { restoreLockedPool(); void loadInitialSettings(); void restorePendingDraw(); });
 onBeforeUnmount(() => {
   stopChatCapture();
 });
@@ -640,8 +849,62 @@ onBeforeUnmount(() => {
         <v-btn size="small" variant="tonal" to="/lottery-draw-records">查看抽獎紀錄</v-btn>
       </div>
     </section>
+    <section v-if="lockError" class="lottery-alert pool-lock-error" role="alert">
+      <div><strong>抽獎名單鎖定無法驗證</strong><span>{{ lockError }}</span></div>
+      <div class="pending-draw-actions">
+        <v-btn size="small" color="error" variant="outlined" :disabled="isSavingDraw || isReconcilingDraw" @click="clearInvalidLock">清除鎖定資料</v-btn>
+        <v-btn size="small" variant="tonal" to="/lottery-draw-records">查看抽獎紀錄</v-btn>
+      </div>
+    </section>
+    <section v-else-if="lockedPool" class="lottery-alert pool-locked" role="status" aria-live="polite" aria-label="抽獎名單鎖定狀態">
+      <div>
+        <strong>抽獎名單已鎖定</strong>
+        <span>鎖定於 {{ lockedAtLabel }} · 代碼 <code>{{ lockShortCode }}</code> · {{ lockedPool.participants.length }} 張抽獎籤。名單、獎項、聊天室與互動匯入已暫停；抽獎仍可進行。</span>
+      </div>
+      <div class="pending-draw-actions">
+        <v-btn size="small" :color="confirmingUnlock ? 'error' : undefined" variant="outlined" :disabled="isSavingDraw || isReconcilingDraw" @click="unlockPool">{{ confirmingUnlock ? "確認解除鎖定" : "解除鎖定" }}</v-btn>
+        <v-btn v-if="confirmingUnlock" size="small" variant="text" @click="confirmingUnlock = false">取消</v-btn>
+      </div>
+    </section>
 
     <div class="lottery-column">
+      <section class="lottery-card eligibility-card" aria-labelledby="interaction-eligibility-title">
+        <div class="card-heading"><div><div class="card-kicker">INTERACTION ELIGIBILITY</div><h2 id="interaction-eligibility-title">互動回合資格</h2></div>
+          <v-btn size="small" variant="outlined" :disabled="eligibilityBusy" @click="loadInteractionRounds">{{ interactionRounds ? "重新載入回合" : "載入互動回合" }}</v-btn>
+        </div>
+        <p class="card-description">以觀眾的穩定身份（AudienceProfile）匯入回合資格快照；同一觀眾只會有一筆資格，名稱相同不會自動合併。</p>
+        <div v-if="eligibilityMessage" class="eligibility-error" role="alert">{{ eligibilityMessage }}</div>
+        <template v-if="interactionRounds">
+          <p v-if="!interactionRounds.length" class="empty-copy">目前沒有互動回合。</p>
+          <div v-else class="eligibility-select-row">
+            <label class="field">互動回合<select :value="selectedRoundId" :disabled="eligibilityBusy" @change="selectInteractionRound(($event.target as HTMLSelectElement).value)"><option value="">請選擇回合</option><option v-for="round in interactionRounds" :key="round.id" :value="round.id">{{ round.name }}（{{ roundStatusLabel(round.status) }}）</option></select></label>
+            <v-btn size="small" color="primary" variant="tonal" :disabled="!selectedRoundId || eligibilityBusy" @click="previewEligibility">預覽資格</v-btn>
+          </div>
+        </template>
+        <div v-if="eligibilityPreview" class="eligibility-preview" aria-label="互動資格預覽">
+          <dl>
+            <div><dt>回合</dt><dd>{{ eligibilityPreview.roundName || "（未命名）" }} · {{ roundStatusLabel(eligibilityPreview.roundStatus) }}</dd></div>
+            <div><dt>回合 ID</dt><dd><code>{{ eligibilityPreview.roundId }}</code></dd></div>
+            <div><dt>資格快照</dt><dd>{{ eligibilityPreview.imported && eligibilityPreview.snapshotId ? `已建立 ${eligibilityPreview.snapshotId.slice(0, 8)}` : "尚未建立；確認後建立並固定" }}</dd></div>
+            <div><dt>合格觀眾</dt><dd data-testid="eligibility-count">{{ eligibilitySummary.eligible }}</dd></div>
+            <div><dt>預計新增</dt><dd data-testid="eligibility-added">{{ eligibilitySummary.added }}</dd></div>
+            <div><dt>已在名單（重複）</dt><dd data-testid="eligibility-duplicates">{{ eligibilitySummary.duplicates }}</dd></div>
+            <div><dt>連結既有手動身份</dt><dd data-testid="eligibility-linked">{{ eligibilitySummary.linked }}</dd></div>
+            <div><dt>同名待確認</dt><dd data-testid="eligibility-name-collisions">{{ eligibilitySummary.nameCollisions }}</dd></div>
+          </dl>
+          <p v-if="eligibilityPreview.imported && eligibilityPreview.liveEligibleCount !== eligibilityPreview.entries.length" class="eligibility-warning">回合目前有 {{ eligibilityPreview.liveEligibleCount }} 位合格觀眾，但已固定的快照為 {{ eligibilityPreview.entries.length }} 位；匯入只會使用已固定的快照。</p>
+          <p v-if="!eligibilityPreview.imported && eligibilityPreview.roundStatus === 'Live'" class="eligibility-warning">回合仍在進行中；確認匯入後快照即固定，之後的新簽到不會加入。</p>
+          <p v-if="!eligibilityRoundImportable" class="eligibility-warning">此回合狀態（{{ roundStatusLabel(eligibilityPreview.roundStatus) }}）不可匯入資格。</p>
+          <p v-else-if="!eligibilityPreview.entries.length" class="eligibility-warning">此回合沒有合格觀眾，名單不會變更。</p>
+          <p v-if="eligibilitySummary.identityConflicts" class="eligibility-warning">有 {{ eligibilitySummary.identityConflicts }} 位觀眾的外部帳號與既有參加者相同，但已由其他觀眾連結或頻道範圍不符／缺少，未自動連結；將以獨立資格加入，請人工確認。</p>
+          <p v-if="eligibilityNameCollisions.length" class="eligibility-warning">名稱與既有參加者相同但未確認為同一身份（不會合併）：{{ eligibilityNameCollisions.join("、") }}</p>
+          <div class="card-actions">
+            <v-btn color="primary" :disabled="!canImportEligibility" :loading="eligibilityBusy" @click="confirmEligibilityImport">確認匯入資格</v-btn>
+            <span v-if="poolLocked" class="chat-status">名單已鎖定，解除鎖定後才能匯入。</span>
+          </div>
+        </div>
+      </section>
+
       <section class="lottery-card chat-card">
         <div class="card-heading"><div><div class="card-kicker">LIVE CHAT</div><h2>YouTube 直播聊天室</h2></div>
           <span class="connection-pill" :class="youtubeConfigured ? 'is-ready' : 'is-muted'"><span aria-hidden="true"></span>{{ youtubeConfigured === null ? "檢查 API" : youtubeConfigured ? "API 已設定" : "尚未設定 API" }}</span>
@@ -659,7 +922,7 @@ onBeforeUnmount(() => {
           <label class="field cooldown-field">同帳號冷卻秒數<input v-model.number="cooldownSeconds" type="number" min="0" max="86400" :disabled="chatActive"></label>
         </div>
         <div class="card-actions">
-          <v-btn v-if="!chatActive && !chatConnecting" color="primary" :disabled="!youtubeConfigured || !liveUrl.trim() || !keyword.trim()" @click="startChatCapture">開始擷取</v-btn>
+          <v-btn v-if="!chatActive && !chatConnecting" color="primary" :disabled="!youtubeConfigured || !liveUrl.trim() || !keyword.trim() || poolLocked || Boolean(lockError)" @click="startChatCapture">開始擷取</v-btn>
           <v-btn v-else color="error" variant="outlined" @click="stopChatCapture">{{ chatConnecting ? "取消連線" : "停止擷取" }}</v-btn>
           <span class="chat-status" role="status" aria-live="polite">{{ chatStatus }}</span>
         </div>
@@ -674,15 +937,15 @@ onBeforeUnmount(() => {
           <article class="import-panel"><h3>參加者</h3>
             <label class="field">資料格式<select v-model="participantFormat"><option value="json">JSON</option><option value="csv">CSV</option></select></label>
             <label class="field">匯入資料<textarea v-model="participantText" rows="6" placeholder="貼上參加者 JSON 或 CSV"></textarea></label>
-            <div class="compact-actions"><v-btn size="small" variant="tonal" @click="exportParticipantList">匯出名單</v-btn><v-btn size="small" color="primary" :disabled="drawLocked" @click="importParticipants">匯入名單</v-btn></div>
+            <div class="compact-actions"><v-btn size="small" variant="tonal" @click="exportParticipantList">匯出名單</v-btn><v-btn size="small" color="primary" :disabled="mutationsLocked" @click="importParticipants">匯入名單</v-btn></div>
           </article>
           <article class="import-panel"><h3>獎項</h3>
             <label class="field">資料格式<select v-model="prizeFormat"><option value="json">JSON</option><option value="csv">CSV</option></select></label>
             <label class="field">匯入資料<textarea v-model="prizeText" rows="6" placeholder="貼上獎項 JSON 或 CSV"></textarea></label>
-            <div class="compact-actions"><v-btn size="small" variant="tonal" @click="exportPrizeList">匯出獎項</v-btn><v-btn size="small" color="primary" :disabled="drawLocked" @click="importPrizes">匯入獎項</v-btn></div>
+            <div class="compact-actions"><v-btn size="small" variant="tonal" @click="exportPrizeList">匯出獎項</v-btn><v-btn size="small" color="primary" :disabled="mutationsLocked" @click="importPrizes">匯入獎項</v-btn></div>
           </article>
         </div>
-        <div class="member-import-row"><label class="field">YouTube Studio 會員 CSV<input type="file" accept=".csv,text/csv" :disabled="!ratesReady || busy || drawLocked" @change="importYoutubeMembers"></label><span>支援「會員」與「目前級別」欄位；依等級倍率展開抽獎籤。</span></div>
+        <div class="member-import-row"><label class="field">YouTube Studio 會員 CSV<input type="file" accept=".csv,text/csv" :disabled="!ratesReady || busy || mutationsLocked" @change="importYoutubeMembers"></label><span>支援「會員」與「目前級別」欄位；依等級倍率展開抽獎籤。</span></div>
         <div v-if="Object.keys(levelRates).length" class="rates-panel">
           <div class="rates-heading"><div><h3>會員等級倍率</h3><p>每位會員依倍率取得抽獎籤，至少為 1。</p></div><div class="compact-actions"><v-btn size="small" variant="outlined" @click="refreshLevelRates">重新載入</v-btn><v-btn size="small" color="primary" :disabled="!ratesReady || !ratesDirty || busy" @click="saveLevelRates">儲存倍率</v-btn></div></div>
           <div class="rate-list"><label v-for="level in Object.keys(levelRates).sort()" :key="level" class="rate-item">{{ level }}<input :aria-label="`${level} 會員倍率`" type="number" min="1" step="1" :value="levelRates[level]" @input="setLevelRate(level, ($event.target as HTMLInputElement).value)"><span>倍</span></label></div>
@@ -690,22 +953,22 @@ onBeforeUnmount(() => {
       </section>
 
       <section class="lottery-card roster-card">
-        <div class="card-heading"><div><div class="card-kicker">DRAWING STAGE</div><h2>抽獎名單</h2></div><v-btn class="draw-button" color="primary" size="large" :disabled="drawLocked || chatConnecting || !eligibleCount || !prizes.length" @click="drawPrize"><span aria-hidden="true">✦</span> {{ isSavingDraw ? "保存中…" : "抽獎" }}</v-btn></div>
+        <div class="card-heading"><div><div class="card-kicker">DRAWING STAGE</div><h2>抽獎名單</h2></div><div class="compact-actions"><v-btn v-if="!lockedPool" variant="outlined" :disabled="mutationsLocked || chatConnecting || !participants.length" @click="lockPool">鎖定名單</v-btn><v-btn class="draw-button" color="primary" size="large" :disabled="drawBlocked || chatConnecting || !eligibleCount || !prizes.length" @click="drawPrize"><span aria-hidden="true">✦</span> {{ isSavingDraw ? "保存中…" : "抽獎" }}</v-btn></div></div>
         <div class="entry-grid">
-          <form class="entry-form" @submit.prevent="addPrize"><label class="field">新增獎項<input v-model="newPrize" :disabled="drawLocked" placeholder="輸入獎項名稱"></label><v-btn type="submit" size="small" variant="tonal" :disabled="drawLocked">新增獎項</v-btn></form>
-          <form class="entry-form participant-entry" @submit.prevent="addParticipant"><label class="field">參加者名稱<input v-model="newName" :disabled="drawLocked" placeholder="輸入名稱"></label><label class="field">群組<input v-model="newGroup" :disabled="drawLocked" placeholder="例如：VIP、備用"></label><label class="field">標籤<input v-model="newTags" :disabled="drawLocked" placeholder="例如：A 區,高倍率"></label><v-btn type="submit" size="small" variant="tonal" :disabled="drawLocked">新增參加者</v-btn></form>
+          <form class="entry-form" @submit.prevent="addPrize"><label class="field">新增獎項<input v-model="newPrize" :disabled="mutationsLocked" placeholder="輸入獎項名稱"></label><v-btn type="submit" size="small" variant="tonal" :disabled="mutationsLocked">新增獎項</v-btn></form>
+          <form class="entry-form participant-entry" @submit.prevent="addParticipant"><label class="field">參加者名稱<input v-model="newName" :disabled="mutationsLocked" placeholder="輸入名稱"></label><label class="field">群組<input v-model="newGroup" :disabled="mutationsLocked" placeholder="例如：VIP、備用"></label><label class="field">標籤<input v-model="newTags" :disabled="mutationsLocked" placeholder="例如：A 區,高倍率"></label><v-btn type="submit" size="small" variant="tonal" :disabled="mutationsLocked">新增參加者</v-btn></form>
         </div>
         <div class="draw-columns">
-          <section class="draw-list prize-list"><div class="list-heading"><h3>待抽獎項 <span>{{ prizes.length }}</span></h3><button v-if="prizes.length" class="text-action" type="button" :disabled="drawLocked" @click="prizes = []">清除全部</button></div>
+          <section class="draw-list prize-list"><div class="list-heading"><h3>待抽獎項 <span>{{ prizes.length }}</span></h3><button v-if="prizes.length" class="text-action" type="button" :disabled="mutationsLocked" @click="prizes = []">清除全部</button></div>
             <p v-if="!prizes.length" class="empty-copy">新增獎項後就能開始抽獎。</p>
-            <ol v-else><li v-for="(prize, index) in prizes" :key="`${prize}-${index}`"><span class="prize-number">{{ String(index + 1).padStart(2, "0") }}</span><span>{{ prize }}</span><button type="button" :disabled="drawLocked" :aria-label="`移除獎項 ${prize}`" @click="prizes.splice(index, 1)">×</button></li></ol>
+            <ol v-else><li v-for="(prize, index) in prizes" :key="`${prize}-${index}`"><span class="prize-number">{{ String(index + 1).padStart(2, "0") }}</span><span>{{ prize }}</span><button type="button" :disabled="mutationsLocked" :aria-label="`移除獎項 ${prize}`" @click="prizes.splice(index, 1)">×</button></li></ol>
           </section>
-          <section class="draw-list people-list"><div class="list-heading"><h3>參加者 <span>{{ visibleParticipants.length }} / {{ participants.length }}</span></h3><div class="list-tools"><select v-model="selectedGroup" aria-label="群組篩選" :disabled="drawLocked"><option value="">全部群組</option><option v-for="group in groups" :key="group" :value="group">{{ group }}</option></select><button v-if="participants.length" class="text-action" type="button" :disabled="drawLocked" @click="participants = []; winners = []; selectedGroup = ''">清除名單</button></div></div>
+          <section class="draw-list people-list"><div class="list-heading"><h3>參加者 <span>{{ visibleParticipants.length }} / {{ participants.length }}</span></h3><div class="list-tools"><select v-model="selectedGroup" aria-label="群組篩選" :disabled="drawLocked"><option value="">全部群組</option><option v-for="group in groups" :key="group" :value="group">{{ group }}</option></select><button v-if="participants.length" class="text-action" type="button" :disabled="mutationsLocked" @click="participants = []; winners = []; selectedGroup = ''">清除名單</button></div></div>
             <p v-if="!visibleParticipants.length" class="empty-copy">匯入名單或新增參加者，抽獎舞台就會亮起。</p>
-            <ul v-else class="participant-list"><li v-for="participant in visibleParticipants" :key="participant.id" :class="{ 'is-winner': participant.isWinner }"><span class="participant-avatar" aria-hidden="true">{{ participant.name.slice(0, 1) || "?" }}</span><div class="participant-details"><strong>{{ participantLabel(participant) }}</strong><span v-if="participant.tags.length" class="tag-list"><i v-for="tag in participant.tags" :key="tag">{{ tag }}</i></span></div><button v-if="!participant.isWinner" type="button" :disabled="drawLocked" :aria-label="`移除參加者 ${participant.name}`" @click="removeParticipant(participant.id)">移除</button><span v-else class="winner-mark">已中獎</span></li></ul>
+            <ul v-else class="participant-list"><li v-for="participant in visibleParticipants" :key="participant.id" :class="{ 'is-winner': participant.isWinner }"><span class="participant-avatar" aria-hidden="true">{{ participant.name.slice(0, 1) || "?" }}</span><div class="participant-details"><strong>{{ participantLabel(participant) }}</strong><span v-if="participant.source || participant.tags.length" class="tag-list"><i v-if="participant.source" class="source-tag" :title="`AudienceProfile ${participant.source.audienceProfileId}`">互動資格</i><i v-for="tag in participant.tags" :key="tag">{{ tag }}</i></span></div><button v-if="!participant.isWinner" type="button" :disabled="mutationsLocked" :aria-label="`移除參加者 ${participant.name}`" @click="removeParticipant(participant.id)">移除</button><span v-else class="winner-mark">已中獎</span></li></ul>
           </section>
         </div>
-        <section class="winner-list"><div class="list-heading"><h3>得獎名單 <span>{{ winners.length }}</span></h3><button v-if="winners.length" class="text-action" type="button" :disabled="drawLocked" @click="winners = []">清除得獎紀錄</button></div>
+        <section class="winner-list"><div class="list-heading"><h3>得獎名單 <span>{{ winners.length }}</span></h3><button v-if="winners.length" class="text-action" type="button" :disabled="mutationsLocked" @click="winners = []">清除得獎紀錄</button></div>
           <p v-if="!winners.length" class="empty-copy">幸運時刻將會在這裡揭曉。</p>
           <ol v-else><li v-for="(winner, index) in winners" :key="winner.drawId ?? `${winner.member.id}-${index}`"><span class="winner-star" aria-hidden="true">✦</span><div><span>恭喜 {{ participantLabel(winner.member) }}</span><strong>{{ winner.prize }}</strong></div></li></ol>
           <v-btn class="history-link" variant="outlined" to="/lottery-draw-records">查看已保存的抽獎紀錄</v-btn>
@@ -740,5 +1003,19 @@ onBeforeUnmount(() => {
 .pending-draw > div:first-child { display: grid; gap: 4px; }
 .pending-draw-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .history-link { margin-top: 12px; }
+.pool-locked, .pool-lock-error { align-items: flex-start; flex-direction: column; }
+.pool-locked { border: 1px solid #b9c7f0; color: #33406b; background: #f2f5ff; }
+.pool-lock-error { border: 1px solid #efb3bd; color: #8f344a; background: #fff0f1; }
+.pool-locked > div:first-child, .pool-lock-error > div:first-child { display: grid; gap: 4px; }
+.eligibility-select-row { display: flex; align-items: end; gap: 10px; }
+.eligibility-select-row .field { flex: 1; }
+.eligibility-preview { margin-top: 14px; padding: 14px; border: 1px solid #eeeaf2; border-radius: 13px; background: #fdfcfe; }
+.eligibility-preview dl { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px 14px; margin: 0; }
+.eligibility-preview dt { color: var(--creator-muted); font-size: 0.78rem; }
+.eligibility-preview dd { margin: 2px 0 0; font-weight: 700; word-break: break-all; }
+.eligibility-warning { margin: 10px 0 0; color: #6f4a09; font-size: 0.86rem; }
+.eligibility-error { margin-bottom: 10px; padding: 8px 10px; border-radius: 8px; color: #8f344a; background: #fff0f1; font-size: 0.88rem; }
+.source-tag { color: #3d5a99 !important; background: #e8eeff !important; }
+@media (max-width: 620px) { .eligibility-select-row { align-items: stretch; flex-direction: column; } }
 @media (max-width: 620px) { .youtube-setup-hint { align-items: stretch; flex-direction: column; } }
 </style>

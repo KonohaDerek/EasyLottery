@@ -38,6 +38,18 @@ export async function transitionInteractionRound(id: string, action: "start" | "
   })).data;
 }
 
+/** Admin-only; returns the raw payload so callers validate it (see parseEligibilityPreview). */
+export async function previewInteractionEligibility(roundId: string, signal?: AbortSignal): Promise<unknown> {
+  return (await apiRequest<unknown>(`/api/interactions/rounds/${encodeURIComponent(roundId)}/eligibility-preview`, { signal })).data;
+}
+
+/** Idempotent per round: repeated calls return the same persisted snapshot. */
+export async function importInteractionEligibility(roundId: string): Promise<unknown> {
+  return (await apiRequest<unknown>(`/api/interactions/rounds/${encodeURIComponent(roundId)}/eligibility-import`, {
+    method: "POST"
+  })).data;
+}
+
 export async function completeIdentityLink(code: string): Promise<void> {
   await apiRequest<void>("/api/interactions/identity-links/complete", {
     method: "POST",
