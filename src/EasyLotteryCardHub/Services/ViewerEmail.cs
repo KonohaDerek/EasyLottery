@@ -92,9 +92,13 @@ public sealed class ViewerCodeRequestRateLimiter
             if (now >= _nextPruneAt)
             {
                 var cutoff = now - Window;
-                foreach (var key in _requests.Where(pair => !pair.Value.TryPeek(out var createdAt) || createdAt <= cutoff)
-                    .Select(pair => pair.Key).ToArray())
-                    _requests.Remove(key);
+                foreach (var pair in _requests.ToArray())
+                {
+                    while (pair.Value.TryPeek(out var createdAt) && createdAt <= cutoff)
+                        pair.Value.Dequeue();
+                    if (pair.Value.Count == 0)
+                        _requests.Remove(pair.Key);
+                }
                 _nextPruneAt = now.AddMinutes(5);
             }
 
