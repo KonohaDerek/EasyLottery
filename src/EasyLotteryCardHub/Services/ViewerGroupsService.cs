@@ -1,3 +1,4 @@
+using System.Data;
 using System.Security.Claims;
 using EasyLotteryCardHub.Data;
 using EasyLotteryCardHub.Security;
@@ -23,6 +24,13 @@ public sealed class ViewerGroupsService(HubDbContext db, TimeProvider timeProvid
     public async Task<ViewerGroupResponse> CreateAsync(Guid viewerId, string? name, CancellationToken cancellationToken)
     {
         var normalized = NormalizeName(name);
+        await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken);
+        var viewer = await db.Viewers
+            .FromSqlInterpolated($"SELECT * FROM viewers WHERE \"Id\" = {viewerId} FOR UPDATE")
+            .SingleOrDefaultAsync(cancellationToken);
+        if (viewer is null)
+            throw new ViewerServiceException(StatusCodes.Status401Unauthorized, "viewer_account_unavailable", "viewer.auth.account.unavailable");
+
         var now = timeProvider.GetUtcNow();
         var group = new ViewerGroup
         {
@@ -35,6 +43,7 @@ public sealed class ViewerGroupsService(HubDbContext db, TimeProvider timeProvid
         };
         db.ViewerGroups.Add(group);
         await db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
         return ToResponse(group, []);
     }
 

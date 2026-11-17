@@ -597,6 +597,26 @@ public sealed class HubFoundationIntegrationTests
     }
 
     [TestMethod]
+    public async Task ViewerGroupCreationForDeletedAccountReturnsUnavailable()
+    {
+        await using var host = await TestHubHost.CreateAsync();
+        var viewer = await CreateViewerAsync(host, "deleted-group-owner@example.test");
+        using (var deleteScope = host.Services.CreateScope())
+        {
+            var accounts = deleteScope.ServiceProvider.GetRequiredService<ViewerAccountsService>();
+            await accounts.DeleteAccountAsync(viewer.Id, CancellationToken.None);
+        }
+
+        using var createScope = host.Services.CreateScope();
+        var groups = createScope.ServiceProvider.GetRequiredService<ViewerGroupsService>();
+        var error = await Assert.ThrowsExactlyAsync<ViewerServiceException>(() =>
+            groups.CreateAsync(viewer.Id, "Unavailable", CancellationToken.None));
+        Assert.AreEqual((int)HttpStatusCode.Unauthorized, error.StatusCode);
+        Assert.AreEqual("viewer_account_unavailable", error.Code);
+        Assert.AreEqual("viewer.auth.account.unavailable", error.MessageKey);
+    }
+
+    [TestMethod]
     public async Task ViewerAccountDeletionRemovesGroupsSessionsAndCodesAndWritesAudit()
     {
         await using var host = await TestHubHost.CreateAsync();

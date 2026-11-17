@@ -279,7 +279,9 @@ public sealed class ViewerAccountsService(
     public async Task DeleteAccountAsync(Guid viewerId, CancellationToken cancellationToken)
     {
         await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken);
-        var viewer = await db.Viewers.SingleOrDefaultAsync(item => item.Id == viewerId, cancellationToken);
+        var viewer = await db.Viewers
+            .FromSqlInterpolated($"SELECT * FROM viewers WHERE \"Id\" = {viewerId} FOR UPDATE")
+            .SingleOrDefaultAsync(cancellationToken);
         if (viewer is null)
             throw new ViewerServiceException(StatusCodes.Status401Unauthorized, "viewer_account_unavailable", "viewer.auth.account.unavailable");
 
