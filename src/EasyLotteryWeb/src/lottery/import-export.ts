@@ -1,4 +1,4 @@
-import { createId, createParticipant, type Participant } from "./draw";
+import { createId, createParticipant, normalizeInteractionSource, type Participant } from "./draw";
 
 export type DataFormat = "json" | "csv";
 
@@ -17,6 +17,29 @@ interface LotteryParticipantExport {
   IsWinner: boolean;
   Platform?: string;
   AccountId?: string;
+  ChannelScope?: string;
+  // Interaction provenance is flattened into scalar columns (identical in JSON and CSV) so imports validate plain
+  // strings via normalizeInteractionSource instead of trusting a nested object; older readers ignore the extra fields.
+  SourceRoundId?: string;
+  SourceSnapshotId?: string;
+  SourceAudienceProfileId?: string;
+}
+
+const participantCsvHeaders = [
+  "Name", "Level", "Group", "LotteryGroupId", "Tags", "IsWinner", "Platform", "AccountId",
+  "ChannelScope", "SourceRoundId", "SourceSnapshotId", "SourceAudienceProfileId"
+] as const;
+
+function stringField(value: Record<string, unknown>, ...keys: string[]): string {
+  for (const key of keys) {
+    if (typeof value[key] === "string") return value[key] as string;
+  }
+  return "";
+}
+
+/** Untrusted source columns become provenance only when all three are valid UUIDs; otherwise they are dropped. */
+function importedSource(roundId: string, snapshotId: string, audienceProfileId: string) {
+  return normalizeInteractionSource({ roundId: roundId.trim(), snapshotId: snapshotId.trim(), audienceProfileId: audienceProfileId.trim() });
 }
 
 export function parseCsvRows(content: string): string[][] {
@@ -92,7 +115,13 @@ function exportRows(participants: readonly Participant[]): LotteryParticipantExp
     IsWinner: participant.isWinner,
     ...(participant.identity ? {
       Platform: participant.identity.platform,
-      AccountId: participant.identity.accountId
+      AccountId: participant.identity.accountId,
+      ...(participant.identity.channelScope ? { ChannelScope: participant.identity.channelScope } : {})
+    } : {}),
+    ...(participant.source ? {
+      SourceRoundId: participant.source.roundId,
+      SourceSnapshotId: participant.source.snapshotId,
+      SourceAudienceProfileId: participant.source.audienceProfileId
     } : {})
   }));
 }
@@ -117,14 +146,22 @@ export function parseParticipantImport(content: string, format: DataFormat, idFa
         const inputTags = Array.isArray(rawTags) ? rawTags : typeof rawTags === "string" ? rawTags : [];
         const platform = value.Platform ?? value.platform;
         const accountId = value.AccountId ?? value.accountId;
+        const channelScope = stringField(value, "ChannelScope", "channelScope");
+        const source = importedSource(
+          stringField(value, "SourceRoundId", "sourceRoundId"),
+          stringField(value, "SourceSnapshotId", "sourceSnapshotId"),
+          stringField(value, "SourceAudienceProfileId", "sourceAudienceProfileId")
+        );
         return createParticipant({
           name: String(value.Name ?? value.name ?? ""),
           level: String(value.Level ?? value.level ?? ""),
           group: String(value.Group ?? value.group ?? ""),
           identity: {
             platform: typeof platform === "string" ? platform : "",
-            accountId: typeof accountId === "string" ? accountId : ""
+            accountId: typeof accountId === "string" ? accountId : "",
+            ...(channelScope ? { channelScope } : {})
           },
+          ...(source ? { source } : {}),
           lotteryGroupId: typeof (value.LotteryGroupId ?? value.lotteryGroupId) === "string"
             ? String(value.LotteryGroupId ?? value.lotteryGroupId)
             : undefined,
@@ -145,15 +182,25 @@ export function parseParticipantImport(content: string, format: DataFormat, idFa
   const accountIdColumn = columnIndex(headers, ["accountid"]);
   const tagsColumn = columnIndex(headers, ["tags"]);
   const winnerColumn = columnIndex(headers, ["iswinner"]);
-  return rows.map(row => createParticipant({
-    name: cell(row, nameColumn),
-    level: cell(row, levelColumn),
-    group: cell(row, groupColumn),
-    identity: { platform: cell(row, platformColumn), accountId: cell(row, accountIdColumn) },
-    lotteryGroupId: cell(row, lotteryGroupColumn) || undefined,
-    tags: cell(row, tagsColumn).split(/[,，\n\r;|]/),
-    isWinner: parseBoolean(cell(row, winnerColumn))
-  }, idFactory)).filter(participant => participant.name.length > 0);
+  // Absent in legacy exports; columnIndex then returns -1 and cell() yields "".
+  const channelScopeColumn = columnIndex(headers, ["channelscope"]);
+  const sourceRoundColumn = columnIndex(headers, ["sourceroundid"]);
+  const sourceSnapshotColumn = columnIndex(headers, ["sourcesnapshotid"]);
+  const sourceProfileColumn = columnIndex(headers, ["sourceaudienceprofileid"]);
+  return rows.map(row => {
+    const channelScope = cell(row, channelScopeColumn);
+    const source = importedSource(cell(row, sourceRoundColumn), cell(row, sourceSnapshotColumn), cell(row, sourceProfileColumn));
+    return createParticipant({
+      name: cell(row, nameColumn),
+      level: cell(row, levelColumn),
+      group: cell(row, groupColumn),
+      identity: { platform: cell(row, platformColumn), accountId: cell(row, accountIdColumn), ...(channelScope ? { channelScope } : {}) },
+      ...(source ? { source } : {}),
+      lotteryGroupId: cell(row, lotteryGroupColumn) || undefined,
+      tags: cell(row, tagsColumn).split(/[,，\n\r;|]/),
+      isWinner: parseBoolean(cell(row, winnerColumn))
+    }, idFactory);
+  }).filter(participant => participant.name.length > 0);
 }
 
 export function parsePrizes(content: string, format: DataFormat): string[] {
@@ -175,8 +222,9 @@ export function exportParticipants(participants: readonly Participant[], format:
   const rows = exportRows(participants);
   if (format === "json") return JSON.stringify(rows, null, 2);
   return serializeCsv(
-    ["Name", "Level", "Group", "LotteryGroupId", "Tags", "IsWinner", "Platform", "AccountId"],
-    rows.map(row => [row.Name, row.Level, row.Group, row.LotteryGroupId, row.Tags.join("|"), String(row.IsWinner).toLowerCase(), row.Platform ?? "", row.AccountId ?? ""])
+    participantCsvHeaders,
+    rows.map(row => [row.Name, row.Level, row.Group, row.LotteryGroupId, row.Tags.join("|"), String(row.IsWinner).toLowerCase(), row.Platform ?? "", row.AccountId ?? "",
+      row.ChannelScope ?? "", row.SourceRoundId ?? "", row.SourceSnapshotId ?? "", row.SourceAudienceProfileId ?? ""])
   );
 }
 

@@ -213,6 +213,12 @@ export function readPendingCoreLotteryDrawId(storage: Storage): PendingCoreLotte
   return { phase: "result", ...validateAndNormalizePending(record) };
 }
 
+/** `phase` identifies the browser-storage record; it is not part of the API payload and must not be resubmitted. */
+export function pendingCoreLotteryDrawResultPayload(stored: CoreLotteryDrawPayload & { phase: "result" }): CoreLotteryDrawPayload {
+  const { phase: _phase, ...payload } = stored;
+  return payload;
+}
+
 export function clearPendingCoreLotteryDrawId(storage: Storage, drawId: string): void {
   const pending = readPendingCoreLotteryDrawId(storage);
   if (pending?.drawId === drawId) storage.removeItem(pendingCoreLotteryDrawStorageKey);

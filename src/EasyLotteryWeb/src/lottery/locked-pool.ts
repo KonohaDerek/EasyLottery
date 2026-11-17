@@ -130,6 +130,130 @@ export function lockedPoolVersion(pool: Pick<LockedPool, "lockHash" | "lockedAtU
   return { lockHash: pool.lockHash, lockedAtUtc: pool.lockedAtUtc };
 }
 
+/**
+ * Browser-profile (localStorage) ledger of every saved drawId reconciled for one locked-pool version, shared by all
+ * tabs. A tab whose restored lock misses any of these draws is a stale copy (restored/duplicated tab) and must not draw.
+ */
+export const resolvedLockDrawsStorageKeyPrefix = "easy-lottery.core-lottery.resolved-lock-draws.";
+export const resolvedLockDrawsSchemaVersion = 1;
+
+export type LockedPoolVersion = ReturnType<typeof lockedPoolVersion>;
+
+export type ResolvedLockDrawsReadResult =
+  | { status: "none" }
+  | { status: "valid"; drawIds: string[] }
+  | { status: "invalid"; reason: string };
+
+function normalizeLockVersion(version: LockedPoolVersion): LockedPoolVersion {
+  const lockedAt = Date.parse(version.lockedAtUtc);
+  if (!/^[\da-f]{16}$/i.test(version.lockHash) || !Number.isFinite(lockedAt)) throw new Error("鎖定名單版本無效。");
+  return { lockHash: version.lockHash.toLowerCase(), lockedAtUtc: new Date(lockedAt).toISOString() };
+}
+
+export function resolvedLockDrawsStorageKey(version: LockedPoolVersion): string {
+  const normalized = normalizeLockVersion(version);
+  return `${resolvedLockDrawsStorageKeyPrefix}${normalized.lockHash}.${normalized.lockedAtUtc}`;
+}
+
+export function readResolvedLockDraws(storage: Storage, version: LockedPoolVersion): ResolvedLockDrawsReadResult {
+  const normalized = normalizeLockVersion(version);
+  const serialized = storage.getItem(resolvedLockDrawsStorageKey(normalized));
+  if (serialized === null) return { status: "none" };
+  let parsed: unknown;
+  try { parsed = JSON.parse(serialized); }
+  catch { return { status: "invalid", reason: "已對帳抽獎清單不是有效的 JSON。" }; }
+  const candidate = parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed as Record<string, unknown> : null;
+  if (!candidate || candidate.schemaVersion !== resolvedLockDrawsSchemaVersion
+    || candidate.lockHash !== normalized.lockHash || candidate.lockedAtUtc !== normalized.lockedAtUtc
+    || !Array.isArray(candidate.drawIds) || !candidate.drawIds.length
+    || candidate.drawIds.some(drawId => typeof drawId !== "string" || !drawId.trim())
+    || new Set(candidate.drawIds.map(drawId => (drawId as string).toLowerCase())).size !== candidate.drawIds.length)
+    return { status: "invalid", reason: "已對帳抽獎清單格式無效。" };
+  return { status: "valid", drawIds: [...candidate.drawIds as string[]] };
+}
+
+/**
+ * The stored ledger exists but is unreadable. Unlike a storage API failure this does not clear up on its own: automatic
+ * reconciliation for the lock stays blocked. No self-service repair exists; the UI directs the operator to preserve the
+ * browser state and contact the system maintainer.
+ */
+export class ResolvedLockDrawsLedgerCorruptError extends Error {
+  readonly reason: string;
+  readonly storageKey: string;
+
+  constructor(reason: string, storageKey: string) {
+    super(reason);
+    this.name = "ResolvedLockDrawsLedgerCorruptError";
+    this.reason = reason;
+    this.storageKey = storageKey;
+  }
+}
+
+/**
+ * Idempotently records a reconciled drawId for this lock version; throws (writing nothing) on storage or ledger failure.
+ * An existing but invalid ledger throws ResolvedLockDrawsLedgerCorruptError; storage API failures propagate unchanged.
+ */
+export function appendResolvedLockDraw(storage: Storage, version: LockedPoolVersion, drawId: string): void {
+  if (!drawId.trim()) throw new Error("抽獎識別碼無效。");
+  const normalized = normalizeLockVersion(version);
+  const current = readResolvedLockDraws(storage, normalized);
+  // Never overwrite an unreadable ledger: that would forget earlier draws and re-open a stale tab.
+  if (current.status === "invalid") throw new ResolvedLockDrawsLedgerCorruptError(current.reason, resolvedLockDrawsStorageKey(normalized));
+  const drawIds = current.status === "valid" ? current.drawIds : [];
+  if (drawIds.some(existing => existing.toLowerCase() === drawId.toLowerCase())) return;
+  storage.setItem(resolvedLockDrawsStorageKey(normalized), JSON.stringify({
+    schemaVersion: resolvedLockDrawsSchemaVersion,
+    ...normalized,
+    drawIds: [...drawIds, drawId]
+  }));
+}
+
+/** Ledger drawIds this pool's own winners do not contain; non-empty means the pool is a stale copy of its lock. */
+export function missingResolvedLockDraws(pool: LockedPool, resolvedDrawIds: readonly string[]): string[] {
+  const own = new Set(pool.winners.flatMap(winner => winner.drawId ? [winner.drawId.toLowerCase()] : []));
+  return resolvedDrawIds.filter(drawId => !own.has(drawId.toLowerCase()));
+}
+
+/**
+ * Single same-origin Web Lock serializing every draw, reconciliation and locked-pool unlock/clear across tabs. It is held
+ * from the pre-draw checks through API reconciliation, so a second tab can never start a draw or overwrite the shared
+ * pending-draw record while another tab's draw is unresolved in flight.
+ */
+export const coreLotteryOriginLockName = "easy-lottery.core-lottery.origin-draw";
+
+export type OriginDrawLockResult =
+  | { status: "ran" }
+  | { status: "busy" }
+  | { status: "unsupported" }
+  | { status: "failed"; reason: string };
+
+/** The browser's LockManager, or null when Web Locks are unavailable (callers must then fail closed). */
+export function originLockManager(navigatorLike: { locks?: LockManager } | undefined = globalThis.navigator): LockManager | null {
+  const locks = navigatorLike?.locks;
+  return locks && typeof locks.request === "function" ? locks : null;
+}
+
+/**
+ * Runs `action` only while holding the origin draw lock. Never waits: another holder yields "busy" without running.
+ * There is deliberately no storage-lease fallback; without Web Locks the action is refused ("unsupported").
+ * Errors thrown by `action` itself propagate after the lock is released.
+ */
+export async function runWithOriginDrawLock(locks: LockManager | null, action: () => Promise<void>): Promise<OriginDrawLockResult> {
+  if (!locks) return { status: "unsupported" };
+  let ran = false;
+  try {
+    await locks.request(coreLotteryOriginLockName, { mode: "exclusive", ifAvailable: true }, async lock => {
+      if (!lock) return;
+      ran = true;
+      await action();
+    });
+  } catch (cause) {
+    if (ran) throw cause;
+    return { status: "failed", reason: cause instanceof Error ? cause.message : "無法取得跨分頁抽獎鎖。" };
+  }
+  return ran ? { status: "ran" } : { status: "busy" };
+}
+
 export function storeLockedPool(storage: Storage, pool: LockedPool): void {
   storage.setItem(lockedPoolStorageKey, JSON.stringify(pool));
 }
