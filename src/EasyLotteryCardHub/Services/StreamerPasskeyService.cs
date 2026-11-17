@@ -42,6 +42,10 @@ public sealed class StreamerPasskeyService(
         var optionsJson = new Fido2(passkeyOptions.CreateFido2Configuration()).RequestNewCredential(new RequestNewCredentialParams
         {
             User = user,
+            AuthenticatorSelection = new AuthenticatorSelection
+            {
+                UserVerification = UserVerificationRequirement.Required
+            },
             AttestationPreference = AttestationConveyancePreference.None
         }).ToJson();
         var flowId = Guid.NewGuid();
