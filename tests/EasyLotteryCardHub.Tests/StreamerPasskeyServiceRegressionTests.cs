@@ -34,6 +34,17 @@ public sealed class StreamerPasskeyServiceRegressionTests
     public static async Task StopPostgreSql() => await Container.DisposeAsync();
 
     [TestMethod]
+    public async Task UnknownEmailDecoyCredentialIdsAreStableAcrossRequests()
+    {
+        await using var host = await HubTestHost.CreateAsync();
+        var first = await ReadAllowedCredentialIdsAsync(host.Client, "unknown@example.test");
+        var second = await ReadAllowedCredentialIdsAsync(host.Client, "unknown@example.test");
+
+        Assert.AreEqual(1, first.Length);
+        CollectionAssert.AreEqual(first, second);
+    }
+
+    [TestMethod]
     public async Task RegistrationOptionsRequireUserVerification()
     {
         await using var host = await HubTestHost.CreateAsync();
@@ -58,6 +69,17 @@ public sealed class StreamerPasskeyServiceRegressionTests
         using var optionsDocument = JsonDocument.Parse(await optionsResponse.Content.ReadAsStringAsync());
         var authenticatorSelection = optionsDocument.RootElement.GetProperty("options").GetProperty("authenticatorSelection");
         Assert.AreEqual("required", authenticatorSelection.GetProperty("userVerification").GetString());
+    }
+
+    private static async Task<string[]> ReadAllowedCredentialIdsAsync(HttpClient client, string email)
+    {
+        using var response = await client.PostAsJsonAsync("/api/auth/streamer/passkey/options", new { email });
+        Assert.AreEqual(HttpStatusCode.OK, response.StatusCode, await response.Content.ReadAsStringAsync());
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        return document.RootElement.GetProperty("options").GetProperty("allowCredentials")
+            .EnumerateArray()
+            .Select(item => item.GetProperty("id").GetString()!)
+            .ToArray();
     }
 
     private sealed class HubTestHost(IHost host) : IAsyncDisposable
