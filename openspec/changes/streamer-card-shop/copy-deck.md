@@ -254,7 +254,7 @@
 | `redeem.email.howto.step3` | 3. 點選「兌換卡包」，輸入上方兌換碼，即可開啟卡包。 |
 | `redeem.email.body.safety` | 兌換碼等同卡包本身，請勿公開或提供給他人。如果你沒有參加 {streamerName} 的 Donate 活動，請忽略這封信。 |
 | `redeem.email.body.noCashValue` | 卡牌僅供收藏與交換，無現金價值，不得轉售換取金錢。 [需法務確認] |
-| `redeem.email.body.privacy` | 我們依你在 Donate 時的同意寄送此信。兌換或到期後 180 天，你的 email 會從此活動紀錄中刪除；如需提前刪除，請來信 {supportEmail}。 [需法務確認] |
+| `redeem.email.body.privacy` | 我們依你在 Donate 時的同意寄送此信。你的 email 最遲會在兌換日或兌換碼到期日（以較晚者為準）後 180 天從此活動紀錄中刪除；如需提前刪除，請來信 {supportEmail}。 [需法務確認] |
 | `redeem.email.signature` | EasyLottery Card Hub |
 | `redeem.email.footer` | 這是系統自動寄出的信件，請勿直接回覆。 |
 
@@ -308,7 +308,7 @@
 | `shop.odds.footnote` | 同一稀有度內的卡牌機率相同。稀有度抽完後會發布新機率版本；卡包全部抽完後停止抽卡。 |
 | `shop.odds.preDonate` | Donate 前請先確認抽卡機率。 [需法務確認] |
 | `shop.noCashValue` | 卡牌無現金價值、不得轉售換取金錢，僅供收藏與觀眾間交換。 [需法務確認] |
-| `shop.emailConsent.checkbox` | 我同意提供 email，用於寄送卡包兌換碼。email 會在兌換或到期後 180 天刪除，如需提前刪除請聯絡 {supportEmail}。 [需法務確認] |
+| `shop.emailConsent.checkbox` | 我同意提供 email，用於寄送卡包兌換碼。email 最遲會在兌換日或兌換碼到期日（以較晚者為準）後 180 天刪除，如需提前刪除請聯絡 {supportEmail}。 [需法務確認] |
 | `shop.emailConsent.missing` | 未填寫 email 或未勾選同意，此筆 Donate 仍會照常完成，但不會抽卡。 |
 | `app.odds.line` | 抽卡機率：{oddsList} |
 | `app.odds.link` | 查看抽卡機率 |
