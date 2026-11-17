@@ -15,16 +15,16 @@ The app MUST redeem a code against the Card Hub and play the pack-opening animat
 - **THEN** the animation plays and the card appears in the collection
 
 ### Requirement: Capture protection and wallpapers
-The app MUST block screenshots and recording of card screens on Android, MUST obscure card content while iOS screen capture is active and record iOS screenshot events, and MUST offer wallpaper export within platform limits.
+The phase-one store release MUST target Android and MUST block screenshots and recording of card screens on Android. Shared React Native code SHOULD remain portable to iOS, and iOS Safari web flows remain supported; native iOS capture protection, wallpaper export, and store submission are deferred until payment-model review is complete. Android phase one MUST offer wallpaper export within platform limits.
 
 #### Scenario: Android capture
 - **WHEN** a screenshot or recording is taken on a card screen on Android
 - **THEN** the captured image is blank
 
-#### Scenario: iOS recording
-- **WHEN** iOS screen recording or mirroring starts on a card screen
-- **THEN** card content is obscured until capture stops
+#### Scenario: Native iOS release is deferred
+- **WHEN** phase-one acceptance is evaluated
+- **THEN** native iOS store submission and native iOS capture protection are out of scope
 
-#### Scenario: Set wallpaper
+#### Scenario: Android sets wallpaper
 - **WHEN** the viewer chooses "set as wallpaper"
-- **THEN** Android sets home or lock screen directly and iOS saves the image and guides the viewer through system settings
+- **THEN** Android saves the watermarked image and lets the viewer set it as the home or lock screen

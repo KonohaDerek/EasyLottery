@@ -1,5 +1,20 @@
 ## ADDED Requirements
 
+### Requirement: Platform administrator boundary
+Hub management endpoints MUST require a separately configured platform-admin credential, use HTTPS outside loopback development, apply rate limits, and create audit events for invite, tenant-status and site-credential operations. A missing admin credential MUST fail closed.
+
+#### Scenario: Admin credential is absent or invalid
+- **WHEN** a request reaches a management endpoint without a valid platform-admin credential
+- **THEN** the request is rejected and no state changes
+
+#### Scenario: Tenant deletion notice
+- **WHEN** a tenant enters the 30-day deletion notice period
+- **THEN** the Hub shows a notice in the Hub and redemption pages, notifies account holders in Hub and by email, emails holders of unredeemed codes only where consent covers this service notice, and records the notice event; the streamer receives prepared notice text for their own post
+
+#### Scenario: Deletion grace period is open
+- **WHEN** the 30-day notice period has not ended
+- **THEN** images remain available to existing holders; after the period, images are purged and card instances render a removed placeholder
+
 ### Requirement: Streamer site linking
 The Card Hub MUST let a streamer register a tenant and link their EasyLottery site with revocable client credentials scoped to that tenant.
 
