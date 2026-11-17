@@ -464,6 +464,119 @@ public sealed class HubFoundationIntegrationTests
     }
 
     [TestMethod]
+    public async Task ConcurrentAncestorReplayWaitsForRefreshRotationAndRevokesTheReplacement()
+    {
+        await using var host = await TestHubHost.CreateAsync();
+        var viewer = await CreateViewerAsync(host, "refresh-family-race@example.test");
+
+        using var firstRotation = await host.Client.PostAsJsonAsync("/api/auth/viewer/refresh", new { refreshToken = viewer.RefreshToken });
+        Assert.AreEqual(HttpStatusCode.OK, firstRotation.StatusCode);
+        var descendant = await firstRotation.Content.ReadFromJsonAsync<ViewerSessionResponse>();
+        Assert.IsNotNull(descendant);
+
+        await using var blockerConnection = new NpgsqlConnection(host.ConnectionString);
+        await blockerConnection.OpenAsync();
+        await using var blockerTransaction = await blockerConnection.BeginTransactionAsync();
+        await using (var lockViewer = new NpgsqlCommand("SELECT 1 FROM viewers WHERE \"Id\" = @viewerId FOR UPDATE", blockerConnection, blockerTransaction))
+        {
+            lockViewer.Parameters.AddWithValue("viewerId", viewer.Id);
+            Assert.AreEqual(1, await lockViewer.ExecuteScalarAsync());
+        }
+
+        Task<HttpResponseMessage>? rotationTask = null;
+        Task<HttpResponseMessage>? replayTask = null;
+        var blockerReleased = false;
+        try
+        {
+            rotationTask = host.Client.PostAsJsonAsync("/api/auth/viewer/refresh", new { refreshToken = descendant.RefreshToken });
+            await WaitForBlockedDatabaseCommandAsync(host, "%INSERT INTO%viewer_refresh_tokens%");
+
+            replayTask = host.Client.PostAsJsonAsync("/api/auth/viewer/refresh", new { refreshToken = viewer.RefreshToken });
+            await WaitForBlockedDatabaseCommandAsync(host, "%pg_advisory_xact_lock%");
+            await blockerTransaction.CommitAsync();
+            blockerReleased = true;
+
+            using var rotated = await rotationTask.WaitAsync(TimeSpan.FromSeconds(15));
+            using var replay = await replayTask.WaitAsync(TimeSpan.FromSeconds(15));
+            Assert.AreEqual(HttpStatusCode.OK, rotated.StatusCode);
+            Assert.AreEqual(HttpStatusCode.Unauthorized, replay.StatusCode);
+        }
+        finally
+        {
+            if (!blockerReleased)
+                await blockerTransaction.RollbackAsync();
+            await DisposePendingResponseAsync(rotationTask);
+            await DisposePendingResponseAsync(replayTask);
+        }
+
+        using var scope = host.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<HubDbContext>();
+        var family = await db.ViewerRefreshTokens.Where(item => item.ViewerId == viewer.Id).ToListAsync();
+        Assert.AreEqual(3, family.Count);
+        Assert.IsTrue(family.All(item => item.RevokedAt is not null));
+    }
+
+    [TestMethod]
+    public async Task AccountDeletionWaitsForRefreshFamilyBeforeDeletingViewer()
+    {
+        await using var host = await TestHubHost.CreateAsync();
+        var viewer = await CreateViewerAsync(host, "refresh-family-delete-race@example.test");
+
+        using var firstRotation = await host.Client.PostAsJsonAsync("/api/auth/viewer/refresh", new { refreshToken = viewer.RefreshToken });
+        Assert.AreEqual(HttpStatusCode.OK, firstRotation.StatusCode);
+        var descendant = await firstRotation.Content.ReadFromJsonAsync<ViewerSessionResponse>();
+        Assert.IsNotNull(descendant);
+
+        await using var blockerConnection = new NpgsqlConnection(host.ConnectionString);
+        await blockerConnection.OpenAsync();
+        await using var blockerTransaction = await blockerConnection.BeginTransactionAsync();
+        await using (var lockViewer = new NpgsqlCommand("SELECT 1 FROM viewers WHERE \"Id\" = @viewerId FOR UPDATE", blockerConnection, blockerTransaction))
+        {
+            lockViewer.Parameters.AddWithValue("viewerId", viewer.Id);
+            Assert.AreEqual(1, await lockViewer.ExecuteScalarAsync());
+        }
+
+        Task<HttpResponseMessage>? rotationTask = null;
+        Task? deleteTask = null;
+        var blockerReleased = false;
+        try
+        {
+            rotationTask = host.Client.PostAsJsonAsync("/api/auth/viewer/refresh", new { refreshToken = descendant.RefreshToken });
+            await WaitForBlockedDatabaseCommandAsync(host, "%INSERT INTO%viewer_refresh_tokens%");
+
+            deleteTask = DeleteViewerAsync(host, viewer.Id);
+            await WaitForBlockedDatabaseCommandAsync(host, "%pg_advisory_xact_lock%");
+            await blockerTransaction.CommitAsync();
+            blockerReleased = true;
+
+            using var rotated = await rotationTask.WaitAsync(TimeSpan.FromSeconds(15));
+            Assert.AreEqual(HttpStatusCode.OK, rotated.StatusCode);
+            await deleteTask.WaitAsync(TimeSpan.FromSeconds(15));
+        }
+        finally
+        {
+            if (!blockerReleased)
+                await blockerTransaction.RollbackAsync();
+            await DisposePendingResponseAsync(rotationTask);
+            if (deleteTask is not null)
+            {
+                try
+                {
+                    await deleteTask.WaitAsync(TimeSpan.FromSeconds(15));
+                }
+                catch
+                {
+                }
+            }
+        }
+
+        using var scope = host.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<HubDbContext>();
+        Assert.IsFalse(await db.Viewers.AnyAsync(item => item.Id == viewer.Id));
+        Assert.IsFalse(await db.ViewerRefreshTokens.AnyAsync(item => item.ViewerId == viewer.Id));
+    }
+
+    [TestMethod]
     public async Task ViewerStreamerSiteAndPlatformAdminTokensAreMutuallyIsolated()
     {
         await using var host = await TestHubHost.CreateAsync();
@@ -667,6 +780,61 @@ public sealed class HubFoundationIntegrationTests
 
     private static Task<HttpResponseMessage> RequestViewerCodeAsync(TestHubHost host, string email, Guid? tenantId = null) =>
         host.Client.PostAsJsonAsync("/api/auth/viewer/code", new { email, tenantId });
+
+    private static async Task WaitForBlockedDatabaseCommandAsync(TestHubHost host, string commandPattern)
+    {
+        await using var connection = new NpgsqlConnection(host.ConnectionString);
+        await connection.OpenAsync();
+        await using var command = new NpgsqlCommand("""
+            SELECT EXISTS (
+                SELECT 1
+                FROM pg_stat_activity
+                WHERE application_name = @applicationName
+                  AND pid <> pg_backend_pid()
+                  AND state = 'active'
+                  AND wait_event_type = 'Lock'
+                  AND query ILIKE @commandPattern)
+            """, connection);
+        command.Parameters.AddWithValue("applicationName", host.ApplicationName);
+        command.Parameters.AddWithValue("commandPattern", commandPattern);
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+        try
+        {
+            while (!timeout.IsCancellationRequested)
+            {
+                var isBlocked = await command.ExecuteScalarAsync(timeout.Token);
+                if (isBlocked is true)
+                    return;
+                await Task.Delay(TimeSpan.FromMilliseconds(50), timeout.Token);
+            }
+        }
+        catch (OperationCanceledException) when (timeout.IsCancellationRequested)
+        {
+            throw new TimeoutException($"No Card Hub database command matching {commandPattern} waited on a lock.");
+        }
+
+        throw new TimeoutException($"No Card Hub database command matching {commandPattern} waited on a lock.");
+    }
+
+    private static async Task DisposePendingResponseAsync(Task<HttpResponseMessage>? responseTask)
+    {
+        if (responseTask is null)
+            return;
+        try
+        {
+            using var response = await responseTask.WaitAsync(TimeSpan.FromSeconds(15));
+        }
+        catch
+        {
+        }
+    }
+
+    private static async Task DeleteViewerAsync(TestHubHost host, Guid viewerId)
+    {
+        await using var scope = host.Services.CreateAsyncScope();
+        var accounts = scope.ServiceProvider.GetRequiredService<ViewerAccountsService>();
+        await accounts.DeleteAccountAsync(viewerId, CancellationToken.None);
+    }
 
     private static string ExtractLoginCode(string body)
     {

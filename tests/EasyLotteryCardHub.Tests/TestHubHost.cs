@@ -21,12 +21,13 @@ internal sealed class TestHubHost : IAsyncDisposable
     private readonly string _schema;
     private readonly IHost _host;
 
-    private TestHubHost(IHost host, HttpClient client, string schema, string connectionString, MutableTimeProvider clock)
+    private TestHubHost(IHost host, HttpClient client, string schema, string connectionString, string applicationName, MutableTimeProvider clock)
     {
         _host = host;
         Client = client;
         _schema = schema;
         ConnectionString = connectionString;
+        ApplicationName = applicationName;
         Clock = clock;
     }
 
@@ -39,6 +40,7 @@ internal sealed class TestHubHost : IAsyncDisposable
     public static string PlatformAdminKey => AdminKey;
     public HttpClient Client { get; }
     public string ConnectionString { get; }
+    public string ApplicationName { get; }
     public MutableTimeProvider Clock { get; }
     public IServiceProvider Services => _host.Services;
     public CapturingViewerEmailSender Emails => Services.GetRequiredService<CapturingViewerEmailSender>();
@@ -51,6 +53,7 @@ internal sealed class TestHubHost : IAsyncDisposable
     {
         clock ??= new MutableTimeProvider(DateTimeOffset.UtcNow);
         var schema = "hubtest_" + Guid.NewGuid().ToString("N");
+        var applicationName = "CardHubTests-" + Guid.NewGuid().ToString("N");
         await using (var adminConnection = new NpgsqlConnection(Container.GetConnectionString()))
         {
             await adminConnection.OpenAsync();
@@ -59,7 +62,11 @@ internal sealed class TestHubHost : IAsyncDisposable
             await createSchema.ExecuteNonQueryAsync();
         }
 
-        var connection = new NpgsqlConnectionStringBuilder(Container.GetConnectionString()) { SearchPath = schema };
+        var connection = new NpgsqlConnectionStringBuilder(Container.GetConnectionString())
+        {
+            SearchPath = schema,
+            ApplicationName = applicationName
+        };
         var settings = new Dictionary<string, string?>
         {
             ["ConnectionStrings:CardHub"] = connection.ConnectionString,
@@ -109,7 +116,7 @@ internal sealed class TestHubHost : IAsyncDisposable
             throw new InvalidOperationException($"Card Hub test host failed readiness ({(int)ready.StatusCode}): {body}");
         }
 
-        return new TestHubHost(host, client, schema, connection.ConnectionString, clock);
+        return new TestHubHost(host, client, schema, connection.ConnectionString, applicationName, clock);
     }
 
     public async ValueTask DisposeAsync()

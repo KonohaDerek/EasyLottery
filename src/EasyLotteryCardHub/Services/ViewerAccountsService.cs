@@ -52,9 +52,7 @@ public sealed class ViewerAccountsService(
 
         await using (var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken))
         {
-            await db.Database.ExecuteSqlInterpolatedAsync(
-                $"SELECT pg_advisory_xact_lock(hashtextextended({emailHash}, 0))",
-                cancellationToken);
+            await AcquireViewerEmailLockAsync(emailHash, cancellationToken);
 
             var record = await db.ViewerLoginCodes.SingleOrDefaultAsync(item => item.EmailHash == emailHash, cancellationToken);
             if (record is not null && record.CreatedAt + ResendCooldown > now)
@@ -204,6 +202,14 @@ public sealed class ViewerAccountsService(
         var tokenHash = SecretHasher.Hash(rawRefreshToken);
         var now = timeProvider.GetUtcNow();
         await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken);
+        var sessionFamilyId = await db.ViewerRefreshTokens.AsNoTracking()
+            .Where(item => item.TokenHash == tokenHash)
+            .Select(item => (Guid?)item.SessionFamilyId)
+            .SingleOrDefaultAsync(cancellationToken);
+        if (sessionFamilyId is null)
+            throw new ViewerServiceException(StatusCodes.Status401Unauthorized, "viewer_refresh_invalid", "viewer.auth.refresh.invalid");
+
+        await AcquireSessionFamilyLockAsync(sessionFamilyId.Value, cancellationToken);
         var current = await db.ViewerRefreshTokens
             .FromSqlInterpolated($"SELECT * FROM viewer_refresh_tokens WHERE \"TokenHash\" = {tokenHash} FOR UPDATE")
             .SingleOrDefaultAsync(cancellationToken);
@@ -285,12 +291,41 @@ public sealed class ViewerAccountsService(
 
         await cardRetirement.RetireOwnedInstancesAsync(viewerId, cancellationToken);
         var emailHash = ViewerSensitiveHasher.HashEmail(viewer.EmailNormalized, tokenOptions.SigningKey.Key);
+        await AcquireViewerEmailLockAsync(emailHash, cancellationToken);
+        await db.ViewerLoginCodes
+            .FromSqlInterpolated($"SELECT * FROM viewer_login_codes WHERE \"EmailHash\" = {emailHash} FOR UPDATE")
+            .AsNoTracking()
+            .SingleOrDefaultAsync(cancellationToken);
+        var sessionFamilyIds = await db.ViewerRefreshTokens.AsNoTracking()
+            .Where(item => item.ViewerId == viewerId)
+            .Select(item => item.SessionFamilyId)
+            .Distinct()
+            .OrderBy(item => item)
+            .ToListAsync(cancellationToken);
+        foreach (var sessionFamilyId in sessionFamilyIds)
+            await AcquireSessionFamilyLockAsync(sessionFamilyId, cancellationToken);
+
         await db.ViewerLoginCodes.Where(item => item.EmailHash == emailHash).ExecuteDeleteAsync(cancellationToken);
         HubAuditWriter.Append(db, timeProvider, "viewer.account_deleted", "viewer", viewerId.ToString("D"), null,
             new { groupsRemoved = await db.ViewerGroups.CountAsync(item => item.ViewerId == viewerId, cancellationToken) });
         db.Viewers.Remove(viewer);
         await db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
+    }
+
+    private async Task AcquireViewerEmailLockAsync(string emailHash, CancellationToken cancellationToken)
+    {
+        await db.Database.ExecuteSqlInterpolatedAsync(
+            $"SELECT pg_advisory_xact_lock(hashtextextended({emailHash}, 0))",
+            cancellationToken);
+    }
+
+    private async Task AcquireSessionFamilyLockAsync(Guid sessionFamilyId, CancellationToken cancellationToken)
+    {
+        var lockKey = "viewer-refresh-family:" + sessionFamilyId.ToString("N");
+        await db.Database.ExecuteSqlInterpolatedAsync(
+            $"SELECT pg_advisory_xact_lock(hashtextextended({lockKey}, 0))",
+            cancellationToken);
     }
 
     private (ViewerSessionResponse Response, ViewerRefreshToken RefreshTokenRecord) CreateSession(Guid viewerId, Guid familyId, DateTimeOffset now)
