@@ -26,3 +26,9 @@
 - GitHub now reports original PR #349 as merged at `d1b7da035ba1095bcf8b746654c3b4e943253d85`; issue #305 is closed. Remote `main` tree is byte-identical to the candidate base tree at `705ebbfb119c330c4d18fab03902ddd6629e88a2`. The old work branch is not present on origin.
 - Derek explicitly authorized publishing with “發 PR啊” on 2026-11-17. Commit the verified changes to the 13 task-related source, test and evidence files and push the branch, then create a separate Ready-for-review follow-up PR targeting `main`. Reference #349 and #305 without a closing keyword because the original issue is already completed. Do not reopen #349 or #305, merge or deploy.
 - Proposed title: `fix: harden core lottery draw recovery after #349`.
+
+## Delivery completed (2026-11-17)
+
+- Commit `284fb297cfb92173f42b2a373523cf53e5882333` was created on `codex/issue-305-integrate-20261114` and pushed to origin after Derek authorized “發 PR啊”. The product/test fingerprint remains `b7fbc24e206f2761e5c700dac42583df699abe252d93707725bb8878e53b4ede`.
+- Created Ready-for-review follow-up PR #355: https://github.com/KonohaDerek/EasyLottery/pull/355, targeting `main` at `d1b7da035ba1095bcf8b746654c3b4e943253d85`. Original PR #349 is merged and issue #305 is already closed; neither was reopened or closed again.
+- No merge or deployment. PR CI run `44106169056` was in progress at last observation.

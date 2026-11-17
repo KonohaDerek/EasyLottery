@@ -124,3 +124,9 @@ The original automatic review rejection was not retried or bypassed; the subsequ
 - Claude noted a possible CSV formula-injection concern in the generic `escapeCsv` behavior, likely pre-existing and not confirmed as introduced by this candidate because no base diff was available to the reviewer. The changed export adds `ChannelScope`; source UUID columns themselves are constrained. Codex confirmed generic export already handles untrusted fields through the same `escapeCsv`; this is recorded as a separate follow-up risk, not a verified regression in #349.
 - The corrupt-ledger behavior remains intentionally fail-closed. There is no in-app repair mechanism; preserve the browser profile and contact the system maintainer. This is now explicit in both error paths and covered by E2E.
 - After updating the OpenSpec task status with final review evidence, strict OpenSpec validation was rerun against that exact `tasks.md`: `npx --yes @fission-ai/openspec@1.7.0 validate --all --strict` — 50 passed, 0 failed.
+
+## Publication (2026-11-17)
+
+- Derek explicitly authorized push and a follow-up PR. Commit `284fb297cfb92173f42b2a373523cf53e5882333` was pushed on `codex/issue-305-integrate-20261114`; product/test fingerprint remained unchanged at `b7fbc24e206f2761e5c700dac42583df699abe252d93707725bb8878e53b4ede`.
+- Created Ready-for-review PR #355: https://github.com/KonohaDerek/EasyLottery/pull/355, based on `main` `d1b7da035ba1095bcf8b746654c3b4e943253d85`. Original PR #349 is merged; issue #305 is closed. The follow-up uses no issue-closing keyword and does not change either state.
+- GitHub reported PR #355 `MERGEABLE`, `UNSTABLE` while its `build-and-test` check was in progress; GitGuardian Security Checks had passed. Workflow run: `44106169056`. No merge/deployment occurred.

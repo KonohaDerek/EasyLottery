@@ -43,7 +43,7 @@
   ],
   "candidate": {
     "base_sha": "705ebbfb119c330c4d18fab03902ddd6629e88a2",
-    "product_test_diff_sha256": "8582abfe4f0e2f0b4a43e377b568ca84243afb2f91b91e6efa5856ce8778f296",
+    "product_test_diff_sha256": "b7fbc24e206f2761e5c700dac42583df699abe252d93707725bb8878e53b4ede",
     "final_product_test_diff_sha256": "b7fbc24e206f2761e5c700dac42583df699abe252d93707725bb8878e53b4ede",
     "final_product_test_files": [
       "src/EasyLotteryWeb/src/views/LotteryHomeView.vue",
@@ -56,7 +56,8 @@
       "tests/e2e/core-lottery-eligibility.spec.mjs"
     ],
     "devcontainer_source_snapshot": "/private/tmp/issue305-pr349-reviewed.knf3os",
-    "devcontainer_image_id": "sha256:f371eb001f7405b29a279d78753ca1f30ac3622cc57b98889fff7b65dcd7455b"
+    "devcontainer_image_id": "sha256:f371eb001f7405b29a279d78753ca1f30ac3622cc57b98889fff7b65dcd7455b",
+    "commit_sha": "284fb297cfb92173f42b2a373523cf53e5882333"
   },
   "results": {
     "vue_vitest": "passed: 35 files, 205 tests on final candidate",
@@ -76,7 +77,7 @@
     "status": "completed",
     "result": "No P1, P2 or P3 findings on final current tree; both previous P3 findings confirmed fixed. Read all relevant changed code and the two new E2E tests, but did not execute tests or independently reproduce the fingerprint/base diff because shell was unavailable."
   },
-  "status": "verification_and_reviews_passed_local_delivery_pending_authorization",
+  "status": "published_ready_for_review_ci_in_progress",
   "review_followups": {
     "chat_capture_race": {
       "severity": "P3",
@@ -91,9 +92,19 @@
   },
   "delivery": {
     "verification_complete": true,
-    "branch_pushed": false,
-    "pull_request_created": false,
-    "next": "Commit and push branch; create a new follow-up PR because #349 is already merged and #305 is closed."
+    "branch_pushed": true,
+    "branch": "codex/issue-305-integrate-20261114",
+    "commit_sha": "284fb297cfb92173f42b2a373523cf53e5882333",
+    "pull_request_created": true,
+    "pull_request_number": 355,
+    "pull_request_url": "https://github.com/KonohaDerek/EasyLottery/pull/355",
+    "pull_request_state": "open, Ready for review",
+    "base_branch": "main",
+    "base_sha": "d1b7da035ba1095bcf8b746654c3b4e943253d85",
+    "ci_workflow_run": 44106169056,
+    "ci_state_at_snapshot": "build-and-test in progress; GitGuardian passed",
+    "merged": false,
+    "deployed": false
   },
   "residual_risks": [
     "Corrupt reconciled-draw ledger has no self-service repair; fail closed, preserve browser state, contact maintainer.",
