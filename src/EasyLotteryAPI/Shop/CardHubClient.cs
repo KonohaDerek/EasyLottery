@@ -60,7 +60,8 @@ public sealed class CardHubClient(HttpClient httpClient) : IDisposable
     private static bool HasAccessToken(string body)
     {
         using var document = JsonDocument.Parse(body);
-        return document.RootElement.TryGetProperty("access_token", out var token)
+        return document.RootElement.ValueKind == JsonValueKind.Object
+            && document.RootElement.TryGetProperty("access_token", out var token)
             && token.ValueKind == JsonValueKind.String
             && !string.IsNullOrWhiteSpace(token.GetString());
     }
@@ -68,7 +69,8 @@ public sealed class CardHubClient(HttpClient httpClient) : IDisposable
     private static bool IsInvalidClient(string body)
     {
         using var document = JsonDocument.Parse(body);
-        return document.RootElement.TryGetProperty("error", out var error)
+        return document.RootElement.ValueKind == JsonValueKind.Object
+            && document.RootElement.TryGetProperty("error", out var error)
             && error.ValueKind == JsonValueKind.String
             && string.Equals(error.GetString(), "invalid_client", StringComparison.Ordinal);
     }

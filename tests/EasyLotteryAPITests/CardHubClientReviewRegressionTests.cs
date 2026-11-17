@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text;
 using EasyLotteryApi.Shop;
 
 namespace EasyLotteryApiTests;
@@ -30,6 +31,29 @@ public sealed class CardHubClientReviewRegressionTests
         Assert.IsTrue(completedWithinTimeout, "The configured HttpClient timeout should include reading the response body.");
         Assert.AreEqual(HubLinkStatuses.HubUnreachable, result);
     }
+
+    [TestMethod]
+    public async Task TestConnection_ReturnsUnreachableForNonObjectJsonRoots()
+    {
+        foreach (var body in new[] { "null", "[]" })
+        foreach (var statusCode in new[] { HttpStatusCode.OK, HttpStatusCode.BadRequest, HttpStatusCode.Unauthorized })
+        {
+            using var client = CreateClient(_ => new HttpResponseMessage(statusCode)
+            {
+                Content = new StringContent(body, Encoding.UTF8, "application/json")
+            });
+
+            var result = await client.TestConnectionAsync("https://hub.example.test", "site-id", "secret");
+
+            Assert.AreEqual(
+                HubLinkStatuses.HubUnreachable,
+                result,
+                $"A {statusCode} response with JSON root {body} should be classified as unreachable.");
+        }
+    }
+
+    private static CardHubClient CreateClient(Func<HttpRequestMessage, HttpResponseMessage> responseFactory) =>
+        new(new HttpClient(new FakeHandler(responseFactory)));
 
     private sealed class FakeHandler(Func<HttpRequestMessage, HttpResponseMessage> responseFactory) : HttpMessageHandler
     {
