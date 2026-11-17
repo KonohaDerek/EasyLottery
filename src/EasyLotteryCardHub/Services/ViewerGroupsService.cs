@@ -26,7 +26,7 @@ public sealed class ViewerGroupsService(HubDbContext db, TimeProvider timeProvid
         var normalized = NormalizeName(name);
         await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken);
         var viewer = await db.Viewers
-            .FromSqlInterpolated($"SELECT * FROM viewers WHERE \"Id\" = {viewerId} FOR UPDATE")
+            .FromSqlInterpolated($"SELECT * FROM viewers WHERE \"Id\" = {viewerId} FOR KEY SHARE")
             .SingleOrDefaultAsync(cancellationToken);
         if (viewer is null)
             throw new ViewerServiceException(StatusCodes.Status401Unauthorized, "viewer_account_unavailable", "viewer.auth.account.unavailable");
