@@ -10,6 +10,7 @@ public sealed class CardHubClientReviewRegressionTests
     [TestMethod]
     public async Task TestConnection_ReturnsUnreachableWhenResponseBodyExceedsHttpClientTimeout()
     {
+        var completionBound = TimeSpan.FromSeconds(1);
         var bodyStream = new StallingReadStream();
         var httpClient = new HttpClient(new FakeHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
         {
@@ -24,11 +25,14 @@ public sealed class CardHubClientReviewRegressionTests
         var readStarted = await Task.WhenAny(bodyStream.ReadStarted, Task.Delay(TimeSpan.FromSeconds(2)));
         Assert.AreSame(bodyStream.ReadStarted, readStarted, "The Hub response body should begin streaming.");
 
-        var completedWithinTimeout = await Task.WhenAny(request, Task.Delay(TimeSpan.FromSeconds(2))) == request;
-        bodyStream.ReleaseRead();
-        var result = await request;
+        // Four times the 250 ms HttpClient timeout allows 750 ms of CI scheduling overhead
+        // while still rejecting a request that only gives up substantially later.
+        var completedWithinTimeout = await Task.WhenAny(request, Task.Delay(completionBound)) == request;
 
-        Assert.IsTrue(completedWithinTimeout, "The configured HttpClient timeout should include reading the response body.");
+        Assert.IsTrue(
+            completedWithinTimeout,
+            $"The configured HttpClient timeout should include reading the response body and complete within {completionBound}.");
+        var result = await request;
         Assert.AreEqual(HubLinkStatuses.HubUnreachable, result);
     }
 
@@ -64,11 +68,8 @@ public sealed class CardHubClientReviewRegressionTests
     private sealed class StallingReadStream : Stream
     {
         private readonly TaskCompletionSource _readStarted = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        private readonly TaskCompletionSource _releaseRead = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         public Task ReadStarted => _readStarted.Task;
-
-        public void ReleaseRead() => _releaseRead.TrySetResult();
 
         public override bool CanRead => true;
         public override bool CanSeek => false;
@@ -86,15 +87,16 @@ public sealed class CardHubClientReviewRegressionTests
             byte[] buffer,
             int offset,
             int count,
-            CancellationToken cancellationToken) => WaitForReleaseAsync(cancellationToken);
+            CancellationToken cancellationToken) => StallReadAsync(cancellationToken);
 
         public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default) =>
-            new(WaitForReleaseAsync(cancellationToken));
+            new(StallReadAsync(cancellationToken));
 
-        private async Task<int> WaitForReleaseAsync(CancellationToken cancellationToken)
+        private async Task<int> StallReadAsync(CancellationToken cancellationToken)
         {
             _readStarted.TrySetResult();
-            await _releaseRead.Task.WaitAsync(cancellationToken);
+            // Keep the body stalled well beyond the test's acceptance window unless cancelled.
+            await Task.Delay(TimeSpan.FromSeconds(30), cancellationToken);
             return 0;
         }
     }
