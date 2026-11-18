@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from "vue-router";
 import { routes, publicRoutes } from "./routes";
 import { adminRouteRedirect } from "./router-guard";
 import { getStoredToken, isAdminSessionToken } from "./stores/session";
+import { shopRouteNotFoundRedirect } from "./shop/route-access";
 
 export { adminRoutes, publicRoutes, routes } from "./routes";
 
@@ -10,7 +11,15 @@ export const router = createRouter({
   routes
 });
 
-router.beforeEach(to => {
+router.beforeEach(async to => {
+  const notFoundRedirect = await shopRouteNotFoundRedirect(
+    to.path,
+    to.name,
+    to.query,
+    to.hash
+  );
+  if (notFoundRedirect) return notFoundRedirect;
+
   const requestedPath = to.path === "/pokebox" && typeof to.query.edit === "string"
     ? `${to.path}?edit=${encodeURIComponent(to.query.edit)}`
     : to.path;

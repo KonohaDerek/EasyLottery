@@ -23,6 +23,7 @@ using EasyLotteryApi.Storage;
 using EasyLotteryApi.Storage.Endpoints;
 using EasyLotteryApi.Tunnel;
 using EasyLotteryApi.Tunnel.Endpoints;
+using EasyLotteryApi.Shop;
 using EasyLotteryApi.Interactions;
 using EasyLotteryApi.Lottery;
 using EasyLotteryApplication.Interactions;
@@ -30,11 +31,18 @@ using EasyLotteryDomain.Services;
 using EasyLotteryDomain.Models.Obs;
 using EasyLotteryInfrastructure.Settings;
 using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpsPolicy;
 using Microsoft.AspNetCore.HttpOverrides;
 using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
+var storageDirectory = builder.Configuration["Storage:Directory"]
+    ?? Path.Combine(builder.Environment.ContentRootPath, "App_Data");
+Directory.CreateDirectory(storageDirectory);
+builder.Services.AddDataProtection()
+    .SetApplicationName("EasyLottery")
+    .PersistKeysToFileSystem(new DirectoryInfo(storageDirectory));
 builder.Services.Configure<HttpsRedirectionOptions>(options => options.RedirectStatusCode = StatusCodes.Status308PermanentRedirect);
 builder.Services.AddSignalR();
 builder.Services.AddSingleton<TunnelRuntimeService>();
@@ -88,13 +96,12 @@ builder.Services.AddSingleton<IPlatformConnector, YouTubeChatConnector>();
 builder.Services.AddSingleton<IPlatformConnector, TwitchChatConnector>();
 builder.Services.AddSingleton<IPlatformConnector, DiscordChatConnector>();
 builder.Services.AddHttpClient();
+builder.Services.AddHttpClient<CardHubClient>(client => client.Timeout = TimeSpan.FromSeconds(10))
+    .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler { AllowAutoRedirect = false });
+builder.Services.AddScoped<HubLinkSettingsService>();
 builder.Services.AddHealthChecks()
     .AddCheck<StorageHealthCheck>("storage", tags: ["ready"]);
 builder.Services.AddScoped<AiCongratulationProvider>();
-
-var storageDirectory = builder.Configuration["Storage:Directory"]
-    ?? Path.Combine(builder.Environment.ContentRootPath, "App_Data");
-Directory.CreateDirectory(storageDirectory);
 
 var forwardedHeadersOptions = new ForwardedHeadersOptions
 {
@@ -212,6 +219,7 @@ app.MapHealthChecks("/health/ready", new Microsoft.AspNetCore.Diagnostics.Health
 
 app.MapSettingsEndpoints();
 app.MapSettingsResourceEndpoints();
+app.MapShopEndpoints();
 app.MapPasskeyEndpoints();
 app.MapObsSessionEndpoints();
 app.MapAiCongratulationEndpoints();
@@ -258,6 +266,12 @@ app.MapFallbackToFile("/system/obs-layouts", "vue/index.html");
 app.MapFallbackToFile("/system/obs-assets", "vue/index.html");
 app.MapFallbackToFile("/system/sound-cues", "vue/index.html");
 app.MapFallbackToFile("/system/visual-styles", "vue/index.html");
+if (app.Configuration.GetValue<bool>("Shop:Enabled"))
+{
+    app.MapFallbackToFile("/system/card-hub", "vue/index.html");
+    app.MapFallbackToFile("/shop", "vue/index.html");
+    app.MapFallbackToFile("/shop/{**path:nonfile}", "vue/index.html");
+}
 app.MapFallbackToFile("/activity-results", "vue/index.html");
 app.MapFallbackToFile("/lottery-draw-records", "vue/index.html");
 app.MapFallbackToFile("/donate-lottery-records", "vue/index.html");
