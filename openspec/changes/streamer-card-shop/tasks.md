@@ -12,8 +12,8 @@
 - [x] Hub platform admin with a separate fail-closed credential and audit log, invite-only streamer onboarding (email + Passkey assertion login), tenant lifecycle states, site registration, client-credentials tokens with two-secret rotation (24 h overlap) and revocation.
 - [x] Tests: invite single use/expiry, credential rotation/revocation, disabled-tenant rejection, streamer vs site token isolation.
 ### 1b. Viewer accounts (PR 2, after 1a)
-- [x] Viewer email-code sign-in (zh-TW email, tenant-aware copy, 60 s resend), viewer JWT audience, refresh tokens, rate limits; allow 13–17 accounts for gifted-card use but block paid-draw entry points in Wave 1.
-- [x] Terms version/acceptance, age bracket, reserved handle, group create/rename/delete/list, account deletion through the card-retirement seam (`IViewerCardRetirement`, no-op until the instance table exists), synchronous JSON export.
+- [x] Viewer email-code sign-in (zh-TW email, tenant-aware copy, 60 s resend), viewer JWT audience, refresh tokens, rate limits; 13–17 accounts may register (under 13 rejected). The Hub has no paid-draw entry point in this wave; the 18+ gate ships with the donate flow (3b).
+- [x] Terms version/acceptance, age bracket, reserved handle, group create/rename/delete/list, account deletion through the card-retirement seam (`IViewerCardRetirement`, no-op until the instance table exists), synchronous audited `no-store` JSON export of the data that exists in this wave (profile and consent record, groups, session metadata).
 - [x] Tests: viewer token rejected by streamer/site/admin APIs, code expiry/attempt limits, deletion, export scope.
 - [ ] Production email delivery adapter for viewer sign-in codes. Until the provider is chosen in the operations issue, the registered sender fails closed with 503 outside Development/Testing, so viewer sign-in is not usable in production.
 ### 1c. Site side (PR 3, parallel with 1a)
@@ -29,7 +29,7 @@
 ## 2b. Packs and draw engine - #340 (Codex)
 - [ ] Site: pack configuration, cover upload, odds validation, publish to Hub, public shop page with odds.
 - [ ] Hub: idempotent draw API, atomic crypto-RNG draw with per-rarity and optional total supply, automatic immutable odds-version publication when a rarity is depleted, statistical distribution test, audit records.
-- [ ] Hub: with the card-instance table, replace the no-op `IViewerCardRetirement` so account deletion retires owned instances, and add group membership endpoints (add/remove owned instances) with ownership checks and tests.
+- [ ] Hub: with the card-instance table, replace the no-op `IViewerCardRetirement` so account deletion retires owned instances, and add group membership endpoints (add/remove owned instances) with ownership checks and tests; add the viewer's collection and draw history to the JSON export.
 
 ## 3a. Pack-opening animation - #341 (Codex)
 - [ ] Shared stage timeline spec; Vue component; OBS overlay auto variant; reduced motion; skip; visual regression screenshots.
@@ -38,6 +38,7 @@
 - [ ] Site: activity type, 18+ declaration + legally reviewed consent on the donation form, Hub draw call with payment-reference idempotency and retry queue, OBS event and pending state.
 - [ ] Hub: redemption codes (hash-only storage, 90-day expiry, atomic redeem, rate limit), encrypted recoverable recipient address in delivery outbox with 180-day deletion, email retry, and resend of the same still-valid code to its original address.
 - [ ] Stop draws on the prior finite-supply odds version when a rarity is depleted; publish and display the next immutable odds version before resuming. Block production payment handling until the human owner approves recovery for a paid callback that races with the last instance.
+- [ ] Hub: add redeemed-code history and the explanation of irreversibly anonymized omissions to the viewer JSON export.
 - [ ] Privacy policy update; concurrency and idempotency tests.
 
 ## 4a. Mobile app - #343 (Codex)
