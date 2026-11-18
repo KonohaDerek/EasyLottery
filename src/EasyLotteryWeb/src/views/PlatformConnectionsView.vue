@@ -3,6 +3,8 @@ import { onMounted, ref } from "vue";
 import { ApiError } from "../api/client";
 import {
   loadPlatformConnections,
+  platformStatusColor,
+  platformStatusLabel,
   savePlatformConnection,
   toPlatformDraft,
   type PlatformConnectionDraft
@@ -28,7 +30,8 @@ async function reload(): Promise<void> {
   } catch (cause) {
     drafts.value = [];
     etag.value = "";
-    error.value = cause instanceof ApiError ? cause.message : "無法載入平台串接設定。";
+    // Status is unknown after a failed read; never keep earlier chips or imply connectivity.
+    error.value = cause instanceof ApiError ? `無法載入平台串接設定：${cause.message}` : "無法載入平台串接設定。";
   } finally {
     loading.value = false;
   }
@@ -42,8 +45,8 @@ async function save(draft: PlatformConnectionDraft): Promise<void> {
   try {
     const snapshot = await savePlatformConnection(draft, etag.value);
     etag.value = snapshot.etag;
-    draft.state = snapshot.data.state;
-    draft.configured = snapshot.data.configured;
+    draft.state = snapshot.data?.state ?? "unknown";
+    if (snapshot.data) draft.configured = snapshot.data.configured;
     draft.credentialValue = "";
     draft.credentialAction = "unchanged";
     success.value = `${draft.platform} 設定已儲存。`;
@@ -57,14 +60,6 @@ async function save(draft: PlatformConnectionDraft): Promise<void> {
   } finally {
     saving.value = "";
   }
-}
-
-function stateLabel(state: string): string {
-  return state === "configured" ? "已連線" : state === "degraded" ? "連線異常" : "尚未設定";
-}
-
-function stateColor(state: string): string {
-  return state === "configured" ? "success" : state === "degraded" ? "warning" : "default";
 }
 
 function credentialLabel(platform: string): string {
@@ -100,7 +95,7 @@ onMounted(() => void reload());
         <v-card class="connection-card" rounded="xl" elevation="1">
           <v-card-item>
             <v-card-title>{{ draft.platform }}</v-card-title>
-            <template #append><v-chip :color="stateColor(draft.state)" size="small" variant="tonal">{{ stateLabel(draft.state) }}</v-chip></template>
+            <template #append><v-chip :color="platformStatusColor(draft.state)" size="small" variant="tonal">{{ platformStatusLabel(draft.state) }}</v-chip></template>
           </v-card-item>
           <v-card-text>
             <v-text-field v-model="draft.channelScope" label="頻道範圍" variant="outlined" density="comfortable" autocomplete="off" />

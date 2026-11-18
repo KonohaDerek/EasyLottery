@@ -7,6 +7,8 @@
 - [x] 1.3 Add the overtime admin settings client and tested merge helper; prove ETag handling and preservation of the latest session-owned fields.
 - [x] 1.4 Protect concurrent third-party payment events in the existing full-feed PUT and test stale snapshots against JSON and SQLite repositories, including a mixed-source full feed.
 - [x] 1.5 Preserve a newer server-side planned end when the admin leaves that input unchanged; test preservation and intentional edits.
+- [x] 1.6 Separate configured credentials from connector health; expose mutually exclusive adapter-unavailable, unverified, connected, and failed states with API and UI tests.
+- [x] 1.7 (#304) Keep missing credentials `unconfigured` even when an adapter reports health; refresh the saved platform's status from a single-item or full-list save response; keep the load-failure message and clear stale status chips; cover with .NET, Vitest, and Playwright tests. Verified in `.agents/verification/2026-11-10-issue-304.md`.
 
 ## 2. Vue pages and authenticated navigation
 

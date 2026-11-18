@@ -30,8 +30,8 @@ const emptyRoulette = {
 };
 
 const connectionList = [
-  { platform: "YouTube", state: "configured", configured: true, channelScope: "channel-1", apiKey: "__EASYLOTTERY_SECRET_UNCHANGED__", accessToken: null },
-  { platform: "Twitch", state: "degraded", configured: true, channelScope: "channel-2", apiKey: null, accessToken: "__EASYLOTTERY_SECRET_UNCHANGED__" },
+  { platform: "YouTube", state: "adapter_unavailable", configured: true, channelScope: "channel-1", apiKey: "__EASYLOTTERY_SECRET_UNCHANGED__", accessToken: null },
+  { platform: "Twitch", state: "failed", configured: true, channelScope: "channel-2", apiKey: null, accessToken: "__EASYLOTTERY_SECRET_UNCHANGED__" },
   { platform: "Discord", state: "unconfigured", configured: false, channelScope: "", apiKey: null, accessToken: null }
 ];
 
@@ -192,6 +192,13 @@ test("platform credentials remain masked; unchanged and explicit-clear saves use
   await page.goto(`${baseURL}/system/platform-connections`, { waitUntil: "networkidle" });
   await expect(page.getByRole("heading", { name: "直播平台串接" })).toBeVisible();
   const youtubeCard = page.locator(".connection-card").filter({ has: page.getByText("YouTube", { exact: true }) });
+  const twitchCard = page.locator(".connection-card").filter({ has: page.getByText("Twitch", { exact: true }) });
+  await expect(youtubeCard.getByText("adapter 尚未實作")).toBeVisible();
+  await expect(twitchCard.getByText("連線驗證失敗")).toBeVisible();
+  const discordCard = page.locator(".connection-card").filter({ has: page.getByText("Discord", { exact: true }) });
+  await expect(discordCard.getByText("尚未設定憑證", { exact: true })).toBeVisible();
+  // Saved credentials alone must never be presented as a live connection.
+  await expect(page.getByText("已驗證連線", { exact: true })).toHaveCount(0);
   await expect(youtubeCard.getByLabel("互動平台 YouTube API Key")).toBeVisible();
   await expect(youtubeCard.getByText(/獨立的互動平台設定/)).toBeVisible();
   await expect(youtubeCard.getByRole("link", { name: "YouTube 直播設定" })).toHaveAttribute("href", "/system/youtube-login");
@@ -199,8 +206,10 @@ test("platform credentials remain masked; unchanged and explicit-clear saves use
   await page.reload({ waitUntil: "networkidle" });
   await page.getByRole("button", { name: "儲存 YouTube" }).click();
   await expect(page.getByRole("status")).toContainText("YouTube 設定已儲存");
+  await expect(youtubeCard.getByText("adapter 尚未實作")).toBeVisible();
   await page.getByRole("button", { name: "Twitch 清除憑證" }).click();
   await page.getByRole("button", { name: "儲存 Twitch" }).click();
+  await expect(page.getByRole("status")).toContainText("Twitch 設定已儲存");
 
   expect(writes).toEqual([
     { path: "/api/interactions/connections/YouTube", etag: '"v0"', body: { apiKey: null, accessToken: null, channelScope: "channel-1", degrade: false } },
@@ -226,6 +235,29 @@ test("stale platform connection ETag requires reload before another save", async
   await expect(page.getByRole("button", { name: "儲存 YouTube" })).toBeDisabled();
   await page.getByRole("button", { name: "重新載入最新設定" }).click();
   await expect(page.getByRole("button", { name: "儲存 YouTube" })).toBeEnabled();
+  expect(gets).toBe(2);
+});
+
+test("platform connection read failure offers retry without stale save data", async ({ page, baseURL }) => {
+  await installAdminToken(page, baseURL);
+  let gets = 0;
+  await page.route("**/api/interactions/connections**", async route => {
+    gets++;
+    if (gets === 1) {
+      await route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ error: "temporarily unavailable" }) });
+      return;
+    }
+    await route.fulfill({ status: 200, contentType: "application/json", headers: { ETag: '"v2"' }, body: JSON.stringify(connectionList) });
+  });
+
+  await page.goto(`${baseURL}/system/platform-connections`, { waitUntil: "networkidle" });
+  await expect(page.locator(".v-alert[role=alert]")).toContainText("無法載入平台串接設定");
+  await expect(page.getByRole("button", { name: "儲存 YouTube" })).toHaveCount(0);
+  // No status chip survives a failed read, so nothing implies a connection.
+  await expect(page.locator(".connection-card")).toHaveCount(0);
+  await page.getByRole("button", { name: "重新載入" }).click();
+  await expect(page.getByRole("button", { name: "儲存 YouTube" })).toBeEnabled();
+  await expect(page.locator(".connection-card").filter({ has: page.getByText("YouTube", { exact: true }) }).getByText("adapter 尚未實作")).toBeVisible();
   expect(gets).toBe(2);
 });
 

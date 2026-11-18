@@ -7,6 +7,7 @@ public sealed record DiscordConnectorHealth(string State, string GuildScope, str
 public sealed class DiscordChatConnector : IPlatformConnector
 {
     public string Platform => "Discord";
+    public PlatformAdapterHealth AdapterHealth => PlatformAdapterHealth.Unimplemented;
     public DiscordConnectorHealth Health { get; private set; } = new("unconfigured", "", "");
 
     public Task StartAsync(CancellationToken cancellationToken = default)
