@@ -17,7 +17,7 @@
 - [ ] Tests: viewer token rejected by streamer/site/admin APIs, code expiry/attempt limits, deletion, export scope.
 ### 1c. Site side (PR 3, parallel with 1a)
 - [x] `Shop:Enabled` (default off) gating nav, pages and APIs; site SQLite migration for the D3 site tables.
-- [x] Vue "Card Hub 連結" settings page: four states, test connection, encrypted secret, show-once secret.
+- [x] Vue "Card Hub 連結" settings page: four states, test connection, write-only secret stored encrypted (entered once, cleared after save, never returned or re-displayed; the Hub issues the secret and returns it once, 1a).
 - [x] Tests: flag off hides and blocks, secret never returned by APIs, unreachable vs invalid state.
 
 ## 2a. Catalog and images - #339 (Codex)

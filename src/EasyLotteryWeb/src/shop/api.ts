@@ -59,4 +59,3 @@ export async function testHubLink(request: HubLinkWriteRequest): Promise<HubLink
   });
   return data;
 }
-
