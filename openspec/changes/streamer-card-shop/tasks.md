@@ -13,8 +13,9 @@
 - [x] Tests: invite single use/expiry, credential rotation/revocation, disabled-tenant rejection, streamer vs site token isolation.
 ### 1b. Viewer accounts (PR 2, after 1a)
 - [x] Viewer email-code sign-in (zh-TW email, tenant-aware copy, 60 s resend), viewer JWT audience, refresh tokens, rate limits; allow 13–17 accounts for gifted-card use but block paid-draw entry points in Wave 1.
-- [x] Terms version/acceptance, age bracket, reserved handle, groups, account deletion (instances retired), synchronous JSON export.
+- [x] Terms version/acceptance, age bracket, reserved handle, group create/rename/delete/list, account deletion through the card-retirement seam (`IViewerCardRetirement`, no-op until the instance table exists), synchronous JSON export.
 - [x] Tests: viewer token rejected by streamer/site/admin APIs, code expiry/attempt limits, deletion, export scope.
+- [ ] Production email delivery adapter for viewer sign-in codes. Until the provider is chosen in the operations issue, the registered sender fails closed with 503 outside Development/Testing, so viewer sign-in is not usable in production.
 ### 1c. Site side (PR 3, parallel with 1a)
 - [ ] `Shop:Enabled` (default off) gating nav, pages and APIs; site SQLite migration for the D3 site tables.
 - [ ] Vue "Card Hub 連結" settings page: four states, test connection, encrypted secret, show-once secret.
@@ -28,6 +29,7 @@
 ## 2b. Packs and draw engine - #340 (Codex)
 - [ ] Site: pack configuration, cover upload, odds validation, publish to Hub, public shop page with odds.
 - [ ] Hub: idempotent draw API, atomic crypto-RNG draw with per-rarity and optional total supply, automatic immutable odds-version publication when a rarity is depleted, statistical distribution test, audit records.
+- [ ] Hub: with the card-instance table, replace the no-op `IViewerCardRetirement` so account deletion retires owned instances, and add group membership endpoints (add/remove owned instances) with ownership checks and tests.
 
 ## 3a. Pack-opening animation - #341 (Codex)
 - [ ] Shared stage timeline spec; Vue component; OBS overlay auto variant; reduced motion; skip; visual regression screenshots.
