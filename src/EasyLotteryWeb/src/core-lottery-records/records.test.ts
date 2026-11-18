@@ -8,6 +8,7 @@ import {
   createCoreLotteryDrawPreparedState,
   matchesPendingCoreLotteryDraw,
   matchesPreparedCoreLotteryDraw,
+  pendingCoreLotteryDrawResultPayload,
   pendingCoreLotteryDrawStorageKey,
   preflightPendingCoreLotteryDrawStorage,
   readPendingCoreLotteryDrawId,
@@ -60,6 +61,22 @@ describe("core lottery history helpers", () => {
     expect(operation.ruleSnapshot.eligibleEntryCount).toBe(2);
     expect(operation.ruleSnapshot.prizeQueue).toEqual(["禮盒", "小禮物"]);
     expect(() => storePendingCoreLotteryDrawId(storage, { ...operation, winnerParticipantId: "missing-ticket" })).toThrow("得獎籤");
+  });
+
+  it("strips the storage-only phase from a restored result before it is resubmitted", () => {
+    const storage = memoryStorage();
+    const operation = createCoreLotteryDrawPayload("fd366ac8-0dae-4677-a3c6-515b5baf137b", participants, ["禮盒"], "ticket-1",
+      { lockHash: "0123456789abcdef", lockedAtUtc: "2026-11-15T00:00:00.000Z" });
+    storePendingCoreLotteryDrawId(storage, operation);
+    const restored = readPendingCoreLotteryDrawId(storage);
+    if (!restored || restored.phase !== "result") throw new Error("expected a saved result draw");
+
+    const payload = pendingCoreLotteryDrawResultPayload(restored);
+    expect(payload).not.toHaveProperty("phase");
+    expect(payload).toEqual(operation);
+    expect(JSON.parse(JSON.stringify(payload))).not.toHaveProperty("phase");
+    // The stored record itself is untouched so the same drawId stays reconcilable.
+    expect(readPendingCoreLotteryDrawId(storage)).toEqual({ phase: "result", ...operation });
   });
 
   it("stores a complete pre-draw intent so a refresh never starts a second draw", () => {

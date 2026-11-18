@@ -2,13 +2,13 @@
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { ApiError, apiRequest } from "../api/client";
 import { createParticipant, drawLottery, filterParticipantsByGroup, participantGroups, participantLabel, secureRandomIndex, type DrawResult, type Participant, type Winner } from "../lottery/draw";
-import { clearPendingCoreLotteryDrawId, createCoreLotteryDrawId, createCoreLotteryDrawPayload, createCoreLotteryDrawPayloadFromPreparedState, createCoreLotteryDrawPreparedState, matchesPendingCoreLotteryDraw, matchesPreparedCoreLotteryDraw, pendingCoreLotteryDrawStorageKey, preflightPendingCoreLotteryDrawStorage, readPendingCoreLotteryDrawId, storePendingCoreLotteryDrawId, storePendingCoreLotteryDrawPreparedState, type CoreLotteryDrawPayload, type CoreLotteryDrawPreparedState, type CoreLotteryDrawRecord, type CoreLotteryDrawSummary, type CoreLotteryDrawParticipantSnapshot } from "../core-lottery-records/records";
+import { clearPendingCoreLotteryDrawId, createCoreLotteryDrawId, createCoreLotteryDrawPayload, createCoreLotteryDrawPayloadFromPreparedState, createCoreLotteryDrawPreparedState, matchesPendingCoreLotteryDraw, matchesPreparedCoreLotteryDraw, pendingCoreLotteryDrawResultPayload, pendingCoreLotteryDrawStorageKey, preflightPendingCoreLotteryDrawStorage, readPendingCoreLotteryDrawId, storePendingCoreLotteryDrawId, storePendingCoreLotteryDrawPreparedState, type PendingCoreLotteryDrawState, type CoreLotteryDrawPayload, type CoreLotteryDrawPreparedState, type CoreLotteryDrawRecord, type CoreLotteryDrawSummary, type CoreLotteryDrawParticipantSnapshot } from "../core-lottery-records/records";
 import { expandYoutubeMembers, exportParticipants, exportPrizes, parseParticipantImport, parsePrizes, parseYoutubeMembers, type DataFormat } from "../lottery/import-export";
 import { clearOvertimeToken, getYouTubeCredentialStatus, listYouTubeLiveChatMessages, publishSuperChatToOvertime, readDrawingRules, resolveYouTubeLiveChat, writeDrawingRules } from "../lottery/api";
 import { processChatBatch, toOvertimeSuperChat, type ChatMessage, type ChatRules } from "../lottery/chat";
 import { importInteractionEligibility, listInteractionRounds, previewInteractionEligibility, type InteractionRound } from "../interactions/admin/api";
 import { applyEligibilityImport, classifyEligibility, entryDisplayName, importableRoundStatuses, parseEligibilityPreview, summarizeEligibility, type EligibilityPreview } from "../lottery/interaction-eligibility";
-import { advanceLockedPool, applyConfirmedWinner, clearLockedPool, createLockedPool, lockedPoolVersion, readLockedPool, storeLockedPool, type LockedPool, type LockedPoolReadResult } from "../lottery/locked-pool";
+import { advanceLockedPool, appendResolvedLockDraw, applyConfirmedWinner, clearLockedPool, createLockedPool, lockedPoolVersion, missingResolvedLockDraws, originLockManager, readLockedPool, readResolvedLockDraws, resolvedLockDrawsStorageKey, ResolvedLockDrawsLedgerCorruptError, runWithOriginDrawLock, storeLockedPool, type LockedPool, type LockedPoolReadResult, type ResolvedLockDrawsReadResult } from "../lottery/locked-pool";
 
 const participants = ref<Participant[]>([]);
 const prizes = ref<string[]>([]);
@@ -63,10 +63,19 @@ const drawLocked = computed(() => isCheckingPendingDraw.value || Boolean(pending
 const lockedPool = ref<LockedPool | null>(null);
 const lockError = ref("");
 const confirmingUnlock = ref(false);
+// Set when this tab's restored lock misses draws already reconciled for the same lock elsewhere (a browser-restored or
+// duplicated old tab); drawing, unlocking and clearing stay blocked so the stale roster can never draw again.
+const staleLockBlocked = ref(false);
+// Every draw, reconciliation and lock unlock/clear runs under one same-origin Web Lock. Without Web Locks those actions
+// fail closed (there is no storage-lease fallback); originLockBusy is set while this tab requests or holds the lock.
+const originLocks = originLockManager();
+const originLockSupported = originLocks !== null;
+const originLockBusy = ref(false);
 const poolLocked = computed(() => lockedPool.value !== null);
 // Pool lock (or an unverifiable persisted lock) freezes every participant/prize/chat mutation; draws stay allowed only on a valid lock or no lock.
-const mutationsLocked = computed(() => drawLocked.value || poolLocked.value || Boolean(lockError.value));
-const drawBlocked = computed(() => drawLocked.value || Boolean(lockError.value));
+const mutationsLocked = computed(() => drawLocked.value || poolLocked.value || Boolean(lockError.value) || originLockBusy.value);
+const drawBlocked = computed(() => drawLocked.value || Boolean(lockError.value) || !originLockSupported || originLockBusy.value);
+const lockActionsBlocked = computed(() => Boolean(pendingDrawId.value) || isSavingDraw.value || isReconcilingDraw.value || !originLockSupported || originLockBusy.value);
 const lockShortCode = computed(() => lockedPool.value?.lockHash.slice(0, 8) ?? "");
 const lockedAtLabel = computed(() => lockedPool.value ? new Date(lockedPool.value.lockedAtUtc).toLocaleString() : "");
 
@@ -208,7 +217,13 @@ async function importYoutubeMembers(event: Event) {
   error.value = "";
   if (file.size > 5 * 1024 * 1024) { error.value = "會員 CSV 超過 5 MB，請先縮小檔案。"; return; }
   try {
-    const members = parseYoutubeMembers(await file.text());
+    const content = await file.text();
+    // The pool may have been locked (or a draw started) while the file was being read; never apply a stale import.
+    if (mutationsLocked.value) {
+      error.value = "讀取會員 CSV 期間名單已鎖定或抽獎進行中，未套用此檔案；解除鎖定後請重新匯入。";
+      return;
+    }
+    const members = parseYoutubeMembers(content);
     if (!members.length) { notice.value = "CSV 中沒有可匯入的會員，原名單保持不變。"; return; }
     ensureLevelRates(members.map(member => member.level));
     const expanded = expandYoutubeMembers(members, levelRates.value);
@@ -267,31 +282,75 @@ function removeParticipant(participantId: string) {
   if (selectedGroup.value && !groups.value.some(group => group.toLocaleLowerCase() === selectedGroup.value.toLocaleLowerCase())) selectedGroup.value = "";
 }
 
-function applyPersistedWinner(record: CoreLotteryDrawRecord) {
-  const local = pendingLocalDraw;
+/** Returns true once the saved outcome is committed and the pending draw resolved; false keeps it pending. */
+function applyPersistedWinner(record: CoreLotteryDrawRecord): boolean {
+  const local = pendingLocalDraw?.drawId === record.drawId ? pendingLocalDraw : null;
+  // Without this tab's own in-flight draw or a locked pool, nothing ties the saved draw to this tab's editable roster
+  // (e.g. another tab's draw adopted from the shared pending record). It is reconciled (ledger + pending ID) only; the
+  // roster, prizes and winner list here are left exactly as they are.
+  const reconcileOnly = !local && !lockedPool.value;
   // A reload between advancing the locked pool and clearing the pending draw must not apply the same winner twice.
   const alreadyInLockedPool = lockedPool.value?.winners.some(winner => winner.drawId === record.drawId) ?? false;
+  // The outcome is staged and only committed to the page once the locked pool (if any) is persisted, so a
+  // storage failure leaves memory, the tab lock and the pending draw consistent and safely retryable.
+  let nextParticipants = participants.value;
+  let nextPrizes = prizes.value;
   if (local) {
-    participants.value = local.participantsAfter;
-    prizes.value = local.prizesAfter;
+    nextParticipants = local.participantsAfter;
+    nextPrizes = local.prizesAfter;
   } else if (lockedPool.value && !alreadyInLockedPool) {
     const next = restoredPoolMatchesRecord(record) ? applyConfirmedWinner(participants.value, prizes.value, record.winnerParticipantId) : null;
-    if (next) {
-      participants.value = next.participants;
-      prizes.value = next.prizes;
-    } else {
-      lockError.value = "已保存的抽獎結果與本分頁恢復的鎖定名單不一致，已停用抽獎；請先核對抽獎紀錄再清除鎖定。";
+    if (!next) {
+      // The saved draw does not fit this tab's current restored lock state (another tab's lock sharing this pending ID,
+      // or another version of the same lock). Applying it here or clearing the pending ID would lose the durable
+      // progress, so keep everything pending and blocked.
+      lockError.value = "已保存的抽獎結果與本分頁目前恢復的鎖定名單狀態不一致，已停用抽獎與清除鎖定；待對帳期間無法清除此鎖定。";
+      pendingDrawMessage.value = `已保存的抽獎紀錄（識別碼 ${record.drawId}）與本分頁目前恢復的鎖定名單狀態（參加者、得獎狀態或剩餘獎項）不一致，可能來自其他分頁的鎖定名單，或同一鎖定名單的其他版本；未套用至此名單並保留待對帳狀態。若原抽獎分頁仍開著，請保留該分頁並在其中完成對帳，成功後再重新整理本分頁；若原抽獎分頁已關閉（其分頁鎖定已消失），請在同一瀏覽器設定檔開啟新的 EasyLottery 分頁（不要鎖定名單），按「重新查詢紀錄」完成對帳後，再重新整理本分頁。之後若瀏覽器還原了已關閉的原抽獎分頁，請勿在該舊分頁抽獎或清除鎖定，請直接關閉它並在完成對帳的分頁繼續。請勿清除本分頁的鎖定，也請勿重新抽獎。`;
+      canRetryPendingDraw.value = false;
+      return false;
     }
+    nextParticipants = next.participants;
+    nextPrizes = next.prizes;
   }
   const snapshotWinner = record.participants?.find(participant => participant.participantId === record.winnerParticipantId);
   const member = local?.winner.member ?? (snapshotWinner ? participantFromSnapshot(snapshotWinner) : null);
-  if (!member) {
+  if (!member && !reconcileOnly) {
     pendingDrawMessage.value = "伺服器保存結果缺少得獎籤快照，已鎖定抽獎；請由管理員核對。";
-    return;
+    return false;
   }
-  if (!alreadyInLockedPool) winners.value = [{ member, prize: record.prizeName, drawId: record.drawId }, ...winners.value];
-  if (lockedPool.value && !lockError.value) persistLockProgress();
-  notice.value = `已保存抽獎紀錄：${record.winnerDisplayName} 獲得「${record.prizeName}」。`;
+  if (record.poolSnapshotVersion) {
+    // Record the reconciled draw for its lock version before any state changes, even in an unlocked recovery tab, so a
+    // browser-restored copy of the original lock is detected as stale instead of drawing the same prize again.
+    try {
+      appendResolvedLockDraw(window.localStorage, record.poolSnapshotVersion, record.drawId);
+    } catch (cause) {
+      pendingDrawMessage.value = cause instanceof ResolvedLockDrawsLedgerCorruptError
+        ? `抽獎結果已保存（識別碼 ${record.drawId}），但此鎖定名單在本瀏覽器的已對帳抽獎紀錄（localStorage 鍵 ${cause.storageKey}）已損毀或格式無效：${cause.reason}因此無法完成自動對帳；已保留待對帳狀態並停用下一次抽獎。EasyLottery 目前沒有可自行修復此紀錄的功能。請保留此瀏覽器設定檔與本分頁現況（不要清除瀏覽器資料、刪除此紀錄、清除鎖定或重新抽獎），並聯絡系統維護人員協助處理。`
+        : `抽獎結果已保存，但無法在瀏覽器記錄此鎖定名單已對帳的抽獎，已保留待對帳狀態並停用下一次抽獎；請確認瀏覽器儲存空間可用後，重新查詢紀錄或重新整理頁面以同一識別碼對帳：${messageOf(cause)}`;
+      canRetryPendingDraw.value = false;
+      return false;
+    }
+  }
+  if (reconcileOnly) {
+    notice.value = `已對帳其他分頁（或重新整理前）保存的抽獎紀錄：${record.winnerDisplayName} 獲得「${record.prizeName}」（識別碼 ${record.drawId}）。此結果不屬於本分頁目前的名單，本分頁的參加者、獎項與得獎名單均未變更；完整結果請至「抽獎紀錄」查看。`;
+  } else {
+    const nextWinners = alreadyInLockedPool || !member ? winners.value : [{ member, prize: record.prizeName, drawId: record.drawId }, ...winners.value];
+    if (lockedPool.value && !lockError.value) {
+      const failure = persistLockProgress(nextParticipants, nextPrizes, nextWinners);
+      if (failure) {
+        // Keep the same drawId/payload pending (memory and localStorage): drawing and unlocking stay blocked, and a
+        // re-query or reload reconciles this exact record instead of redrawing or consuming another prize. The warning
+        // lives only in the pending message so a later successful reconcile leaves no stale global error behind.
+        pendingDrawMessage.value = `抽獎結果已保存，但無法更新本分頁的鎖定名單，已保留待對帳狀態並停用下一次抽獎；請重新查詢紀錄或重新整理頁面以同一識別碼對帳：${failure}`;
+        canRetryPendingDraw.value = false;
+        return false;
+      }
+    }
+    participants.value = nextParticipants;
+    prizes.value = nextPrizes;
+    winners.value = nextWinners;
+    notice.value = `已保存抽獎紀錄：${record.winnerDisplayName} 獲得「${record.prizeName}」。`;
+  }
   pendingLocalDraw = null;
   try {
     clearPendingCoreLotteryDrawId(window.localStorage, record.drawId);
@@ -303,6 +362,7 @@ function applyPersistedWinner(record: CoreLotteryDrawRecord) {
   pendingDraw.value = null;
   pendingDrawId.value = null;
   canRetryPendingDraw.value = false;
+  return true;
 }
 
 function participantFromSnapshot(snapshot: CoreLotteryDrawParticipantSnapshot): Participant {
@@ -329,15 +389,17 @@ function restoredPoolMatchesRecord(record: CoreLotteryDrawRecord): boolean {
   }
 }
 
-function persistLockProgress() {
+/** Persists the advanced locked pool; returns a failure message (leaving the stored and in-memory lock untouched) or null. */
+function persistLockProgress(nextParticipants: readonly Participant[], nextPrizes: readonly string[], nextWinners: readonly Winner[]): string | null {
   const pool = lockedPool.value;
-  if (!pool) return;
+  if (!pool) return null;
   try {
-    const next = advanceLockedPool(pool, participants.value, prizes.value, winners.value);
+    const next = advanceLockedPool(pool, nextParticipants, nextPrizes, nextWinners);
     storeLockedPool(window.sessionStorage, next);
     lockedPool.value = next;
+    return null;
   } catch (cause) {
-    lockError.value = `抽獎結果已保存，但無法更新本分頁的鎖定名單，已停用下一次抽獎：${messageOf(cause)}`;
+    return messageOf(cause);
   }
 }
 
@@ -355,35 +417,63 @@ function lockPool() {
   }
 }
 
-function unlockPool() {
-  if (!poolLocked.value || isSavingDraw.value || isReconcilingDraw.value) return;
+async function unlockPool() {
+  // An unresolved pending draw must be applied to the locked roster first; unlocking would drop that path.
+  if (!poolLocked.value || staleLockBlocked.value || lockActionsBlocked.value) return;
   if (!confirmingUnlock.value) {
     confirmingUnlock.value = true;
     return;
   }
-  try {
-    // Only the tab-scoped lock is cleared; pending draws and saved history are untouched.
-    clearLockedPool(window.sessionStorage);
-  } catch (cause) {
-    error.value = `無法解除鎖定：${messageOf(cause)}`;
-    return;
+  const refusal = await withOriginDrawLock("解除鎖定", async () => {
+    // Another tab may have reconciled a draw from this same lock, or left a draw pending, since this tab loaded.
+    if (!(await lockMutationAllowedWhileLocked())) return;
+    try {
+      // Only the tab-scoped lock is cleared; pending draws and saved history are untouched.
+      clearLockedPool(window.sessionStorage);
+    } catch (cause) {
+      error.value = `無法解除鎖定：${messageOf(cause)}`;
+      return;
+    }
+    lockedPool.value = null;
+    confirmingUnlock.value = false;
+    notice.value = "已解除抽獎名單鎖定；名單與獎項可再次編輯，抽獎前請重新確認並鎖定。";
+  });
+  if (refusal) {
+    confirmingUnlock.value = false;
+    error.value = `${refusal}鎖定名單維持不變。`;
   }
-  lockedPool.value = null;
-  confirmingUnlock.value = false;
-  notice.value = "已解除抽獎名單鎖定；名單與獎項可再次編輯，抽獎前請重新確認並鎖定。";
 }
 
-function clearInvalidLock() {
-  try {
-    clearLockedPool(window.sessionStorage);
-  } catch (cause) {
-    lockError.value = `無法清除鎖定名單資料，抽獎維持停用：${messageOf(cause)}`;
-    return;
+async function clearInvalidLock() {
+  // A pending draw may still need this exact lock to reconcile; clearing it would drop that recovery path.
+  // A stale lock's roster is already reconciled elsewhere; clearing it would leave that stale roster drawable unlocked.
+  if (staleLockBlocked.value || lockActionsBlocked.value) return;
+  const refusal = await withOriginDrawLock("清除鎖定", async () => {
+    if (!(await lockMutationAllowedWhileLocked())) return;
+    try {
+      clearLockedPool(window.sessionStorage);
+    } catch (cause) {
+      lockError.value = `無法清除鎖定名單資料，抽獎維持停用：${messageOf(cause)}`;
+      return;
+    }
+    lockedPool.value = null;
+    lockError.value = "";
+    confirmingUnlock.value = false;
+    notice.value = "已清除無法驗證的鎖定名單；目前名單未被自動還原，請確認名單後重新鎖定。";
+  });
+  if (refusal) error.value = `${refusal}鎖定資料維持不變。`;
+}
+
+/** Inside the origin lock: re-checks the stale-lock ledger and any shared pending draw before unlocking or clearing. */
+async function lockMutationAllowedWhileLocked(): Promise<boolean> {
+  if (pendingDrawId.value || isSavingDraw.value || isReconcilingDraw.value) return false;
+  guardStaleLock();
+  if (staleLockBlocked.value) return false;
+  if (await adoptSharedPendingDraw()) {
+    confirmingUnlock.value = false;
+    return false;
   }
-  lockedPool.value = null;
-  lockError.value = "";
-  confirmingUnlock.value = false;
-  notice.value = "已清除無法驗證的鎖定名單；目前名單未被自動還原，請確認名單後重新鎖定。";
+  return true;
 }
 
 function restoreLockedPool() {
@@ -404,6 +494,37 @@ function restoreLockedPool() {
   prizes.value = [...result.pool.prizes];
   winners.value = result.pool.winners.map(winner => ({ ...winner, member: { ...winner.member, tags: [...winner.member.tags] } }));
   notice.value = `已恢復本分頁鎖定的抽獎名單（代碼 ${result.pool.lockHash.slice(0, 8)}）。`;
+}
+
+/**
+ * Runs once no pending draw remains: blocks this tab if its lock misses any draw already reconciled for the same lock
+ * version (e.g. a browser-restored pre-draw tab). A current lock already holds every recorded drawId and is unaffected.
+ */
+function guardStaleLock() {
+  const pool = lockedPool.value;
+  if (!pool || staleLockBlocked.value || pendingDrawId.value) return;
+  let ledger: ResolvedLockDrawsReadResult;
+  try {
+    ledger = readResolvedLockDraws(window.localStorage, lockedPoolVersion(pool));
+  } catch (cause) {
+    staleLockBlocked.value = true;
+    lockError.value = `瀏覽器儲存空間（localStorage）目前無法讀取，無法確認本分頁的鎖定名單是否已在其他分頁抽出，已停用抽獎、解除鎖定與清除鎖定；請確認瀏覽器儲存空間可用後重新整理頁面：${messageOf(cause)}`;
+    return;
+  }
+  if (ledger.status === "invalid") {
+    // Fail closed: a corrupt ledger cannot prove this roster has not already drawn elsewhere, and it will not recover by
+    // itself. No self-service or admin repair flow exists, so the message asks the operator to preserve this browser
+    // state and contact the maintainer rather than pointing at browser storage availability or an unavailable repair.
+    staleLockBlocked.value = true;
+    confirmingUnlock.value = false;
+    lockError.value = `本分頁鎖定名單（代碼 ${pool.lockHash.slice(0, 8)}）在本瀏覽器的已對帳抽獎紀錄（localStorage 鍵 ${resolvedLockDrawsStorageKey(lockedPoolVersion(pool))}）已損毀或格式無效：${ledger.reason}因此無法確認此名單是否已在其他分頁抽出，抽獎、解除鎖定與清除鎖定已停用。EasyLottery 目前沒有可自行修復此紀錄的功能。請保留此瀏覽器設定檔與本分頁現況（不要清除瀏覽器資料、刪除此紀錄、清除鎖定或重新抽獎），並聯絡系統維護人員協助處理。`;
+    return;
+  }
+  const missing = ledger.status === "valid" ? missingResolvedLockDraws(pool, ledger.drawIds) : [];
+  if (!missing.length) return;
+  staleLockBlocked.value = true;
+  confirmingUnlock.value = false;
+  lockError.value = `本分頁的鎖定名單（代碼 ${pool.lockHash.slice(0, 8)}）是舊版本：同一鎖定名單已有 ${missing.length} 筆抽獎（識別碼 ${missing.join("、")}）在其他分頁完成對帳，但不在本分頁中。這通常是瀏覽器還原或複製的舊分頁。請直接關閉並捨棄此分頁，回到已完成對帳的分頁繼續；請勿在此分頁抽獎、解除鎖定或清除鎖定。`;
 }
 
 function eligibilityErrorMessage(cause: unknown): string {
@@ -501,7 +622,58 @@ function setPreparedDraw(value: CoreLotteryDrawPreparedState) {
   canRetryPendingDraw.value = false;
 }
 
+/**
+ * Runs `action` while this tab holds the origin draw lock. Returns null once it ran, or a refusal message when another tab
+ * holds the lock, Web Locks are unavailable or the lock request failed; the action then never runs and nothing is written.
+ */
+async function withOriginDrawLock(actionLabel: string, action: () => Promise<void>): Promise<string | null> {
+  if (originLockBusy.value) return `本分頁正在處理另一個抽獎操作，未執行${actionLabel}。`;
+  originLockBusy.value = true;
+  try {
+    const result = await runWithOriginDrawLock(originLocks, action);
+    if (result.status === "ran") return null;
+    if (result.status === "busy") return `另一個 EasyLottery 分頁正在抽獎、對帳或變更鎖定，本分頁未執行${actionLabel}；請等候該分頁完成後再試。`;
+    if (result.status === "unsupported") return `此瀏覽器不支援跨分頁抽獎鎖（Web Locks），為避免多個分頁同時抽獎，已停用${actionLabel}。`;
+    return `無法取得跨分頁抽獎鎖，本分頁未執行${actionLabel}：${result.reason}`;
+  } finally {
+    originLockBusy.value = false;
+  }
+}
+
+function adoptStoredPendingDraw(stored: PendingCoreLotteryDrawState, message: string) {
+  if (stored.phase === "result") setPendingDraw(pendingCoreLotteryDrawResultPayload(stored));
+  else setPreparedDraw(stored);
+  pendingDrawMessage.value = message;
+}
+
+/**
+ * Inside the origin lock, before any new draw or lock mutation: if the shared pending-draw record holds a draw (e.g. one
+ * another tab left unresolved after this tab loaded), adopts and reconciles that exact draw instead of replacing it.
+ * Returns true when the caller must stop; an unreadable record also stops it and is left untouched.
+ */
+async function adoptSharedPendingDraw(): Promise<boolean> {
+  let stored: PendingCoreLotteryDrawState | null;
+  try {
+    stored = readPendingCoreLotteryDrawId(window.localStorage);
+  } catch (cause) {
+    pendingStorageAvailable.value = false;
+    error.value = `無法讀取瀏覽器待對帳狀態，為避免覆蓋其他分頁的抽獎已停用抽獎與鎖定變更：${messageOf(cause)}`;
+    return true;
+  }
+  if (!stored) return false;
+  adoptStoredPendingDraw(stored, `發現其他分頁尚待對帳的抽獎（識別碼 ${stored.drawId}），未開始新的抽獎；先以原識別碼查詢保存紀錄。`);
+  await reconcilePendingDrawLocked();
+  return true;
+}
+
 async function reconcilePendingDraw() {
+  if (!pendingDrawId.value || isReconcilingDraw.value || isSavingDraw.value) return;
+  const refusal = await withOriginDrawLock("對帳", reconcilePendingDrawLocked);
+  if (refusal) pendingDrawMessage.value = `${refusal}此抽獎仍待對帳，不會重新抽獎。`;
+}
+
+/** Caller holds the origin draw lock. */
+async function reconcilePendingDrawLocked() {
   const current = pendingDraw.value;
   const prepared = pendingPreparedDraw.value;
   const drawId = current?.drawId ?? prepared?.drawId;
@@ -519,8 +691,7 @@ async function reconcilePendingDraw() {
       pendingDrawMessage.value = "查到的紀錄與待保存結果不一致，已鎖定抽獎；請由管理員人工核對。";
       return;
     }
-    applyPersistedWinner(record);
-    pendingDrawMessage.value = "";
+    if (applyPersistedWinner(record)) pendingDrawMessage.value = "";
   } catch (cause) {
     if (cause instanceof ApiError && cause.status === 404) {
       if (current) {
@@ -559,6 +730,8 @@ async function reconcilePendingDraw() {
   } finally {
     isReconcilingDraw.value = false;
     isCheckingPendingDraw.value = false;
+    // A stale-lock check deferred behind an unresolved pending draw runs once that draw resolves.
+    if (!pendingDrawId.value) guardStaleLock();
   }
 }
 
@@ -591,7 +764,8 @@ async function loadReconciliationRecord(summary: CoreLotteryDrawSummary): Promis
   return { ...summary, ruleSnapshot: summary.ruleSnapshot, participants };
 }
 
-async function submitPendingDraw() {
+/** Caller holds the origin draw lock. */
+async function submitPendingDrawLocked() {
   const current = pendingDraw.value;
   if (!current || isSavingDraw.value || isReconcilingDraw.value) return;
   isSavingDraw.value = true;
@@ -605,11 +779,10 @@ async function submitPendingDraw() {
     const saved = response.data.ruleSnapshot ? { ...response.data, ruleSnapshot: response.data.ruleSnapshot, participants: current.participants } : null;
     if (!saved || !matchesPendingCoreLotteryDraw(saved, current)) {
       pendingDrawMessage.value = "伺服器回傳結果與本次抽獎不一致，正在查詢同一識別碼對帳。";
-      await reconcilePendingDraw();
+      await reconcilePendingDrawLocked();
       return;
     }
-    applyPersistedWinner(saved);
-    pendingDrawMessage.value = "";
+    if (applyPersistedWinner(saved)) pendingDrawMessage.value = "";
   } catch (cause) {
     if (cause instanceof ApiError && (cause.status === 400 || cause.status === 413)) {
       canRetryPendingDraw.value = false;
@@ -619,32 +792,36 @@ async function submitPendingDraw() {
       return;
     }
     pendingDrawMessage.value = `保存回應未確認（${messageOf(cause)}），正在查詢同一識別碼；不會重新抽獎。`;
-    await reconcilePendingDraw();
+    await reconcilePendingDrawLocked();
   } finally {
     isSavingDraw.value = false;
+    if (!pendingDrawId.value) guardStaleLock();
   }
 }
 
 async function retryPendingDraw() {
-  if (!canRetryPendingDraw.value || !pendingDraw.value) return;
-  await submitPendingDraw();
+  if (!canRetryPendingDraw.value || !pendingDraw.value || isSavingDraw.value || isReconcilingDraw.value) return;
+  const refusal = await withOriginDrawLock("重試保存", submitPendingDrawLocked);
+  if (refusal) pendingDrawMessage.value = `${refusal}此抽獎仍待對帳，不會重新抽獎。`;
 }
 
 async function restorePendingDraw() {
   try {
     const stored = readPendingCoreLotteryDrawId(window.localStorage);
     if (stored) {
-      if (stored.phase === "result") {
-        setPendingDraw(stored);
-        pendingDrawMessage.value = "發現尚待對帳的抽獎結果。先查詢保存紀錄，不會再次抽獎。";
-      } else {
-        setPreparedDraw(stored);
-        pendingDrawMessage.value = "發現抽獎前保存的完整名單保護快照。先查詢原識別碼，不會再次抽獎。";
+      adoptStoredPendingDraw(stored, stored.phase === "result"
+        ? "發現尚待對帳的抽獎結果。先查詢保存紀錄，不會再次抽獎。"
+        : "發現抽獎前保存的完整名單保護快照。先查詢原識別碼，不會再次抽獎。");
+      // Another tab may still be drawing or saving this exact draw; then it stays pending here until re-queried.
+      const refusal = await withOriginDrawLock("對帳", reconcilePendingDrawLocked);
+      if (refusal) {
+        isCheckingPendingDraw.value = false;
+        pendingDrawMessage.value = `${refusal}此抽獎仍待對帳，不會重新抽獎；完成後請按「重新查詢紀錄」。`;
       }
-      await reconcilePendingDraw();
       return;
     }
     isCheckingPendingDraw.value = false;
+    guardStaleLock();
   } catch (cause) {
     pendingStorageAvailable.value = false;
     isCheckingPendingDraw.value = false;
@@ -654,6 +831,18 @@ async function restorePendingDraw() {
 
 async function drawPrize() {
   if (drawBlocked.value || chatConnecting.value) return;
+  // The origin lock is held from these checks through saving and reconciliation, so no other tab can draw meanwhile.
+  const refusal = await withOriginDrawLock("抽獎", drawPrizeLocked);
+  if (refusal) error.value = `${refusal}未抽選、未送出，也未變更待對帳狀態。`;
+}
+
+/** Caller holds the origin draw lock. */
+async function drawPrizeLocked() {
+  // Re-check under the lock: another tab may have reconciled a draw from this same lock (stale copy) or left one pending.
+  if (drawLocked.value || lockError.value || chatConnecting.value) return;
+  guardStaleLock();
+  if (staleLockBlocked.value || lockError.value) return;
+  if (await adoptSharedPendingDraw()) return;
   let drawId: string;
   let pendingStorage: Storage;
   try {
@@ -698,10 +887,12 @@ async function drawPrize() {
   }
   catch (cause) {
     if (preparedState.selectionState === "selected") {
+      // Stop chat before awaiting reconciliation: an in-flight poll must not grow a roster the saved winner replaces.
+      if (chatActive.value) stopChatCapture();
       setPreparedDraw(preparedState);
       pendingDrawMessage.value = "得獎籤已安全暫存，但本次抽獎尚未完成；正在查詢原識別碼以恢復同一結果。";
       error.value = `抽獎中止，保留已選定結果供對帳：${messageOf(cause)}`;
-      await reconcilePendingDraw();
+      await reconcilePendingDrawLocked();
     } else {
       try { clearPendingCoreLotteryDrawId(pendingStorage, drawId); }
       catch { pendingStorageAvailable.value = false; }
@@ -717,6 +908,9 @@ async function drawPrize() {
   }
   const operation = createCoreLotteryDrawPayload(drawId, participants.value, prizes.value, result.winner.member.id, poolVersion);
   pendingLocalDraw = { drawId, participantsAfter: result.participants, prizesAfter: result.prizes, winner: result.winner };
+  // A winner is selected: stop chat before any await, so an in-flight poll cannot append a participant that
+  // applyPersistedWinner would later discard by restoring participantsAfter from the pre-draw roster.
+  if (chatActive.value) stopChatCapture();
   try {
     storePendingCoreLotteryDrawId(pendingStorage, operation);
   } catch (cause) {
@@ -724,13 +918,12 @@ async function drawPrize() {
     setPendingDraw(operation);
     pendingDrawMessage.value = `抽選已完成但完整快照未能寫入瀏覽器暫存，已鎖定後續抽獎；此分頁仍保留原結果，請勿重新抽選：${messageOf(cause)}`;
     error.value = pendingDrawMessage.value;
-    await submitPendingDraw();
+    await submitPendingDrawLocked();
     return;
   }
-  if (chatActive.value) stopChatCapture();
   setPendingDraw(operation);
   pendingDrawMessage.value = "抽獎結果已暫存於本機待提交；確認伺服器保存後才會顯示為完成。";
-  await submitPendingDraw();
+  await submitPendingDrawLocked();
 }
 
 function chatRules(): ChatRules {
@@ -841,18 +1034,19 @@ onBeforeUnmount(() => {
 
     <div v-if="error" class="lottery-alert error" role="alert"><span>{{ error }}</span><button type="button" aria-label="關閉錯誤訊息" @click="error = ''">關閉</button></div>
     <div v-if="notice" class="lottery-alert notice" role="status" aria-live="polite"><span>{{ notice }}</span><button type="button" aria-label="關閉提示" @click="notice = ''">關閉</button></div>
+    <div v-if="!originLockSupported" class="lottery-alert error origin-lock-unsupported" role="alert"><span>此瀏覽器或連線環境不支援跨分頁抽獎鎖（Web Locks），為避免多個分頁同時抽獎而重複發獎，已停用抽獎、對帳、解除鎖定與清除鎖定。請從 HTTPS 或 localhost 開啟，並使用支援 Web Locks 的瀏覽器。</span></div>
     <section v-if="pendingDrawId" class="lottery-alert pending-draw" role="status" aria-live="polite">
       <div><strong>抽獎結果待對帳</strong><span>{{ pendingDrawMessage }}</span></div>
       <div class="pending-draw-actions">
-        <v-btn size="small" variant="outlined" :disabled="isReconcilingDraw || isSavingDraw" @click="reconcilePendingDraw">重新查詢紀錄</v-btn>
-        <v-btn v-if="canRetryPendingDraw" size="small" color="primary" :disabled="isReconcilingDraw || isSavingDraw" @click="retryPendingDraw">以相同結果重試保存</v-btn>
+        <v-btn size="small" variant="outlined" :disabled="isReconcilingDraw || isSavingDraw || !originLockSupported || originLockBusy" @click="reconcilePendingDraw">重新查詢紀錄</v-btn>
+        <v-btn v-if="canRetryPendingDraw" size="small" color="primary" :disabled="isReconcilingDraw || isSavingDraw || !originLockSupported || originLockBusy" @click="retryPendingDraw">以相同結果重試保存</v-btn>
         <v-btn size="small" variant="tonal" to="/lottery-draw-records">查看抽獎紀錄</v-btn>
       </div>
     </section>
     <section v-if="lockError" class="lottery-alert pool-lock-error" role="alert">
-      <div><strong>抽獎名單鎖定無法驗證</strong><span>{{ lockError }}</span></div>
+      <div><strong>{{ staleLockBlocked ? "此分頁的鎖定名單已過期或無法確認，不可再抽獎" : "抽獎名單鎖定無法驗證" }}</strong><span>{{ lockError }}</span></div>
       <div class="pending-draw-actions">
-        <v-btn size="small" color="error" variant="outlined" :disabled="isSavingDraw || isReconcilingDraw" @click="clearInvalidLock">清除鎖定資料</v-btn>
+        <v-btn size="small" color="error" variant="outlined" :disabled="staleLockBlocked || lockActionsBlocked" @click="clearInvalidLock">清除鎖定資料</v-btn>
         <v-btn size="small" variant="tonal" to="/lottery-draw-records">查看抽獎紀錄</v-btn>
       </div>
     </section>
@@ -862,7 +1056,7 @@ onBeforeUnmount(() => {
         <span>鎖定於 {{ lockedAtLabel }} · 代碼 <code>{{ lockShortCode }}</code> · {{ lockedPool.participants.length }} 張抽獎籤。名單、獎項、聊天室與互動匯入已暫停；抽獎仍可進行。</span>
       </div>
       <div class="pending-draw-actions">
-        <v-btn size="small" :color="confirmingUnlock ? 'error' : undefined" variant="outlined" :disabled="isSavingDraw || isReconcilingDraw" @click="unlockPool">{{ confirmingUnlock ? "確認解除鎖定" : "解除鎖定" }}</v-btn>
+        <v-btn size="small" :color="confirmingUnlock ? 'error' : undefined" variant="outlined" :disabled="lockActionsBlocked" @click="unlockPool">{{ confirmingUnlock ? "確認解除鎖定" : "解除鎖定" }}</v-btn>
         <v-btn v-if="confirmingUnlock" size="small" variant="text" @click="confirmingUnlock = false">取消</v-btn>
       </div>
     </section>

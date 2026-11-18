@@ -1,0 +1,126 @@
+{
+  "task_id": "pr-349-issue-305-review-remediation-2026-11-15",
+  "repository": "KonohaDerek/EasyLottery",
+  "base_candidate": "705ebbfb119c330c4d18fab03902ddd6629e88a2",
+  "scope": [
+    "Retain pending draw until locked-pool persistence succeeds",
+    "Preserve pending draw and locked-pool state if a saved draw belongs to a different restored roster; block invalid-lock clearing while pending",
+    "Persist a per-lock-version ledger of all reconciled draws and block restored stale locks",
+    "Document mismatch recovery including browser-restored original tabs",
+    "Avoid stale global error after same-tab storage recovery",
+    "Recheck mutation lock after asynchronous YouTube CSV read",
+    "Round-trip participant interaction source and identity channelScope in JSON and CSV",
+    "Port pending-draw unlock guard and phase-stripping retry fix from d2f21ad and d295c206"
+  ],
+  "routing": {
+    "stable_release_evidence": {
+      "source": "https://api.github.com/repos/KonohaDerek/EasyLottery/releases?per_page=100",
+      "release": "v0.0.7",
+      "published_at": "2026-10-22T03:44:20Z",
+      "draft": false,
+      "prerelease": false
+    },
+    "baseline_route": "Claude plans; Codex implements",
+    "user_override": "Derek explicitly requested Claude implementation through Herdr Core hc for this task; Claude implements, Codex integrates and verifies.",
+    "implementation_provider": "Claude Code via new Herdr Core terminal",
+    "model": "Claude Code configured default; no model override",
+    "jev": "Manual structured fallback; no user-approved known no-charge health/auth check was available, so no Jev request was made.",
+    "parallelism": "Serial; changes share UI state, serialization and Playwright contracts."
+  },
+  "approval_boundaries": [
+    "Local implementation and verification only",
+    "No push, remote PR mutation, merge, deployment, production calls/data, cleanup, or unrelated worktree changes",
+    "Do not inspect or modify Keychain/login credentials or company data"
+  ],
+  "verification": [
+    "Focused Vue/Vitest tests",
+    "Frontend typecheck",
+    "Frontend production build",
+    "Synthetic local Playwright core-lottery eligibility spec",
+    "Strict OpenSpec validation",
+    "Codex and independent Claude review on the same frozen candidate SHA/tree fingerprint",
+    "git diff --check"
+  ],
+  "candidate": {
+    "base_sha": "705ebbfb119c330c4d18fab03902ddd6629e88a2",
+    "product_test_diff_sha256": "b7fbc24e206f2761e5c700dac42583df699abe252d93707725bb8878e53b4ede",
+    "final_product_test_diff_sha256": "b7fbc24e206f2761e5c700dac42583df699abe252d93707725bb8878e53b4ede",
+    "final_product_test_files": [
+      "src/EasyLotteryWeb/src/views/LotteryHomeView.vue",
+      "src/EasyLotteryWeb/src/lottery/import-export.ts",
+      "src/EasyLotteryWeb/src/lottery/import-export.test.ts",
+      "src/EasyLotteryWeb/src/core-lottery-records/records.ts",
+      "src/EasyLotteryWeb/src/core-lottery-records/records.test.ts",
+      "src/EasyLotteryWeb/src/lottery/locked-pool.ts",
+      "src/EasyLotteryWeb/src/lottery/locked-pool.test.ts",
+      "tests/e2e/core-lottery-eligibility.spec.mjs"
+    ],
+    "devcontainer_source_snapshot": "/private/tmp/issue305-pr349-reviewed.knf3os",
+    "devcontainer_image_id": "sha256:f371eb001f7405b29a279d78753ca1f30ac3622cc57b98889fff7b65dcd7455b",
+    "commit_sha": "284fb297cfb92173f42b2a373523cf53e5882333"
+  },
+  "results": {
+    "vue_vitest": "passed: 35 files, 205 tests on final candidate",
+    "typecheck": "passed on final candidate",
+    "production_build": "passed on final candidate with two existing SignalR Rollup annotation warnings",
+    "playwright_core_lottery_eligibility": "passed: 14/14 on final candidate; synthetic Development API rate limits set to 1000",
+    "openspec_strict": "passed: 50/50, rerun after final task/evidence status update",
+    "git_diff_check": "passed on final candidate",
+    "dotnet_api_tests": "not run; API code unchanged",
+    "claude_review": "No P1/P2/P3 findings on final current tree; read-only review limits: no shell/fingerprint recomputation and not every pre-existing test body reviewed"
+  },
+  "codex_review": {
+    "status": "completed",
+    "result": "No additional P1/P2 findings; all eight product/test files byte-match the tested snapshot at the recorded fingerprint."
+  },
+  "claude_review": {
+    "status": "completed",
+    "result": "No P1, P2 or P3 findings on final current tree; both previous P3 findings confirmed fixed. Read all relevant changed code and the two new E2E tests, but did not execute tests or independently reproduce the fingerprint/base diff because shell was unavailable."
+  },
+  "status": "published_ready_for_review_ci_in_progress",
+  "review_followups": {
+    "chat_capture_race": {
+      "severity": "P3",
+      "decision": "Fixed by stopping capture before selected-result recovery awaits; synthetic Playwright regression passes.",
+      "plan": "Stop chat before selected-draw recovery awaits and add synthetic Playwright regression."
+    },
+    "corrupt_ledger_recovery": {
+      "severity": "P3",
+      "decision": "Fail-closed behavior retained; copy now accurately says self-service repair is unavailable, preserves state and directs operator to maintainer; synthetic Playwright regression passes.",
+      "risk": "No in-app repair path; full history-backed repair is a separate design."
+    }
+  },
+  "delivery": {
+    "verification_complete": true,
+    "branch_pushed": true,
+    "branch": "codex/issue-305-integrate-20261114",
+    "commit_sha": "284fb297cfb92173f42b2a373523cf53e5882333",
+    "pull_request_created": true,
+    "pull_request_number": 355,
+    "pull_request_url": "https://github.com/KonohaDerek/EasyLottery/pull/355",
+    "pull_request_state": "open, Ready for review",
+    "base_branch": "main",
+    "base_sha": "d1b7da035ba1095bcf8b746654c3b4e943253d85",
+    "ci_workflow_run": 44106169056,
+    "ci_state_at_snapshot": "build-and-test in progress; GitGuardian passed",
+    "merged": false,
+    "deployed": false
+  },
+  "residual_risks": [
+    "Corrupt reconciled-draw ledger has no self-service repair; fail closed, preserve browser state, contact maintainer.",
+    "Independent reviewer noted possible pre-existing generic CSV formula-injection risk; not verified as introduced by this candidate."
+  ],
+  "remote_state_2026_11_17": {
+    "pr_349": "merged",
+    "merge_commit": "d1b7da035ba1095bcf8b746654c3b4e943253d85",
+    "issue_305": "closed",
+    "origin_main_tree": "3a1ee5dc030a74fae3fcad96e87d11dda26395ec",
+    "candidate_base_tree": "3a1ee5dc030a74fae3fcad96e87d11dda26395ec",
+    "old_branch_on_origin": false
+  },
+  "delivery_authorization": {
+    "user_message": "發 PR啊",
+    "date": "2026-11-17",
+    "scope": "Commit and push verified local remediation; create new Ready-for-review follow-up PR targeting main; no merge or deployment."
+  }
+}

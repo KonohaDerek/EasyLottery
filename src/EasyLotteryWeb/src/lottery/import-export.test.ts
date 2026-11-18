@@ -90,6 +90,85 @@ describe("lottery imports and exports", () => {
     expect(legacy[0].identity).toBeUndefined();
   });
 
+  describe("interaction provenance and channel scope", () => {
+    const source = {
+      roundId: "7c1f4bde-21f5-4e1e-9d4e-5a1f0c1a0001",
+      snapshotId: "7c1f4bde-21f5-4e1e-9d4e-5a1f0c1a0002",
+      audienceProfileId: "aaaaaaaa-0000-4000-8000-000000000001"
+    };
+    const imported = [
+      {
+        id: "ticket-1", lotteryGroupId: "viewer-group", name: "Mika",
+        identity: { platform: "youtube", accountId: "UC-synthetic-mika", channelScope: "synthetic-channel" },
+        source, level: "Gold", group: "Members", tags: ["a"], isWinner: true
+      },
+      {
+        id: "ticket-2", lotteryGroupId: "viewer-group", name: "Mika",
+        identity: { platform: "youtube", accountId: "UC-synthetic-mika", channelScope: "synthetic-channel" },
+        source, level: "Gold", group: "Members", tags: ["a"], isWinner: true
+      },
+      { id: "ticket-3", lotteryGroupId: "manual", name: "Manual", level: "", group: "", tags: [], isWinner: false }
+    ];
+    const sequence = (prefix: string) => { let id = 0; return () => `${prefix}-${++id}`; };
+
+    it.each(["json", "csv"] as const)("round-trips source and identity.channelScope through %s with fresh IDs and shared groups", format => {
+      const exported = exportParticipants(imported, format);
+      const restored = parseParticipantImport(exported, format, sequence("fresh"));
+
+      expect(exported).not.toContain("ticket-1");
+      expect(restored).toEqual([
+        { id: "fresh-1", lotteryGroupId: "viewer-group", name: "Mika", identity: { platform: "youtube", accountId: "UC-synthetic-mika", channelScope: "synthetic-channel" }, source, level: "Gold", group: "Members", tags: ["a"], isWinner: true },
+        { id: "fresh-2", lotteryGroupId: "viewer-group", name: "Mika", identity: { platform: "youtube", accountId: "UC-synthetic-mika", channelScope: "synthetic-channel" }, source, level: "Gold", group: "Members", tags: ["a"], isWinner: true },
+        { id: "fresh-3", lotteryGroupId: "manual", name: "Manual", level: "", group: "", tags: [], isWinner: false }
+      ]);
+      // A second round-trip is stable.
+      expect(parseParticipantImport(exportParticipants(restored, format), format, sequence("fresh"))).toEqual(restored);
+    });
+
+    it("uses explicit flat scalar columns in CSV and JSON", () => {
+      const [header, firstRow, , manualRow] = exportParticipants(imported, "csv").split("\r\n");
+      expect(header).toBe("Name,Level,Group,LotteryGroupId,Tags,IsWinner,Platform,AccountId,ChannelScope,SourceRoundId,SourceSnapshotId,SourceAudienceProfileId");
+      expect(firstRow.endsWith(`,youtube,UC-synthetic-mika,synthetic-channel,${source.roundId},${source.snapshotId},${source.audienceProfileId}`)).toBe(true);
+      expect(manualRow).toBe("Manual,,,manual,,false,,,,,,");
+      const json = JSON.parse(exportParticipants(imported, "json"));
+      expect(json[0]).toMatchObject({ ChannelScope: "synthetic-channel", SourceRoundId: source.roundId, SourceSnapshotId: source.snapshotId, SourceAudienceProfileId: source.audienceProfileId });
+      expect(json[0]).not.toHaveProperty("Source");
+      expect(json[2]).not.toHaveProperty("ChannelScope");
+      expect(json[2]).not.toHaveProperty("SourceRoundId");
+    });
+
+    it.each([
+      ["json", '[{"Name":"Legacy","Platform":"youtube","AccountId":"UC-legacy","LotteryGroupId":"g","IsWinner":true}]'],
+      ["csv", "Name,Level,Group,LotteryGroupId,Tags,IsWinner,Platform,AccountId\r\nLegacy,,,g,,true,youtube,UC-legacy"]
+    ] as const)("still imports legacy %s without source or channel scope", (format, content) => {
+      const [legacy] = parseParticipantImport(content, format, () => "legacy-id");
+      expect(legacy).toEqual({ id: "legacy-id", lotteryGroupId: "g", name: "Legacy", identity: { platform: "youtube", accountId: "UC-legacy" }, level: "", group: "", tags: [], isWinner: true });
+    });
+
+    it.each(["json", "csv"] as const)("drops partial, malformed or non-scalar provenance from %s instead of trusting it", format => {
+      const rows = [
+        { Name: "Partial", SourceRoundId: source.roundId, SourceSnapshotId: source.snapshotId },
+        { Name: "Malformed", SourceRoundId: "not-a-uuid", SourceSnapshotId: source.snapshotId, SourceAudienceProfileId: source.audienceProfileId },
+        { Name: "Scope only", ChannelScope: "synthetic-channel" }
+      ];
+      const content = format === "json"
+        ? JSON.stringify([...rows, { Name: "Nested", Source: source, SourceRoundId: { value: source.roundId }, SourceSnapshotId: source.snapshotId, SourceAudienceProfileId: source.audienceProfileId, Platform: "youtube", AccountId: "UC-x", ChannelScope: 7 }])
+        : ["Name,SourceRoundId,SourceSnapshotId,SourceAudienceProfileId,ChannelScope",
+          ...rows.map(row => [row.Name, row.SourceRoundId ?? "", row.SourceSnapshotId ?? "", row.SourceAudienceProfileId ?? "", row.ChannelScope ?? ""].join(","))].join("\r\n");
+      const parsed = parseParticipantImport(content, format, () => "id");
+
+      expect(parsed.every(participant => participant.source === undefined)).toBe(true);
+      // Channel scope alone never forms an identity without platform and account.
+      expect(parsed.find(participant => participant.name === "Scope only")?.identity).toBeUndefined();
+      if (format === "json") expect(parsed.find(participant => participant.name === "Nested")?.identity).toEqual({ platform: "youtube", accountId: "UC-x" });
+    });
+
+    it("normalizes provenance UUID case on import", () => {
+      const [row] = parseParticipantImport(JSON.stringify([{ Name: "Upper", SourceRoundId: source.roundId.toUpperCase(), SourceSnapshotId: source.snapshotId, SourceAudienceProfileId: source.audienceProfileId.toUpperCase() }]), "json", () => "id");
+      expect(row.source).toEqual(source);
+    });
+  });
+
   it("imports YouTube Studio member CSV by Chinese headings and defaults new level weights to one", () => {
     const members = parseYoutubeMembers("\uFEFF會員,連結到個人資料,目前級別\r\nAlice,https://youtube.test/a,銀牌\r\nBob,https://youtube.test/b,\r\n");
     expect(members).toEqual([{ name: "Alice", level: "銀牌" }, { name: "Bob", level: "" }]);

@@ -2,12 +2,21 @@ import { describe, expect, it } from "vitest";
 import { drawLottery, type Participant } from "./draw";
 import {
   advanceLockedPool,
+  appendResolvedLockDraw,
   applyConfirmedWinner,
   clearLockedPool,
+  coreLotteryOriginLockName,
   createLockedPool,
   lockedPoolStorageKey,
   lockedPoolVersion,
+  missingResolvedLockDraws,
+  originLockManager,
   readLockedPool,
+  readResolvedLockDraws,
+  resolvedLockDrawsStorageKey,
+  resolvedLockDrawsStorageKeyPrefix,
+  ResolvedLockDrawsLedgerCorruptError,
+  runWithOriginDrawLock,
   storeLockedPool
 } from "./locked-pool";
 
@@ -145,5 +154,145 @@ describe("locked pool snapshot", () => {
     expect(applyConfirmedWinner(viaDraw.participants, viaDraw.prizes, "ticket-1")).toBeNull();
     expect(applyConfirmedWinner(participants, [], "ticket-1")).toBeNull();
     expect(applyConfirmedWinner(participants, ["Prize"], "missing")).toBeNull();
+  });
+});
+
+describe("resolved lock draws ledger", () => {
+  it("appends every reconciled drawId per lock version idempotently and keys equivalent versions identically", () => {
+    const storage = memoryStorage();
+    const pool = createLockedPool(participants, ["Prize A", "Prize B"], [], lockTime);
+    const version = lockedPoolVersion(pool);
+    expect(readResolvedLockDraws(storage, version)).toEqual({ status: "none" });
+
+    appendResolvedLockDraw(storage, version, "draw-1");
+    appendResolvedLockDraw(storage, version, "draw-2");
+    appendResolvedLockDraw(storage, version, "DRAW-1");
+    // A server-normalized version (uppercase hash, non-canonical timestamp) addresses the same ledger.
+    const serverVersion = { lockHash: pool.lockHash.toUpperCase(), lockedAtUtc: "2026-11-10T08:00:00Z" };
+    appendResolvedLockDraw(storage, serverVersion, "draw-2");
+
+    expect(resolvedLockDrawsStorageKey(serverVersion)).toBe(resolvedLockDrawsStorageKey(version));
+    expect(resolvedLockDrawsStorageKey(version).startsWith(resolvedLockDrawsStorageKeyPrefix)).toBe(true);
+    expect(readResolvedLockDraws(storage, version)).toEqual({ status: "valid", drawIds: ["draw-1", "draw-2"] });
+
+    const otherVersion = lockedPoolVersion(createLockedPool(participants, ["Prize A", "Prize B"], [], new Date("2026-11-10T09:00:00.000Z")));
+    expect(readResolvedLockDraws(storage, otherVersion)).toEqual({ status: "none" });
+  });
+
+  it("rejects invalid ledgers and never overwrites them on append", () => {
+    const storage = memoryStorage();
+    const version = lockedPoolVersion(createLockedPool(participants, ["Prize"], [], lockTime));
+    const key = resolvedLockDrawsStorageKey(version);
+    const valid = { schemaVersion: 1, ...version, drawIds: ["draw-1"] };
+    const invalidValues = [
+      "{not json",
+      JSON.stringify([]),
+      JSON.stringify({ ...valid, schemaVersion: 2 }),
+      JSON.stringify({ ...valid, lockHash: "0000000000000000" }),
+      JSON.stringify({ ...valid, lockedAtUtc: "2026-11-10T09:00:00.000Z" }),
+      JSON.stringify({ ...valid, drawIds: [] }),
+      JSON.stringify({ ...valid, drawIds: ["draw-1", 7] }),
+      JSON.stringify({ ...valid, drawIds: ["draw-1", " "] }),
+      JSON.stringify({ ...valid, drawIds: ["draw-1", "DRAW-1"] })
+    ];
+    for (const value of invalidValues) {
+      storage.setItem(key, value);
+      expect(readResolvedLockDraws(storage, version).status).toBe("invalid");
+      let thrown: unknown;
+      try { appendResolvedLockDraw(storage, version, "draw-2"); } catch (cause) { thrown = cause; }
+      // A corrupt ledger is reported distinctly from storage failures, naming the exact key to repair.
+      expect(thrown).toBeInstanceOf(ResolvedLockDrawsLedgerCorruptError);
+      expect(thrown).toMatchObject({ storageKey: key, reason: expect.stringContaining("已對帳抽獎清單") });
+      expect(storage.getItem(key)).toBe(value);
+    }
+    expect(() => appendResolvedLockDraw(storage, { lockHash: "bad", lockedAtUtc: version.lockedAtUtc }, "draw-1")).toThrow("版本");
+    expect(() => appendResolvedLockDraw(memoryStorage(), version, " ")).toThrow();
+  });
+
+  it("propagates storage API failures unchanged, never as a corrupt-ledger error", () => {
+    const version = lockedPoolVersion(createLockedPool(participants, ["Prize"], [], lockTime));
+    const quota = new DOMException("synthetic quota exceeded", "QuotaExceededError");
+    const unavailable = new DOMException("synthetic storage unavailable", "SecurityError");
+    const full: Storage = { ...memoryStorage(), getItem: () => null, setItem: () => { throw quota; } };
+    const unreadable: Storage = { ...memoryStorage(), getItem: () => { throw unavailable; } };
+
+    for (const [storage, expected] of [[full, quota], [unreadable, unavailable]] as const) {
+      let thrown: unknown;
+      try { appendResolvedLockDraw(storage, version, "draw-1"); } catch (cause) { thrown = cause; }
+      expect(thrown).toBe(expected);
+      expect(thrown).not.toBeInstanceOf(ResolvedLockDrawsLedgerCorruptError);
+    }
+  });
+
+  it("reports ledger draws a restored pool does not contain", () => {
+    const pool = createLockedPool(participants, ["Prize A", "Prize B"], [], lockTime);
+    const drawn = drawLottery(pool.participants, pool.prizes, () => 1);
+    if (!drawn.winner) throw new Error("expected a winner");
+    const advanced = advanceLockedPool(pool, drawn.participants, drawn.prizes, [{ ...drawn.winner, drawId: "draw-1" }]);
+
+    expect(missingResolvedLockDraws(advanced, ["DRAW-1"])).toEqual([]);
+    expect(missingResolvedLockDraws(pool, ["draw-1"])).toEqual(["draw-1"]);
+    expect(missingResolvedLockDraws(advanced, ["draw-1", "draw-2"])).toEqual(["draw-2"]);
+  });
+});
+
+describe("origin draw lock", () => {
+  /** In-memory LockManager modelling one origin: an exclusive ifAvailable request is granted null while the lock is held. */
+  function fakeLocks() {
+    const held = new Set<string>();
+    const calls: { name: string; options: LockOptions }[] = [];
+    const locks = {
+      request: async (name: string, options: LockOptions, callback: (lock: Lock | null) => Promise<void>) => {
+        calls.push({ name, options });
+        if (held.has(name)) return callback(null);
+        held.add(name);
+        try { return await callback({ name, mode: "exclusive" } as Lock); }
+        finally { held.delete(name); }
+      },
+      query: async () => ({})
+    } as unknown as LockManager;
+    return { locks, calls, held };
+  }
+
+  it("fails closed without Web Locks and never runs the action", async () => {
+    let ran = false;
+    expect(originLockManager(undefined)).toBeNull();
+    expect(originLockManager({})).toBeNull();
+    expect(originLockManager({ locks: {} as LockManager })).toBeNull();
+    expect(await runWithOriginDrawLock(null, async () => { ran = true; })).toEqual({ status: "unsupported" });
+    expect(ran).toBe(false);
+  });
+
+  it("holds one stable origin lock with ifAvailable for the whole action and refuses a concurrent holder", async () => {
+    const { locks, calls, held } = fakeLocks();
+    expect(originLockManager({ locks })).toBe(locks);
+    let release!: () => void;
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    let secondRan = false;
+    const first = runWithOriginDrawLock(locks, async () => {
+      expect(held.has(coreLotteryOriginLockName)).toBe(true);
+      await gate;
+    });
+    await Promise.resolve();
+    expect(await runWithOriginDrawLock(locks, async () => { secondRan = true; })).toEqual({ status: "busy" });
+    expect(secondRan).toBe(false);
+    expect(held.has(coreLotteryOriginLockName)).toBe(true);
+    release();
+    expect(await first).toEqual({ status: "ran" });
+    expect(held.size).toBe(0);
+    expect(calls.every(call => call.name === coreLotteryOriginLockName && call.options.ifAvailable === true && call.options.mode === "exclusive")).toBe(true);
+    expect(await runWithOriginDrawLock(locks, async () => { secondRan = true; })).toEqual({ status: "ran" });
+    expect(secondRan).toBe(true);
+  });
+
+  it("reports a failed lock request without running and rethrows action errors after releasing", async () => {
+    let ran = false;
+    const rejecting = { request: async () => { throw new DOMException("denied", "SecurityError"); } } as unknown as LockManager;
+    expect(await runWithOriginDrawLock(rejecting, async () => { ran = true; })).toEqual({ status: "failed", reason: "denied" });
+    expect(ran).toBe(false);
+
+    const { locks, held } = fakeLocks();
+    await expect(runWithOriginDrawLock(locks, async () => { throw new Error("boom"); })).rejects.toThrow("boom");
+    expect(held.size).toBe(0);
   });
 });
