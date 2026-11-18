@@ -16,6 +16,7 @@ public sealed class StreamerPasskeyService(
     PasskeyCeremonyStore ceremonyStore,
     InviteRedemptionService inviteRedemption,
     HubTokenService tokenService,
+    HubTokenSecurityOptions tokenSecurityOptions,
     TimeProvider timeProvider)
 {
     public async Task<PasskeyBeginResponse> BeginRegistrationAsync(
@@ -42,6 +43,10 @@ public sealed class StreamerPasskeyService(
         var optionsJson = new Fido2(passkeyOptions.CreateFido2Configuration()).RequestNewCredential(new RequestNewCredentialParams
         {
             User = user,
+            AuthenticatorSelection = new AuthenticatorSelection
+            {
+                UserVerification = UserVerificationRequirement.Required
+            },
             AttestationPreference = AttestationConveyancePreference.None
         }).ToJson();
         var flowId = Guid.NewGuid();
@@ -104,7 +109,7 @@ public sealed class StreamerPasskeyService(
             ? []
             : await db.StreamerPasskeys.AsNoTracking().Where(item => item.TenantId == tenant.Id).ToListAsync(cancellationToken);
         var allowedCredentials = passkeys.Count == 0
-            ? [new PublicKeyCredentialDescriptor(RandomNumberGenerator.GetBytes(32))]
+            ? [new PublicKeyCredentialDescriptor(CreateDecoyCredentialId(normalizedEmail))]
             : passkeys.Select(item => new PublicKeyCredentialDescriptor(item.CredentialId)).ToList();
         var optionsJson = new Fido2(passkeyOptions.CreateFido2Configuration()).GetAssertionOptions(new GetAssertionOptionsParams
         {
@@ -167,6 +172,12 @@ public sealed class StreamerPasskeyService(
     };
 
     private static byte[] StableUserHandle(string email) => SHA256.HashData(Encoding.UTF8.GetBytes(email));
+
+    private byte[] CreateDecoyCredentialId(string email) => HKDF.DeriveKey(
+        HashAlgorithmName.SHA256,
+        tokenSecurityOptions.SigningKey.Key,
+        32,
+        info: Encoding.UTF8.GetBytes($"easylottery-cardhub-streamer-passkey-decoy-v1|{email}"));
 
     private static JsonElement ParseOptions(string optionsJson)
     {

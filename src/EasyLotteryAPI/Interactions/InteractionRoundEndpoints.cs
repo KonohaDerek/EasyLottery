@@ -133,6 +133,7 @@ internal static class InteractionRoundEndpoints
             if (denied is not null) return denied;
             try { return Results.Ok(await snapshots.ImportAsync(id, context.RequestAborted)); }
             catch (KeyNotFoundException exception) { return Results.NotFound(new { error = exception.Message }); }
+            catch (InvalidOperationException exception) { return Results.Conflict(new { error = exception.Message }); }
         }).RequireRateLimiting("sensitive");
     }
 }

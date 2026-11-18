@@ -53,7 +53,8 @@ internal static class CoreLotteryDrawEndpoints
                     record.WinnerDisplayName,
                     record.PrizeName,
                     record.Participants?.Count ?? 0,
-                    record.RuleSnapshot.EligibleEntryCount))
+                    record.RuleSnapshot.EligibleEntryCount,
+                    PoolSnapshotVersion: record.PoolSnapshotVersion))
                 .ToArray();
             return Results.Ok(new CoreLotteryDrawHistoryPage(items, pageNumber, resultPageSize, totalCount, totalPages));
         }).RequireRateLimiting("sensitive");
@@ -120,7 +121,7 @@ internal static class CoreLotteryDrawEndpoints
             try
             {
                 var saved = await repository.SaveAsync(request.DrawId, request.WinnerParticipantId,
-                    request.RuleSnapshot, request.Participants, context.RequestAborted);
+                    request.RuleSnapshot, request.Participants, request.PoolSnapshotVersion, context.RequestAborted);
                 return saved.IsNew
                     ? Results.Created($"/api/lottery-draw-records/{saved.Record.DrawId:D}", ToSummary(saved.Record))
                     : Results.Ok(ToSummary(saved.Record));
@@ -140,7 +141,8 @@ internal static class CoreLotteryDrawEndpoints
         record.PrizeName,
         record.Participants?.Count ?? 0,
         record.RuleSnapshot.EligibleEntryCount,
-        record.RuleSnapshot);
+        record.RuleSnapshot,
+        record.PoolSnapshotVersion);
 
     private static string? Validate(RecordCoreLotteryDrawRequest request)
     {
@@ -156,6 +158,9 @@ internal static class CoreLotteryDrawEndpoints
             || rules.EligibleEntryCount < 1 || rules.PrizeQueue is null || rules.PrizeQueue.Count == 0
             || rules.PrizeQueue.Any(prize => string.IsNullOrWhiteSpace(prize) || prize.Length > 120))
             return "抽獎規則快照無效。";
+
+        if (request.PoolSnapshotVersion is { } poolVersion && !CoreLotteryDrawHistoryRepository.IsValidPoolSnapshotVersion(poolVersion))
+            return "鎖定名單版本無效。";
 
         var participantIds = new HashSet<string>(StringComparer.Ordinal);
         var eligibleCount = 0;
@@ -177,6 +182,10 @@ internal static class CoreLotteryDrawEndpoints
                     || string.IsNullOrWhiteSpace(identity.AccountId) || identity.AccountId.Length > 512))
                 return "外部帳號識別格式無效。";
 
+            if (participant.InteractionSource is { } source
+                && (source.RoundId == Guid.Empty || source.SnapshotId == Guid.Empty || source.AudienceProfileId == Guid.Empty))
+                return "互動來源識別格式無效。";
+
             if (participant.EligibilityStatus == "eligible") eligibleCount++;
             if (participant.ParticipantId == request.WinnerParticipantId) winner = participant;
         }
@@ -192,8 +201,10 @@ internal sealed record RecordCoreLotteryDrawRequest(
     Guid DrawId,
     string WinnerParticipantId,
     CoreLotteryDrawRuleSnapshot RuleSnapshot,
-    List<CoreLotteryDrawParticipantSnapshot> Participants);
+    List<CoreLotteryDrawParticipantSnapshot> Participants,
+    CoreLotteryDrawPoolSnapshotVersion? PoolSnapshotVersion = null);
 
+/// <summary>Admin-only draw summary; PoolSnapshotVersion is null for unlocked and legacy draws.</summary>
 internal sealed record CoreLotteryDrawSummary(
     Guid DrawId,
     DateTimeOffset DrawnAtUtc,
@@ -202,7 +213,8 @@ internal sealed record CoreLotteryDrawSummary(
     string PrizeName,
     int ParticipantCount,
     int EligibleEntryCount,
-    CoreLotteryDrawRuleSnapshot? RuleSnapshot = null);
+    CoreLotteryDrawRuleSnapshot? RuleSnapshot = null,
+    CoreLotteryDrawPoolSnapshotVersion? PoolSnapshotVersion = null);
 
 internal sealed record CoreLotteryDrawParticipantPage(
     IReadOnlyList<CoreLotteryDrawParticipantSnapshot> Items,

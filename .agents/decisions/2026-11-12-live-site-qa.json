@@ -1,0 +1,24 @@
+{
+  "task_id": "live-site-qa-2026-11-12",
+  "source": "User request to test the EasyLottery live site with ego-lite / Playwright and preserve all test cases",
+  "repository": "KonohaDerek/EasyLottery",
+  "base_revision": "43f69b802bb12e3c1bda2b4636f892bbc8d775fd",
+  "project_release": {
+    "source": "https://api.github.com/repos/KonohaDerek/EasyLottery/releases/latest",
+    "identifier": "v0.0.7",
+    "state": "published stable; draft=false; prerelease=false",
+    "published_at": "2026-10-22T03:44:20Z"
+  },
+  "routing": {
+    "provider_route": "Claude plans / Codex implements per personal workflow overlay; no implementation was needed",
+    "jev": "fallback to active host default; TYPESAFE_API_KEY absent, no Jev call",
+    "complexity": "bounded QA and evidence capture",
+    "parallelism": "main agent only",
+    "risk": "low application-data risk; production website inspected read-only; authenticated and mutating workflows excluded",
+    "verification": "manual browser integration checks across public routes and viewport widths, plus read-only HTTP response/header checks",
+    "approval": "user explicitly authorized target-site testing and GitHub issue filing; no production mutation, push, PR, merge, or deployment authorized"
+  },
+  "worktree": ".worktrees/live-site-e2e-20261112",
+  "branch": "claude/live-site-e2e-20261112",
+  "evidence": ".agents/verification/2026-11-12-live-site-ego-browser.md"
+}

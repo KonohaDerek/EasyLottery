@@ -12,12 +12,20 @@ A card pack MUST reference one card set, a streamer-provided cover image, and ra
 - **THEN** its rarity odds are visible on the public shop page
 
 ### Requirement: One-card auditable draw
-Opening a pack MUST draw exactly one card using a cryptographic RNG by the published weights, reserve a new card instance, and record the draw, all atomically.
+Opening a pack MUST draw exactly one card using a cryptographic RNG by the immutable odds version shown to the viewer, reserve a new card instance, and record the draw and odds version atomically.
 
 #### Scenario: Draw distribution
 - **WHEN** a pack with weights N=70, R=25, SR=5 is drawn 100,000 times in a test
 - **THEN** each rarity's observed frequency is within statistical tolerance of its weight
 
 #### Scenario: Supply exhausted
-- **WHEN** a pack's opened count reaches its supply limit
-- **THEN** further draws are rejected and no card instance is created
+- **WHEN** any rarity's lifecycle supply reaches zero
+- **THEN** the Hub stops draws under the current odds version, atomically publishes the next odds version with that rarity removed and remaining weights renormalized, and exposes the new odds before accepting another paid draw; the prior version and its draw records remain immutable
+
+#### Scenario: All finite supply exhausted
+- **WHEN** every rarity pool is exhausted or the optional total pack limit is reached
+- **THEN** the pack stops selling and no further draws are accepted
+
+#### Scenario: Paid callback races with the last instance
+- **WHEN** a paid callback arrives after the last instance has already been reserved
+- **THEN** the request is recorded as unresolved and no additional card or redemption code is issued until the approved payment recovery procedure resolves it
