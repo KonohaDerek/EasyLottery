@@ -174,6 +174,8 @@ public static class HubEndpoints
         {
             Predicate = check => check.Tags.Contains("ready")
         });
+
+        app.MapViewerEndpoints();
     }
 
     private static async Task<PlatformAdmin?> FindActiveAdminAsync(ClaimsPrincipal principal, HubDbContext db, CancellationToken cancellationToken)

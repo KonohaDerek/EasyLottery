@@ -28,6 +28,7 @@ public static class HubPolicies
     public const string PlatformAdmin = "platform-admin";
     public const string Streamer = "streamer";
     public const string Site = "site";
+    public const string Viewer = "viewer";
 }
 
 public sealed class HubTokenSecurityOptions
@@ -36,6 +37,7 @@ public sealed class HubTokenSecurityOptions
     public required SymmetricSecurityKey SigningKey { get; init; }
     public required TimeSpan StreamerLifetime { get; init; }
     public required TimeSpan SiteLifetime { get; init; }
+    public required TimeSpan ViewerLifetime { get; init; }
 
     public static HubTokenSecurityOptions Load(IConfiguration configuration)
     {
@@ -50,7 +52,8 @@ public sealed class HubTokenSecurityOptions
                 : "https://card-hub.easylottery.invalid",
             SigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(signingSecret)),
             StreamerLifetime = TimeSpan.FromMinutes(15),
-            SiteLifetime = TimeSpan.FromMinutes(10)
+            SiteLifetime = TimeSpan.FromMinutes(10),
+            ViewerLifetime = TimeSpan.FromMinutes(15)
         };
     }
 }
@@ -80,6 +83,17 @@ public sealed class HubTokenService(HubTokenSecurityOptions options, TimeProvide
             new Claim("site_id", siteId.ToString("D")),
             new Claim("site_credential_id", credentialId.ToString("D")),
             new Claim("token_kind", "site")
+        ]);
+    }
+
+    public IssuedHubToken IssueViewerToken(Guid viewerId)
+    {
+        var expiresAt = timeProvider.GetUtcNow().Add(options.ViewerLifetime);
+        return Issue(HubTokenAudiences.Viewer, expiresAt,
+        [
+            new Claim(JwtRegisteredClaimNames.Sub, viewerId.ToString("D")),
+            new Claim("viewer_id", viewerId.ToString("D")),
+            new Claim("token_kind", "viewer")
         ]);
     }
 

@@ -30,6 +30,12 @@ public static class HubHostingExtensions
         services.AddScoped<InviteRedemptionService>();
         services.AddScoped<SiteCredentialService>();
         services.AddScoped<StreamerPasskeyService>();
+        services.AddSingleton<ViewerCodeRequestRateLimiter>();
+        services.AddScoped<ViewerAccountsService>();
+        services.AddScoped<ViewerGroupsService>();
+        services.AddScoped<ViewerAccountFilter>();
+        services.AddScoped<IViewerCardRetirement, NoOpViewerCardRetirement>();
+        services.AddScoped<IViewerEmailSender, DevelopmentViewerEmailSender>();
         services.AddScoped<SiteTenantStatusFilter>();
         services.AddScoped<StreamerTenantStatusFilter>();
         services.AddDbContext<HubDbContext>(options => options.UseNpgsql(connectionString));
@@ -51,6 +57,9 @@ public static class HubHostingExtensions
             options.AddPolicy("admin-sensitive", context => RateLimitPartition.GetFixedWindowLimiter(
                 context.User.Identity?.Name ?? context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
                 _ => new FixedWindowRateLimiterOptions { PermitLimit = adminPermitLimit, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
+            options.AddPolicy("viewer-sensitive", context => RateLimitPartition.GetFixedWindowLimiter(
+                context.User.FindFirst("viewer_id")?.Value ?? context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                _ => new FixedWindowRateLimiterOptions { PermitLimit = 30, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
         });
     }
 
@@ -67,6 +76,13 @@ public static class HubHostingExtensions
                 return;
             }
 
+            if (exception is ViewerServiceException viewerException)
+            {
+                context.Response.StatusCode = viewerException.StatusCode;
+                await Results.Json(new ViewerApiError(viewerException.Code, viewerException.MessageKey, viewerException.Parameters), statusCode: viewerException.StatusCode).ExecuteAsync(context);
+                return;
+            }
+
             if (exception is DbUpdateException { InnerException: PostgresException postgres } && postgres.SqlState == PostgresErrorCodes.UniqueViolation)
             {
                 var duplicate = postgres.ConstraintName switch
@@ -74,6 +90,7 @@ public static class HubHostingExtensions
                     "ux_streamers_email_normalized" => ("tenant_email_exists", "A streamer account already exists for this email."),
                     "ux_streamers_slug" => ("tenant_slug_exists", "The tenant slug is already in use."),
                     "ux_streamer_sites_base_url" => ("site_already_linked", "This site is already linked to a tenant."),
+                    "ux_viewer_groups_viewer_name" => ("viewer_group_name_exists", "A group with that name already exists."),
                     _ => ("conflict", "The request conflicts with existing data.")
                 };
                 context.Response.StatusCode = StatusCodes.Status409Conflict;

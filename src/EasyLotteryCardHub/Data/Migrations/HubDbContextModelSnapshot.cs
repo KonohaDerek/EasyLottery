@@ -324,6 +324,207 @@ namespace EasyLotteryCardHub.Data.Migrations
                         });
                 });
 
+            modelBuilder.Entity("EasyLotteryCardHub.Data.Viewer", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AgeBracket")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(254)
+                        .HasColumnType("character varying(254)");
+
+                    b.Property<string>("EmailNormalized")
+                        .IsRequired()
+                        .HasMaxLength(254)
+                        .HasColumnType("character varying(254)");
+
+                    b.Property<string>("Handle")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<string>("HandleNormalized")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("text")
+                        .HasComputedColumnSql("lower(\"Handle\")", true);
+
+                    b.Property<DateTimeOffset>("TermsAcceptedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("TermsVersionAccepted")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmailNormalized")
+                        .IsUnique()
+                        .HasDatabaseName("ux_viewers_email_normalized");
+
+                    b.HasIndex("HandleNormalized")
+                        .IsUnique()
+                        .HasDatabaseName("ux_viewers_handle_ci")
+                        .HasFilter("\"HandleNormalized\" IS NOT NULL");
+
+                    b.ToTable("viewers", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_viewers_age_bracket", "\"AgeBracket\" IN ('13_17', '18_plus')");
+                        });
+                });
+
+            modelBuilder.Entity("EasyLotteryCardHub.Data.ViewerGroup", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<string>("NameNormalized")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("ViewerId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ViewerId")
+                        .HasDatabaseName("ix_viewer_groups_viewer_id");
+
+                    b.HasIndex("ViewerId", "NameNormalized")
+                        .IsUnique()
+                        .HasDatabaseName("ux_viewer_groups_viewer_name");
+
+                    b.ToTable("viewer_groups", (string)null);
+                });
+
+            modelBuilder.Entity("EasyLotteryCardHub.Data.ViewerGroupItem", b =>
+                {
+                    b.Property<Guid>("GroupId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CardInstanceId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("AddedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("GroupId", "CardInstanceId");
+
+                    b.HasIndex("CardInstanceId")
+                        .HasDatabaseName("ix_viewer_group_items_card_instance_id");
+
+                    b.ToTable("viewer_group_items", (string)null);
+                });
+
+            modelBuilder.Entity("EasyLotteryCardHub.Data.ViewerLoginCode", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CodeHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTimeOffset?>("ConsumedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("EmailHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTimeOffset>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("FailedAttempts")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmailHash")
+                        .IsUnique()
+                        .HasDatabaseName("ux_viewer_login_codes_email_hash");
+
+                    b.HasIndex("ExpiresAt")
+                        .HasDatabaseName("ix_viewer_login_codes_expires_at");
+
+                    b.ToTable("viewer_login_codes", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_viewer_login_codes_failed_attempts", "\"FailedAttempts\" BETWEEN 0 AND 5");
+                        });
+                });
+
+            modelBuilder.Entity("EasyLotteryCardHub.Data.ViewerRefreshToken", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("ReplacedByTokenId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("RevokedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("SessionFamilyId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("TokenHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<Guid>("ViewerId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SessionFamilyId")
+                        .HasDatabaseName("ix_viewer_refresh_tokens_session_family");
+
+                    b.HasIndex("TokenHash")
+                        .IsUnique()
+                        .HasDatabaseName("ux_viewer_refresh_tokens_token_hash");
+
+                    b.HasIndex("ViewerId", "ExpiresAt")
+                        .HasDatabaseName("ix_viewer_refresh_tokens_viewer_expiry");
+
+                    b.ToTable("viewer_refresh_tokens", (string)null);
+                });
+
             modelBuilder.Entity("EasyLotteryCardHub.Data.SiteCredential", b =>
                 {
                     b.HasOne("EasyLotteryCardHub.Data.StreamerSite", null)
@@ -362,6 +563,33 @@ namespace EasyLotteryCardHub.Data.Migrations
                         .WithMany()
                         .HasForeignKey("TenantId")
                         .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("EasyLotteryCardHub.Data.ViewerGroup", b =>
+                {
+                    b.HasOne("EasyLotteryCardHub.Data.Viewer", null)
+                        .WithMany()
+                        .HasForeignKey("ViewerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("EasyLotteryCardHub.Data.ViewerGroupItem", b =>
+                {
+                    b.HasOne("EasyLotteryCardHub.Data.ViewerGroup", null)
+                        .WithMany()
+                        .HasForeignKey("GroupId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("EasyLotteryCardHub.Data.ViewerRefreshToken", b =>
+                {
+                    b.HasOne("EasyLotteryCardHub.Data.Viewer", null)
+                        .WithMany()
+                        .HasForeignKey("ViewerId")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 #pragma warning restore 612, 618

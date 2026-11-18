@@ -1,6 +1,7 @@
 using EasyLotteryCardHub.Data;
 using EasyLotteryCardHub.Endpoints;
 using EasyLotteryCardHub.Hosting;
+using EasyLotteryCardHub.Services;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
@@ -20,12 +21,13 @@ internal sealed class TestHubHost : IAsyncDisposable
     private readonly string _schema;
     private readonly IHost _host;
 
-    private TestHubHost(IHost host, HttpClient client, string schema, string connectionString, MutableTimeProvider clock)
+    private TestHubHost(IHost host, HttpClient client, string schema, string connectionString, string applicationName, MutableTimeProvider clock)
     {
         _host = host;
         Client = client;
         _schema = schema;
         ConnectionString = connectionString;
+        ApplicationName = applicationName;
         Clock = clock;
     }
 
@@ -38,8 +40,10 @@ internal sealed class TestHubHost : IAsyncDisposable
     public static string PlatformAdminKey => AdminKey;
     public HttpClient Client { get; }
     public string ConnectionString { get; }
+    public string ApplicationName { get; }
     public MutableTimeProvider Clock { get; }
     public IServiceProvider Services => _host.Services;
+    public CapturingViewerEmailSender Emails => Services.GetRequiredService<CapturingViewerEmailSender>();
 
     public static async Task StartContainerAsync() => await Container.StartAsync();
 
@@ -49,6 +53,7 @@ internal sealed class TestHubHost : IAsyncDisposable
     {
         clock ??= new MutableTimeProvider(DateTimeOffset.UtcNow);
         var schema = "hubtest_" + Guid.NewGuid().ToString("N");
+        var applicationName = "CardHubTests-" + Guid.NewGuid().ToString("N");
         await using (var adminConnection = new NpgsqlConnection(Container.GetConnectionString()))
         {
             await adminConnection.OpenAsync();
@@ -57,7 +62,11 @@ internal sealed class TestHubHost : IAsyncDisposable
             await createSchema.ExecuteNonQueryAsync();
         }
 
-        var connection = new NpgsqlConnectionStringBuilder(Container.GetConnectionString()) { SearchPath = schema };
+        var connection = new NpgsqlConnectionStringBuilder(Container.GetConnectionString())
+        {
+            SearchPath = schema,
+            ApplicationName = applicationName
+        };
         var settings = new Dictionary<string, string?>
         {
             ["ConnectionStrings:CardHub"] = connection.ConnectionString,
@@ -77,7 +86,11 @@ internal sealed class TestHubHost : IAsyncDisposable
                 .UseEnvironment("Testing")
                 .ConfigureAppConfiguration(configuration => configuration.AddInMemoryCollection(settings))
                 .ConfigureServices((context, services) =>
-                    services.AddCardHubServices(context.Configuration, connection.ConnectionString, clock))
+                {
+                    services.AddCardHubServices(context.Configuration, connection.ConnectionString, clock);
+                    services.AddSingleton<CapturingViewerEmailSender>();
+                    services.AddSingleton<IViewerEmailSender>(provider => provider.GetRequiredService<CapturingViewerEmailSender>());
+                })
                 .Configure(app =>
                 {
                     app.UseCardHubRequestPipeline();
@@ -103,7 +116,7 @@ internal sealed class TestHubHost : IAsyncDisposable
             throw new InvalidOperationException($"Card Hub test host failed readiness ({(int)ready.StatusCode}): {body}");
         }
 
-        return new TestHubHost(host, client, schema, connection.ConnectionString, clock);
+        return new TestHubHost(host, client, schema, connection.ConnectionString, applicationName, clock);
     }
 
     public async ValueTask DisposeAsync()
@@ -121,6 +134,21 @@ internal sealed class TestHubHost : IAsyncDisposable
         await using var command = connection.CreateCommand();
         command.CommandText = $"DROP SCHEMA IF EXISTS \"{schema}\" CASCADE";
         await command.ExecuteNonQueryAsync();
+    }
+}
+
+internal sealed record CapturedViewerEmail(string Recipient, ViewerLoginCodeEmail Email);
+
+internal sealed class CapturingViewerEmailSender : IViewerEmailSender
+{
+    private readonly System.Collections.Concurrent.ConcurrentQueue<CapturedViewerEmail> _messages = new();
+    public IReadOnlyList<CapturedViewerEmail> Messages => _messages.ToArray();
+
+    public Task SendLoginCodeAsync(string recipient, ViewerLoginCodeEmail email, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        _messages.Enqueue(new CapturedViewerEmail(recipient, email));
+        return Task.CompletedTask;
     }
 }
 

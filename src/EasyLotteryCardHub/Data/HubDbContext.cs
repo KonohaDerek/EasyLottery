@@ -11,6 +11,11 @@ public sealed class HubDbContext(DbContextOptions<HubDbContext> options) : DbCon
     public DbSet<SiteCredential> SiteCredentials => Set<SiteCredential>();
     public DbSet<StreamerInvite> StreamerInvites => Set<StreamerInvite>();
     public DbSet<PlatformAdmin> PlatformAdmins => Set<PlatformAdmin>();
+    public DbSet<Viewer> Viewers => Set<Viewer>();
+    public DbSet<ViewerLoginCode> ViewerLoginCodes => Set<ViewerLoginCode>();
+    public DbSet<ViewerRefreshToken> ViewerRefreshTokens => Set<ViewerRefreshToken>();
+    public DbSet<ViewerGroup> ViewerGroups => Set<ViewerGroup>();
+    public DbSet<ViewerGroupItem> ViewerGroupItems => Set<ViewerGroupItem>();
     public DbSet<AuditEvent> AuditEvents => Set<AuditEvent>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -90,6 +95,65 @@ public sealed class HubDbContext(DbContextOptions<HubDbContext> options) : DbCon
             entity.Property(item => item.Email).HasMaxLength(254).IsRequired();
             entity.Property(item => item.EmailNormalized).HasMaxLength(254).IsRequired();
             entity.HasIndex(item => item.EmailNormalized).IsUnique().HasDatabaseName("ux_platform_admins_email_normalized");
+        });
+
+        modelBuilder.Entity<Viewer>(entity =>
+        {
+            entity.ToTable("viewers", table => table.HasCheckConstraint(
+                "ck_viewers_age_bracket", "\"AgeBracket\" IN ('13_17', '18_plus')"));
+            entity.HasKey(item => item.Id);
+            entity.Property(item => item.Email).HasMaxLength(254).IsRequired();
+            entity.Property(item => item.EmailNormalized).HasMaxLength(254).IsRequired();
+            entity.Property(item => item.TermsVersionAccepted).HasMaxLength(80).IsRequired();
+            entity.Property(item => item.AgeBracket).HasMaxLength(16).IsRequired();
+            entity.Property(item => item.Handle).HasMaxLength(30);
+            entity.Property(item => item.HandleNormalized).HasComputedColumnSql("lower(\"Handle\")", stored: true);
+            entity.HasIndex(item => item.EmailNormalized).IsUnique().HasDatabaseName("ux_viewers_email_normalized");
+            entity.HasIndex(item => item.HandleNormalized).IsUnique()
+                .HasFilter("\"HandleNormalized\" IS NOT NULL")
+                .HasDatabaseName("ux_viewers_handle_ci");
+        });
+
+        modelBuilder.Entity<ViewerLoginCode>(entity =>
+        {
+            entity.ToTable("viewer_login_codes", table => table.HasCheckConstraint(
+                "ck_viewer_login_codes_failed_attempts", "\"FailedAttempts\" BETWEEN 0 AND 5"));
+            entity.HasKey(item => item.Id);
+            entity.Property(item => item.EmailHash).HasMaxLength(64).IsRequired();
+            entity.Property(item => item.CodeHash).HasMaxLength(64).IsRequired();
+            entity.HasIndex(item => item.EmailHash).IsUnique().HasDatabaseName("ux_viewer_login_codes_email_hash");
+            entity.HasIndex(item => item.ExpiresAt).HasDatabaseName("ix_viewer_login_codes_expires_at");
+        });
+
+        modelBuilder.Entity<ViewerRefreshToken>(entity =>
+        {
+            entity.ToTable("viewer_refresh_tokens");
+            entity.HasKey(item => item.Id);
+            entity.Property(item => item.TokenHash).HasMaxLength(64).IsRequired();
+            entity.HasIndex(item => item.TokenHash).IsUnique().HasDatabaseName("ux_viewer_refresh_tokens_token_hash");
+            entity.HasIndex(item => new { item.ViewerId, item.ExpiresAt }).HasDatabaseName("ix_viewer_refresh_tokens_viewer_expiry");
+            entity.HasIndex(item => item.SessionFamilyId).HasDatabaseName("ix_viewer_refresh_tokens_session_family");
+            entity.HasOne<Viewer>().WithMany().HasForeignKey(item => item.ViewerId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ViewerGroup>(entity =>
+        {
+            entity.ToTable("viewer_groups");
+            entity.HasKey(item => item.Id);
+            entity.Property(item => item.Name).HasMaxLength(80).IsRequired();
+            entity.Property(item => item.NameNormalized).HasMaxLength(80).IsRequired();
+            entity.HasIndex(item => new { item.ViewerId, item.NameNormalized }).IsUnique()
+                .HasDatabaseName("ux_viewer_groups_viewer_name");
+            entity.HasIndex(item => item.ViewerId).HasDatabaseName("ix_viewer_groups_viewer_id");
+            entity.HasOne<Viewer>().WithMany().HasForeignKey(item => item.ViewerId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ViewerGroupItem>(entity =>
+        {
+            entity.ToTable("viewer_group_items");
+            entity.HasKey(item => new { item.GroupId, item.CardInstanceId });
+            entity.HasIndex(item => item.CardInstanceId).HasDatabaseName("ix_viewer_group_items_card_instance_id");
+            entity.HasOne<ViewerGroup>().WithMany().HasForeignKey(item => item.GroupId).OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<AuditEvent>(entity =>
