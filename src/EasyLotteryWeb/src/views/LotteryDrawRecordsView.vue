@@ -189,6 +189,16 @@ onMounted(() => { void loadRecords(); });
             <div><span>得獎籤 ID</span><code>{{ selectedRecord.winnerParticipantId }}</code></div>
             <div><span>抽獎識別碼</span><code>{{ selectedRecord.drawId }}</code></div>
             <div><span>名單／合格籤數</span><strong>{{ selectedRecord.participantCount }} / {{ selectedRecord.eligibleEntryCount }}</strong></div>
+            <div>
+              <span>名單鎖定版本</span>
+              <code v-if="selectedRecord.poolSnapshotVersion" data-testid="draw-detail-lock-hash">{{ selectedRecord.poolSnapshotVersion.lockHash }}</code>
+              <strong v-else data-testid="draw-detail-lock-hash">—（未鎖定或早期紀錄）</strong>
+            </div>
+            <div>
+              <span>名單鎖定時間</span>
+              <time v-if="selectedRecord.poolSnapshotVersion" data-testid="draw-detail-locked-at" :datetime="selectedRecord.poolSnapshotVersion.lockedAtUtc">{{ formatDate(selectedRecord.poolSnapshotVersion.lockedAtUtc) }}</time>
+              <strong v-else data-testid="draw-detail-locked-at">—</strong>
+            </div>
           </section>
           <section v-if="selectedRecord.ruleSnapshot" class="lottery-record-rules" aria-label="抽獎規則快照">
             <h3>抽獎規則快照</h3>
@@ -212,7 +222,7 @@ onMounted(() => { void loadRecords(); });
               <div class="lottery-roster-table-wrap">
                 <table class="lottery-roster-table">
                   <caption class="lottery-records-sr-only">抽獎當下完整參與名單，共 {{ participantPage.totalCount }} 張籤</caption>
-                  <thead><tr><th scope="col">資格／得獎籤</th><th scope="col">參加者</th><th scope="col">外部平台</th><th scope="col">外部帳號識別</th><th scope="col">等級／分組／標籤</th><th scope="col">籤 ID</th><th scope="col">群組 ID</th></tr></thead>
+                  <thead><tr><th scope="col">資格／得獎籤</th><th scope="col">參加者</th><th scope="col">外部平台</th><th scope="col">外部帳號識別</th><th scope="col">等級／分組／標籤</th><th scope="col">籤 ID</th><th scope="col">群組 ID</th><th scope="col">互動來源</th></tr></thead>
                   <tbody>
                     <tr v-for="entry in participantPage.items" :key="entry.participantId">
                       <td>{{ entry.participantId === selectedRecord.winnerParticipantId ? "本次得獎籤" : entry.eligibilityStatus === "eligible" ? "合格候選" : "已得獎排除" }}</td>
@@ -222,6 +232,14 @@ onMounted(() => { void loadRecords(); });
                       <td>{{ [entry.level, entry.group, ...entry.tags].filter(Boolean).join("／") || "—" }}</td>
                       <td><code>{{ entry.participantId }}</code></td>
                       <td><code>{{ entry.lotteryGroupId }}</code></td>
+                      <td data-testid="roster-interaction-source">
+                        <dl v-if="entry.interactionSource" class="lottery-roster-source">
+                          <div><dt>回合 ID</dt><dd><code>{{ entry.interactionSource.roundId }}</code></dd></div>
+                          <div><dt>快照 ID</dt><dd><code>{{ entry.interactionSource.snapshotId }}</code></dd></div>
+                          <div><dt>AudienceProfile ID</dt><dd><code>{{ entry.interactionSource.audienceProfileId }}</code></dd></div>
+                        </dl>
+                        <template v-else>—</template>
+                      </td>
                     </tr>
                   </tbody>
                 </table>
@@ -280,6 +298,9 @@ h1 { margin: 8px 0; font-size: clamp(1.8rem, 4vw, 2.5rem); }
 .lottery-roster-table th, .lottery-roster-table td { padding: 9px 10px; border-bottom: 1px solid #e2e8f0; vertical-align: top; }
 .lottery-roster-table th { position: sticky; top: 0; background: #f8fafc; color: #475569; font-size: .82rem; }
 .lottery-roster-table code { overflow-wrap: anywhere; font-size: .78rem; }
+.lottery-roster-source { display: grid; gap: 4px; margin: 0; min-width: 14rem; }
+.lottery-roster-source dt { color: var(--muted); font-size: .72rem; font-weight: 700; }
+.lottery-roster-source dd { margin: 0; }
 .lottery-records-table code { color: #475569; font-size: .78rem; overflow-wrap: anywhere; }
 .lottery-records-pagination { justify-content: flex-end; color: var(--muted); }
 .lottery-records-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }

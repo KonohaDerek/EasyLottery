@@ -86,7 +86,8 @@ public sealed class CoreLotteryDrawHistoryApiTests
             Assert.AreEqual("合成觀眾", firstRecord.GetProperty("winnerDisplayName").GetString());
             Assert.AreEqual("合成禮盒", firstRecord.GetProperty("prizeName").GetString());
             Assert.IsTrue(firstRecord.TryGetProperty("drawnAtUtc", out _));
-            Assert.AreEqual(8, firstRecord.EnumerateObject().Count());
+            Assert.AreEqual(9, firstRecord.EnumerateObject().Count());
+            Assert.IsTrue(firstRecord.TryGetProperty("poolSnapshotVersion", out _));
             var ruleSnapshot = firstRecord.GetProperty("ruleSnapshot");
             Assert.AreEqual("secure-random-index-v1", ruleSnapshot.GetProperty("algorithmVersion").GetString());
             Assert.AreEqual(2, ruleSnapshot.GetProperty("eligibleEntryCount").GetInt32());

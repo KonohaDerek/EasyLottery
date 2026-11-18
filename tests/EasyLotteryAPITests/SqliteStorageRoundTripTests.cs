@@ -116,7 +116,7 @@ public sealed class SqliteStorageRoundTripTests
             await using var command = connection.CreateCommand();
             command.CommandText = "SELECT MAX(version) FROM schema_migrations";
 
-            Assert.AreEqual(2L, (long)(await command.ExecuteScalarAsync())!);
+            Assert.AreEqual(3L, (long)(await command.ExecuteScalarAsync())!);
         }
         finally
         {
