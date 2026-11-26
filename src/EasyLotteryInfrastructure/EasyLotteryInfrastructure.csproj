@@ -5,6 +5,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="MediatR" Version="15.0.0" />
     <ProjectReference Include="..\EasyLotteryApplication\EasyLotteryApplication.csproj" />
     <ProjectReference Include="..\EasyLotteryDomain\EasyLotteryDomain.csproj" />
     <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="11.0.0" />
